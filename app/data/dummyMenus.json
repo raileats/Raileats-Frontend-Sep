@@ -1,0 +1,40 @@
+{
+  "NDLS": {
+    "Delhi Zaika": [
+      {
+        "name": "Paneer Butter Masala",
+        "price": 180
+      },
+      {
+        "name": "Dal Makhani",
+        "price": 160
+      },
+      {
+        "name": "Veg Biryani",
+        "price": 150
+      },
+      {
+        "name": "Tandoori Roti",
+        "price": 20
+      }
+    ],
+    "Capital Foods": [
+      {
+        "name": "Chicken Biryani",
+        "price": 280
+      },
+      {
+        "name": "Mutton Korma",
+        "price": 350
+      },
+      {
+        "name": "Chicken Burger",
+        "price": 180
+      },
+      {
+        "name": "Butter Chicken",
+        "price": 320
+      }
+    ]
+  }
+}
