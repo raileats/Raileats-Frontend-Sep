@@ -1,3 +1,3 @@
-# RailEats Frontend Final
+# RailEats Frontend Final (Vercel Safe)
 
-Deploy-ready with homepage, APIs, cart, checkout, order summary, profile.
+Data moved to public/data, APIs fetch JSON (no import errors).

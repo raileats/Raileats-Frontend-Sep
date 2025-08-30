@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
-import menus from '../data/dummyMenus.json';
 
 export async function GET() {
-  return NextResponse.json(menus);
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || '';
+  const res = await fetch(`${baseUrl}/data/dummyMenus.json`);
+  const data = await res.json();
+  return NextResponse.json(data);
 }

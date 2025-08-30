@@ -1,0 +1,19 @@
+{
+  "stations": [
+    {
+      "code": "NDLS",
+      "name": "New Delhi",
+      "arrival": "2025-09-01 10:30"
+    },
+    {
+      "code": "BCT",
+      "name": "Mumbai Central",
+      "arrival": "2025-09-01 20:45"
+    },
+    {
+      "code": "PUNE",
+      "name": "Pune Junction",
+      "arrival": "2025-09-02 06:15"
+    }
+  ]
+}

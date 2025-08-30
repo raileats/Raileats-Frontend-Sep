@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
-import orders from '../../data/dummyOrders.json';
 
 export async function GET() {
-  return NextResponse.json(orders);
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || '';
+  const res = await fetch(`${baseUrl}/data/dummyOrders.json`);
+  const data = await res.json();
+  return NextResponse.json(data);
 }
