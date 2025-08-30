@@ -1,3 +1,3 @@
-# RailEats Frontend Final (Full Project)
+# RailEats Frontend Final
 
-Deploy-ready with homepage, search, cart, checkout, order summary, profile, invoice.
+Deploy-ready with homepage, APIs, cart, checkout, order summary, profile.
