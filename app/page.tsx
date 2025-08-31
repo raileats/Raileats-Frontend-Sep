@@ -1,19 +1,20 @@
-'use client'
 import HeroSlider from "./components/HeroSlider";
 import SearchBox from "./components/SearchBox";
-import Offers from "./components/Offers";
 
 export default function Home() {
   return (
-    <main className="flex flex-col items-center justify-center">
-      {/* Banner */}
+    <main>
+      {/* Banner/Slider */}
       <HeroSlider />
 
-      {/* Search */}
+      {/* Search Section */}
       <SearchBox />
 
-      {/* Offers Section */}
-      <Offers />
+      {/* Content */}
+      <div className="p-6 text-center">
+        <h1 className="text-3xl font-bold">Welcome to Raileats.in</h1>
+        <p className="mt-2 text-lg">Ab Rail Journey ka Swad Only Raileats ke Saath</p>
+      </div>
     </main>
   );
 }
