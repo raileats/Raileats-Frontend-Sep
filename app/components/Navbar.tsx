@@ -8,7 +8,7 @@ export default function Navbar() {
     <nav className="bg-black text-white">
       <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
         <div className="flex items-center space-x-3">
-          <img src="/logo.png" alt="RailEats Logo" className="w-10 h-10"/>
+          <img src="/logo.png" alt="RailEats Logo" className="w-14 h-14"/>
           <span className="font-bold text-xl">Raileats.in</span>
         </div>
         <div className="hidden md:flex space-x-6">
