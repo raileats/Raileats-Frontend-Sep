@@ -3,10 +3,12 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 
 const slides = [
-  { src: "/slides/restaurant.jpg", caption: "🍲 Delicious Meals Onboard" },
-  { src: "/slides/kitchen.jpg", caption: "👨‍🍳 Hygienic & Verified Kitchens" },
+  const slides = [
+  { src: "/slides/Offer20.png", caption: "🎉 Flat ₹20 OFF on Orders Above ₹250" },
+  { src: "/slides/Offer50.png", caption: "🔥 Flat ₹50 OFF on Orders Above ₹500" },
   { src: "/slides/fssai.jpg", caption: "✅ FSSAI Approved | Vendor Verified" },
 ];
+
 
 export default function HeroSlider() {
   const [index, setIndex] = useState(0);
