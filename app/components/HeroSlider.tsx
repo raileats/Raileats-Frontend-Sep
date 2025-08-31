@@ -20,7 +20,7 @@ export default function HeroSlider() {
   }, []);
 
   return (
-    <div className="relative w-full h-[300px] overflow-hidden bg-black flex items-center justify-center">
+    <div className="relative w-full h-[320px] overflow-hidden bg-yellow-400 flex items-center justify-center">
       {/* Slides */}
       {slides.map((slide, i) => (
         <div
@@ -33,18 +33,18 @@ export default function HeroSlider() {
             src={slide.src}
             alt="RailEats Banner"
             fill
-            className="object-contain bg-black" // cut nahi hoga
+            className="object-contain bg-yellow-400" // black → yellow
             priority={i === index}
           />
         </div>
       ))}
 
-      {/* 🔥 Overlay Heading - Fixed Text */}
-      <div className="absolute top-6 left-1/2 -translate-x-1/2 text-center z-10">
-        <h1 className="text-2xl md:text-3xl font-bold text-white drop-shadow-lg">
+      {/* 🔥 Overlay Heading - Thoda neeche shift */}
+      <div className="absolute top-10 left-1/2 -translate-x-1/2 text-center z-10">
+        <h1 className="text-2xl md:text-3xl font-bold text-black drop-shadow-md">
           Welcome to Raileats.in
         </h1>
-        <p className="mt-1 text-sm md:text-base text-gray-200 drop-shadow">
+        <p className="mt-1 text-sm md:text-base text-gray-800">
           Ab Rail Journey ka Swad Only Raileats ke Saath
         </p>
       </div>
@@ -55,7 +55,7 @@ export default function HeroSlider() {
           <span
             key={i}
             className={`w-3 h-3 rounded-full cursor-pointer ${
-              i === index ? "bg-yellow-400" : "bg-gray-400"
+              i === index ? "bg-black" : "bg-gray-300"
             }`}
             onClick={() => setIndex(i)}
           ></span>
