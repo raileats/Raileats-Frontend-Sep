@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
 import HeroSlider from './components/HeroSlider'
+
 export default function Home() {
   const [pnr, setPnr] = useState('')
   const [train, setTrain] = useState('')
@@ -28,48 +29,55 @@ export default function Home() {
         <p className="mt-2 text-lg">Ab Rail Journey ka Swad Only Raileats ke Saath</p>
       </div>
 
-      <div className="mt-10 w-full max-w-md space-y-4">
-        <div className="flex">
+      {/* Search Section */}
+      <div className="mt-10 w-full max-w-5xl flex flex-col md:flex-row gap-4 justify-center">
+        {/* PNR Search */}
+        <div className="flex-1 bg-white rounded shadow p-4 flex flex-col">
           <input
             type="text"
             placeholder="Enter PNR Number"
             value={pnr}
             onChange={(e) => setPnr(e.target.value)}
-            className="flex-1 px-4 py-2 border border-gray-400 rounded-l-md"
+            className="px-4 py-2 border border-gray-400 rounded mb-2"
           />
           <button
             onClick={handlePNRSearch}
-            className="bg-black text-white px-4 rounded-r-md"
+            className="bg-black text-white py-2 rounded"
           >
             Search by PNR
           </button>
         </div>
 
-        <div className="flex">
+        {/* Station Search */}
+        <div className="flex-1 bg-white rounded shadow p-4 flex flex-col">
+          <input
+            type="text"
+            placeholder="Enter Station Code"
+            className="px-4 py-2 border border-gray-400 rounded mb-2"
+          />
+          <button className="bg-black text-white py-2 rounded">
+            Search by Station
+          </button>
+        </div>
+
+        {/* Train Search */}
+        <div className="flex-1 bg-white rounded shadow p-4 flex flex-col">
           <input
             type="text"
             placeholder="Enter Train Number"
             value={train}
             onChange={(e) => setTrain(e.target.value)}
-            className="flex-1 px-4 py-2 border border-gray-400 rounded-l-md"
+            className="px-4 py-2 border border-gray-400 rounded mb-2"
           />
           <button
             onClick={handleTrainSearch}
-            className="bg-black text-white px-4 rounded-r-md"
+            className="bg-black text-white py-2 rounded"
           >
             Search by Train
           </button>
         </div>
       </div>
 
+      {/* Search Result */}
       {result && (
-        <div className="mt-10 w-full max-w-md bg-white p-4 rounded shadow text-black">
-          <h2 className="font-bold text-xl mb-2">Dummy {result.type} Result</h2>
-          <pre className="text-xs text-left whitespace-pre-wrap">
-            {JSON.stringify(result.data, null, 2)}
-          </pre>
-        </div>
-      )}
-    </main>
-  )
-}
+        <div className="mt-10 w-full max-w-3xl bg-white p-4 ro
