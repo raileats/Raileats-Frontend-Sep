@@ -1,63 +1,79 @@
-"use client";
-import { useState } from "react";
+"use client"
+import { useState } from "react"
 
 export default function SearchBox() {
-  const [mode, setMode] = useState("pnr");
-  const [input, setInput] = useState("");
+  const [type, setType] = useState("pnr")
+  const [value, setValue] = useState("")
 
-  const handleSearch = () => {
-    alert(`Searching by ${mode.toUpperCase()} → ${input}`);
-  };
+  const handleSubmit = () => {
+    alert(`Searching by ${type}: ${value}`)
+  }
 
   return (
-    <div className="bg-white shadow-lg rounded-xl p-4 max-w-xl mx-auto -mt-10 relative z-20">
-      {/* Radio Options */}
-      <div className="flex justify-center space-x-6 mb-4">
-        <label className="flex items-center space-x-2">
-          <input
-            type="radio"
-            value="pnr"
-            checked={mode === "pnr"}
-            onChange={(e) => setMode(e.target.value)}
-          />
-          <span className="text-sm font-medium">PNR</span>
-        </label>
-        <label className="flex items-center space-x-2">
-          <input
-            type="radio"
-            value="train"
-            checked={mode === "train"}
-            onChange={(e) => setMode(e.target.value)}
-          />
-          <span className="text-sm font-medium">Train</span>
-        </label>
-        <label className="flex items-center space-x-2">
-          <input
-            type="radio"
-            value="station"
-            checked={mode === "station"}
-            onChange={(e) => setMode(e.target.value)}
-          />
-          <span className="text-sm font-medium">Station</span>
-        </label>
-      </div>
+    <section className="w-full bg-white shadow-md py-6">
+      <div className="max-w-3xl mx-auto px-4">
+        <h3 className="text-xl md:text-2xl font-bold text-center mb-4">
+          Order Restaurant Food on Trains Online
+        </h3>
 
-      {/* Input + Submit */}
-      <div className="flex rounded-full border border-gray-300 overflow-hidden">
-        <input
-          type="text"
-          placeholder={`Enter ${mode.toUpperCase()} Number`}
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          className="flex-1 px-4 py-2 outline-none"
-        />
-        <button
-          onClick={handleSearch}
-          className="bg-black text-white px-6 font-semibold"
-        >
-          Submit
-        </button>
+        {/* Radio Options */}
+        <div className="flex justify-center gap-6 mb-4">
+          <label className="flex items-center gap-2">
+            <input
+              type="radio"
+              name="searchType"
+              value="pnr"
+              checked={type === "pnr"}
+              onChange={(e) => setType(e.target.value)}
+            />
+            <span>PNR</span>
+          </label>
+
+          <label className="flex items-center gap-2">
+            <input
+              type="radio"
+              name="searchType"
+              value="train"
+              checked={type === "train"}
+              onChange={(e) => setType(e.target.value)}
+            />
+            <span>Train Name/No.</span>
+          </label>
+
+          <label className="flex items-center gap-2">
+            <input
+              type="radio"
+              name="searchType"
+              value="station"
+              checked={type === "station"}
+              onChange={(e) => setType(e.target.value)}
+            />
+            <span>Station</span>
+          </label>
+        </div>
+
+        {/* Input + Submit */}
+        <div className="flex gap-2 justify-center">
+          <input
+            type="text"
+            placeholder={`Enter ${type.toUpperCase()} to Order`}
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            className="flex-1 px-4 py-2 border rounded-lg"
+          />
+          <button
+            onClick={handleSubmit}
+            className="bg-black text-white px-6 py-2 rounded-lg"
+          >
+            Submit
+          </button>
+        </div>
+
+        <p className="text-center mt-2 text-sm text-gray-600">
+          Order food in trains from trusted restaurants with freshness,
+          hygiene and timely delivery
+        </p>
       </div>
-    </div>
-  );
+    </section>
+  )
 }
