@@ -1,79 +1,25 @@
-"use client"
-import { useState } from "react"
+"use client";
+import { useState } from "react";
 
 export default function SearchBox() {
-  const [type, setType] = useState("pnr")
-  const [value, setValue] = useState("")
-
-  const handleSubmit = () => {
-    alert(`Searching by ${type}: ${value}`)
-  }
+  const [pnr, setPnr] = useState("");
+  const [train, setTrain] = useState("");
+  const [station, setStation] = useState("");
 
   return (
-    <section className="w-full bg-white shadow-md py-6">
-      <div className="max-w-3xl mx-auto px-4">
-        <h3 className="text-xl md:text-2xl font-bold text-center mb-4">
-          Order Restaurant Food on Trains Online
-        </h3>
-
-        {/* Radio Options */}
-        <div className="flex justify-center gap-6 mb-4">
-          <label className="flex items-center gap-2">
-            <input
-              type="radio"
-              name="searchType"
-              value="pnr"
-              checked={type === "pnr"}
-              onChange={(e) => setType(e.target.value)}
-            />
-            <span>PNR</span>
-          </label>
-
-          <label className="flex items-center gap-2">
-            <input
-              type="radio"
-              name="searchType"
-              value="train"
-              checked={type === "train"}
-              onChange={(e) => setType(e.target.value)}
-            />
-            <span>Train Name/No.</span>
-          </label>
-
-          <label className="flex items-center gap-2">
-            <input
-              type="radio"
-              name="searchType"
-              value="station"
-              checked={type === "station"}
-              onChange={(e) => setType(e.target.value)}
-            />
-            <span>Station</span>
-          </label>
-        </div>
-
-        {/* Input + Submit */}
-        <div className="flex gap-2 justify-center">
-          <input
-            type="text"
-            placeholder={`Enter ${type.toUpperCase()} to Order`}
-            value={value}
-            onChange={(e) => setValue(e.target.value)}
-            className="flex-1 px-4 py-2 border rounded-lg"
-          />
-          <button
-            onClick={handleSubmit}
-            className="bg-black text-white px-6 py-2 rounded-lg"
-          >
-            Submit
-          </button>
-        </div>
-
-        <p className="text-center mt-2 text-sm text-gray-600">
-          Order food in trains from trusted restaurants with freshness,
-          hygiene and timely delivery
-        </p>
+    <div className="w-full max-w-4xl mx-auto mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="flex flex-col">
+        <input type="text" placeholder="Enter PNR Number" value={pnr} onChange={(e) => setPnr(e.target.value)} className="px-4 py-2 border border-gray-400 rounded-t-md" />
+        <button className="bg-black text-white px-4 py-2 rounded-b-md">Search by PNR</button>
       </div>
-    </section>
-  )
+      <div className="flex flex-col">
+        <input type="text" placeholder="Enter Station Code" value={station} onChange={(e) => setStation(e.target.value)} className="px-4 py-2 border border-gray-400 rounded-t-md" />
+        <button className="bg-black text-white px-4 py-2 rounded-b-md">Search by Station</button>
+      </div>
+      <div className="flex flex-col">
+        <input type="text" placeholder="Enter Train Number" value={train} onChange={(e) => setTrain(e.target.value)} className="px-4 py-2 border border-gray-400 rounded-t-md" />
+        <button className="bg-black text-white px-4 py-2 rounded-b-md">Search by Train</button>
+      </div>
+    </div>
+  );
 }

@@ -1,25 +1,40 @@
 "use client";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 
+const slides = [
+  { src: "/slides/train-banner.jpg", caption: "🚆 Fresh Food on Trains | Loved by Passengers" },
+  { src: "/slides/offer20.png", caption: "🎉 Flat ₹20 OFF on Orders Above ₹250" },
+  { src: "/slides/offer50.png", caption: "🔥 Flat ₹50 OFF on Orders Above ₹500" },
+];
+
 export default function HeroSlider() {
+  const [index, setIndex] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setIndex((prev) => (prev + 1) % slides.length);
+    }, 3000);
+    return () => clearInterval(interval);
+  }, []);
+
   return (
-    <div className="w-full bg-yellow-400 flex flex-col items-center justify-center text-center py-6">
-      <div className="max-w-5xl w-full px-4">
-        <div className="relative w-full h-52 md:h-64 overflow-hidden rounded-lg shadow-md">
-          <Image
-            src="/train-banner.png"
-            alt="Train Banner"
-            fill
-            className="object-cover"
-            priority
-          />
+    <div className="relative w-full h-[300px] md:h-[400px] overflow-hidden bg-yellow-400">
+      {slides.map((slide, i) => (
+        <div
+          key={i}
+          className={`absolute inset-0 transition-opacity duration-700 ${i === index ? "opacity-100" : "opacity-0"}`}
+        >
+          <Image src={slide.src} alt={slide.caption} fill className="object-cover" />
+          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-black/60 px-4 py-2 rounded-lg text-white text-sm md:text-lg shadow-md">
+            {slide.caption}
+          </div>
         </div>
-        <h2 className="mt-4 text-2xl md:text-3xl font-bold text-black">
-          Order Restaurant Food on Trains Online
-        </h2>
-        <p className="text-gray-800 mt-1">
-          Fresh Food from trusted restaurants with hygiene & timely delivery
-        </p>
+      ))}
+      <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex space-x-2">
+        {slides.map((_, i) => (
+          <span key={i} className={`w-3 h-3 rounded-full cursor-pointer ${i === index ? "bg-yellow-400" : "bg-gray-400"}`} onClick={() => setIndex(i)}></span>
+        ))}
       </div>
     </div>
   );
