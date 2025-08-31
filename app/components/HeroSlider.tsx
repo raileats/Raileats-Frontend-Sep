@@ -3,11 +3,10 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 
 const slides = [
-  { src: "/slides/Offer20.png", caption: "🎉 Flat ₹20 OFF on Orders Above ₹250" },
-  { src: "/slides/Offer50.png", caption: "🔥 Flat ₹50 OFF on Orders Above ₹500" },
-  { src: "/slides/fssai.jpg", caption: "✅ FSSAI Approved | Vendor Verified" },
+  { src: "/slides/Offer20.png", caption: "" },
+  { src: "/slides/Offer50.png", caption: "" },
+  { src: "/slides/fssai.jpg", caption: "" },
 ];
-
 
 export default function HeroSlider() {
   const [index, setIndex] = useState(0);
@@ -21,34 +20,41 @@ export default function HeroSlider() {
   }, []);
 
   return (
-    <div className="relative w-full h-[250px] overflow-hidden bg-black">
+    <div className="relative w-full h-[300px] overflow-hidden bg-black flex items-center justify-center">
       {/* Slides */}
       {slides.map((slide, i) => (
         <div
           key={i}
-          className={`absolute inset-0 transition-opacity duration-700 ${
+          className={`absolute inset-0 flex items-center justify-center transition-opacity duration-700 ${
             i === index ? "opacity-100" : "opacity-0"
           }`}
         >
           <Image
             src={slide.src}
-            alt={slide.caption}
+            alt="RailEats Banner"
             fill
-            className="object-cover"
+            className="object-contain bg-black" // cut nahi hoga
             priority={i === index}
           />
-          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-black/60 px-3 py-1 rounded text-white text-sm shadow">
-            {slide.caption}
-          </div>
         </div>
       ))}
 
+      {/* 🔥 Overlay Heading - Fixed Text */}
+      <div className="absolute top-6 left-1/2 -translate-x-1/2 text-center z-10">
+        <h1 className="text-2xl md:text-3xl font-bold text-white drop-shadow-lg">
+          Welcome to Raileats.in
+        </h1>
+        <p className="mt-1 text-sm md:text-base text-gray-200 drop-shadow">
+          Ab Rail Journey ka Swad Only Raileats ke Saath
+        </p>
+      </div>
+
       {/* 🔘 Dots Indicator */}
-      <div className="absolute bottom-1 left-1/2 -translate-x-1/2 flex space-x-2">
+      <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex space-x-2 z-10">
         {slides.map((_, i) => (
           <span
             key={i}
-            className={`w-2.5 h-2.5 rounded-full cursor-pointer ${
+            className={`w-3 h-3 rounded-full cursor-pointer ${
               i === index ? "bg-yellow-400" : "bg-gray-400"
             }`}
             onClick={() => setIndex(i)}
