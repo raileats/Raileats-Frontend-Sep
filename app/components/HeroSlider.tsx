@@ -1,57 +1,32 @@
-"use client";
-import { useEffect, useState } from "react";
-import Image from "next/image";
-
-const slides = [
-  { src: "/slides/Offer20.png" },
-  { src: "/slides/Offer50.png" },
-  { src: "/slides/kitchen.jpg" },
-  { src: "/slides/fssai.jpg" },
-];
+"use client"
+import Image from "next/image"
 
 export default function HeroSlider() {
-  const [index, setIndex] = useState(0);
-
-  // Auto slide every 3 sec
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setIndex((prev) => (prev + 1) % slides.length);
-    }, 3000);
-    return () => clearInterval(interval);
-  }, []);
-
   return (
-    <div className="relative w-full h-[250px] md:h-[350px] overflow-hidden bg-yellow-400">
-      {/* Slides */}
-      {slides.map((slide, i) => (
-        <div
-          key={i}
-          className={`absolute inset-0 transition-opacity duration-700 ${
-            i === index ? "opacity-100" : "opacity-0"
-          }`}
-        >
+    <section className="w-full bg-gradient-to-r from-yellow-400 to-yellow-500">
+      <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between p-6 md:p-10">
+        
+        {/* 🖼️ Left side - Train Image */}
+        <div className="w-full md:w-1/2 flex justify-center">
           <Image
-            src={slide.src}
-            alt={`Slide ${i + 1}`}
-            fill
-            className="object-contain md:object-cover"
-            priority={i === index}
+            src="/train-banner.png" // 👈 आप public/ में डालें (Zoop जैसा train image)
+            alt="Train Banner"
+            width={500}
+            height={300}
+            className="object-contain"
           />
         </div>
-      ))}
 
-      {/* 🔘 Dots Indicator */}
-      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex space-x-2">
-        {slides.map((_, i) => (
-          <span
-            key={i}
-            className={`w-3 h-3 rounded-full cursor-pointer ${
-              i === index ? "bg-black" : "bg-gray-300"
-            }`}
-            onClick={() => setIndex(i)}
-          ></span>
-        ))}
+        {/* 📃 Right side - Text */}
+        <div className="w-full md:w-1/2 text-center md:text-left space-y-4">
+          <h2 className="text-2xl md:text-3xl font-bold text-black">
+            Fresh Food on Trains
+          </h2>
+          <p className="text-lg text-red-700 font-semibold">
+            Loved by 2M+ Passengers - RailEats
+          </p>
+        </div>
       </div>
-    </div>
-  );
+    </section>
+  )
 }
