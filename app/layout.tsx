@@ -1,26 +1,19 @@
-import './globals.css'
-import Navbar from './components/Navbar'
-import Footer from './components/Footer'
+import "./globals.css";
+import Navbar from "./components/Navbar";
+import BottomNav from "./components/BottomNav";
 
-export const metadata = {
-  title: 'Raileats.in - Food Delivery in Train',
-  description: 'Ab Rail Journey ka Swad Only Raileats ke Saath. Order food in train by PNR or Train Number.',
-  keywords: ['food in train', 'order food PNR', 'raileats', 'railway food delivery']
-}
-
-export default function RootLayout({ children }) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <head>
-        {/* Google Ads Placeholder */}
-        <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXX"
-          crossOrigin="anonymous"></script>
-      </head>
-      <body>
+      <body className="bg-yellow-400">
+        {/* Top Navbar (Desktop) */}
         <Navbar />
-        {children}
-        <Footer />
+        
+        <div className="pt-16 pb-16">{children}</div> {/* space for navbars */}
+
+        {/* Bottom Navbar (Mobile) */}
+        <BottomNav />
       </body>
     </html>
-  )
+  );
 }
