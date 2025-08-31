@@ -3,54 +3,45 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 
 const slides = [
-  { src: "/slides/Offer20.png", caption: "" },
-  { src: "/slides/Offer50.png", caption: "" },
-  { src: "/slides/fssai.jpg", caption: "" },
+  { src: "/slides/Offer20.png" },
+  { src: "/slides/Offer50.png" },
+  { src: "/slides/kitchen.jpg" },
+  { src: "/slides/fssai.jpg" },
 ];
 
 export default function HeroSlider() {
   const [index, setIndex] = useState(0);
 
-  // Auto slide every 2 sec
+  // Auto slide every 3 sec
   useEffect(() => {
     const interval = setInterval(() => {
       setIndex((prev) => (prev + 1) % slides.length);
-    }, 2000);
+    }, 3000);
     return () => clearInterval(interval);
   }, []);
 
   return (
-    <div className="relative w-full h-[320px] overflow-hidden bg-yellow-400 flex items-center justify-center">
+    <div className="relative w-full h-[250px] md:h-[350px] overflow-hidden bg-yellow-400">
       {/* Slides */}
       {slides.map((slide, i) => (
         <div
           key={i}
-          className={`absolute inset-0 flex items-center justify-center transition-opacity duration-700 ${
+          className={`absolute inset-0 transition-opacity duration-700 ${
             i === index ? "opacity-100" : "opacity-0"
           }`}
         >
           <Image
             src={slide.src}
-            alt="RailEats Banner"
+            alt={`Slide ${i + 1}`}
             fill
-            className="object-contain bg-yellow-400" // black → yellow
+            className="object-contain md:object-cover"
             priority={i === index}
           />
         </div>
       ))}
 
-      {/* 🔥 Overlay Heading - Thoda neeche shift */}
-      <div className="absolute top-10 left-1/2 -translate-x-1/2 text-center z-10">
-        <h1 className="text-2xl md:text-3xl font-bold text-black drop-shadow-md">
-          Welcome to Raileats.in
-        </h1>
-        <p className="mt-1 text-sm md:text-base text-gray-800">
-          Ab Rail Journey ka Swad Only Raileats ke Saath
-        </p>
-      </div>
-
       {/* 🔘 Dots Indicator */}
-      <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex space-x-2 z-10">
+      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex space-x-2">
         {slides.map((_, i) => (
           <span
             key={i}
