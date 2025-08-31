@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server';
+import path from 'path';
+import fs from 'fs';
 
 export async function GET() {
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || '';
-  const res = await fetch(`${baseUrl}/data/dummyMenus.json`);
-  const data = await res.json();
+  const filePath = path.join(process.cwd(), 'public/data/dummyMenus.json');
+  const jsonData = fs.readFileSync(filePath, 'utf-8');
+  const data = JSON.parse(jsonData);
   return NextResponse.json(data);
 }

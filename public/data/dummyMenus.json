@@ -9,16 +9,6 @@
         "name": "Veg Biryani",
         "price": 150
       }
-    ],
-    "Capital Foods": [
-      {
-        "name": "Chicken Biryani",
-        "price": 280
-      },
-      {
-        "name": "Butter Chicken",
-        "price": 320
-      }
     ]
   }
 }

@@ -1,3 +1,3 @@
-# RailEats Frontend Final
+# RailEats Frontend Final (fs-based APIs)
 
-Old + New merged with Vercel-safe APIs.
+APIs now use fs to read JSON (Vercel-safe, no fetch errors).
