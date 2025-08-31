@@ -1,3 +1,3 @@
-# RailEats Frontend Final (Vercel Safe)
+# RailEats Frontend Final
 
-Data moved to public/data, APIs fetch JSON (no import errors).
+Old + New merged with Vercel-safe APIs.

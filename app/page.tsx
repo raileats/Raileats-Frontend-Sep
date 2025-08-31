@@ -1,5 +1,4 @@
 import React from 'react';
-
 export default function Home() {
   return (
     <main className="p-6 text-center bg-black min-h-screen text-white">
