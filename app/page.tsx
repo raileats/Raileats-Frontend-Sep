@@ -1,7 +1,6 @@
 'use client'
 import { useState } from 'react'
-import HeroSlider from '../components/HeroSlider'
-
+import HeroSlider from './components/HeroSlider'
 export default function Home() {
   const [pnr, setPnr] = useState('')
   const [train, setTrain] = useState('')
