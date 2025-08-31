@@ -24,6 +24,7 @@ export default function Home() {
       {/* 🔥 Auto Sliding Banner */}
       <HeroSlider />
 
+      {/* Welcome Text */}
       <div className="p-6 text-center">
         <h1 className="text-4xl font-bold">Welcome to Raileats.in</h1>
         <p className="mt-2 text-lg">Ab Rail Journey ka Swad Only Raileats ke Saath</p>
@@ -80,4 +81,13 @@ export default function Home() {
 
       {/* Search Result */}
       {result && (
-        <div className="mt-10 w-full max-w-3xl bg-white p-4 ro
+        <div className="mt-10 w-full max-w-3xl bg-white p-4 rounded shadow text-black">
+          <h2 className="font-bold text-xl mb-2">Dummy {result.type} Result</h2>
+          <pre className="text-xs text-left whitespace-pre-wrap">
+            {JSON.stringify(result.data, null, 2)}
+          </pre>
+        </div>
+      )}
+    </main>
+  )
+}
