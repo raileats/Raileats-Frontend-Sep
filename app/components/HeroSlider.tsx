@@ -11,7 +11,7 @@ const slides = [
 export default function HeroSlider() {
   const [index, setIndex] = useState(0);
 
-  // Auto change every 2 sec
+  // Auto slide every 2 sec
   useEffect(() => {
     const interval = setInterval(() => {
       setIndex((prev) => (prev + 1) % slides.length);
@@ -20,7 +20,8 @@ export default function HeroSlider() {
   }, []);
 
   return (
-    <div className="relative w-full h-[400px] overflow-hidden">
+    <div className="relative w-full h-[400px] overflow-hidden bg-black">
+      {/* Slides */}
       {slides.map((slide, i) => (
         <div
           key={i}
@@ -28,7 +29,6 @@ export default function HeroSlider() {
             i === index ? "opacity-100" : "opacity-0"
           }`}
         >
-          {/* Image */}
           <Image
             src={slide.src}
             alt={slide.caption}
@@ -36,13 +36,24 @@ export default function HeroSlider() {
             className="object-cover"
             priority={i === index}
           />
-
-          {/* Caption */}
           <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-black/60 px-4 py-2 rounded-lg text-white text-lg shadow-md">
             {slide.caption}
           </div>
         </div>
       ))}
+
+      {/* 🔘 Dots Indicator */}
+      <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex space-x-2">
+        {slides.map((_, i) => (
+          <span
+            key={i}
+            className={`w-3 h-3 rounded-full cursor-pointer ${
+              i === index ? "bg-yellow-400" : "bg-gray-400"
+            }`}
+            onClick={() => setIndex(i)} // click पर भी slide बदलेगा
+          ></span>
+        ))}
+      </div>
     </div>
   );
 }
