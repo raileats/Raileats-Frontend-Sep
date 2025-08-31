@@ -1,21 +1,24 @@
-import Image from "next/image";
+"use client";
 import Link from "next/link";
 
 export default function Navbar() {
   return (
-    <nav className="flex items-center justify-between bg-black px-6 py-3">
-      <Link href="/" className="flex items-center space-x-2">
-        <Image src="/logo.png" alt="RailEats" width={60} height={60} /> {/* बड़ा लोगो */}
-        <span className="text-yellow-400 font-bold text-2xl">Raileats.in</span>
-      </Link>
-      <div className="space-x-6 text-white">
+    <nav className="hidden md:flex justify-between items-center px-8 py-3 bg-black text-white fixed w-full top-0 z-50">
+      {/* Left Logo */}
+      <div className="flex items-center space-x-3">
+        <img src="/logo.png" alt="RailEats" className="h-10 w-10" />
+        <span className="text-xl font-bold text-yellow-400">Raileats.in</span>
+      </div>
+
+      {/* Links */}
+      <div className="flex space-x-6 text-sm">
         <Link href="/">Home</Link>
         <Link href="/menu">Menu</Link>
         <Link href="/about">About</Link>
         <Link href="/contact">Contact</Link>
-        <Link href="/track">Track Order</Link>
-        <Link href="/group">Group Order</Link>
-        <Link href="/jain">Jain Food</Link>
+        <Link href="/track-order">Track Order</Link>
+        <Link href="/group-order">Group Order</Link>
+        <Link href="/jain-food">Jain Food</Link>
         <Link href="/tools">Rail Tools</Link>
         <Link href="/login">Login</Link>
       </div>
