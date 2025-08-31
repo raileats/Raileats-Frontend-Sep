@@ -1,44 +1,24 @@
-'use client'
-import Link from 'next/link'
-import { useState } from 'react'
+import Image from "next/image";
+import Link from "next/link";
 
 export default function Navbar() {
-  const [open, setOpen] = useState(false)
   return (
-    <nav className="bg-black text-white">
-      <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
-        <div className="flex items-center space-x-3">
-          <img src="/logo.png" alt="RailEats Logo" className="w-14 h-14"/>
-          <span className="font-bold text-xl">Raileats.in</span>
-        </div>
-        <div className="hidden md:flex space-x-6">
-          <Link href="/">Home</Link>
-          <Link href="/menu">Menu</Link>
-          <Link href="/about">About</Link>
-          <Link href="/contact">Contact</Link>
-          <a href="#">Track Order</a>
-          <a href="#">Group Order</a>
-          <a href="#">Jain Food</a>
-          <a href="#">Rail Tools</a>
-          <a href="#">Login</a>
-        </div>
-        <button className="md:hidden" onClick={() => setOpen(!open)}>
-          ☰
-        </button>
+    <nav className="flex items-center justify-between bg-black px-6 py-3">
+      <Link href="/" className="flex items-center space-x-2">
+        <Image src="/logo.png" alt="RailEats" width={60} height={60} /> {/* बड़ा लोगो */}
+        <span className="text-yellow-400 font-bold text-2xl">Raileats.in</span>
+      </Link>
+      <div className="space-x-6 text-white">
+        <Link href="/">Home</Link>
+        <Link href="/menu">Menu</Link>
+        <Link href="/about">About</Link>
+        <Link href="/contact">Contact</Link>
+        <Link href="/track">Track Order</Link>
+        <Link href="/group">Group Order</Link>
+        <Link href="/jain">Jain Food</Link>
+        <Link href="/tools">Rail Tools</Link>
+        <Link href="/login">Login</Link>
       </div>
-      {open && (
-        <div className="md:hidden bg-black px-4 py-2 space-y-2">
-          <Link href="/" onClick={()=>setOpen(false)}>Home</Link><br/>
-          <Link href="/menu" onClick={()=>setOpen(false)}>Menu</Link><br/>
-          <Link href="/about" onClick={()=>setOpen(false)}>About</Link><br/>
-          <Link href="/contact" onClick={()=>setOpen(false)}>Contact</Link><br/>
-          <a href="#">Track Order</a><br/>
-          <a href="#">Group Order</a><br/>
-          <a href="#">Jain Food</a><br/>
-          <a href="#">Rail Tools</a><br/>
-          <a href="#">Login</a><br/>
-        </div>
-      )}
     </nav>
-  )
+  );
 }
