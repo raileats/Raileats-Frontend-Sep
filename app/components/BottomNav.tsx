@@ -1,33 +1,48 @@
 "use client";
 import Link from "next/link";
-import { Home, Train, Gift, ShoppingBag, Menu } from "lucide-react";
 
 export default function BottomNav() {
   return (
-    <nav className="fixed bottom-0 left-0 w-full bg-white shadow-lg border-t flex justify-around items-center py-2 md:hidden">
-      <Link href="/" className="flex flex-col items-center text-gray-700">
-        <Home size={22} />
-        <span className="text-xs">Home</span>
+    <nav className="fixed bottom-0 left-0 right-0 bg-white shadow-md border-t flex justify-around items-center h-16 z-50">
+      {/* Home */}
+      <Link href="/" className="flex flex-col items-center text-sm">
+        <span className="text-xl">🏠</span>
+        <span>Home</span>
       </Link>
 
-      <Link href="/train-tools" className="flex flex-col items-center text-gray-700">
-        <Train size={22} />
-        <span className="text-xs">Train Tools</span>
+      {/* Train Tools */}
+      <Link href="/train-tools" className="flex flex-col items-center text-sm">
+        <span className="text-xl">🚆</span>
+        <span>Tools</span>
       </Link>
 
-      {/* 🚀 Bubble Style Center Button */}
-      <div className="relative -mt-8 bg-yellow-500 rounded-full p-4 shadow-lg">
-        <Image src="/logo.png" alt="RailEats Logo" width={40} height={40} />
+      {/* Center Logo Bubble */}
+      <div className="absolute -top-6 bg-yellow-400 rounded-full p-3 shadow-lg border-4 border-white">
+        <Link href="/">
+          <img
+            src="/logo.png"
+            alt="RailEats"
+            className="w-10 h-10 rounded-full"
+          />
+        </Link>
       </div>
 
-      <Link href="/offers" className="flex flex-col items-center text-gray-700">
-        <Gift size={22} />
-        <span className="text-xs">Offers</span>
+      {/* Offers */}
+      <Link href="/offers" className="flex flex-col items-center text-sm">
+        <span className="text-xl">🎁</span>
+        <span>Offers</span>
       </Link>
 
-      <Link href="/menu" className="flex flex-col items-center text-gray-700">
-        <Menu size={22} />
-        <span className="text-xs">Menu</span>
+      {/* Orders */}
+      <Link href="/orders" className="flex flex-col items-center text-sm">
+        <span className="text-xl">🛒</span>
+        <span>Orders</span>
+      </Link>
+
+      {/* Menu */}
+      <Link href="/menu" className="flex flex-col items-center text-sm">
+        <span className="text-xl">📋</span>
+        <span>Menu</span>
       </Link>
     </nav>
   );
