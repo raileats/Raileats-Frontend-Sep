@@ -1,23 +1,44 @@
+"use client";
 import HeroSlider from "./components/HeroSlider";
-import SearchBox from "./components/SearchBox";
-import Offers from "./components/Offers";
-import Steps from "./components/Steps";
-import ExploreRailInfo from "./components/ExploreRailInfo";
-import BottomNav from "./components/BottomNav";
 
 export default function Home() {
   return (
-    <main className="bg-yellow-100 min-h-screen pb-20">
+    <main>
+      {/* Hero Section with Slider */}
       <HeroSlider />
-      <div className="text-center py-6">
-        <h1 className="text-3xl font-bold">Welcome to RailEats.in</h1>
-        <p className="mt-2 text-lg">Ab Rail Journey ka Swad Only RailEats ke Saath</p>
+
+      {/* Search Section */}
+      <div className="mt-8 w-full max-w-4xl mx-auto flex flex-col md:flex-row gap-4 justify-center px-4">
+        {/* PNR Search */}
+        <div className="flex flex-col w-full md:w-1/3">
+          <input
+            type="text"
+            placeholder="Enter PNR Number"
+            className="px-4 py-2 border border-gray-400 rounded-t-md"
+          />
+          <button className="bg-black text-white px-4 py-2 rounded-b-md">Search by PNR</button>
+        </div>
+
+        {/* Station Search */}
+        <div className="flex flex-col w-full md:w-1/3">
+          <input
+            type="text"
+            placeholder="Enter Station Code"
+            className="px-4 py-2 border border-gray-400 rounded-t-md"
+          />
+          <button className="bg-black text-white px-4 py-2 rounded-b-md">Search by Station</button>
+        </div>
+
+        {/* Train Search */}
+        <div className="flex flex-col w-full md:w-1/3">
+          <input
+            type="text"
+            placeholder="Enter Train Number"
+            className="px-4 py-2 border border-gray-400 rounded-t-md"
+          />
+          <button className="bg-black text-white px-4 py-2 rounded-b-md">Search by Train</button>
+        </div>
       </div>
-      <SearchBox />
-      <Offers />
-      <Steps />
-      <ExploreRailInfo />
-      <BottomNav />
     </main>
   );
 }
