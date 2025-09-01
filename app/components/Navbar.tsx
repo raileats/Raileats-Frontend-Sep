@@ -6,7 +6,7 @@ export default function Navbar() {
     <nav className="bg-black text-white px-6 py-3 flex items-center justify-between shadow-md">
       {/* Logo */}
       <div className="flex items-center space-x-2">
-        <Image src="/logo.png" alt="RailEats Logo" width={40} height={40} />
+        <Image src="/public/logo.png" alt="RailEats Logo" width={40} height={40} />
         <span className="font-bold text-xl">RailEats</span>
       </div>
 
