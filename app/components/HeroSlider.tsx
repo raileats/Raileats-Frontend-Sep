@@ -1,25 +1,33 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 
 const slides = [
-  { src: "/slides/offer20.png", caption: "🎉 Flat ₹20 OFF on Orders Above ₹250" },
-  { src: "/slides/offer50.png", caption: "🔥 Flat ₹50 OFF on Orders Above ₹500" },
-  { src: "/slides/train-banner.jpg", caption: "🚆 Hygienic FSSAI Approved Kitchens" },
+  { src: "/slides/Offer20.png", caption: "🎉 Flat ₹20 OFF on Orders Above ₹250" },
+  { src: "/slides/Offer50.png", caption: "🔥 Flat ₹50 OFF on Orders Above ₹500" },
+  { src: "/slides/fssai.jpg", caption: "✅ FSSAI Approved | Vendor Verified" },
 ];
 
 export default function HeroSlider() {
   const [index, setIndex] = useState(0);
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setIndex((prev) => (prev + 1) % slides.length);
-    }, 2500);
+    const interval = setInterval(
+      () => setIndex((prev) => (prev + 1) % slides.length),
+      3000
+    );
     return () => clearInterval(interval);
   }, []);
 
   return (
-    <div className="relative w-full h-[300px] md:h-[400px] overflow-hidden bg-yellow-400">
+    <div className="relative w-full h-[250px] md:h-[350px] bg-yellow-400 flex flex-col justify-center items-center">
+      {/* Welcome Text */}
+      <div className="absolute top-6 text-center text-black">
+        <h1 className="text-2xl md:text-3xl font-bold">Welcome to RailEats.in</h1>
+        <p className="text-sm md:text-lg">Ab Rail Journey ka Swad Only RailEats ke Saath</p>
+      </div>
+
+      {/* Slider */}
       {slides.map((slide, i) => (
         <div
           key={i}
@@ -34,22 +42,21 @@ export default function HeroSlider() {
             className="object-cover"
             priority={i === index}
           />
-          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/60 px-4 py-1 rounded-md text-white text-sm md:text-lg">
+          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-black/70 px-4 py-2 rounded-lg text-white text-sm md:text-lg shadow-md">
             {slide.caption}
           </div>
         </div>
       ))}
 
-      {/* ✅ Dots */}
+      {/* Dots */}
       <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex space-x-2">
         {slides.map((_, i) => (
           <span
             key={i}
-            onClick={() => setIndex(i)}
-            className={`w-3 h-3 rounded-full cursor-pointer ${
-              i === index ? "bg-yellow-500" : "bg-gray-300"
+            className={`w-3 h-3 rounded-full ${
+              i === index ? "bg-yellow-400" : "bg-gray-400"
             }`}
-          ></span>
+          />
         ))}
       </div>
     </div>
