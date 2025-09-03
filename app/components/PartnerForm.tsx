@@ -1,9 +1,11 @@
 "use client";
 import { useState } from "react";
+import { X } from "lucide-react";
 
 export default function PartnerForm({ onClose }: { onClose: () => void }) {
   const [formData, setFormData] = useState({
     restaurantName: "",
+    ownerName: "",
     mobile: "",
     city: "",
     fssai: "",
@@ -13,115 +15,110 @@ export default function PartnerForm({ onClose }: { onClose: () => void }) {
     frontPhoto: null as File | null,
   });
 
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files?.[0]) {
+      setFormData({ ...formData, [e.target.name]: e.target.files[0] });
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("Form submitted", formData);
-    alert("Form Submitted!");
+    console.log("📩 Submitted Data:", formData);
+    alert("✅ Vendor Lead Submitted! (Data will go to Admin)");
     onClose();
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-lg p-6 relative">
-        {/* Close Button */}
-        <button
-          onClick={onClose}
-          className="absolute top-2 right-2 text-gray-600 hover:text-black"
+    <div className="fixed inset-0 bg-black/60 flex justify-center items-center z-50">
+      <div className="bg-white rounded-lg w-full max-w-lg h-[90vh] flex flex-col">
+        {/* Header with Close */}
+        <div className="flex justify-between items-center p-4 border-b">
+          <h2 className="text-lg font-bold">Become a Restaurant Partner</h2>
+          <button onClick={onClose}>
+            <X size={24} />
+          </button>
+        </div>
+
+        {/* Scrollable Form */}
+        <form
+          onSubmit={handleSubmit}
+          className="flex-1 overflow-y-auto p-4 space-y-4"
         >
-          ✕
-        </button>
-
-        <h2 className="text-xl font-bold mb-4">Become a Restaurant Partner</h2>
-        <form onSubmit={handleSubmit} className="space-y-4">
           <input
             type="text"
+            name="restaurantName"
             placeholder="Restaurant Name *"
+            className="w-full border p-2 rounded"
             required
-            className="w-full border p-2 rounded"
-            value={formData.restaurantName}
-            onChange={(e) =>
-              setFormData({ ...formData, restaurantName: e.target.value })
-            }
+            onChange={handleChange}
           />
           <input
             type="text"
-            placeholder="Mobile *"
+            name="ownerName"
+            placeholder="Owner Name"
+            className="w-full border p-2 rounded"
+            onChange={handleChange}
+          />
+          <input
+            type="tel"
+            name="mobile"
+            placeholder="Mobile Number *"
+            className="w-full border p-2 rounded"
             required
-            className="w-full border p-2 rounded"
-            value={formData.mobile}
-            onChange={(e) =>
-              setFormData({ ...formData, mobile: e.target.value })
-            }
+            onChange={handleChange}
           />
           <input
             type="text"
-            placeholder="City *"
+            name="city"
+            placeholder="City / Station *"
+            className="w-full border p-2 rounded"
             required
-            className="w-full border p-2 rounded"
-            value={formData.city}
-            onChange={(e) =>
-              setFormData({ ...formData, city: e.target.value })
-            }
-          />
-          <input
-            type="text"
-            placeholder="FSSAI Number"
-            className="w-full border p-2 rounded"
-            value={formData.fssai}
-            onChange={(e) =>
-              setFormData({ ...formData, fssai: e.target.value })
-            }
-          />
-          <input
-            type="text"
-            placeholder="GST Number"
-            className="w-full border p-2 rounded"
-            value={formData.gst}
-            onChange={(e) =>
-              setFormData({ ...formData, gst: e.target.value })
-            }
+            onChange={handleChange}
           />
 
-          {/* File Uploads */}
-          <label className="block">
-            Kitchen Photo:
-            <input
-              type="file"
-              className="w-full mt-1"
-              onChange={(e) =>
-                setFormData({ ...formData, kitchenPhoto: e.target.files?.[0] || null })
-              }
-            />
-          </label>
-          <label className="block">
-            Dining Photo:
-            <input
-              type="file"
-              className="w-full mt-1"
-              onChange={(e) =>
-                setFormData({ ...formData, diningPhoto: e.target.files?.[0] || null })
-              }
-            />
-          </label>
-          <label className="block">
-            Front Facing Photo:
-            <input
-              type="file"
-              className="w-full mt-1"
-              onChange={(e) =>
-                setFormData({ ...formData, frontPhoto: e.target.files?.[0] || null })
-              }
-            />
-          </label>
+          <input
+            type="text"
+            name="fssai"
+            placeholder="FSSAI No. (Optional)"
+            className="w-full border p-2 rounded"
+            onChange={handleChange}
+          />
+          <input
+            type="text"
+            name="gst"
+            placeholder="GST No. (Optional)"
+            className="w-full border p-2 rounded"
+            onChange={handleChange}
+          />
 
-          {/* Fixed Submit */}
+          <label className="block">
+            <span className="text-sm">Upload Kitchen Photo</span>
+            <input type="file" name="kitchenPhoto" onChange={handleFile} />
+          </label>
+          <label className="block">
+            <span className="text-sm">Upload Dining Photo</span>
+            <input type="file" name="diningPhoto" onChange={handleFile} />
+          </label>
+          <label className="block">
+            <span className="text-sm">Upload Front Facing Photo</span>
+            <input type="file" name="frontPhoto" onChange={handleFile} />
+          </label>
+        </form>
+
+        {/* Fixed Submit Button */}
+        <div className="p-4 border-t">
           <button
             type="submit"
-            className="w-full bg-blue-600 text-white py-2 rounded mt-4"
+            form="partnerForm"
+            className="w-full bg-blue-600 text-white py-2 rounded"
           >
             Submit
           </button>
-        </form>
+        </div>
       </div>
     </div>
   );
