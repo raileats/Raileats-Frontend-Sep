@@ -6,22 +6,22 @@ import Image from "next/image";
 const slides = [
   {
     id: 1,
-    src: "/offer20.png",
+    src: "/slides/offer20.png",
     alt: "Flat ₹20 OFF on Orders Above ₹250",
   },
   {
     id: 2,
-    src: "/offer50.png",
+    src: "/slides/offer50.png",
     alt: "Flat ₹50 OFF on Orders Above ₹500",
   },
   {
     id: 3,
-    src: "/fssai-kitchen.jpg", // ✅ add FSSAI Approved kitchen image
+    src: "/slides/fssai-kitchen.jpg",
     alt: "FSSAI Approved Hygienic Restaurant Kitchens",
   },
   {
     id: 4,
-    src: "/deliveryboy.png", // ✅ add delivery boy delivering food
+    src: "/slides/deliveryboy.png",
     alt: "RailEats Delivery – Fast & Hygienic",
   },
 ];
@@ -49,9 +49,8 @@ export default function HeroSlider() {
             <Image
               src={slide.src}
               alt={slide.alt}
-              layout="fill"
-              objectFit="cover"
-              className="rounded-xl"
+              fill
+              className="rounded-xl object-cover"
               priority={index === current}
             />
             {/* Caption */}
