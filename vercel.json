@@ -1,5 +1,8 @@
 {
   "rewrites": [
-    { "source": "/(.*)", "destination": "/" }
+    {
+      "source": "/admin/:path*",
+      "destination": "https://raileats-admin-frontend.vercel.app/:path*"
+    }
   ]
 }
