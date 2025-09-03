@@ -1,5 +1,5 @@
 "use client";
-import { Home, Train, Gift, Utensils, Store } from "lucide-react";
+import { Home, Train, Gift, Utensils } from "lucide-react";
 
 export default function BottomNav() {
   return (
@@ -17,16 +17,14 @@ export default function BottomNav() {
           <span>Tools</span>
         </a>
 
-        {/* Vendor Partner (logo) */}
+        {/* Vendor Partner (Zoop style but same size as tabs) */}
         <a
           href="/vendor-partner"
           className="flex flex-col items-center py-2 text-gray-700"
         >
-          <img
-            src="/logo.png"
-            alt="RailEats"
-            className="h-6 w-6 rounded-full"
-          />
+          <div className="flex items-center justify-center h-8 w-8 rounded-full bg-yellow-400">
+            <img src="/logo.png" alt="RailEats" className="h-5 w-5" />
+          </div>
           <span>Partner</span>
         </a>
 
