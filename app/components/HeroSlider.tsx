@@ -2,6 +2,8 @@
 import React from "react";
 import Slider from "react-slick";
 import Image from "next/image";
+import "slick-carousel/slick/slick.css";
+import "slick-carousel/slick/slick-theme.css";
 
 const slides = [
   {
@@ -35,10 +37,26 @@ export default function HeroSlider() {
     slidesToShow: 1,
     slidesToScroll: 1,
     arrows: false,
+    appendDots: (dots: React.ReactNode) => (
+      <div
+        style={{
+          position: "absolute",
+          bottom: "10px",
+          width: "100%",
+          display: "flex",
+          justifyContent: "center",
+        }}
+      >
+        <ul className="flex gap-2">{dots}</ul>
+      </div>
+    ),
+    customPaging: () => (
+      <div className="w-3 h-3 bg-gray-300 rounded-full hover:bg-yellow-400 transition-colors" />
+    ),
   };
 
   return (
-    <div className="w-full max-w-6xl mx-auto mt-4">
+    <div className="w-full max-w-6xl mx-auto mt-4 relative">
       <Slider {...settings}>
         {slides.map((slide) => (
           <div key={slide.id} className="w-full">
@@ -47,10 +65,10 @@ export default function HeroSlider() {
                 src={slide.image}
                 alt={slide.text}
                 fill
-                className="object-cover"  // ✅ fills properly, no black gaps
+                className="object-cover"
                 priority
               />
-              <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black/60 text-white px-4 py-2 rounded-lg text-sm md:text-lg">
+              <div className="absolute bottom-12 left-1/2 transform -translate-x-1/2 bg-black/60 text-white px-4 py-2 rounded-lg text-sm md:text-lg">
                 {slide.text}
               </div>
             </div>
