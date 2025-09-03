@@ -1,41 +1,75 @@
 "use client";
+import { useState } from "react";
 
 export default function SearchBox() {
+  const [searchType, setSearchType] = useState("pnr");
+  const [inputValue, setInputValue] = useState("");
+
+  const handleSearch = () => {
+    if (!inputValue) {
+      alert("Please enter value");
+      return;
+    }
+    console.log(`Searching ${searchType} for: ${inputValue}`);
+    // Yaha aap API call / navigation add kar sakte ho
+  };
+
   return (
-    <div className="mt-8 w-full max-w-4xl mx-auto flex flex-col md:flex-row gap-4 justify-center px-4">
-      {/* PNR Search */}
-      <div className="flex flex-col w-full md:w-1/3">
-        <input
-          type="text"
-          placeholder="Enter PNR Number"
-          className="px-4 py-2 border border-gray-400 rounded-t-md"
-        />
-        <button className="bg-black text-white px-4 py-2 rounded-b-md">
-          Search by PNR
-        </button>
+    <div className="mt-4 w-full max-w-xl mx-auto bg-white rounded-lg shadow p-4 text-center">
+      {/* Radio Selection */}
+      <div className="flex justify-center gap-6 mb-4">
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="radio"
+            name="searchType"
+            value="pnr"
+            checked={searchType === "pnr"}
+            onChange={(e) => setSearchType(e.target.value)}
+          />
+          <span>PNR</span>
+        </label>
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="radio"
+            name="searchType"
+            value="train"
+            checked={searchType === "train"}
+            onChange={(e) => setSearchType(e.target.value)}
+          />
+          <span>Train</span>
+        </label>
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="radio"
+            name="searchType"
+            value="station"
+            checked={searchType === "station"}
+            onChange={(e) => setSearchType(e.target.value)}
+          />
+          <span>Station</span>
+        </label>
       </div>
 
-      {/* Station Search */}
-      <div className="flex flex-col w-full md:w-1/3">
+      {/* Input + Button */}
+      <div className="flex">
         <input
           type="text"
-          placeholder="Enter Station Code"
-          className="px-4 py-2 border border-gray-400 rounded-t-md"
+          placeholder={
+            searchType === "pnr"
+              ? "Enter PNR Number"
+              : searchType === "train"
+              ? "Enter Train Number"
+              : "Enter Station Code"
+          }
+          value={inputValue}
+          onChange={(e) => setInputValue(e.target.value)}
+          className="flex-grow px-4 py-2 border border-gray-400 rounded-l-md"
         />
-        <button className="bg-black text-white px-4 py-2 rounded-b-md">
-          Search by Station
-        </button>
-      </div>
-
-      {/* Train Search */}
-      <div className="flex flex-col w-full md:w-1/3">
-        <input
-          type="text"
-          placeholder="Enter Train Number"
-          className="px-4 py-2 border border-gray-400 rounded-t-md"
-        />
-        <button className="bg-black text-white px-4 py-2 rounded-b-md">
-          Search by Train
+        <button
+          onClick={handleSearch}
+          className="bg-black text-white px-6 py-2 rounded-r-md"
+        >
+          Search
         </button>
       </div>
     </div>
