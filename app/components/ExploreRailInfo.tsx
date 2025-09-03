@@ -1,22 +1,15 @@
-export default function ExploreRailInfo() {
-  const info = [
-    { title: "Track Live Train", icon: "🚆" },
-    { title: "Check PNR Status", icon: "📄" },
-    { title: "Platform Locator", icon: "📍" },
-    { title: "Train Time Table", icon: "🕒" },
-  ];
+"use client";
 
+export default function ExploreRailInfo() {
   return (
-    <div className="w-full max-w-5xl mx-auto mt-12 px-4">
-      <h2 className="text-center font-bold text-2xl mb-6">Explore Railway Information</h2>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
-        {info.map((item, i) => (
-          <div key={i} className="p-6 bg-white rounded-lg shadow">
-            <div className="text-4xl">{item.icon}</div>
-            <h3 className="mt-2 font-semibold">{item.title}</h3>
-          </div>
-        ))}
+    <section className="mt-10 max-w-4xl mx-auto px-4">
+      <h2 className="text-center font-bold mb-4">Explore Railway Information</h2>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+        <div className="p-4 bg-white shadow rounded">🚆 Track Live Train</div>
+        <div className="p-4 bg-white shadow rounded">📋 Check PNR Status</div>
+        <div className="p-4 bg-white shadow rounded">📍 Platform Locator</div>
+        <div className="p-4 bg-white shadow rounded">🕒 Train Time Table</div>
       </div>
-    </div>
+    </section>
   );
 }
