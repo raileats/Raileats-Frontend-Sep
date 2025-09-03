@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 
-// 👇 Slides array – images public folder से लेंगे
 const slides = [
   { src: "/Offer20.png", caption: "🎉 Flat ₹20 OFF on Orders Above ₹250" },
   { src: "/Offer50.png", caption: "🔥 Flat ₹50 OFF on Orders Above ₹500" },
@@ -12,7 +11,6 @@ const slides = [
 export default function HeroSlider() {
   const [index, setIndex] = useState(0);
 
-  // Auto slide every 3 sec
   useEffect(() => {
     const interval = setInterval(() => {
       setIndex((prev) => (prev + 1) % slides.length);
@@ -22,7 +20,6 @@ export default function HeroSlider() {
 
   return (
     <div className="relative w-full h-[300px] md:h-[400px] overflow-hidden bg-yellow-400">
-      {/* Slides */}
       {slides.map((slide, i) => (
         <div
           key={i}
@@ -37,14 +34,13 @@ export default function HeroSlider() {
             className="object-contain md:object-cover"
             priority={i === index}
           />
-          {/* Caption text */}
           <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/70 px-4 py-2 rounded-lg text-white text-sm md:text-lg shadow-md">
             {slide.caption}
           </div>
         </div>
       ))}
 
-      {/* Dots Indicator */}
+      {/* dots */}
       <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex space-x-2">
         {slides.map((_, i) => (
           <span
