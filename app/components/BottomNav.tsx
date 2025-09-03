@@ -22,13 +22,15 @@ export default function BottomNav() {
           Train Tools
         </button>
 
-        {/* ✅ Center Partner Bubble */}
+        {/* ✅ Center Partner Bubble with Animation */}
         <div className="flex flex-col items-center">
           <button
             onClick={() => setPartnerOpen(true)}
-            className="relative bg-yellow-400 rounded-full w-16 h-16 flex items-center justify-center shadow-lg border-4 border-white -mt-8"
+            className="relative bg-yellow-400 rounded-full w-16 h-16 flex items-center justify-center shadow-lg border-4 border-white -mt-8 animate-bubbleGlow hover:animate-pulseGlow focus:animate-pulseGlow transition-all"
           >
-            <img src="/logo.png" alt="RailEats Logo" className="w-9 h-9" />
+            <img src="/logo.png" alt="RailEats Logo" className="w-9 h-9 relative z-10" />
+            {/* Shine overlay */}
+            <div className="absolute inset-0 animate-shine rounded-full"></div>
           </button>
           <span className="text-xs font-semibold text-yellow-600 mt-1">
             Partner
