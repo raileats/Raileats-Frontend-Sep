@@ -4,17 +4,20 @@ import BottomNav from "./components/BottomNav";
 
 export const metadata = {
   title: "RailEats",
-  description: "Fresh food on trains",
+  description: "Fresh Food on Trains | RailEats",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className="font-sans">
+      <body>
+        {/* Fixed Navbar */}
         <Navbar />
-        <div className="main-content">
-          {children}
-        </div>
+
+        {/* Main content */}
+        <main className="main-content">{children}</main>
+
+        {/* Fixed Bottom Nav */}
         <BottomNav />
       </body>
     </html>
