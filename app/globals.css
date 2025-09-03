@@ -1,21 +1,46 @@
-/* Slick carousel global fix */
+/* === Slick carousel hard fix === */
 
-/* Make sure slider uses full width */
+/* Force full width container */
 .slick-slider,
 .slick-list,
 .slick-track {
   width: 100% !important;
 }
 
-/* Prevent hidden content on small screens */
+/* Proper flex alignment */
+.slick-track {
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+}
+
+/* Each slide should stretch full width */
+.slick-slide {
+  float: none !important;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+}
+
+.slick-slide > div {
+  width: 100% !important;
+}
+
+/* Prevent content cut */
 .slick-list {
   overflow: hidden !important;
 }
 
-/* Align slides properly */
-.slick-slide > div {
-  margin: 0 auto; /* center each slide */
-  width: 100% !important;
+/* Dots styling */
+.slick-dots {
+  bottom: 12px !important;
 }
 
-/* Dots s*
+.slick-dots li button:before {
+  font-size: 10px !important;
+  color: #d1d5db !important; /* gray-300 */
+}
+
+.slick-dots li.slick-active button:before {
+  color: #facc15 !important; /* yellow-400 */
+}
