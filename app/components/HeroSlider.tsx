@@ -33,10 +33,16 @@ export default function HeroSlider() {
     dots: true,
     infinite: true,
     autoplay: true,
-    speed: 800,
+    autoplaySpeed: 3000,
+    speed: 600,
+    swipe: true,
+    swipeToSlide: true,
+    touchThreshold: 12,
     slidesToShow: 1,
     slidesToScroll: 1,
     arrows: false,
+    pauseOnHover: true,
+    pauseOnFocus: true,
     appendDots: (dots: React.ReactNode) => (
       <div
         style={{
@@ -56,11 +62,11 @@ export default function HeroSlider() {
   };
 
   return (
-    <div className="w-full max-w-6xl mx-auto mt-4 relative">
+    <div className="w-full relative"> {/* ✅ Full width wrapper */}
       <Slider {...settings}>
         {slides.map((slide) => (
-          <div key={slide.id} className="w-full">
-            <div className="relative rounded-xl overflow-hidden shadow-lg aspect-[16/9]">
+          <div key={slide.id} className="w-full"> {/* ✅ Force full width */}
+            <div className="relative w-full h-[220px] sm:h-[320px] md:h-[420px] lg:h-[480px] xl:h-[520px] rounded-xl overflow-hidden shadow-lg">
               <Image
                 src={slide.image}
                 alt={slide.text}
@@ -76,7 +82,7 @@ export default function HeroSlider() {
         ))}
       </Slider>
 
-      {/* Custom CSS for active dot */}
+      {/* Active dot color */}
       <style jsx global>{`
         .slick-dots li.slick-active div {
           background-color: #facc15 !important; /* Tailwind yellow-400 */
