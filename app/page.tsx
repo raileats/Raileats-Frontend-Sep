@@ -1,49 +1,56 @@
 "use client";
+
+import Navbar from "./components/Navbar";
 import HeroSlider from "./components/HeroSlider";
+import SearchBox from "./components/SearchBox";
+import Offers from "./components/Offers";
+import Steps from "./components/Steps";
+import ExploreRailInfo from "./components/ExploreRailInfo";
+import BottomNav from "./components/BottomNav";
 
-export default function Home() {
+export default function HomePage() {
   return (
-    <main>
-      <HeroSlider />
+    <main className="flex flex-col min-h-screen">
+      {/* 🔝 Navbar */}
+      <Navbar />
 
-      {/* Search Section */}
-      <div className="mt-8 w-full max-w-4xl mx-auto flex flex-col md:flex-row gap-4 justify-center px-4">
-        {/* PNR */}
-        <div className="flex flex-col w-full md:w-1/3">
-          <input
-            type="text"
-            placeholder="Enter PNR Number"
-            className="px-4 py-2 border border-gray-400 rounded-t-md"
-          />
-          <button className="bg-black text-white px-4 py-2 rounded-b-md">
-            Search by PNR
-          </button>
-        </div>
+      {/* 🎉 Hero Section */}
+      <section className="relative">
+        <HeroSlider />
 
-        {/* Station */}
-        <div className="flex flex-col w-full md:w-1/3">
-          <input
-            type="text"
-            placeholder="Enter Station Code"
-            className="px-4 py-2 border border-gray-400 rounded-t-md"
-          />
-          <button className="bg-black text-white px-4 py-2 rounded-b-md">
-            Search by Station
-          </button>
+        {/* Welcome Text */}
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 text-center">
+          <h1 className="text-2xl md:text-3xl font-bold text-black bg-yellow-400 px-4 py-2 rounded-lg shadow-md">
+            Welcome to RailEats.in
+          </h1>
+          <p className="text-sm md:text-base text-black mt-2">
+            Ab Rail Journey ka Swad Only RailEats ke Saath
+          </p>
         </div>
+      </section>
 
-        {/* Train */}
-        <div className="flex flex-col w-full md:w-1/3">
-          <input
-            type="text"
-            placeholder="Enter Train Number"
-            className="px-4 py-2 border border-gray-400 rounded-t-md"
-          />
-          <button className="bg-black text-white px-4 py-2 rounded-b-md">
-            Search by Train
-          </button>
-        </div>
-      </div>
+      {/* 🔍 Search Section */}
+      <section className="mt-8 px-4">
+        <SearchBox />
+      </section>
+
+      {/* 🎁 Offers Section */}
+      <section className="mt-12 px-4">
+        <Offers />
+      </section>
+
+      {/* 📦 Steps Section */}
+      <section className="mt-12 px-4">
+        <Steps />
+      </section>
+
+      {/* 🚉 Explore Railway Info */}
+      <section className="mt-12 px-4 mb-20">
+        <ExploreRailInfo />
+      </section>
+
+      {/* 📱 Bottom Nav (Mobile only) */}
+      <BottomNav />
     </main>
   );
 }
