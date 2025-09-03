@@ -1,25 +1,43 @@
 "use client";
-import { Home, Train, Percent, User } from "lucide-react";
+import { useState } from "react";
+import { Home, Gift, Train } from "lucide-react"; // icons
+import PartnerForm from "./PartnerForm"; // ✅ import popup form
 
 export default function BottomNav() {
+  const [partnerOpen, setPartnerOpen] = useState(false);
+
   return (
-    <div className="bg-white shadow-t border-t border-gray-200 flex justify-around items-center h-14">
-      <button className="flex flex-col items-center text-xs">
-        <Home size={20} />
-        Home
-      </button>
-      <button className="flex flex-col items-center text-xs">
-        <Train size={20} />
-        Train Tools
-      </button>
-      <button className="flex flex-col items-center text-xs">
-        <Percent size={20} />
-        Offers
-      </button>
-      <button className="flex flex-col items-center text-xs">
-        <User size={20} />
-        My Menu
-      </button>
-    </div>
+    <>
+      {/* ✅ Bottom Fixed Navbar */}
+      <nav className="fixed bottom-0 left-0 w-full bg-white border-t shadow-lg flex justify-around items-center h-16 z-40">
+        <button className="flex flex-col items-center text-sm">
+          <Home size={22} />
+          Home
+        </button>
+        <button className="flex flex-col items-center text-sm">
+          <Train size={22} />
+          Train Tools
+        </button>
+
+        {/* Center Bubble Partner Button */}
+        <button
+          onClick={() => setPartnerOpen(true)}
+          className="absolute -top-6 left-1/2 -translate-x-1/2 bg-yellow-400 rounded-full w-14 h-14 flex items-center justify-center shadow-lg border-4 border-white"
+        >
+          <img src="/logo.png" alt="RailEats Logo" className="w-8 h-8" />
+        </button>
+
+        <button className="flex flex-col items-center text-sm">
+          <Gift size={22} />
+          Offers
+        </button>
+        <button className="flex flex-col items-center text-sm">
+          My Menu
+        </button>
+      </nav>
+
+      {/* ✅ Popup Form */}
+      {partnerOpen && <PartnerForm onClose={() => setPartnerOpen(false)} />}
+    </>
   );
 }
