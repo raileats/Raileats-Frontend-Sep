@@ -16,7 +16,7 @@ const slides = [
   },
   {
     id: 3,
-    src: "/slides/fssai-kitchen.jpg",
+    src: "/slides/fssai-kitchen.png",
     alt: "FSSAI Approved Hygienic Restaurant Kitchens",
   },
   {
