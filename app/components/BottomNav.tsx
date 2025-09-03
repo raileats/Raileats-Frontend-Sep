@@ -1,43 +1,46 @@
 "use client";
-import Image from "next/image";
 import { useState } from "react";
+import { Home, Gift, Train, Menu } from "lucide-react"; // icons
+import PartnerForm from "./PartnerForm"; // ✅ popup form import
 
-export default function Navbar() {
-  const [loggedIn, setLoggedIn] = useState(false);
+export default function BottomNav() {
+  const [partnerOpen, setPartnerOpen] = useState(false);
 
   return (
-    <nav className="bg-white shadow-md px-4 py-2 flex justify-between items-center">
-      {/* Logo with bubble + shine animation */}
-      <div className="flex items-center gap-2">
-        <div className="relative">
-          <Image
-            src="/logo.png"
-            alt="RailEats Logo"
-            width={55}
-            height={55}
-            className="animate-bubbleGlow"
-          />
-          {/* Shine overlay */}
-          <div className="absolute inset-0 animate-shine rounded-full"></div>
-        </div>
-
-        {/* Shiny Text */}
-        <span className="font-bold text-lg bg-gradient-to-r from-yellow-500 via-orange-400 to-yellow-600 bg-clip-text text-transparent animate-textShine">
-          RailEats
-        </span>
-      </div>
-
-      {/* Login / Profile */}
-      {loggedIn ? (
-        <button className="text-sm font-medium">My Profile ▼</button>
-      ) : (
-        <button
-          onClick={() => setLoggedIn(true)}
-          className="bg-yellow-500 text-black px-3 py-1 rounded"
-        >
-          Login
+    <>
+      {/* ✅ Bottom Fixed Navbar */}
+      <nav className="fixed bottom-0 left-0 w-full bg-white border-t shadow-lg flex justify-around items-center h-16 z-40">
+        <button className="flex flex-col items-center text-xs">
+          <Home size={22} />
+          Home
         </button>
-      )}
-    </nav>
+
+        <button className="flex flex-col items-center text-xs">
+          <Train size={22} />
+          Train Tools
+        </button>
+
+        {/* ✅ Center Bubble Partner Button */}
+        <button
+          onClick={() => setPartnerOpen(true)}
+          className="absolute -top-6 left-1/2 -translate-x-1/2 bg-yellow-400 rounded-full w-16 h-16 flex items-center justify-center shadow-lg border-4 border-white"
+        >
+          <img src="/logo.png" alt="RailEats Logo" className="w-9 h-9" />
+        </button>
+
+        <button className="flex flex-col items-center text-xs">
+          <Gift size={22} />
+          Offers
+        </button>
+
+        <button className="flex flex-col items-center text-xs">
+          <Menu size={22} />
+          My Menu
+        </button>
+      </nav>
+
+      {/* ✅ Popup Partner Form */}
+      {partnerOpen && <PartnerForm onClose={() => setPartnerOpen(false)} />}
+    </>
   );
 }
