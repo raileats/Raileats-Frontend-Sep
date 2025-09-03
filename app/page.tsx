@@ -2,43 +2,27 @@
 
 import Navbar from "./components/Navbar";
 import HeroSlider from "./components/HeroSlider";
-import SearchBox from "./components/SearchBox";
-import Offers from "./components/Offers";
-import Steps from "./components/Steps";
-import ExploreRailInfo from "./components/ExploreRailInfo";
-import BottomNav from "./components/BottomNav";
 
 export default function HomePage() {
   return (
-    <main className="flex flex-col min-h-screen">
-      {/* 🔝 Navbar */}
+    <main className="flex flex-col items-center justify-center">
+      {/* Navbar */}
       <Navbar />
 
-      {/* 🟡 Welcome text (only once) */}
-      <section className="text-center bg-yellow-400 py-6">
-        <h1 className="text-2xl md:text-3xl font-bold">Welcome to RailEats.in</h1>
-        <p className="text-md md:text-lg mt-2">
-          Ab Rail Journey ka Swad Only RailEats ke Saath!
+      {/* Welcome text */}
+      <div className="text-center mt-6">
+        <h1 className="text-2xl font-bold text-black">
+          Welcome to <span className="text-yellow-600">RailEats.in</span>
+        </h1>
+        <p className="text-sm text-black mt-1">
+          Ab Rail Journey ka Swad Only Raileats ke Saath
         </p>
-      </section>
+      </div>
 
-      {/* 🎉 Hero Slider */}
-      <HeroSlider />
-
-      {/* 🔍 Search Box */}
-      <SearchBox />
-
-      {/* 💰 Offers */}
-      <Offers />
-
-      {/* 🚉 Order Steps */}
-      <Steps />
-
-      {/* 📊 Explore Rail Info */}
-      <ExploreRailInfo />
-
-      {/* 📱 Bottom Navigation (for mobile) */}
-      <BottomNav />
+      {/* Slider */}
+      <div className="mt-4 w-full">
+        <HeroSlider />
+      </div>
     </main>
   );
 }
