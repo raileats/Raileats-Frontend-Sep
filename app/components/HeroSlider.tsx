@@ -51,7 +51,7 @@ export default function HeroSlider() {
       </div>
     ),
     customPaging: () => (
-      <div className="w-3 h-3 bg-gray-300 rounded-full hover:bg-yellow-400 transition-colors" />
+      <div className="w-3 h-3 bg-gray-300 rounded-full transition-colors" />
     ),
   };
 
@@ -75,6 +75,13 @@ export default function HeroSlider() {
           </div>
         ))}
       </Slider>
+
+      {/* Custom CSS for active dot */}
+      <style jsx global>{`
+        .slick-dots li.slick-active div {
+          background-color: #facc15 !important; /* Tailwind yellow-400 */
+        }
+      `}</style>
     </div>
   );
 }
