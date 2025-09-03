@@ -10,17 +10,17 @@ const slides = [
     text: "Flat ₹50 OFF on Orders Above ₹500",
   },
   {
-    id: 1,
+    id: 2,
     image: "/slides/offer20.png",
     text: "Flat ₹20 OFF on Orders Above ₹250",
   },
   {
-    id: 2,
+    id: 3,
     image: "/slides/fssai-kitchen.png",
     text: "FSSAI Approved Hygienic Restaurant Kitchens",
   },
   {
-    id: 3,
+    id: 4,
     image: "/slides/deliveryboy.png",
     text: "RailEats Delivery – Fast & Hygienic",
   },
@@ -41,16 +41,16 @@ export default function HeroSlider() {
     <div className="w-full max-w-6xl mx-auto mt-4">
       <Slider {...settings}>
         {slides.map((slide) => (
-          <div key={slide.id} className="px-2">
-            <div className="relative rounded-xl overflow-hidden shadow-lg aspect-[16/9] bg-black">
+          <div key={slide.id} className="w-full">
+            <div className="relative rounded-xl overflow-hidden shadow-lg aspect-[16/9]">
               <Image
                 src={slide.image}
                 alt={slide.text}
                 fill
-                className="object-contain bg-black"
+                className="object-cover"  // ✅ fills properly, no black gaps
                 priority
               />
-              <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-60 text-white px-4 py-2 rounded-lg text-sm md:text-lg">
+              <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black/60 text-white px-4 py-2 rounded-lg text-sm md:text-lg">
                 {slide.text}
               </div>
             </div>
