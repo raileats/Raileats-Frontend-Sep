@@ -6,17 +6,22 @@ import Image from "next/image";
 const slides = [
   {
     id: 1,
-    image: "/slides/offer.jpg",
+    image: "/slides/offer50.png",
     text: "Flat ₹50 OFF on Orders Above ₹500",
   },
   {
+    id: 1,
+    image: "/slides/offer20.png",
+    text: "Flat ₹20 OFF on Orders Above ₹250",
+  },
+  {
     id: 2,
-    image: "/slides/kitchen.jpg",
+    image: "/slides/fssai-kitchen.png",
     text: "FSSAI Approved Hygienic Restaurant Kitchens",
   },
   {
     id: 3,
-    image: "/slides/deliveryboy.jpg",
+    image: "/slides/deliveryboy.png",
     text: "RailEats Delivery – Fast & Hygienic",
   },
 ];
