@@ -1,10 +1,11 @@
 import "./globals.css";
+import type { Metadata } from "next";
 import Navbar from "./components/Navbar";
 import BottomNav from "./components/BottomNav";
 
-export const metadata = {
-  title: "RailEats",
-  description: "Ab Rail Journey ka Swad Only RailEats ke Saath!",
+export const metadata: Metadata = {
+  title: "RailEats - Fresh Food on Trains",
+  description: "Order hygienic and fresh food in trains with RailEats.",
 };
 
 export default function RootLayout({
@@ -14,19 +15,15 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="bg-gray-50">
-        {/* 🔝 Top Navbar fixed */}
-        <div className="fixed top-0 left-0 w-full z-50">
-          <Navbar />
-        </div>
+      <body className="bg-gray-50 text-gray-900">
+        {/* Top Navbar */}
+        <Navbar />
 
-        {/* 🖥️ Main content (padding top + bottom so content navbar ke neeche aaye) */}
-        <main className="pt-20 pb-20">{children}</main>
+        {/* Main Content */}
+        <main className="min-h-screen">{children}</main>
 
-        {/* 🔻 Bottom Navbar fixed */}
-        <div className="fixed bottom-0 left-0 w-full z-50">
-          <BottomNav />
-        </div>
+        {/* Bottom Navbar */}
+        <BottomNav />
       </body>
     </html>
   );
