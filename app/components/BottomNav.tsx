@@ -1,48 +1,59 @@
 "use client";
+
 import Link from "next/link";
+import Image from "next/image";
 
 export default function BottomNav() {
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-white shadow-md border-t flex justify-around items-center h-16 z-50">
+    <nav className="fixed bottom-0 left-0 right-0 bg-white shadow-md flex justify-between items-center px-6 py-2 md:hidden z-50">
       {/* Home */}
-      <Link href="/" className="flex flex-col items-center text-sm">
+      <Link
+        href="/home"
+        className="flex flex-col items-center text-sm text-gray-700"
+      >
         <span className="text-xl">🏠</span>
-        <span>Home</span>
+        Home
       </Link>
 
-      {/* Train Tools */}
-      <Link href="/train-tools" className="flex flex-col items-center text-sm">
-        <span className="text-xl">🚆</span>
-        <span>Tools</span>
+      {/* Tools */}
+      <Link
+        href="/train-tools"
+        className="flex flex-col items-center text-sm text-gray-700"
+      >
+        <span className="text-xl">🛠️</span>
+        Tools
       </Link>
 
-      {/* Center Logo Bubble */}
-      <div className="absolute -top-6 bg-yellow-400 rounded-full p-3 shadow-lg border-4 border-white">
-        <Link href="/">
-          <img
-            src="/logo.png"
-            alt="RailEats"
-            className="w-10 h-10 rounded-full"
-          />
+      {/* Center Bubble Logo */}
+      <div className="relative -top-6">
+        <Link href="/home">
+          <div className="w-16 h-16 rounded-full bg-yellow-400 flex items-center justify-center shadow-lg border-4 border-white">
+            <Image
+              src="/logo.png" // 👈 आपका logo public/logo.png में होना चाहिए
+              alt="RailEats Logo"
+              width={40}
+              height={40}
+            />
+          </div>
         </Link>
       </div>
 
-      {/* Offers */}
-      <Link href="/offers" className="flex flex-col items-center text-sm">
-        <span className="text-xl">🎁</span>
-        <span>Offers</span>
-      </Link>
-
       {/* Orders */}
-      <Link href="/orders" className="flex flex-col items-center text-sm">
+      <Link
+        href="/orders"
+        className="flex flex-col items-center text-sm text-gray-700"
+      >
         <span className="text-xl">🛒</span>
-        <span>Orders</span>
+        Orders
       </Link>
 
       {/* Menu */}
-      <Link href="/menu" className="flex flex-col items-center text-sm">
+      <Link
+        href="/menu"
+        className="flex flex-col items-center text-sm text-gray-700"
+      >
         <span className="text-xl">📋</span>
-        <span>Menu</span>
+        Menu
       </Link>
     </nav>
   );
