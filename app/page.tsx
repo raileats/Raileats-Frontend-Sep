@@ -1,6 +1,5 @@
 "use client";
 
-import Navbar from "./components/Navbar";
 import HeroSlider from "./components/HeroSlider";
 import SearchBox from "./components/SearchBox";
 import Offers from "./components/Offers";
@@ -11,10 +10,7 @@ import BottomNav from "./components/BottomNav";
 export default function HomePage() {
   return (
     <main>
-      {/* Navbar */}
-      <Navbar />
-
-      {/* Welcome Section */}
+      {/* ✅ Welcome Section */}
       <section className="text-center mt-6 mb-4">
         <h1 className="text-2xl font-bold">
           Welcome to <span className="text-yellow-600">RailEats.in</span>
@@ -24,28 +20,27 @@ export default function HomePage() {
         </p>
       </section>
 
-      {/* Hero Slider */}
+      {/* ✅ Hero Slider */}
       <HeroSlider />
 
-      {/* Search Box */}
+      {/* ✅ Search Section */}
       <SearchBox />
 
-      {/* Offers */}
+      {/* ✅ Offers Section */}
       <Offers />
 
-      {/* Steps Section */}
+      {/* ✅ Steps Section */}
       <Steps />
 
-      {/* Explore Rail Info */}
+      {/* ✅ Railway Info */}
       <ExploreRailInfo />
 
-      {/* Mobile Bottom Nav */}
+      {/* ✅ Mobile Bottom Nav */}
       <BottomNav />
 
-      {/* Footer */}
+      {/* ✅ Footer */}
       <footer className="bg-black text-white text-center py-4 mt-10 text-sm">
-        © 2025 <span className="text-yellow-400">RailEats.in</span> | Fresh Food
-        on Trains
+        © 2025 <span className="text-yellow-400">RailEats.in</span> | Fresh Food on Trains
       </footer>
     </main>
   );
