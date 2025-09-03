@@ -1,49 +1,21 @@
-@import "slick-carousel/slick/slick.css";
-@import "slick-carousel/slick/slick-theme.css";
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* Existing animations already present */
 
-/* Default body style */
-body {
-  @apply bg-yellow-300 text-black;
-  margin: 0;
-  font-family: Arial, sans-serif;
-}
-
-/* 🔥 Bubble + Glow Animation */
-@keyframes bubbleGlow {
-  0%, 100% {
-    transform: scale(1);
-    filter: drop-shadow(0 0 3px #ffeb3b);
-  }
-  50% {
-    transform: scale(1.3);
-    filter: drop-shadow(0 0 20px #ffd700);
-  }
-}
-
-.animate-bubbleGlow {
-  animation: bubbleGlow 3s infinite ease-in-out;
-}
-
-/* 🔥 Shine Overlay Animation */
-@keyframes shine {
+/* Extra Pulse Glow on Hover */
+@keyframes pulseGlow {
   0% {
-    background: radial-gradient(circle, rgba(255,255,255,0.6) 20%, transparent 70%);
-    opacity: 0;
-    transform: scale(0.5);
+    transform: scale(1);
+    box-shadow: 0 0 0px rgba(255, 215, 0, 0.7);
   }
   50% {
-    opacity: 1;
-    transform: scale(1.3);
+    transform: scale(1.1);
+    box-shadow: 0 0 25px rgba(255, 215, 0, 0.9);
   }
   100% {
-    opacity: 0;
-    transform: scale(1.8);
+    transform: scale(1);
+    box-shadow: 0 0 0px rgba(255, 215, 0, 0.7);
   }
 }
 
-.animate-shine {
-  animation: shine 3s infinite;
+.animate-pulseGlow {
+  animation: pulseGlow 1s ease-in-out infinite;
 }
