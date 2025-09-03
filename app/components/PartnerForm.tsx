@@ -47,6 +47,7 @@ export default function PartnerForm({ onClose }: { onClose: () => void }) {
 
         {/* Scrollable Form */}
         <form
+          id="partnerForm"
           onSubmit={handleSubmit}
           className="flex-1 overflow-y-auto p-4 space-y-4"
         >
@@ -89,6 +90,12 @@ export default function PartnerForm({ onClose }: { onClose: () => void }) {
             className="w-full border p-2 rounded"
             onChange={handleChange}
           />
+          {/* ✅ FSSAI Photo Upload */}
+          <label className="block">
+            <span className="text-sm">Upload FSSAI Certificate Photo</span>
+            <input type="file" name="fssaiphoto" onChange={handleFile} />
+          </label>
+
           <input
             type="text"
             name="gst"
@@ -96,6 +103,11 @@ export default function PartnerForm({ onClose }: { onClose: () => void }) {
             className="w-full border p-2 rounded"
             onChange={handleChange}
           />
+          {/* ✅ GST Photo Upload */}
+          <label className="block">
+            <span className="text-sm">Upload GST Certificate Photo</span>
+            <input type="file" name="gstphoto" onChange={handleFile} />
+          </label>
 
           <label className="block">
             <span className="text-sm">Upload Kitchen Photo</span>
