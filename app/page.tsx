@@ -14,42 +14,30 @@ export default function HomePage() {
       {/* 🔝 Navbar */}
       <Navbar />
 
-      {/* 🎉 Hero Section */}
-      <section className="relative">
-        <HeroSlider />
-
-        {/* Welcome Text */}
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 text-center">
-          <h1 className="text-2xl md:text-3xl font-bold text-black bg-yellow-400 px-4 py-2 rounded-lg shadow-md">
-            Welcome to RailEats.in
-          </h1>
-          <p className="text-sm md:text-base text-black mt-2">
-            Ab Rail Journey ka Swad Only RailEats ke Saath
-          </p>
-        </div>
+      {/* 🟡 Welcome text (only once) */}
+      <section className="text-center bg-yellow-400 py-6">
+        <h1 className="text-2xl md:text-3xl font-bold">Welcome to RailEats.in</h1>
+        <p className="text-md md:text-lg mt-2">
+          Ab Rail Journey ka Swad Only RailEats ke Saath!
+        </p>
       </section>
 
-      {/* 🔍 Search Section */}
-      <section className="mt-8 px-4">
-        <SearchBox />
-      </section>
+      {/* 🎉 Hero Slider */}
+      <HeroSlider />
 
-      {/* 🎁 Offers Section */}
-      <section className="mt-12 px-4">
-        <Offers />
-      </section>
+      {/* 🔍 Search Box */}
+      <SearchBox />
 
-      {/* 📦 Steps Section */}
-      <section className="mt-12 px-4">
-        <Steps />
-      </section>
+      {/* 💰 Offers */}
+      <Offers />
 
-      {/* 🚉 Explore Railway Info */}
-      <section className="mt-12 px-4 mb-20">
-        <ExploreRailInfo />
-      </section>
+      {/* 🚉 Order Steps */}
+      <Steps />
 
-      {/* 📱 Bottom Nav (Mobile only) */}
+      {/* 📊 Explore Rail Info */}
+      <ExploreRailInfo />
+
+      {/* 📱 Bottom Navigation (for mobile) */}
       <BottomNav />
     </main>
   );
