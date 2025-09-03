@@ -1,72 +1,60 @@
 "use client";
-
 import { useState } from "react";
 
-export default function PartnerForm() {
-  const [form, setForm] = useState({
-    name: "",
-    mobile: "",
-    city: "",
-    station: "",
-  });
+export default function Navbar() {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [customerName, setCustomerName] = useState("");
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    console.log("Form Submitted:", form);
-    alert("Restaurant Partner request submitted!");
+  const handleLogin = () => {
+    // OTP Login logic here
+    setIsLoggedIn(true);
+    setCustomerName("Amit");
   };
 
   return (
-    <div className="p-6 max-w-lg mx-auto">
-      <h1 className="text-xl font-bold mb-4">Become a Restaurant Partner</h1>
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-        <input
-          type="text"
-          name="name"
-          placeholder="Restaurant Name *"
-          value={form.name}
-          onChange={handleChange}
-          required
-          className="border p-2 rounded"
-        />
-        <input
-          type="tel"
-          name="mobile"
-          placeholder="Mobile Number *"
-          value={form.mobile}
-          onChange={handleChange}
-          required
-          className="border p-2 rounded"
-        />
-        <input
-          type="text"
-          name="city"
-          placeholder="City *"
-          value={form.city}
-          onChange={handleChange}
-          required
-          className="border p-2 rounded"
-        />
-        <input
-          type="text"
-          name="station"
-          placeholder="Station Name (optional)"
-          value={form.station}
-          onChange={handleChange}
-          className="border p-2 rounded"
-        />
+    <nav className="fixed top-0 left-0 w-full bg-black text-white z-50 shadow">
+      <div className="max-w-5xl mx-auto flex justify-between items-center px-4 py-2">
+        {/* Logo */}
+        <div className="flex items-center gap-2">
+          <img src="/logo.png" alt="RailEats" className="h-8 w-8 rounded-full" />
+          <span className="font-bold text-lg">
+            <span className="text-yellow-400">Rail</span>Eats
+          </span>
+        </div>
 
-        <button
-          type="submit"
-          className="bg-yellow-400 text-black font-bold py-2 rounded"
-        >
-          Submit
-        </button>
-      </form>
-    </div>
+        {/* Login / Profile only */}
+        <div>
+          {!isLoggedIn ? (
+            <button
+              onClick={handleLogin}
+              className="bg-yellow-400 text-black px-3 py-1 rounded"
+            >
+              Login
+            </button>
+          ) : (
+            <div className="relative group">
+              <button className="font-semibold">{customerName}</button>
+              <div className="absolute right-0 mt-2 w-40 bg-white text-black rounded shadow-lg hidden group-hover:block">
+                <a href="/profile" className="block px-4 py-2 hover:bg-gray-200">
+                  My Profile
+                </a>
+                <a href="/orders" className="block px-4 py-2 hover:bg-gray-200">
+                  My Orders
+                </a>
+                <a href="/wallet" className="block px-4 py-2 hover:bg-gray-200">
+                  Wallet Balance
+                </a>
+                <button
+                  onClick={() => setIsLoggedIn(false)}
+                  className="w-full text-left px-4 py-2 hover:bg-gray-200"
+                >
+                  Logout
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </nav>
   );
 }
