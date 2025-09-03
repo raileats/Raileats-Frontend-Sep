@@ -1,43 +1,28 @@
 "use client";
+import React from "react";
 import Image from "next/image";
-import { useState } from "react";
 
 export default function Navbar() {
-  const [loggedIn, setLoggedIn] = useState(false);
-
   return (
-    <nav className="bg-white shadow-md px-4 py-2 flex justify-between items-center">
-      {/* Logo with bubble + shine animation */}
-      <div className="flex items-center gap-2">
-        <div className="relative">
-          <Image
-            src="/logo.png"
-            alt="RailEats Logo"
-            width={55}
-            height={55}
-            className="animate-bubbleGlow"
-          />
-          {/* Shine overlay */}
-          <div className="absolute inset-0 animate-shine rounded-full"></div>
-        </div>
-
-        {/* Shiny Text */}
-        <span className="font-bold text-lg bg-gradient-to-r from-yellow-500 via-orange-400 to-yellow-600 bg-clip-text text-transparent animate-textShine">
-          RailEats
+    <nav className="navbar">
+      {/* Left: Logo */}
+      <div className="flex items-center space-x-2">
+        <Image
+          src="/logo.png"
+          alt="RailEats"
+          width={40}
+          height={40}
+          className="rounded-full animate-bubbleGlow"
+        />
+        <span className="text-xl font-bold text-gray-800">
+          <span className="text-yellow-600">Rail</span>Eats
         </span>
       </div>
 
-      {/* Login / Profile */}
-      {loggedIn ? (
-        <button className="text-sm font-medium">My Profile ▼</button>
-      ) : (
-        <button
-          onClick={() => setLoggedIn(true)}
-          className="bg-yellow-500 text-black px-3 py-1 rounded"
-        >
-          Login
-        </button>
-      )}
+      {/* Right: Login Button */}
+      <button className="bg-yellow-600 text-white px-4 py-1 rounded-md text-sm font-medium hover:bg-yellow-700">
+        Login
+      </button>
     </nav>
   );
 }
