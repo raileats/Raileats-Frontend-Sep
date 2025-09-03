@@ -2,6 +2,49 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Reset + global styles */
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  background: #f9fafb; /* halka gray background */
+  font-family: sans-serif;
+  overflow-x: hidden; /* horizontal scroll hataye */
+}
+
+/* Safe area between navbars */
+.main-content {
+  padding-top: 70px;   /* Navbar ki height */
+  padding-bottom: 70px; /* BottomNav ki height */
+}
+
+/* Navbar styling */
+.navbar {
+  @apply fixed top-0 left-0 w-full z-50 flex items-center justify-between bg-white shadow-md px-4 h-[60px];
+}
+
+/* Bottom navbar */
+.bottom-nav {
+  @apply fixed bottom-0 left-0 w-full z-50 bg-white shadow-inner flex justify-around items-center h-[65px];
+}
+
+/* Slider images 16:9 */
+.slider-img {
+  width: 100%;
+  aspect-ratio: 16/9;   /* maintain ratio */
+  object-fit: cover;    /* cover space */
+  border-radius: 12px;
+}
+
+/* Partner (center logo) button in bottom nav */
+.partner-btn {
+  width: 65px;
+  height: 65px;
+  @apply flex items-center justify-center rounded-full bg-yellow-400 shadow-lg;
+  margin-top: -30px; /* thoda upar uthake center align */
+  z-index: 60;
+}
+
 /* Bubble effect for logo */
 @keyframes bubbleGlow {
   0%, 100% {
@@ -13,7 +56,6 @@
     filter: drop-shadow(0 0 20px #ffd700);
   }
 }
-
 .animate-bubbleGlow {
   animation: bubbleGlow 3s infinite ease-in-out;
 }
@@ -34,7 +76,6 @@
     transform: scale(1.8);
   }
 }
-
 .animate-shine {
   animation: shine 3s infinite;
 }
@@ -48,7 +89,6 @@
     background-position: 200% 50%;
   }
 }
-
 .animate-textShine {
   background-size: 200% auto;
   animation: textShine 3s linear infinite;
