@@ -1,21 +1,14 @@
-export default function Steps() {
-  const steps = [
-    { icon: "🚉", title: "Enter PNR & Choose Station" },
-    { icon: "🍴", title: "Select Restaurant & Create Order" },
-    { icon: "🚆", title: "Get Food Delivery in Train" },
-  ];
+"use client";
 
+export default function Steps() {
   return (
-    <div className="w-full max-w-5xl mx-auto mt-12 px-4">
-      <h2 className="text-center font-bold text-2xl mb-6">Order Food on Train in Easy Steps</h2>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-center">
-        {steps.map((step, i) => (
-          <div key={i} className="p-6 bg-white rounded-lg shadow">
-            <div className="text-4xl">{step.icon}</div>
-            <h3 className="mt-2 font-semibold">{step.title}</h3>
-          </div>
-        ))}
+    <section className="mt-10 max-w-4xl mx-auto px-4">
+      <h2 className="text-center font-bold mb-4">Order Food on Train in Easy Steps</h2>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+        <div className="p-4 bg-white shadow rounded">📲 Enter PNR & Choose Station</div>
+        <div className="p-4 bg-white shadow rounded">🍴 Select Restaurant & Create Order</div>
+        <div className="p-4 bg-white shadow rounded">🚆 Get Food Delivery in Train</div>
       </div>
-    </div>
+    </section>
   );
 }
