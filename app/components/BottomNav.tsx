@@ -4,6 +4,33 @@ import { Home, Train, Gift, Utensils, X } from "lucide-react";
 
 export default function BottomNav() {
   const [isOpen, setIsOpen] = useState(false);
+  const [formData, setFormData] = useState({
+    restaurant: "",
+    city: "",
+    mobile: "",
+    kitchen: null as File | null,
+    dining: null as File | null,
+    fssai: null as File | null,
+    gst: null as File | null,
+  });
+
+  // Handle change
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value, files } = e.target;
+    if (files) {
+      setFormData({ ...formData, [name]: files[0] });
+    } else {
+      setFormData({ ...formData, [name]: value });
+    }
+  };
+
+  // Submit form
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    console.log("📩 Vendor Partner Form Data:", formData);
+    alert("✅ Vendor form submitted! Check console for details.");
+    setIsOpen(false);
+  };
 
   return (
     <>
@@ -60,13 +87,15 @@ export default function BottomNav() {
             </div>
 
             {/* Scrollable Form */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-4 space-y-4">
               <div>
                 <label className="block text-sm font-medium">Restaurant Name *</label>
                 <input
                   type="text"
+                  name="restaurant"
+                  value={formData.restaurant}
+                  onChange={handleChange}
                   className="w-full border rounded p-2"
-                  placeholder="Enter restaurant name"
                   required
                 />
               </div>
@@ -75,8 +104,10 @@ export default function BottomNav() {
                 <label className="block text-sm font-medium">City / Station *</label>
                 <input
                   type="text"
+                  name="city"
+                  value={formData.city}
+                  onChange={handleChange}
                   className="w-full border rounded p-2"
-                  placeholder="Enter city or station"
                   required
                 />
               </div>
@@ -85,39 +116,41 @@ export default function BottomNav() {
                 <label className="block text-sm font-medium">Mobile Number *</label>
                 <input
                   type="tel"
+                  name="mobile"
+                  value={formData.mobile}
+                  onChange={handleChange}
                   className="w-full border rounded p-2"
-                  placeholder="Enter mobile number"
                   required
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-medium">Upload Kitchen Photo</label>
-                <input type="file" className="w-full border rounded p-2" />
+                <input type="file" name="kitchen" onChange={handleChange} className="w-full border rounded p-2" />
               </div>
 
               <div>
                 <label className="block text-sm font-medium">Upload Dining Photo</label>
-                <input type="file" className="w-full border rounded p-2" />
+                <input type="file" name="dining" onChange={handleChange} className="w-full border rounded p-2" />
               </div>
 
               <div>
                 <label className="block text-sm font-medium">Upload FSSAI Certificate</label>
-                <input type="file" className="w-full border rounded p-2" />
+                <input type="file" name="fssai" onChange={handleChange} className="w-full border rounded p-2" />
               </div>
 
               <div>
                 <label className="block text-sm font-medium">Upload GST Certificate</label>
-                <input type="file" className="w-full border rounded p-2" />
+                <input type="file" name="gst" onChange={handleChange} className="w-full border rounded p-2" />
               </div>
-            </div>
 
-            {/* Fixed Submit Button */}
-            <div className="p-4 border-t bg-white sticky bottom-0">
-              <button className="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold">
-                Submit
-              </button>
-            </div>
+              {/* Fixed Submit Button */}
+              <div className="p-4 border-t bg-white sticky bottom-0">
+                <button type="submit" className="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold">
+                  Submit
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
