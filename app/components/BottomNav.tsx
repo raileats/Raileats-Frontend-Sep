@@ -10,7 +10,6 @@ export default function BottomNav() {
     mobile: "",
     kitchen: null as File | null,
     dining: null as File | null,
-    frontfacing: null as File | null,
     fssai: null as File | null,
     gst: null as File | null,
   });
