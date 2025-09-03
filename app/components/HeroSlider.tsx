@@ -12,7 +12,7 @@ export default function HeroSlider() {
   const [current, setCurrent] = useState(0);
 
   return (
-    <div className="relative w-full max-w-5xl mx-auto overflow-hidden rounded-lg shadow-md">
+    <div className="relative w-full max-w-5xl mx-auto overflow-hidden rounded-lg shadow-md mt-6">
       <Image
         src={slides[current].src}
         alt={slides[current].caption}
