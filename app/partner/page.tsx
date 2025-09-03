@@ -2,117 +2,125 @@
 import { useState } from "react";
 
 export default function PartnerForm({ onClose }: { onClose: () => void }) {
-  const [form, setForm] = useState({
+  const [formData, setFormData] = useState({
     restaurantName: "",
     mobile: "",
     city: "",
-    kitchenPhoto: null,
-    diningPhoto: null,
-    frontPhoto: null,   // 👈 नया field
-    fssai: null,
-    gst: null,
+    fssai: "",
+    gst: "",
+    kitchenPhoto: null as File | null,
+    diningPhoto: null as File | null,
+    frontPhoto: null as File | null,
   });
 
-  const handleChange = (e: any) => {
-    const { name, value, files } = e.target;
-    setForm({
-      ...form,
-      [name]: files ? files[0] : value,
-    });
-  };
-
-  const handleSubmit = (e: any) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("Submitted form:", form);
-    alert("Vendor form submitted! (Admin me Vendor Leads tab me save hoga)");
+    console.log("Form submitted", formData);
+    alert("Form Submitted!");
     onClose();
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white w-full max-w-lg max-h-[90vh] rounded-lg shadow-lg overflow-y-auto">
-        {/* Header */}
-        <div className="flex justify-between items-center px-6 py-3 border-b">
-          <h2 className="text-lg font-bold">Become a Restaurant Partner</h2>
-          <button onClick={onClose} className="text-gray-500 text-2xl">&times;</button>
-        </div>
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <div className="bg-white w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-lg p-6 relative">
+        {/* Close Button */}
+        <button
+          onClick={onClose}
+          className="absolute top-2 right-2 text-gray-600 hover:text-black"
+        >
+          ✕
+        </button>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          {/* Restaurant Name */}
-          <div>
-            <label className="block text-sm font-medium">Restaurant Name *</label>
+        <h2 className="text-xl font-bold mb-4">Become a Restaurant Partner</h2>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <input
+            type="text"
+            placeholder="Restaurant Name *"
+            required
+            className="w-full border p-2 rounded"
+            value={formData.restaurantName}
+            onChange={(e) =>
+              setFormData({ ...formData, restaurantName: e.target.value })
+            }
+          />
+          <input
+            type="text"
+            placeholder="Mobile *"
+            required
+            className="w-full border p-2 rounded"
+            value={formData.mobile}
+            onChange={(e) =>
+              setFormData({ ...formData, mobile: e.target.value })
+            }
+          />
+          <input
+            type="text"
+            placeholder="City *"
+            required
+            className="w-full border p-2 rounded"
+            value={formData.city}
+            onChange={(e) =>
+              setFormData({ ...formData, city: e.target.value })
+            }
+          />
+          <input
+            type="text"
+            placeholder="FSSAI Number"
+            className="w-full border p-2 rounded"
+            value={formData.fssai}
+            onChange={(e) =>
+              setFormData({ ...formData, fssai: e.target.value })
+            }
+          />
+          <input
+            type="text"
+            placeholder="GST Number"
+            className="w-full border p-2 rounded"
+            value={formData.gst}
+            onChange={(e) =>
+              setFormData({ ...formData, gst: e.target.value })
+            }
+          />
+
+          {/* File Uploads */}
+          <label className="block">
+            Kitchen Photo:
             <input
-              type="text"
-              name="restaurantName"
-              required
-              value={form.restaurantName}
-              onChange={handleChange}
-              className="w-full border px-3 py-2 rounded"
+              type="file"
+              className="w-full mt-1"
+              onChange={(e) =>
+                setFormData({ ...formData, kitchenPhoto: e.target.files?.[0] || null })
+              }
             />
-          </div>
-
-          {/* Mobile */}
-          <div>
-            <label className="block text-sm font-medium">Mobile Number *</label>
+          </label>
+          <label className="block">
+            Dining Photo:
             <input
-              type="tel"
-              name="mobile"
-              required
-              value={form.mobile}
-              onChange={handleChange}
-              className="w-full border px-3 py-2 rounded"
+              type="file"
+              className="w-full mt-1"
+              onChange={(e) =>
+                setFormData({ ...formData, diningPhoto: e.target.files?.[0] || null })
+              }
             />
-          </div>
-
-          {/* City */}
-          <div>
-            <label className="block text-sm font-medium">City / Station Name</label>
+          </label>
+          <label className="block">
+            Front Facing Photo:
             <input
-              type="text"
-              name="city"
-              value={form.city}
-              onChange={handleChange}
-              className="w-full border px-3 py-2 rounded"
+              type="file"
+              className="w-full mt-1"
+              onChange={(e) =>
+                setFormData({ ...formData, frontPhoto: e.target.files?.[0] || null })
+              }
             />
-          </div>
+          </label>
 
-          {/* Photos */}
-          <div>
-            <label className="block text-sm font-medium">Upload Kitchen Photo</label>
-            <input type="file" name="kitchenPhoto" onChange={handleChange} className="w-full" />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium">Upload Dining Area Photo</label>
-            <input type="file" name="diningPhoto" onChange={handleChange} className="w-full" />
-          </div>
-
-          {/* 👇 नया Front Facing Photo */}
-          <div>
-            <label className="block text-sm font-medium">Upload Front Facing Photo</label>
-            <input type="file" name="frontPhoto" onChange={handleChange} className="w-full" />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium">Upload FSSAI Copy</label>
-            <input type="file" name="fssai" onChange={handleChange} className="w-full" />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium">Upload GST Copy</label>
-            <input type="file" name="gst" onChange={handleChange} className="w-full" />
-          </div>
-
-          {/* Submit */}
-          <div className="pt-4">
-            <button
-              type="submit"
-              className="w-full bg-blue-600 text-white py-2 rounded font-semibold"
-            >
-              Submit
-            </button>
-          </div>
+          {/* Fixed Submit */}
+          <button
+            type="submit"
+            className="w-full bg-blue-600 text-white py-2 rounded mt-4"
+          >
+            Submit
+          </button>
         </form>
       </div>
     </div>
