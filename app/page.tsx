@@ -2,27 +2,51 @@
 
 import Navbar from "./components/Navbar";
 import HeroSlider from "./components/HeroSlider";
+import SearchBox from "./components/SearchBox";
+import Offers from "./components/Offers";
+import Steps from "./components/Steps";
+import ExploreRailInfo from "./components/ExploreRailInfo";
+import BottomNav from "./components/BottomNav";
 
 export default function HomePage() {
   return (
-    <main className="flex flex-col items-center justify-center">
+    <main>
       {/* Navbar */}
       <Navbar />
 
-      {/* Welcome text */}
-      <div className="text-center mt-6">
-        <h1 className="text-2xl font-bold text-black">
+      {/* Welcome Section */}
+      <section className="text-center mt-6 mb-4">
+        <h1 className="text-2xl font-bold">
           Welcome to <span className="text-yellow-600">RailEats.in</span>
         </h1>
-        <p className="text-sm text-black mt-1">
+        <p className="text-gray-700 text-sm">
           Ab Rail Journey ka Swad Only Raileats ke Saath
         </p>
-      </div>
+      </section>
 
-      {/* Slider */}
-      <div className="mt-4 w-full">
-        <HeroSlider />
-      </div>
+      {/* Hero Slider */}
+      <HeroSlider />
+
+      {/* Search Box */}
+      <SearchBox />
+
+      {/* Offers */}
+      <Offers />
+
+      {/* Steps Section */}
+      <Steps />
+
+      {/* Explore Rail Info */}
+      <ExploreRailInfo />
+
+      {/* Mobile Bottom Nav */}
+      <BottomNav />
+
+      {/* Footer */}
+      <footer className="bg-black text-white text-center py-4 mt-10 text-sm">
+        © 2025 <span className="text-yellow-400">RailEats.in</span> | Fresh Food
+        on Trains
+      </footer>
     </main>
   );
 }
