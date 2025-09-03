@@ -1,35 +1,58 @@
+// app/components/HeroSlider.tsx
 "use client";
 
-import { useState } from "react";
 import Image from "next/image";
+import { useState, useEffect } from "react";
 
 const slides = [
-  { src: "/slides/Offer20.png", caption: "🎉 Flat ₹20 OFF on Orders Above ₹250" },
-  { src: "/slides/Offer50.png", caption: "🔥 Flat ₹50 OFF on Orders Above ₹500" },
+  {
+    id: 1,
+    img: "/offer20.png", // public/offer20.png
+    text: "🎉 Flat ₹20 OFF on Orders Above ₹250",
+  },
+  {
+    id: 2,
+    img: "/offer50.png", // public/offer50.png
+    text: "🔥 Flat ₹50 OFF on Orders Above ₹500",
+  },
 ];
 
 export default function HeroSlider() {
   const [current, setCurrent] = useState(0);
 
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrent((prev) => (prev + 1) % slides.length);
+    }, 4000); // 4 sec auto slide
+    return () => clearInterval(interval);
+  }, []);
+
   return (
-    <div className="relative w-full max-w-5xl mx-auto overflow-hidden rounded-lg shadow-md mt-6">
-      <Image
-        src={slides[current].src}
-        alt={slides[current].caption}
-        width={1200}
-        height={400}
-        className="w-full h-64 object-cover"
-      />
-      <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-60 text-white px-4 py-1 rounded-lg text-sm">
-        {slides[current].caption}
+    <div className="relative w-full max-w-4xl mx-auto mt-6 rounded-xl overflow-hidden shadow-lg bg-yellow-400">
+      {/* Slide Image */}
+      <div className="relative w-full h-56 sm:h-72 flex items-center justify-center bg-yellow-400">
+        <Image
+          src={slides[current].img}
+          alt={slides[current].text}
+          width={500}
+          height={200}
+          className="object-contain"
+        />
       </div>
-      <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex gap-2">
-        {slides.map((_, idx) => (
+
+      {/* Slide Text */}
+      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-black/70 text-white text-sm px-4 py-2 rounded-full shadow-md">
+        {slides[current].text}
+      </div>
+
+      {/* Dots */}
+      <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-2">
+        {slides.map((_, i) => (
           <button
-            key={idx}
-            onClick={() => setCurrent(idx)}
-            className={`w-3 h-3 rounded-full ${
-              current === idx ? "bg-yellow-400" : "bg-gray-400"
+            key={i}
+            onClick={() => setCurrent(i)}
+            className={`w-2.5 h-2.5 rounded-full ${
+              current === i ? "bg-yellow-400" : "bg-gray-400"
             }`}
           />
         ))}
