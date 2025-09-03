@@ -1,38 +1,42 @@
 "use client";
-
 import Link from "next/link";
-import { Home, Train, ShoppingBag, Utensils } from "lucide-react";
+import { Home, Train, Gift, Utensils } from "lucide-react";
 
 export default function BottomNav() {
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg flex justify-around items-center h-16 md:hidden z-50">
+    <nav className="fixed bottom-0 left-0 w-full bg-white border-t shadow-md flex justify-around items-center py-2 z-50">
       {/* Home */}
-      <Link href="/" className="flex flex-col items-center text-xs text-gray-700">
-        <Home className="w-6 h-6" />
+      <Link href="/" className="flex flex-col items-center text-sm">
+        <Home className="h-6 w-6" />
         Home
       </Link>
 
       {/* Train Tools */}
-      <Link href="/tools" className="flex flex-col items-center text-xs text-gray-700">
-        <Train className="w-6 h-6" />
-        Tools
+      <Link href="#train-tools" className="flex flex-col items-center text-sm">
+        <Train className="h-6 w-6" />
+        Train Tools
       </Link>
 
-      {/* Center Bubble Logo */}
-      <div className="relative -top-6 bg-yellow-400 rounded-full p-3 shadow-lg border-4 border-white">
-        <img src="/logo.png" alt="RailEats Logo" className="w-10 h-10 rounded-full" />
+      {/* Become Partner (Bubble Logo in Center) */}
+      <div className="relative -top-6">
+        <button
+          onClick={() => alert("Open Restaurant Partner Form")}
+          className="h-16 w-16 bg-yellow-400 rounded-full flex items-center justify-center shadow-lg border-4 border-white"
+        >
+          <img src="/logo.png" alt="RailEats" className="h-10 w-10" />
+        </button>
       </div>
 
-      {/* Orders */}
-      <Link href="/orders" className="flex flex-col items-center text-xs text-gray-700">
-        <ShoppingBag className="w-6 h-6" />
-        Orders
+      {/* Offers */}
+      <Link href="#offers" className="flex flex-col items-center text-sm">
+        <Gift className="h-6 w-6" />
+        Offers
       </Link>
 
-      {/* Menu */}
-      <Link href="/menu" className="flex flex-col items-center text-xs text-gray-700">
-        <Utensils className="w-6 h-6" />
-        Menu
+      {/* My Menu */}
+      <Link href="#menu" className="flex flex-col items-center text-sm">
+        <Utensils className="h-6 w-6" />
+        My Menu
       </Link>
     </nav>
   );
