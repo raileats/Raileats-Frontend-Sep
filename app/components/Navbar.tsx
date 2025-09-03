@@ -13,14 +13,18 @@ export default function Navbar() {
           <Image
             src="/logo.png"
             alt="RailEats Logo"
-            width={50}
-            height={50}
+            width={55}
+            height={55}
             className="animate-bubbleGlow"
           />
           {/* Shine overlay */}
           <div className="absolute inset-0 animate-shine rounded-full"></div>
         </div>
-        <span className="font-bold text-lg text-yellow-600">RailEats</span>
+
+        {/* Shiny Text */}
+        <span className="font-bold text-lg bg-gradient-to-r from-yellow-500 via-orange-400 to-yellow-600 bg-clip-text text-transparent animate-textShine">
+          RailEats
+        </span>
       </div>
 
       {/* Login / Profile */}
