@@ -7,9 +7,19 @@ export default function Navbar() {
 
   return (
     <nav className="bg-white shadow-md px-4 py-2 flex justify-between items-center">
-      {/* Logo */}
+      {/* Logo with bubble + shine animation */}
       <div className="flex items-center gap-2">
-        <Image src="/logo.png" alt="RailEats Logo" width={40} height={40} />
+        <div className="relative">
+          <Image
+            src="/logo.png"
+            alt="RailEats Logo"
+            width={50}
+            height={50}
+            className="animate-bubbleGlow"
+          />
+          {/* Shine overlay */}
+          <div className="absolute inset-0 animate-shine rounded-full"></div>
+        </div>
         <span className="font-bold text-lg text-yellow-600">RailEats</span>
       </div>
 
