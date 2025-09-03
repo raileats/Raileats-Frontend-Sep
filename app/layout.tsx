@@ -4,21 +4,29 @@ import BottomNav from "./components/BottomNav";
 
 export const metadata = {
   title: "RailEats",
-  description: "Ab Rail Journey ka Swad Only Raileats ke Saath!",
+  description: "Ab Rail Journey ka Swad Only RailEats ke Saath!",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html lang="en">
       <body className="bg-gray-50">
-        {/* Fixed Top Navbar */}
-        <Navbar />
+        {/* 🔝 Top Navbar fixed */}
+        <div className="fixed top-0 left-0 w-full z-50">
+          <Navbar />
+        </div>
 
-        {/* Main Content with top+bottom padding */}
-        <main className="pt-16 pb-16 max-w-6xl mx-auto">{children}</main>
+        {/* 🖥️ Main content (padding top + bottom so content navbar ke neeche aaye) */}
+        <main className="pt-20 pb-20">{children}</main>
 
-        {/* Fixed Bottom Navbar */}
-        <BottomNav />
+        {/* 🔻 Bottom Navbar fixed */}
+        <div className="fixed bottom-0 left-0 w-full z-50">
+          <BottomNav />
+        </div>
       </body>
     </html>
   );
