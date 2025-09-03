@@ -1,46 +1,42 @@
 "use client";
-import { useState } from "react";
-import { Home, Gift, Train, Menu } from "lucide-react"; // icons
-import PartnerForm from "./PartnerForm"; // ✅ popup form import
+import React from "react";
+import { Home, Train, Gift, Menu } from "lucide-react";
+import Image from "next/image";
 
 export default function BottomNav() {
-  const [partnerOpen, setPartnerOpen] = useState(false);
-
   return (
-    <>
-      {/* ✅ Bottom Fixed Navbar */}
-      <nav className="fixed bottom-0 left-0 w-full bg-white border-t shadow-lg flex justify-around items-center h-16 z-40">
-        <button className="flex flex-col items-center text-xs">
-          <Home size={22} />
-          Home
-        </button>
+    <div className="bottom-nav">
+      {/* Tabs */}
+      <div className="flex flex-col items-center text-xs">
+        <Home className="w-5 h-5" />
+        <span>Home</span>
+      </div>
 
-        <button className="flex flex-col items-center text-xs">
-          <Train size={22} />
-          Train Tools
-        </button>
+      <div className="flex flex-col items-center text-xs">
+        <Train className="w-5 h-5" />
+        <span>Train Tools</span>
+      </div>
 
-        {/* ✅ Center Bubble Partner Button */}
-        <button
-          onClick={() => setPartnerOpen(true)}
-          className="absolute -top-6 left-1/2 -translate-x-1/2 bg-yellow-400 rounded-full w-16 h-16 flex items-center justify-center shadow-lg border-4 border-white"
-        >
-          <img src="/logo.png" alt="RailEats Logo" className="w-9 h-9" />
-        </button>
+      {/* Center Partner Button */}
+      <button className="partner-btn">
+        <Image
+          src="/logo.png"
+          alt="Partner"
+          width={40}
+          height={40}
+          className="rounded-full"
+        />
+      </button>
 
-        <button className="flex flex-col items-center text-xs">
-          <Gift size={22} />
-          Offers
-        </button>
+      <div className="flex flex-col items-center text-xs">
+        <Gift className="w-5 h-5" />
+        <span>Offers</span>
+      </div>
 
-        <button className="flex flex-col items-center text-xs">
-          <Menu size={22} />
-          My Menu
-        </button>
-      </nav>
-
-      {/* ✅ Popup Partner Form */}
-      {partnerOpen && <PartnerForm onClose={() => setPartnerOpen(false)} />}
-    </>
+      <div className="flex flex-col items-center text-xs">
+        <Menu className="w-5 h-5" />
+        <span>My Menu</span>
+      </div>
+    </div>
   );
 }
