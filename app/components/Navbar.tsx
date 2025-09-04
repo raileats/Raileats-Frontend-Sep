@@ -1,28 +1,30 @@
 "use client";
-import React from "react";
-import Image from "next/image";
+import Link from "next/link";
 
 export default function Navbar() {
   return (
-    <nav className="navbar">
-      {/* Left: Logo */}
-      <div className="flex items-center space-x-2">
-        <Image
-          src="/logo.png"
-          alt="RailEats"
-          width={40}
-          height={40}
-          className="rounded-full animate-bubbleGlow"
-        />
-        <span className="text-xl font-bold text-gray-800">
-          <span className="text-yellow-600">Rail</span>Eats
-        </span>
-      </div>
+    <header className="sticky top-0 z-50 w-full border-b bg-white/90 backdrop-blur">
+      {/* FULL WIDTH: container ko site width ke barabar hi rakho */}
+      <div className="mx-auto w-full max-w-screen-xl px-4 h-14 flex items-center justify-between">
+        <Link href="/" className="flex items-center gap-2">
+          <img src="/logo.png" alt="RailEats" className="h-8 w-8 rounded-full" />
+          <span className="text-xl font-semibold">
+            <span className="text-black">Rail</span>
+            <span className="text-yellow-600">Eats</span>
+          </span>
+        </Link>
 
-      {/* Right: Login Button */}
-      <button className="bg-yellow-600 text-white px-4 py-1 rounded-md text-sm font-medium hover:bg-yellow-700">
-        Login
-      </button>
-    </nav>
+        <nav className="flex items-center gap-6">
+          <Link href="/offers" className="text-sm text-gray-700 hover:text-yellow-700">Offers</Link>
+          <Link href="/tools" className="text-sm text-gray-700 hover:text-yellow-700">Train Tools</Link>
+          <Link
+            href="/login"
+            className="rounded-md bg-yellow-600 px-4 py-1.5 text-white hover:bg-yellow-700 transition"
+          >
+            Login
+          </Link>
+        </nav>
+      </div>
+    </header>
   );
 }
