@@ -40,7 +40,7 @@ export default function PartnerForm({ onClose }: { onClose: () => void }) {
         {/* Header with Close */}
         <div className="flex justify-between items-center p-4 border-b">
           <h2 className="text-lg font-bold">Become a Restaurant Partner</h2>
-          <button onClick={onClose}>
+          <button onClick={onClose} aria-label="Close">
             <X size={24} />
           </button>
         </div>
