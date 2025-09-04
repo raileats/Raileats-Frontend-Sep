@@ -13,13 +13,18 @@
   justify-content: center !important;
   align-items: center !important;
 }
+/* ---- Slick hardening (prevents side-offset / width bugs) ---- */
+.slick-slider, .slick-list { width: 100%; overflow: hidden; }
+.slick-track { display: flex !important; align-items: stretch; }
+.slick-slide { height: auto; }
+.slick-slide > div { width: 100%; }
+.slick-dots { bottom: 8px; }
 
-/* Each slide should stretch full width */
-.slick-slide {
-  float: none !important;
-  display: flex !important;
-  justify-content: center !important;
-  align-items: center !important;
+/* Prevent stray gaps / scrollbars from images */
+.slick-slide img, .swiper-slide img, .slider img {
+  display: block;
+  width: 100%;
+  height: auto;
 }
 
 .slick-slide > div {
