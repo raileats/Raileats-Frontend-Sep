@@ -1,5 +1,5 @@
 "use client";
-import React, { useCallback, useState } from "react";
+import { useCallback, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Home, Gift, Menu, User } from "lucide-react";
@@ -12,7 +12,7 @@ type ItemProps = {
   href?: string;
 };
 
-export default function BottomNav(): JSX.Element {
+export default function BottomNav() {
   const router = useRouter();
   const pathname = usePathname();
   const [showPartner, setShowPartner] = useState(false);
@@ -52,9 +52,9 @@ export default function BottomNav(): JSX.Element {
   };
 
   return (
-    <React.Fragment>
+    <div>
       <nav className="bottom-nav border-t">
-        {/* 5 columns -> 3rd column is CENTER */}
+        {/* 5 columns — Vendor tab is the real middle (3rd) */}
         <ul className="mx-auto grid max-w-screen-md grid-cols-5">
           <li className="w-full">
             <Item active={pathname === "/"} onClick={goTop}>
@@ -63,16 +63,14 @@ export default function BottomNav(): JSX.Element {
             </Item>
           </li>
 
-          {/* LEFT of center (kept empty for spacing on small phones)? — optional
-              Agar chaho to kuch na rakho. Yahan Offers rakhenge. */}
           <li className="w-full">
-            <Item onClick={goOffers} active={false}>
+            <Item onClick={goOffers}>
               <Gift className="h-6 w-6 text-pink-600" />
               <span>Offers</span>
             </Item>
           </li>
 
-          {/* CENTER = Vendor (Modal) */}
+          {/* CENTER = Vendor (bubble logo, opens modal) */}
           <li className="w-full">
             <Item onClick={() => setShowPartner(true)}>
               <img
@@ -93,3 +91,14 @@ export default function BottomNav(): JSX.Element {
 
           <li className="w-full">
             <Item onClick={goProfile} active={pathname.startsWith("/profile")}>
+              <User className="h-6 w-6 text-purple-600" />
+              <span>Profile</span>
+            </Item>
+          </li>
+        </ul>
+      </nav>
+
+      {showPartner && <PartnerForm onClose={() => setShowPartner(false)} />}
+    </div>
+  );
+}
