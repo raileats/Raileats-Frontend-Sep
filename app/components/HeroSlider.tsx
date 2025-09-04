@@ -27,22 +27,20 @@ export default function HeroSlider() {
   } as const;
 
   return (
-    // wrapper: w-full (no w-screen) so section ke px-3 se left/right equal gutter milta hai
-    <div className="w-full max-w-5xl md:max-w-6xl mx-auto mt-3 overflow-hidden">
+    {/* column-fill: no extra max-w here; page container controls width */}
+    <div className="w-full mx-auto overflow-hidden">
       <Slider {...settings}>
         {slides.map((slide, idx) => (
           <div key={slide.id} className="!w-full">
-            {/* fixed aspect with cover so black bars nahi aayenge */}
             <div className="relative aspect-[16/9] w-full overflow-hidden rounded-xl shadow-lg bg-gray-200">
               <Image
                 src={slide.image}
                 alt={slide.text}
                 fill
                 priority={idx === 0}
-                className="object-cover"   // <-- cover = left/right pillarbox hat gaya
-                sizes="(max-width: 768px) 100vw, 900px"
+                className="object-cover"
+                sizes="(max-width: 768px) 100vw, 896px"
               />
-              {/* caption (optional) */}
               <div className="pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 bg-black/55 text-white px-3 py-1.5 rounded-md text-xs md:text-sm">
                 {slide.text}
               </div>
