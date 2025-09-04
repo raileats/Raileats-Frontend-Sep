@@ -1,11 +1,8 @@
 import "./globals.css";
+import Navbar from "./components/Navbar";
+import BottomNav from "./components/BottomNav";
 import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
-import Navbar from "./components/Navbar";
-import BottomNav from "./components/BottomNav";
-import "./globals.css";
-import Navbar from "./components/Navbar";
-import BottomNav from "./components/BottomNav";
 
 export const metadata = {
   title: "RailEats",
