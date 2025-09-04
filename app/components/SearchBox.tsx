@@ -50,7 +50,7 @@ export default function SearchBox() {
         </label>
       </div>
 
-      {/* Input + Button */}
+      {/* Input + Button (fixed alignment) */}
       <div className="flex">
         <input
           type="text"
@@ -63,11 +63,11 @@ export default function SearchBox() {
           }
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
-          className="flex-grow px-4 py-2 border border-gray-400 rounded-l-md"
+          className="flex-grow px-4 py-2 border border-gray-400 rounded-l-md focus:outline-none"
         />
         <button
           onClick={handleSearch}
-          className="bg-black text-white px-6 py-2 rounded-r-md"
+          className="px-6 bg-black text-white rounded-r-md border border-gray-400 border-l-0 hover:bg-gray-800"
         >
           Search
         </button>
