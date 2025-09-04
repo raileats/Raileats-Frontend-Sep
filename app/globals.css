@@ -112,3 +112,7 @@ h1, h2, h3, p { margin-top: 0; }
 /* ========= Section spacing helpers ========= */
 .section-tight { padding-top: 0.5rem; padding-bottom: 0.5rem; }
 .no-extra { margin: 0 !important; padding: 0 !important; }
+/* Kill accidental top gaps under sticky navbar on mobile */
+.welcome-strip { margin-top: 0 !important; }
+header + .welcome-strip { margin-top: 0 !important; }
+main { margin-top: 0 !important; }
