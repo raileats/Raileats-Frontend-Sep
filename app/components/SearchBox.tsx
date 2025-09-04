@@ -18,40 +18,22 @@ export default function SearchBox() {
     <div className="mt-4 w-full max-w-xl mx-auto bg-white rounded-lg shadow p-4 text-center">
       {/* Radio Selection */}
       <div className="flex justify-center gap-6 mb-4">
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input
-            type="radio"
-            name="searchType"
-            value="pnr"
-            checked={searchType === "pnr"}
-            onChange={(e) => setSearchType(e.target.value)}
-          />
-          <span>PNR</span>
-        </label>
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input
-            type="radio"
-            name="searchType"
-            value="train"
-            checked={searchType === "train"}
-            onChange={(e) => setSearchType(e.target.value)}
-          />
-          <span>Train</span>
-        </label>
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input
-            type="radio"
-            name="searchType"
-            value="station"
-            checked={searchType === "station"}
-            onChange={(e) => setSearchType(e.target.value)}
-          />
-          <span>Station</span>
-        </label>
+        {["pnr", "train", "station"].map((type) => (
+          <label key={type} className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="radio"
+              name="searchType"
+              value={type}
+              checked={searchType === type}
+              onChange={(e) => setSearchType(e.target.value)}
+            />
+            <span className="capitalize">{type}</span>
+          </label>
+        ))}
       </div>
 
-      {/* Input + Button (fixed alignment) */}
-      <div className="flex">
+      {/* Input + Button */}
+      <div className="flex px-1"> {/* 👈 mobile me thoda andar laya */}
         <input
           type="text"
           placeholder={
@@ -63,11 +45,11 @@ export default function SearchBox() {
           }
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
-          className="flex-grow px-4 py-2 border border-gray-400 rounded-l-md focus:outline-none"
+          className="flex-grow px-4 py-2 border border-gray-400 rounded-l-md focus:outline-none text-sm"
         />
         <button
           onClick={handleSearch}
-          className="px-6 bg-black text-white rounded-r-md border border-gray-400 border-l-0 hover:bg-gray-800"
+          className="bg-black text-white px-6 py-2 rounded-r-md border border-gray-400 border-l-0 hover:bg-gray-800 mr-1"
         >
           Search
         </button>
