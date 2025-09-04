@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import LoginMenu from "./LoginMenu";
 
 export default function Navbar() {
   return (
@@ -12,14 +13,7 @@ export default function Navbar() {
             <span className="text-yellow-600">Eats</span>
           </span>
         </Link>
-
-        {/* sirf Login button */}
-        <Link
-          href="/login"
-          className="rounded-md bg-yellow-600 px-4 py-1.5 text-white hover:bg-yellow-700 transition"
-        >
-          Login
-        </Link>
+        <LoginMenu />
       </div>
     </header>
   );
