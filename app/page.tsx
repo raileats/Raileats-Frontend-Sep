@@ -1,15 +1,27 @@
 "use client";
 
+import { useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import HeroSlider from "./components/HeroSlider";
 import SearchBox from "./components/SearchBox";
 import Offers from "./components/Offers";
 import Steps from "./components/Steps";
 import ExploreRailInfo from "./components/ExploreRailInfo";
+import FooterLinks from "./components/FooterLinks";
 
 export default function HomePage() {
+  const search = useSearchParams();
+
+  useEffect(() => {
+    if (search.get("goto") === "offers") {
+      const el = document.getElementById("offers");
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [search]);
+
   return (
     <main className="bg-gray-50 min-h-screen">
-      {/* Welcome Strip (Yellow Bar) */}
+      {/* Yellow Welcome Strip */}
       <div className="w-full bg-gradient-to-r from-yellow-400 via-yellow-500 to-yellow-600 text-black py-3">
         <div className="mx-auto max-w-screen-xl px-4 text-center">
           <h1 className="text-lg md:text-xl font-bold">
@@ -21,7 +33,7 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* Hero Section (slider) */}
+      {/* Hero Section */}
       <section className="w-full max-w-5xl mx-auto mt-0">
         <HeroSlider />
       </section>
@@ -31,8 +43,8 @@ export default function HomePage() {
         <SearchBox />
       </section>
 
-      {/* Offers Section */}
-      <section className="mt-6 w-full max-w-5xl mx-auto px-3">
+      {/* Offers Section (target for auto scroll) */}
+      <section id="offers" className="mt-6 w-full max-w-5xl mx-auto px-3 scroll-mt-16">
         <Offers />
       </section>
 
@@ -42,8 +54,13 @@ export default function HomePage() {
       </section>
 
       {/* Explore Railway Info */}
-      <section className="mt-6 w-full max-w-5xl mx-auto px-3 mb-16">
+      <section className="mt-6 w-full max-w-5xl mx-auto px-3">
         <ExploreRailInfo />
+      </section>
+
+      {/* Same section links as My Menu — at page bottom */}
+      <section className="mt-8 w-full max-w-5xl mx-auto px-3 mb-16">
+        <FooterLinks />
       </section>
     </main>
   );
