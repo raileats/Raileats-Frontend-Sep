@@ -21,9 +21,9 @@ export default function HomePage() {
 
   return (
     <main className="bg-gray-50 min-h-screen">
-      {/* Yellow Welcome Strip */}
-      <div className="w-full bg-gradient-to-r from-yellow-400 via-yellow-500 to-yellow-600 text-black py-3">
-        <div className="mx-auto max-w-screen-xl px-4 text-center">
+      {/* Welcome strip (no top gap) */}
+      <div className="welcome-strip w-full bg-gradient-to-r from-yellow-400 via-yellow-500 to-yellow-600 text-black py-3 mt-0">
+        <div className="mx-auto max-w-5xl px-4 text-center">
           <h1 className="text-lg md:text-xl font-bold">
             Welcome to <span className="font-extrabold">RailEats.in</span>
           </h1>
@@ -33,8 +33,8 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* Hero Section */}
-      <section className="w-full max-w-5xl mx-auto mt-0">
+      {/* Hero Section — a bit narrower on mobile for better look */}
+      <section className="w-full max-w-5xl mx-auto mt-0 px-3 md:px-0">
         <HeroSlider />
       </section>
 
@@ -43,7 +43,12 @@ export default function HomePage() {
         <SearchBox />
       </section>
 
-      {/* Offers Section (target for auto scroll) */}
+      {/* ⬇️ Trains Information just after search */}
+      <section className="mt-4 w-full max-w-5xl mx-auto px-3">
+        <ExploreRailInfo />
+      </section>
+
+      {/* Offers Section (moved below ExploreRailInfo) */}
       <section id="offers" className="mt-6 w-full max-w-5xl mx-auto px-3 scroll-mt-16">
         <Offers />
       </section>
@@ -53,12 +58,7 @@ export default function HomePage() {
         <Steps />
       </section>
 
-      {/* Explore Railway Info */}
-      <section className="mt-6 w-full max-w-5xl mx-auto px-3">
-        <ExploreRailInfo />
-      </section>
-
-      {/* Same section links as My Menu — at page bottom */}
+      {/* Footer links / misc */}
       <section className="mt-8 w-full max-w-5xl mx-auto px-3 mb-16">
         <FooterLinks />
       </section>
