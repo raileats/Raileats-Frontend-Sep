@@ -32,11 +32,11 @@ export default function BottomNav(): JSX.Element {
   }, [pathname, router]);
 
   const goMenu = () => router.push("/menu");
-  const goProfile = () => router.push("/menu#profile");
+  const goProfile = () => router.push("/profile");
 
   const Item = ({ active, children, onClick, href }: ItemProps) => {
     const base =
-      "flex h-[56px] min-w-[68px] flex-col items-center justify-center gap-1 text-[11px] transition-colors";
+      "flex h-[56px] min-w-[72px] flex-col items-center justify-center gap-1 text-[11px] transition-colors";
     const color = active ? "text-yellow-600" : "text-gray-600";
     const content = <div className={`flex flex-col items-center ${color}`}>{children}</div>;
 
@@ -54,6 +54,7 @@ export default function BottomNav(): JSX.Element {
   return (
     <React.Fragment>
       <nav className="bottom-nav border-t">
+        {/* 5 columns -> 3rd column is CENTER */}
         <ul className="mx-auto grid max-w-screen-md grid-cols-5">
           <li className="w-full">
             <Item active={pathname === "/"} onClick={goTop}>
@@ -62,18 +63,24 @@ export default function BottomNav(): JSX.Element {
             </Item>
           </li>
 
-          {/* Center = Vendor (modal open) */}
+          {/* LEFT of center (kept empty for spacing on small phones)? — optional
+              Agar chaho to kuch na rakho. Yahan Offers rakhenge. */}
           <li className="w-full">
-            <Item onClick={() => setShowPartner(true)}>
-              <img src="/logo.png" alt="Vendor" className="h-6 w-6" />
-              <span>Vendor</span>
+            <Item onClick={goOffers} active={false}>
+              <Gift className="h-6 w-6 text-pink-600" />
+              <span>Offers</span>
             </Item>
           </li>
 
+          {/* CENTER = Vendor (Modal) */}
           <li className="w-full">
-            <Item onClick={goOffers}>
-              <Gift className="h-6 w-6 text-pink-600" />
-              <span>Offers</span>
+            <Item onClick={() => setShowPartner(true)}>
+              <img
+                src="/logo.png"
+                alt="Vendor"
+                className="h-7 w-7 rounded-full animate-bubbleGlow"
+              />
+              <span>Vendor</span>
             </Item>
           </li>
 
@@ -85,15 +92,4 @@ export default function BottomNav(): JSX.Element {
           </li>
 
           <li className="w-full">
-            <Item onClick={goProfile} active={pathname === "/menu#profile"}>
-              <User className="h-6 w-6 text-purple-600" />
-              <span>Profile</span>
-            </Item>
-          </li>
-        </ul>
-      </nav>
-
-      {showPartner && <PartnerForm onClose={() => setShowPartner(false)} />}
-    </React.Fragment>
-  );
-}
+            <Item onClick={goProfile} active={pathname.startsWith("/profile")}>
