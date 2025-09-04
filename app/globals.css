@@ -116,3 +116,19 @@ h1, h2, h3, p { margin-top: 0; }
 .welcome-strip { margin-top: 0 !important; }
 header + .welcome-strip { margin-top: 0 !important; }
 main { margin-top: 0 !important; }
+/* ===== Mobile hard-fixes (keep desktop unchanged) ===== */
+@media (max-width: 768px) {
+  /* 1) Navbar ↔ Welcome strip ke beech koi gap na rahe */
+  header { margin-bottom: 0 !important; }
+  header + .welcome-strip { margin-top: 0 !important; }
+  main { padding-top: 0 !important; }
+  /* agar first section me mt-* aaya ho to bhi kill */
+  main > section:first-of-type { margin-top: 0 !important; }
+}
+
+/* 2) Slick right-side bleed/overflow guard (blue mark fix) */
+.slick-slide { margin: 0 !important; float: none !important; }
+.slick-list { padding-right: 0 !important; padding-left: 0 !important; overflow: hidden !important; }
+
+/* 3) Safety: images always cover their frame in sliders */
+.slick-slide img { object-fit: cover; }
