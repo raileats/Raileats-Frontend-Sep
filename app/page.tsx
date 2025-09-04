@@ -20,52 +20,60 @@ export default function HomePage() {
   }, [search]);
 
   return (
-    // no top padding so navbar ke niche bilkul chipak jaye
     <main className="bg-gray-50 min-h-screen pt-0">
-      {/* Welcome strip (no top gap) */}
-      <div className="welcome-strip w-full bg-gradient-to-r from-yellow-400 via-yellow-500 to-yellow-600 text-black py-3 mt-0">
-        <div className="mx-auto max-w-5xl px-4 text-center">
-          <h1 className="text-lg md:text-xl font-bold">
-            Welcome to <span className="font-extrabold">RailEats.in</span>
-          </h1>
-          <p className="text-sm md:text-base mt-1 font-medium">
-            Ab Rail Journey ka Swad Only <span className="font-semibold">RailEats</span> ke Saath
-          </p>
+      {/* ============== DESKTOP CONTAINER ============== */}
+      {/* Mobile: full width; Desktop (md+): central column max-w-4xl */}
+      <div className="mx-auto w-full md:max-w-4xl md:px-6">
+
+        {/* Welcome strip
+            - Mobile: full width feel (outer gradient hidden on desktop)
+            - Desktop: gradient box is inside column with rounded edges */}
+        <div className="mt-0">
+          <div className="md:rounded-lg md:bg-gradient-to-r md:from-yellow-400 md:via-yellow-500 md:to-yellow-600 md:text-black md:py-3 md:px-6">
+            {/* Mobile legacy strip remains via this inner bar */}
+            <div className="welcome-strip w-full bg-gradient-to-r from-yellow-400 via-yellow-500 to-yellow-600 text-black py-3 mt-0 md:bg-none md:py-0">
+              <div className="mx-auto max-w-full px-4 text-center">
+                <h1 className="text-lg md:text-xl font-bold">
+                  Welcome to <span className="font-extrabold">RailEats.in</span>
+                </h1>
+                <p className="text-sm md:text-base mt-1 font-medium">
+                  Ab Rail Journey ka Swad Only <span className="font-semibold">RailEats</span> ke Saath
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
+
+        {/* Hero Slider — fills column width */}
+        <section className="mt-3 px-3 md:px-0">
+          <HeroSlider />
+        </section>
+
+        {/* Search */}
+        <section className="mt-4 px-3 md:px-0">
+          <SearchBox />
+        </section>
+
+        {/* Explore Railway Info */}
+        <section className="mt-4 px-3 md:px-0">
+          <ExploreRailInfo />
+        </section>
+
+        {/* Offers */}
+        <section id="offers" className="mt-6 px-3 md:px-0 scroll-mt-16">
+          <Offers />
+        </section>
+
+        {/* Steps */}
+        <section className="mt-6 px-3 md:px-0">
+          <Steps />
+        </section>
+
+        {/* Footer links */}
+        <section className="mt-8 px-3 md:px-0 mb-16">
+          <FooterLinks />
+        </section>
       </div>
-
-      {/* Hero Section — equal left/right gutter on mobile, full container on desktop */}
-      <section className="w-full max-w-5xl mx-auto mt-0 px-3 md:px-0">
-        <HeroSlider />
-      </section>
-
-      {/* Search Section */}
-      <section className="mt-4 px-3 max-w-5xl mx-auto">
-        <SearchBox />
-      </section>
-
-      {/* Trains Information just after search */}
-      <section className="mt-4 w-full max-w-5xl mx-auto px-3">
-        <ExploreRailInfo />
-      </section>
-
-      {/* Offers Section */}
-      <section
-        id="offers"
-        className="mt-6 w-full max-w-5xl mx-auto px-3 scroll-mt-16"
-      >
-        <Offers />
-      </section>
-
-      {/* Steps Section */}
-      <section className="mt-6 w-full max-w-5xl mx-auto px-3">
-        <Steps />
-      </section>
-
-      {/* Footer links / misc */}
-      <section className="mt-8 w-full max-w-5xl mx-auto px-3 mb-16">
-        <FooterLinks />
-      </section>
     </main>
   );
 }
