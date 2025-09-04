@@ -27,7 +27,6 @@ export default function HeroSlider() {
   } as const;
 
   return (
-    {/* column-fill: no extra max-w here; page container controls width */}
     <div className="w-full mx-auto overflow-hidden">
       <Slider {...settings}>
         {slides.map((slide, idx) => (
