@@ -1,11 +1,18 @@
 "use client";
+import React, { useCallback, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Home, Gift, Menu, User } from "lucide-react";
-import { useCallback, useState } from "react";
 import PartnerForm from "./PartnerForm";
 
-export default function BottomNav() {
+type ItemProps = {
+  active?: boolean;
+  children: React.ReactNode;
+  onClick?: () => void;
+  href?: string;
+};
+
+export default function BottomNav(): JSX.Element {
   const router = useRouter();
   const pathname = usePathname();
   const [showPartner, setShowPartner] = useState(false);
@@ -27,17 +34,7 @@ export default function BottomNav() {
   const goMenu = () => router.push("/menu");
   const goProfile = () => router.push("/menu#profile");
 
-  const Item = ({
-    active,
-    children,
-    onClick,
-    href,
-  }: {
-    active?: boolean;
-    children: React.ReactNode;
-    onClick?: () => void;
-    href?: string;
-  }) => {
+  const Item = ({ active, children, onClick, href }: ItemProps) => {
     const base =
       "flex h-[56px] min-w-[68px] flex-col items-center justify-center gap-1 text-[11px] transition-colors";
     const color = active ? "text-yellow-600" : "text-gray-600";
@@ -55,7 +52,7 @@ export default function BottomNav() {
   };
 
   return (
-    <>
+    <React.Fragment>
       <nav className="bottom-nav border-t">
         <ul className="mx-auto grid max-w-screen-md grid-cols-5">
           <li className="w-full">
@@ -67,7 +64,7 @@ export default function BottomNav() {
 
           {/* Center = Vendor (modal open) */}
           <li className="w-full">
-            <Item active={false} onClick={() => setShowPartner(true)}>
+            <Item onClick={() => setShowPartner(true)}>
               <img src="/logo.png" alt="Vendor" className="h-6 w-6" />
               <span>Vendor</span>
             </Item>
@@ -97,3 +94,6 @@ export default function BottomNav() {
       </nav>
 
       {showPartner && <PartnerForm onClose={() => setShowPartner(false)} />}
+    </React.Fragment>
+  );
+}
