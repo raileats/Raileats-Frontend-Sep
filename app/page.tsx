@@ -20,7 +20,8 @@ export default function HomePage() {
   }, [search]);
 
   return (
-    <main className="bg-gray-50 min-h-screen">
+    // no top padding so navbar ke niche bilkul chipak jaye
+    <main className="bg-gray-50 min-h-screen pt-0">
       {/* Welcome strip (no top gap) */}
       <div className="welcome-strip w-full bg-gradient-to-r from-yellow-400 via-yellow-500 to-yellow-600 text-black py-3 mt-0">
         <div className="mx-auto max-w-5xl px-4 text-center">
@@ -33,7 +34,7 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* Hero Section — a bit narrower on mobile for better look */}
+      {/* Hero Section — equal left/right gutter on mobile, full container on desktop */}
       <section className="w-full max-w-5xl mx-auto mt-0 px-3 md:px-0">
         <HeroSlider />
       </section>
@@ -43,13 +44,16 @@ export default function HomePage() {
         <SearchBox />
       </section>
 
-      {/* ⬇️ Trains Information just after search */}
+      {/* Trains Information just after search */}
       <section className="mt-4 w-full max-w-5xl mx-auto px-3">
         <ExploreRailInfo />
       </section>
 
-      {/* Offers Section (moved below ExploreRailInfo) */}
-      <section id="offers" className="mt-6 w-full max-w-5xl mx-auto px-3 scroll-mt-16">
+      {/* Offers Section */}
+      <section
+        id="offers"
+        className="mt-6 w-full max-w-5xl mx-auto px-3 scroll-mt-16"
+      >
         <Offers />
       </section>
 
