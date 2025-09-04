@@ -25,7 +25,7 @@ export default function HeroSlider() {
   } as const;
 
   return (
-    <div className="w-full max-w-6xl mx-auto mt-4 overflow-hidden">
+    <div className="w-screen md:w-full md:max-w-6xl mx-auto mt-4 overflow-hidden">
       <Slider {...settings}>
         {slides.map((slide) => (
           <div key={slide.id} className="!w-full">
