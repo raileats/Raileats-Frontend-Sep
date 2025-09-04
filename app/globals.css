@@ -2,100 +2,92 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Reset + global styles */
+/* ========= Base reset ========= */
+:root{
+  --nav-h: 60px;
+  --bottom-h: 56px; /* bottom nav tabs ke barabar */
+}
+
 html, body {
   height: 100%;
   margin: 0;
   padding: 0;
-  background: #f9fafb; /* halka gray background */
+  background: #f9fafb; /* हल्का gray */
   font-family: sans-serif;
-  overflow-x: hidden; /* horizontal scroll hataye */
+  overflow-x: hidden; /* horizontal scroll रोकें */
 }
 
-/* Safe area between navbars */
+img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+/* Tight typography spacing */
+h1, h2, h3, p { margin-top: 0; }
+
+/* ========= Safe area between navbars ========= */
 .main-content {
-  padding-top: 70px;   /* Navbar ki height */
-  padding-bottom: 70px; /* BottomNav ki height */
+  padding-top: var(--nav-h);             /* Top Navbar height */
+  padding-bottom: calc(var(--bottom-h) + env(safe-area-inset-bottom, 0px));
 }
 
-/* Navbar styling */
+/* Optional helper for pages not using .main-content */
+.safe-bottom { height: var(--bottom-h); }
+
+/* ========= Navbar (top) ========= */
 .navbar {
-  @apply fixed top-0 left-0 w-full z-50 flex items-center justify-between bg-white shadow-md px-4 h-[60px];
+  @apply fixed top-0 left-0 w-full z-50 flex items-center justify-between bg-white shadow-md px-4;
+  height: var(--nav-h);
 }
 
-/* Bottom navbar */
+/* ========= Bottom navbar (equal tabs) ========= */
 .bottom-nav {
-  @apply fixed bottom-0 left-0 w-full z-50 bg-white shadow-inner flex justify-around items-center h-[65px];
+  @apply fixed bottom-0 left-0 w-full z-50 bg-white border-t shadow-sm flex justify-around items-center;
+  height: var(--bottom-h);
 }
 
-/* Slider images 16:9 */
+/* Remove old oversized partner button style (kept as noop for safety) */
+.partner-btn {
+  /* Old giant circle removed — tabs ab equal size hain */
+  width: auto;
+  height: auto;
+  margin-top: 0;
+  background: transparent;
+  box-shadow: none;
+  border-radius: 0;
+}
+
+/* ========= Slider images ========= */
+/* Keep 16:9 but avoid unwanted side gaps */
 .slider-img {
   width: 100%;
-  aspect-ratio: 16/9;   /* maintain ratio */
-  object-fit: cover;    /* cover space */
+  aspect-ratio: 16/9;
+  object-fit: cover;     /* fill without letterboxing */
   border-radius: 12px;
 }
 
-/* Partner (center logo) button in bottom nav */
-.partner-btn {
-  width: 65px;
-  height: 65px;
-  @apply flex items-center justify-center rounded-full bg-yellow-400 shadow-lg;
-  margin-top: -30px; /* thoda upar uthake center align */
-  z-index: 60;
-}
-
-/* Bubble effect for logo */
+/* ========= Decorative animations (optional) ========= */
 @keyframes bubbleGlow {
-  0%, 100% {
-    transform: scale(1);
-    filter: drop-shadow(0 0 3px #ffeb3b);
-  }
-  50% {
-    transform: scale(1.3);
-    filter: drop-shadow(0 0 20px #ffd700);
-  }
+  0%, 100% { transform: scale(1); filter: drop-shadow(0 0 3px #ffeb3b); }
+  50%      { transform: scale(1.3); filter: drop-shadow(0 0 20px #ffd700); }
 }
-.animate-bubbleGlow {
-  animation: bubbleGlow 3s infinite ease-in-out;
-}
+.animate-bubbleGlow { animation: bubbleGlow 3s infinite ease-in-out; }
 
-/* Shine overlay for logo */
 @keyframes shine {
-  0% {
-    background: radial-gradient(circle, rgba(255,255,255,0.6) 20%, transparent 70%);
-    opacity: 0;
-    transform: scale(0.5);
-  }
-  50% {
-    opacity: 1;
-    transform: scale(1.3);
-  }
-  100% {
-    opacity: 0;
-    transform: scale(1.8);
-  }
+  0% { background: radial-gradient(circle, rgba(255,255,255,0.6) 20%, transparent 70%); opacity: 0; transform: scale(0.5); }
+  50% { opacity: 1; transform: scale(1.3); }
+  100% { opacity: 0; transform: scale(1.8); }
 }
-.animate-shine {
-  animation: shine 3s infinite;
-}
+.animate-shine { animation: shine 3s infinite; }
 
-/* Text shiny gradient animation */
 @keyframes textShine {
-  0% {
-    background-position: 0% 50%;
-  }
-  100% {
-    background-position: 200% 50%;
-  }
+  0% { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
 }
-.animate-textShine {
-  background-size: 200% auto;
-  animation: textShine 3s linear infinite;
-}
+.animate-textShine { background-size: 200% auto; animation: textShine 3s linear infinite; }
 
-
-/* ---- Slick hardening (prevents side-offset / width bugs) ---- */
+/* ========= Slick hardening (side-offset/width bugs) ========= */
 .slick-slider, .slick-list { width: 100%; overflow: hidden; }
 .slick-track { display: flex !important; align-items: stretch; }
 .slick-slide { height: auto; }
@@ -109,12 +101,14 @@ html, body {
   height: auto;
 }
 
-
-/* ---- Slick full-width enforcement (mobile first) ---- */
-.slick-initialized .slick-slide { width: 100% !important; display:block !important; }
-.slick-list { padding: 0 !important; margin: 0 !important; overflow:hidden; }
+/* Full-width enforcement (mobile-first) */
+.slick-initialized .slick-slide { width: 100% !important; display: block !important; }
+.slick-list { padding: 0 !important; margin: 0 !important; overflow: hidden; }
 .slick-track { margin-left: 0 !important; }
 @media (min-width: 768px) {
   .slick-initialized .slick-slide { width: 100% !important; }
 }
 
+/* ========= Section spacing helpers ========= */
+.section-tight { padding-top: 0.5rem; padding-bottom: 0.5rem; }
+.no-extra { margin: 0 !important; padding: 0 !important; }
