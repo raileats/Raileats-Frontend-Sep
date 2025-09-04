@@ -1,93 +1,96 @@
 "use client";
-import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import Link from "next/link";
 import { Home, Gift, Menu, User } from "lucide-react";
-
-type Tab = {
-  href?: string;
-  label: string;
-  icon: React.ReactNode;
-  onClick?: () => void;
-};
+import { useCallback } from "react";
 
 export default function BottomNav() {
-  const pathname = usePathname();
   const router = useRouter();
+  const pathname = usePathname();
 
-  const tabs: Tab[] = [
-    {
-      href: "/",
-      label: "Home",
-      icon: <Home className="h-6 w-6 text-blue-600" />,
-    },
-    {
-      label: "Vendor",
-      icon: (
-        <img
-          src="/logo.png"
-          alt="Vendor"
-          className="h-6 w-6"
-        />
-      ),
-      onClick: () => router.push("/vendor"),
-    },
-    {
-      href: "/offers",
-      label: "Offers",
-      icon: <Gift className="h-6 w-6 text-pink-600" />,
-    },
-    {
-      href: "/menu",
-      label: "My Menu",
-      icon: <Menu className="h-6 w-6 text-green-600" />,
-    },
-    {
-      href: "/profile",
-      label: "Profile",
-      icon: <User className="h-6 w-6 text-purple-600" />,
-    },
-  ];
+  const goTop = useCallback(() => {
+    if (pathname !== "/") router.push("/");
+    // little delay if route changes
+    setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 50);
+  }, [pathname, router]);
 
-  const isActive = (href?: string, label?: string) => {
-    if (!href && label === "Vendor") return pathname.startsWith("/vendor");
-    if (href === "/") return pathname === "/";
-    return href ? pathname.startsWith(href) : false;
+  const goOffers = useCallback(() => {
+    if (pathname !== "/") {
+      router.push("/?goto=offers");
+    } else {
+      const el = document.getElementById("offers");
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [pathname, router]);
+
+  const goVendor = () => router.push("/vendor");
+  const goMenu = () => router.push("/menu");
+  const goProfile = () => router.push("/menu#profile");
+
+  const Item = ({
+    active,
+    children,
+    onClick,
+    href,
+  }: {
+    active?: boolean;
+    children: React.ReactNode;
+    onClick?: () => void;
+    href?: string;
+  }) => {
+    const base =
+      "flex h-[56px] min-w-[64px] flex-col items-center justify-center gap-0.5 text-[11px] transition-colors";
+    const color = active ? "text-yellow-600" : "text-gray-600";
+    const content = <div className={`flex flex-col items-center ${color}`}>{children}</div>;
+
+    return href ? (
+      <Link href={href} className={base}>
+        {content}
+      </Link>
+    ) : (
+      <button type="button" onClick={onClick} className={`${base} w-full`}>
+        {content}
+      </button>
+    );
   };
 
   return (
     <nav className="bottom-nav border-t">
       <ul className="mx-auto grid max-w-screen-md grid-cols-5">
-        {tabs.map((t, i) => {
-          const active = isActive(t.href, t.label);
-          const base =
-            "flex h-[56px] flex-col items-center justify-center gap-0.5 text-xs transition-colors";
-          const color = active ? "text-yellow-600" : "text-gray-500";
+        <li className="w-full">
+          <Item active={pathname === "/"} onClick={goTop}>
+            <Home className="h-6 w-6 text-blue-600" />
+            <span>Home</span>
+          </Item>
+        </li>
 
-          const inner = (
-            <>
-              <div className={color}>{t.icon}</div>
-              <span className={color}>{t.label}</span>
-            </>
-          );
+        <li className="w-full">
+          <Item active={pathname.startsWith("/vendor")} onClick={goVendor}>
+            <img src="/logo.png" alt="Vendor" className="h-6 w-6" />
+            <span>Vendor</span>
+          </Item>
+        </li>
 
-          return (
-            <li key={i} className="w-full">
-              {t.href ? (
-                <Link href={t.href} className={base}>
-                  {inner}
-                </Link>
-              ) : (
-                <button
-                  type="button"
-                  onClick={t.onClick}
-                  className={`${base} w-full`}
-                >
-                  {inner}
-                </button>
-              )}
-            </li>
-          );
-        })}
+        <li className="w-full">
+          <Item onClick={goOffers} active={false}>
+            <Gift className="h-6 w-6 text-pink-600" />
+            <span>Offers</span>
+          </Item>
+        </li>
+
+        <li className="w-full">
+          <Item onClick={goMenu} active={pathname.startsWith("/menu")}>
+            <Menu className="h-6 w-6 text-green-600" />
+            <span>My Menu</span>
+          </Item>
+        </li>
+
+        <li className="w-full">
+          <Item onClick={goProfile} active={pathname === "/menu#profile"}>
+            <User className="h-6 w-6 text-purple-600" />
+            <span>Profile</span>
+          </Item>
+        </li>
       </ul>
     </nav>
   );
