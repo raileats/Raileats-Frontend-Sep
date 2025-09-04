@@ -9,38 +9,40 @@ import ExploreRailInfo from "./components/ExploreRailInfo";
 export default function HomePage() {
   return (
     <main className="bg-gray-50 min-h-screen">
-      {/* Hero Section */}
-      <section className="w-full max-w-5xl mx-auto">
-        <HeroSlider />
-
-        {/* Welcome Text */}
-        <div className="text-center mt-4">
-          <h1 className="text-2xl font-bold">
-            Welcome to <span className="text-yellow-600">RailEats.in</span>
+      {/* Welcome Strip (Yellow Bar) */}
+      <div className="w-full bg-gradient-to-r from-yellow-400 via-yellow-500 to-yellow-600 text-black py-3">
+        <div className="mx-auto max-w-screen-xl px-4 text-center">
+          <h1 className="text-lg md:text-xl font-bold">
+            Welcome to <span className="font-extrabold">RailEats.in</span>
           </h1>
-          <p className="text-gray-600 text-sm mt-1">
-            Ab Rail Journey ka Swad Only RailEats ke Saath
+          <p className="text-sm md:text-base mt-1 font-medium">
+            Ab Rail Journey ka Swad Only <span className="font-semibold">RailEats</span> ke Saath
           </p>
         </div>
+      </div>
 
-        {/* Search Section */}
-        <div className="mt-6 px-3">
-          <SearchBox />
-        </div>
+      {/* Hero Section (slider) */}
+      <section className="w-full max-w-5xl mx-auto mt-0">
+        <HeroSlider />
+      </section>
+
+      {/* Search Section */}
+      <section className="mt-4 px-3 max-w-5xl mx-auto">
+        <SearchBox />
       </section>
 
       {/* Offers Section */}
-      <section className="mt-8 w-full max-w-5xl mx-auto px-3">
+      <section className="mt-6 w-full max-w-5xl mx-auto px-3">
         <Offers />
       </section>
 
       {/* Steps Section */}
-      <section className="mt-10 w-full max-w-5xl mx-auto px-3">
+      <section className="mt-6 w-full max-w-5xl mx-auto px-3">
         <Steps />
       </section>
 
       {/* Explore Railway Info */}
-      <section className="mt-10 w-full max-w-5xl mx-auto px-3 mb-16">
+      <section className="mt-6 w-full max-w-5xl mx-auto px-3 mb-16">
         <ExploreRailInfo />
       </section>
     </main>
