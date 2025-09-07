@@ -132,27 +132,3 @@ main { margin-top: 0 !important; }
 
 /* 3) Safety: images always cover their frame in sliders */
 .slick-slide img { object-fit: cover; }
-:root{
-  --bg: #f8fafc;
-  --surface: #fff;
-  --text: #0f172a;
-  --muted: #6b7280;
-  --accent: #F6C800;
-  --primary: #1f3b82;
-  --card-shadow: 0 6px 18px rgba(16,24,40,0.06);
-}
-
-.dark {
-  --bg: #071126;
-  --surface: #08111a;
-  --text: #e6eef6;
-  --muted: #9aa6b3;
-  --accent: #F6C800;
-  --primary: #2563eb;
-  --card-shadow: 0 8px 24px rgba(2,6,23,0.6);
-}
-
-body {
-  background: var(--bg);
-  color: var(--text);
-}
