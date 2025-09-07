@@ -25,7 +25,7 @@ export default function LoginMenu() {
       {!user ? (
         <button
           onClick={() => setShowOtp(true)}
-          className="rounded-md bg-yellow-600 px-5 py-2 text-white hover:bg-yellow-700 transition"
+          className="rounded-md bg-white px-5 py-2 text-black font-bold hover:bg-gray-100 transition shadow"
         >
           Login
         </button>
@@ -33,9 +33,9 @@ export default function LoginMenu() {
         <div className="relative">
           <button
             onClick={() => setOpen((v) => !v)}
-            className="flex items-center gap-2 rounded-md border px-3 py-2 hover:bg-gray-50"
+            className="flex items-center gap-2 rounded-md bg-white px-4 py-2 text-black font-bold hover:bg-gray-100 transition shadow"
           >
-            <span className="font-medium">{user.name}</span>
+            <span>{user.name}</span>
             <ChevronDown className="h-4 w-4" />
           </button>
 
@@ -106,7 +106,6 @@ function OTPLoginModal({
 
   return (
     <div className="fixed inset-0 z-[100] bg-black/50">
-      {/* slightly down from top + smaller on mobile/desktop */}
       <div className="mx-auto mt-10 md:mt-16 max-w-xs md:max-w-sm">
         <div className="rounded-xl bg-white p-4 shadow-lg">
           <div className="flex items-center justify-between mb-2">
@@ -130,7 +129,7 @@ function OTPLoginModal({
               {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
               <button
                 onClick={sendOtp}
-                className="mt-3 w-full rounded-md bg-yellow-600 py-2 text-white hover:bg-yellow-700 text-sm"
+                className="mt-3 w-full rounded-md bg-white text-black font-bold py-2 hover:bg-gray-100 shadow text-sm"
               >
                 Send OTP
               </button>
@@ -150,7 +149,7 @@ function OTPLoginModal({
               {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
               <button
                 onClick={verifyOtp}
-                className="mt-3 w-full rounded-md bg-yellow-600 py-2 text-white hover:bg-yellow-700 text-sm"
+                className="mt-3 w-full rounded-md bg-white text-black font-bold py-2 hover:bg-gray-100 shadow text-sm"
               >
                 Verify & Login
               </button>
