@@ -5,17 +5,27 @@ import LoginMenu from "./LoginMenu";
 
 export default function Navbar() {
   return (
-    <header className="sticky top-0 z-50 w-full bg-transparent">
-      {/* same container width as rest of the site */}
+    /*
+      Behavior:
+      - Mobile: header has bg-black so the bar is full-width.
+      - Desktop (md+): header becomes transparent and inner container gets md:bg-black,
+        which keeps the black bar limited to max-w-5xl and centered.
+    */
+    <header className="sticky top-0 z-50 w-full bg-black md:bg-transparent">
+      {/* Site container — controls centered max width on desktop, still has px on mobile */}
       <div className="mx-auto max-w-5xl px-4">
-        {/* Black bar limited to container */}
-        <div className="h-14 md:h-16 flex items-center justify-between gap-2 bg-black rounded-b-md">
-          
+        {/* 
+          - On mobile this inner row will sit on header's black background (full-width black).
+          - On md+, this row itself will get the black background and rounded/border styling,
+            so it becomes the centered black bar.
+        */}
+        <div className="h-14 md:h-16 w-full flex items-center justify-between gap-2
+                        md:bg-black md:rounded-b-md md:border-b md:border-gray-800">
           {/* Left: Logo + Brand */}
           <Link href="/" className="flex items-center gap-2 md:gap-3 group">
             <img
               src="/logo.png"
-              alt="RailEats"
+              alt="RelFood"
               className="h-10 w-10 md:h-12 md:w-12 rounded-full animate-bubbleGlow"
             />
             <span className="text-xl md:text-2xl font-semibold leading-none">
@@ -29,7 +39,9 @@ export default function Navbar() {
           </Link>
 
           {/* Right: Login / User Menu */}
-          <LoginMenu />
+          <div>
+            <LoginMenu />
+          </div>
         </div>
       </div>
     </header>
