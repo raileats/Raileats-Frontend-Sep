@@ -7,8 +7,7 @@ const slides = [
   { id: 1, image: "/slides/offer50.png", text: "Flat ₹50 OFF on Orders Above ₹500" },
   { id: 2, image: "/slides/offer20.png", text: "Flat ₹20 OFF on Orders Above ₹250" },
   { id: 3, image: "/slides/offer-combo.png", text: "Combo Deals • Fresh & Fast" },
-  { id: 4, image: "/deliveryboy.png", text: "Hot & Fresh Delivery" }, // example portrait image
-];
+  { id: 4, image: "/deliveryboy.png", text: "Hot & Fresh Delivery" }
 
 export default function HeroSlider() {
   const settings = {
