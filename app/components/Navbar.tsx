@@ -6,7 +6,7 @@ import LoginMenu from "./LoginMenu";
 export default function Navbar() {
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-black">
-      {/* content width same as rest of site */}
+      {/* site width = same as rest of page */}
       <div className="mx-auto max-w-5xl px-4 h-14 md:h-16 flex items-center justify-between gap-2">
         
         {/* Left: Logo + Brand */}
@@ -14,13 +14,13 @@ export default function Navbar() {
           <img
             src="/logo.png"
             alt="RailEats"
-            className="h-10 w-10 md:h-12 md:w-12 rounded-full animate-bubbleGlow"
+            className="h-11 w-11 md:h-[52px] md:w-[52px] rounded-full animate-bubbleGlow"
           />
-          <span className="text-xl md:text-2xl font-semibold leading-none">
-            <span className="text-[#F6C800] group-hover:text-white transition duration-300">
+          <span className="text-xl md:text-2xl font-semibold leading-tight">
+            <span className="text-[#F6C800] transition duration-300 group-hover:text-white">
               Rail
             </span>
-            <span className="text-white group-hover:text-[#F6C800] transition duration-300">
+            <span className="text-white transition duration-300 group-hover:text-[#F6C800]">
               Eats
             </span>
           </span>
