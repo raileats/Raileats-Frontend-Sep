@@ -7,6 +7,7 @@ const slides = [
   { id: 1, image: "/slides/offer50.png", text: "Flat ₹50 OFF on Orders Above ₹500" },
   { id: 2, image: "/slides/offer20.png", text: "Flat ₹20 OFF on Orders Above ₹250" },
   { id: 3, image: "/slides/offer-combo.png", text: "Combo Deals • Fresh & Fast" },
+  { id: 4, image: "/deliveryboy.png", text: "Hot & Fresh Delivery" }, // example portrait image
 ];
 
 export default function HeroSlider() {
@@ -31,13 +32,13 @@ export default function HeroSlider() {
       <Slider {...settings}>
         {slides.map((slide, idx) => (
           <div key={slide.id} className="!w-full">
-            <div className="relative aspect-[16/9] w-full overflow-hidden rounded-xl shadow-lg bg-gray-200">
+            <div className="relative aspect-[16/9] w-full overflow-hidden rounded-xl shadow-lg bg-black flex items-center justify-center">
               <Image
                 src={slide.image}
                 alt={slide.text}
                 fill
                 priority={idx === 0}
-                className="object-cover"
+                className="object-contain"
                 sizes="(max-width: 768px) 100vw, 896px"
               />
               <div className="pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 bg-black/55 text-white px-3 py-1.5 rounded-md text-xs md:text-sm">
