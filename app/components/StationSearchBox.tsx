@@ -1,4 +1,3 @@
-// app/components/StationSearchBox.tsx
 "use client";
 
 import { useEffect, useRef, useState } from "react";
@@ -18,7 +17,10 @@ export default function StationSearchBox({ onSelect }: { onSelect?: (s: Station 
   const timer = useRef<number | null>(null);
 
   useEffect(() => {
-    if (!q) { setResults([]); return; }
+    if (!q) {
+      setResults([]);
+      return;
+    }
     if (timer.current) window.clearTimeout(timer.current);
 
     timer.current = window.setTimeout(async () => {
@@ -30,8 +32,11 @@ export default function StationSearchBox({ onSelect }: { onSelect?: (s: Station 
           setResults([]);
         } else {
           const json = await resp.json();
-          // Accept either { status:200, data: [...] } or direct array
-          const data = Array.isArray(json?.data) ? json.data : (Array.isArray(json) ? json : (json?.data ?? []));
+          const data = Array.isArray(json?.data)
+            ? json.data
+            : Array.isArray(json)
+            ? json
+            : json?.data ?? [];
           setResults(data);
         }
       } catch (err) {
@@ -40,9 +45,11 @@ export default function StationSearchBox({ onSelect }: { onSelect?: (s: Station 
       } finally {
         setLoading(false);
       }
-    }, 250);
+    }, 300);
 
-    return () => { if (timer.current) window.clearTimeout(timer.current); };
+    return () => {
+      if (timer.current) window.clearTimeout(timer.current);
+    };
   }, [q]);
 
   return (
@@ -55,12 +62,22 @@ export default function StationSearchBox({ onSelect }: { onSelect?: (s: Station 
           onChange={(e) => setQ(e.target.value)}
           className="w-full border rounded px-3 py-2"
         />
-        <button type="button" className="px-3 py-2 bg-gray-100 border rounded" onClick={() => { setQ(""); setResults([]); onSelect?.(null); }}>
+        <button
+          type="button"
+          className="px-3 py-2 bg-gray-100 border rounded"
+          onClick={() => {
+            setQ("");
+            setResults([]);
+            onSelect?.(null);
+          }}
+        >
           Clear
         </button>
       </div>
 
-      {loading && <div className="absolute mt-1 left-0 bg-white border p-2 text-sm">Searching…</div>}
+      {loading && (
+        <div className="absolute mt-1 left-0 bg-white border p-2 text-sm">Searching…</div>
+      )}
 
       {results.length > 0 && (
         <div className="absolute z-50 bg-white border rounded w-full mt-1 max-h-60 overflow-auto">
@@ -74,8 +91,13 @@ export default function StationSearchBox({ onSelect }: { onSelect?: (s: Station 
                 onSelect?.(s);
               }}
             >
-              <div className="text-sm font-medium">{s.StationName} <span className="text-xs text-gray-500">({s.StationCode || ""})</span></div>
-              <div className="text-xs text-gray-500">{s.District || ""}{s.State ? ` • ${s.State}` : ""}</div>
+              <div className="text-sm font-medium">
+                {s.StationName}{" "}
+                <span className="text-xs text-gray-500">({s.StationCode || ""})</span>
+              </div>
+              <div className="text-xs text-gray-500">
+                {s.District || ""} {s.State ? `• ${s.State}` : ""}
+              </div>
             </div>
           ))}
         </div>
