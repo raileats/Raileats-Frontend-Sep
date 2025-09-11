@@ -2,7 +2,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { createClient } from "@supabase/supabase-js";
 
 type Station = {
   StationId: number;
@@ -12,12 +11,6 @@ type Station = {
   District?: string;
 };
 
-// NOTE: this uses public NEXT_PUBLIC env keys (client). Alternatively you can call your server proxy /api/search-stations
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || "",
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
-);
-
 export default function StationSearchBox({ onSelect }: { onSelect?: (s: Station | null) => void }) {
   const [q, setQ] = useState("");
   const [results, setResults] = useState<Station[]>([]);
@@ -25,27 +18,21 @@ export default function StationSearchBox({ onSelect }: { onSelect?: (s: Station 
   const timer = useRef<number | null>(null);
 
   useEffect(() => {
-    if (!q) {
-      setResults([]);
-      return;
-    }
-
+    if (!q) { setResults([]); return; }
     if (timer.current) window.clearTimeout(timer.current);
+
     timer.current = window.setTimeout(async () => {
       setLoading(true);
       try {
-        // If you prefer server-proxy, replace this with fetch('/api/search-stations?q=...')
-        const { data, error } = await supabase
-          .from("Stations")
-          .select("StationId,StationName,StationCode,State, District")
-          .ilike("StationName", `${q}%`)
-          .limit(12);
-
-        if (error) {
-          console.error("Supabase stations error:", error);
+        const resp = await fetch(`/api/search-stations?q=${encodeURIComponent(q)}`);
+        if (!resp.ok) {
+          console.error("search-stations proxy failed:", resp.status);
           setResults([]);
         } else {
-          setResults((data || []) as Station[]);
+          const json = await resp.json();
+          // Accept either { status:200, data: [...] } or direct array
+          const data = Array.isArray(json?.data) ? json.data : (Array.isArray(json) ? json : (json?.data ?? []));
+          setResults(data);
         }
       } catch (err) {
         console.error("StationSearchBox fetch error:", err);
@@ -55,9 +42,7 @@ export default function StationSearchBox({ onSelect }: { onSelect?: (s: Station 
       }
     }, 250);
 
-    return () => {
-      if (timer.current) window.clearTimeout(timer.current);
-    };
+    return () => { if (timer.current) window.clearTimeout(timer.current); };
   }, [q]);
 
   return (
@@ -65,16 +50,12 @@ export default function StationSearchBox({ onSelect }: { onSelect?: (s: Station 
       <div className="flex gap-2">
         <input
           type="text"
-          placeholder="Search station by name or code..."
+          placeholder="Enter station name or code..."
           value={q}
           onChange={(e) => setQ(e.target.value)}
           className="w-full border rounded px-3 py-2"
         />
-        <button
-          type="button"
-          className="px-3 py-2 bg-gray-100 border rounded"
-          onClick={() => { setQ(""); setResults([]); onSelect?.(null); }}
-        >
+        <button type="button" className="px-3 py-2 bg-gray-100 border rounded" onClick={() => { setQ(""); setResults([]); onSelect?.(null); }}>
           Clear
         </button>
       </div>
@@ -93,9 +74,7 @@ export default function StationSearchBox({ onSelect }: { onSelect?: (s: Station 
                 onSelect?.(s);
               }}
             >
-              <div className="text-sm font-medium">
-                {s.StationName} <span className="text-xs text-gray-500">({s.StationCode || ""})</span>
-              </div>
+              <div className="text-sm font-medium">{s.StationName} <span className="text-xs text-gray-500">({s.StationCode || ""})</span></div>
               <div className="text-xs text-gray-500">{s.District || ""}{s.State ? ` • ${s.State}` : ""}</div>
             </div>
           ))}
