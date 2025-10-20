@@ -5,13 +5,28 @@ export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
-const SUPABASE_URL = process.env.SUPABASE_URL!;
-const SUPABASE_SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE!;
+function makeSupabaseClient() {
+  const SUPABASE_URL = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const SUPABASE_SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE;
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE);
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE) {
+    // Do NOT throw here — let handler decide and return a 500 JSON response.
+    return null;
+  }
+
+  return createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE);
+}
 
 export async function GET(req: Request, { params }: { params: { code: string } }) {
   try {
+    const supabase = makeSupabaseClient();
+    if (!supabase) {
+      return NextResponse.json(
+        { error: "Server configuration error: SUPABASE_URL or SUPABASE_SERVICE_ROLE not set" },
+        { status: 500 }
+      );
+    }
+
     const code = (params.code || "").toString().toUpperCase();
     if (!code) return NextResponse.json({ error: "station code required" }, { status: 400 });
 
@@ -59,7 +74,6 @@ export async function GET(req: Request, { params }: { params: { code: string } }
     // 4) build public URLs for images (adjust bucket name)
     const makeUrl = (path?: string | null) => {
       if (!path) return null;
-      // if public bucket named 'public'
       try {
         const { data } = supabase.storage.from("public").getPublicUrl(path);
         return data?.publicUrl || null;
