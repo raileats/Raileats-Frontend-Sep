@@ -15,11 +15,14 @@ export default function StationSearchBox({ onSelect }: { onSelect?: (s: Station 
   const [q, setQ] = useState("");
   const [results, setResults] = useState<Station[]>([]);
   const [loading, setLoading] = useState(false);
+  const [activeIndex, setActiveIndex] = useState<number>(-1);
   const timer = useRef<number | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!q) {
       setResults([]);
+      setActiveIndex(-1);
       return;
     }
     if (timer.current) window.clearTimeout(timer.current);
@@ -39,10 +42,12 @@ export default function StationSearchBox({ onSelect }: { onSelect?: (s: Station 
             ? json
             : json?.data ?? [];
           setResults(data);
+          setActiveIndex(data.length > 0 ? 0 : -1);
         }
       } catch (err) {
         console.error("StationSearchBox fetch error:", err);
         setResults([]);
+        setActiveIndex(-1);
       } finally {
         setLoading(false);
       }
@@ -53,33 +58,72 @@ export default function StationSearchBox({ onSelect }: { onSelect?: (s: Station 
     };
   }, [q]);
 
+  // click outside to close results
+  useEffect(() => {
+    function onDocClick(e: MouseEvent) {
+      if (!containerRef.current) return;
+      if (!containerRef.current.contains(e.target as Node)) {
+        setResults([]);
+        setActiveIndex(-1);
+      }
+    }
+    document.addEventListener("click", onDocClick);
+    return () => document.removeEventListener("click", onDocClick);
+  }, []);
+
   const handleClear = () => {
     setQ("");
     setResults([]);
+    setActiveIndex(-1);
     onSelect?.(null);
   };
 
   const handleSelect = (s: Station) => {
-    // only call onSelect and update input; DO NOT navigate here
     onSelect?.(s);
     setQ(`${s.StationName}${s.StationCode ? ` (${s.StationCode})` : ""}`);
     setResults([]);
+    setActiveIndex(-1);
+  };
+
+  const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (results.length === 0) return;
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setActiveIndex((prev) => Math.min(prev + 1, results.length - 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActiveIndex((prev) => Math.max(prev - 1, 0));
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (activeIndex >= 0 && activeIndex < results.length) {
+        handleSelect(results[activeIndex]);
+      }
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      setResults([]);
+      setActiveIndex(-1);
+    }
   };
 
   return (
-    <div className="relative w-full">
+    <div ref={containerRef} className="relative w-full" aria-haspopup="listbox">
       <div className="flex gap-2">
         <input
           type="text"
           placeholder="Enter station name or code..."
           value={q}
           onChange={(e) => setQ(e.target.value)}
+          onKeyDown={onKeyDown}
+          aria-activedescendant={activeIndex >= 0 ? `station-item-${results[activeIndex].StationId}` : undefined}
+          aria-autocomplete="list"
+          aria-controls="station-search-list"
           className="w-full border rounded px-3 py-2"
         />
         <button
           type="button"
           className="px-3 py-2 bg-gray-100 border rounded"
           onClick={handleClear}
+          aria-label="Clear station search"
         >
           Clear
         </button>
@@ -90,22 +134,39 @@ export default function StationSearchBox({ onSelect }: { onSelect?: (s: Station 
       )}
 
       {results.length > 0 && (
-        <div className="absolute z-50 bg-white border rounded w-full mt-1 max-h-60 overflow-auto">
-          {results.map((s) => (
-            <div
-              key={s.StationId}
-              className="p-2 hover:bg-gray-100 cursor-pointer"
-              onClick={() => handleSelect(s)}
-            >
-              <div className="text-sm font-medium">
-                {s.StationName}{" "}
-                <span className="text-xs text-gray-500">({s.StationCode || ""})</span>
+        <div
+          id="station-search-list"
+          role="listbox"
+          className="absolute z-50 bg-white border rounded w-full mt-1 max-h-60 overflow-auto"
+        >
+          {results.map((s, idx) => {
+            const isActive = idx === activeIndex;
+            return (
+              <div
+                id={`station-item-${s.StationId}`}
+                key={s.StationId}
+                role="option"
+                aria-selected={isActive}
+                className={`p-2 hover:bg-gray-100 cursor-pointer ${isActive ? "bg-gray-100" : ""}`}
+                onClick={() => handleSelect(s)}
+                onMouseEnter={() => setActiveIndex(idx)}
+              >
+                <div className="text-sm font-medium">
+                  {s.StationName}{" "}
+                  <span className="text-xs text-gray-500">({s.StationCode || ""})</span>
+                </div>
+                <div className="text-xs text-gray-500">
+                  {s.District || ""} {s.State ? `• ${s.State}` : ""}
+                </div>
               </div>
-              <div className="text-xs text-gray-500">
-                {s.District || ""} {s.State ? `• ${s.State}` : ""}
-              </div>
-            </div>
-          ))}
+            );
+          })}
+        </div>
+      )}
+
+      {!loading && q && results.length === 0 && (
+        <div className="absolute z-50 bg-white border rounded w-full mt-1 p-2 text-sm text-gray-500">
+          No stations found
         </div>
       )}
     </div>
