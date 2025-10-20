@@ -1,26 +1,49 @@
+// app/components/SearchBox.tsx
 "use client";
 
 import { useState } from "react";
-import StationSearchBox from "./StationSearchBox"; // path: app/components/StationSearchBox.tsx
+import { useRouter } from "next/navigation";
+import StationSearchBox from "./StationSearchBox";
 
 export default function SearchBox() {
+  const router = useRouter();
   const [searchType, setSearchType] = useState<"pnr" | "train" | "station">("pnr");
   const [inputValue, setInputValue] = useState("");
 
+  const extractStationCode = (val: string) => {
+    const m = val.match(/\(([^)]+)\)$/);
+    if (m && m[1]) return m[1].trim();
+    const hyphenMatch = val.match(/- *([A-Za-z0-9]+)/);
+    if (hyphenMatch && hyphenMatch[1]) return hyphenMatch[1].trim();
+    const parts = val.trim().split(/\s+/);
+    const last = parts[parts.length - 1];
+    if (last && last.length <= 6) return last.trim();
+    return val.trim();
+  };
+
   const handleSearch = () => {
-    if (!inputValue) {
+    if (!inputValue || inputValue.trim() === "") {
       alert("Please enter value");
       return;
     }
+    const q = inputValue.trim();
 
-    // For now just log; replace with navigation or API as needed
-    console.log(`Searching ${searchType} for: ${inputValue}`);
-    // Example: router.push(`/search?type=${searchType}&q=${encodeURIComponent(inputValue)}`)
+    if (searchType === "station") {
+      const rawCode = extractStationCode(q);
+      const safe = encodeURIComponent(rawCode.toUpperCase());
+      router.push(`/Stations/${safe}`);
+      return;
+    }
+
+    if (searchType === "pnr") {
+      router.push(`/pnr/${encodeURIComponent(q)}`);
+      return;
+    }
+    router.push(`/trains/${encodeURIComponent(q)}`);
   };
 
   return (
     <div className="mt-4 w-full max-w-xl mx-auto bg-white rounded-lg shadow p-4">
-      {/* Radio Selection */}
       <div className="flex justify-center gap-6 mb-4">
         {(["pnr", "train", "station"] as const).map((type) => (
           <label key={type} className="flex items-center gap-2 cursor-pointer">
@@ -31,7 +54,7 @@ export default function SearchBox() {
               checked={searchType === type}
               onChange={(e) => {
                 setSearchType(e.target.value as any);
-                setInputValue(""); // clear input when switching types
+                setInputValue("");
               }}
             />
             <span className="capitalize">{type}</span>
@@ -39,20 +62,25 @@ export default function SearchBox() {
         ))}
       </div>
 
-      {/* Input area */}
       <div className="px-3">
         <div className="w-full rounded-md border overflow-hidden">
           {searchType === "station" ? (
-            // Use the station search component which calls /api/search-stations
             <div className="p-2">
               <StationSearchBox
                 onSelect={(s) => {
-                  // put station code or station name into input value so Search button can use it
                   const val = s ? (s.StationCode ?? s.StationName ?? "") : "";
-                  setInputValue(val);
+                  const display = s ? `${s.StationName}${s.StationCode ? ` (${s.StationCode})` : ""}` : "";
+                  setInputValue(display || val);
                 }}
               />
-              <div className="mt-2 flex justify-end">
+              <div className="mt-2 flex justify-end gap-2">
+                <button
+                  onClick={() => setInputValue("")}
+                  className="px-4 py-2 border rounded"
+                >
+                  Clear
+                </button>
+
                 <button
                   onClick={handleSearch}
                   className="px-4 py-2 bg-black text-white rounded"
