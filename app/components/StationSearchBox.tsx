@@ -52,19 +52,6 @@ export default function StationSearchBox({ onSelect }: { onSelect?: (s: Station 
     };
   }, [q]);
 
-  const handleClear = () => {
-    setQ("");
-    setResults([]);
-    onSelect?.(null);
-  };
-
-  const handleSelect = (s: Station) => {
-    // only call onSelect and update input; DO NOT navigate here
-    onSelect?.(s);
-    setQ(`${s.StationName}${s.StationCode ? ` (${s.StationCode})` : ""}`);
-    setResults([]);
-  };
-
   return (
     <div className="relative w-full">
       <div className="flex gap-2">
@@ -78,7 +65,11 @@ export default function StationSearchBox({ onSelect }: { onSelect?: (s: Station 
         <button
           type="button"
           className="px-3 py-2 bg-gray-100 border rounded"
-          onClick={handleClear}
+          onClick={() => {
+            setQ("");
+            setResults([]);
+            onSelect?.(null);
+          }}
         >
           Clear
         </button>
@@ -94,7 +85,11 @@ export default function StationSearchBox({ onSelect }: { onSelect?: (s: Station 
             <div
               key={s.StationId}
               className="p-2 hover:bg-gray-100 cursor-pointer"
-              onClick={() => handleSelect(s)}
+              onClick={() => {
+                setQ(`${s.StationName}${s.StationCode ? ` (${s.StationCode})` : ""}`);
+                setResults([]);
+                onSelect?.(s);
+              }}
             >
               <div className="text-sm font-medium">
                 {s.StationName}{" "}
