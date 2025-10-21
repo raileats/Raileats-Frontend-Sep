@@ -12,9 +12,20 @@ function makeSupabaseClient() {
   return createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE);
 }
 
+/**
+ * Try common image-field names (include your RestroDisplayPhoto column)
+ */
 function pickImagePathFromRecord(rec: any) {
   if (!rec) return null;
-  const candidates = ["storage_image_path", "image_path", "photo", "photo_url", "image_url"];
+  const candidates = [
+    "storage_image_path",
+    "image_path",
+    "photo",
+    "photo_url",
+    "image_url",
+    "RestroDisplayPhoto", // your table column
+    "RestroPhoto",
+  ];
   for (const c of candidates) {
     if (rec[c]) return rec[c];
   }
@@ -34,12 +45,16 @@ export async function GET(req: Request, { params }: { params: { code: string } }
     const code = (params.code || "").toString().toUpperCase();
     if (!code) return NextResponse.json({ error: "station code required" }, { status: 400 });
 
-    // 1) get station record safely
+    // 1) load station (Stations table)
     let stationRec: any = null;
     try {
-      const { data, error } = await supabase.from("Stations").select("*").eq("StationCode", code).maybeSingle();
+      const { data, error } = await supabase
+        .from("Stations")
+        .select("*")
+        .eq("StationCode", code)
+        .maybeSingle();
+
       if (error) {
-        // if table missing or other DB error, return error
         return NextResponse.json({ error: error.message }, { status: 500 });
       }
       stationRec = data;
@@ -48,37 +63,42 @@ export async function GET(req: Request, { params }: { params: { code: string } }
       return NextResponse.json({ error: String(err) }, { status: 500 });
     }
 
-    // 2) get restros safely — table might not exist; handle gracefully
+    // 2) load restaurants from RestroMaster where RaileatsStatus = 1 and StationCode matches
     let restros: any[] = [];
     try {
-      const { data, error } = await supabase.from("restros").select("*").eq("station_code", code).eq("is_active", true);
+      const { data, error } = await supabase
+        .from("RestroMaster")
+        .select("*")
+        .eq("StationCode", code)
+        .eq("RaileatsStatus", 1); // only active ones
+
       if (error) {
-        // If error mentions table missing, handle by returning empty list (but log for debugging)
-        console.warn("restros fetch error:", error.message);
+        console.warn("RestroMaster fetch error:", error.message);
         restros = [];
       } else {
         restros = data ?? [];
       }
     } catch (err: any) {
-      console.warn("restros fetch exception:", String(err));
+      console.warn("RestroMaster fetch exception:", String(err));
       restros = [];
     }
 
-    // 3) filter by latest FSSAI where available
+    // 3) for each restro, fetch latest fssai (if table exists) and keep only restaurants with active FSSAI
     const now = new Date().toISOString().slice(0, 10);
     const filtered: any[] = [];
     for (const r of restros) {
       try {
+        // adjust column name in where clause if your restro_fssai uses a different column (e.g., RestroCode)
         const { data: rf, error: rfErr } = await supabase
           .from("restro_fssai")
           .select("fssai_number, expiry_date, is_active")
-          .eq("restro_code", r.code)
+          .eq("restro_code", r.RestroCode ?? r.RestroCode ?? r.code)
           .order("created_at", { ascending: false })
           .limit(1)
           .maybeSingle();
 
         if (rfErr) {
-          console.warn("fssai fetch error for", r.code, rfErr.message);
+          console.warn("fssai fetch error for", r.RestroCode, rfErr.message);
           continue;
         }
 
@@ -87,12 +107,12 @@ export async function GET(req: Request, { params }: { params: { code: string } }
           filtered.push({ ...r, fssai: rf });
         }
       } catch (e) {
-        console.warn("fssai fetch exception for", r.code, String(e));
+        console.warn("fssai fetch exception for", r.RestroCode, String(e));
         continue;
       }
     }
 
-    // 4) build public URLs for images (public bucket assumed)
+    // 4) build public URL for images (assumes bucket name "public")
     const makeUrl = (path?: string | null) => {
       if (!path) return null;
       try {
@@ -103,6 +123,7 @@ export async function GET(req: Request, { params }: { params: { code: string } }
       }
     };
 
+    // station image: try common names
     const stationImagePath = pickImagePathFromRecord(stationRec);
     const station = {
       StationCode: stationRec.StationCode,
@@ -112,16 +133,31 @@ export async function GET(req: Request, { params }: { params: { code: string } }
       image_url: stationImagePath ? makeUrl(stationImagePath) : null,
     };
 
-    const restaurants = (filtered || []).map((r) => {
-      const img = pickImagePathFromRecord(r);
+    // map restaurants to the shape frontend expects, using your RestroMaster column names
+    const restaurants = (filtered || []).map((r: any) => {
+      // try to read cuisines from likely columns; adjust if you have a specific column
+      const cuisines =
+        Array.isArray(r.cuisines) && r.cuisines.length
+          ? r.cuisines
+          : r.Cuisines && Array.isArray(r.Cuisines)
+          ? r.Cuisines
+          : r.Cuisines
+          ? String(r.Cuisines).split(",").map((s: string) => s.trim())
+          : [];
+
+      const imgPath = pickImagePathFromRecord(r) || r.RestroDisplayPhoto || r.RestroDisplayPhoto;
       return {
-        code: r.code,
-        name: r.name,
-        rating: r.rating ?? null,
-        type: r.type ?? null,
-        cuisines: Array.isArray(r.cuisines) ? r.cuisines : (r.cuisines ? String(r.cuisines).split(",").map((s:string)=>s.trim()) : []),
-        min_order: r.min_order ?? null,
-        image_url: img ? makeUrl(img) : null,
+        code: r.RestroCode ?? r.RestroCode ?? r.code,
+        name: r.RestroName ?? r.RestroName ?? r.name,
+        rating: r.RestroRating ?? r.rating ?? null,
+        // type: prefer explicit type column if present; fall back to IsPureVeg
+        type:
+          r.RestroType ??
+          r.RestroTypeofDeliveryRailEatsorVendor ??
+          (r.IsPureVeg === 1 || r.IsPureVeg === true ? "Pure Veg" : undefined),
+        cuisines,
+        min_order: r.MinimumOrdermValue ?? r.min_order ?? null,
+        image_url: imgPath ? makeUrl(imgPath) : null,
         fssai: r.fssai ?? null,
       };
     });
