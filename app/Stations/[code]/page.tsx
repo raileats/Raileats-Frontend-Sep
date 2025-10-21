@@ -1,5 +1,5 @@
 // app/Stations/[code]/page.tsx
-import StationHeaderServer from "../../../components/StationHeaderServer";
+import StationHeaderServer from "./StationHeaderServer";
 type Props = { params: { code: string } };
 
 export default async function StationPage({ params }: Props) {
