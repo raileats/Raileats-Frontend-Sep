@@ -1,16 +1,32 @@
-// app/Stations/[code]/StationHeaderServer.tsx
+// components/StationHeaderServer.tsx
+import React from "react";
+
 export default function StationHeaderServer({ station }: { station: any }) {
+  const name = station?.StationName ?? station?.StationCode ?? "Station";
+  const code = station?.StationCode ?? "";
+  const state = station?.State ?? "";
+  const district = station?.District ?? "";
+
   return (
-    <div className="mb-6">
-      {station?.image_url ? (
-        <img src={station.image_url} alt={station.StationName} className="w-full h-48 object-cover rounded" />
-      ) : (
-        <div className="w-full h-48 bg-gray-100 rounded flex items-center justify-center">No image</div>
-      )}
-      <div className="mt-4">
-        <h1 className="text-2xl font-bold">{station.StationCode} — {station.StationName}</h1>
-        <p className="text-sm text-gray-600">{station.State} {station.District ? `• ${station.District}` : ""}</p>
+    <header className="mb-6">
+      <div className="bg-gray-50 rounded overflow-hidden">
+        {station?.image_url ? (
+          <div className="w-full h-56 bg-gray-100 flex items-center justify-center">
+            <img src={station.image_url} alt={name} className="w-full h-full object-cover" />
+          </div>
+        ) : (
+          <div className="w-full h-56 bg-gray-100 flex items-center justify-center text-gray-500">No image</div>
+        )}
       </div>
-    </div>
+
+      <div className="mt-4">
+        <h1 className="text-2xl font-bold">
+          {code} — {name}
+        </h1>
+        <div className="text-sm text-gray-600 mt-1">
+          {state} {state && district ? "• " : ""} {district}
+        </div>
+      </div>
+    </header>
   );
 }
