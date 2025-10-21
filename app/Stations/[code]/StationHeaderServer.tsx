@@ -1,7 +1,7 @@
 // components/StationHeaderServer.tsx
 import React from "react";
 
-export default function StationHeaderServer({ station }: { station: any }) {
+export default function StationHeaderServer({ station }: { station?: any }) {
   const name = station?.StationName ?? station?.StationCode ?? "Station";
   const code = station?.StationCode ?? "";
   const state = station?.State ?? "";
