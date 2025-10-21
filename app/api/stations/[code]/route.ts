@@ -12,19 +12,6 @@ type StationRow = {
   image_url?: string | null;
 };
 
-type RestroRow = {
-  RestroCode?: number | string;
-  RestroName?: string;
-  RestroRating?: number | null;
-  IsPureVeg?: number | boolean | null;
-  RestroDisplayPhoto?: string | null;
-  OpenTime?: string | null;
-  ClosedTime?: string | null;
-  MinimumOrderValue?: number | null;
-  IsActive?: boolean | null;
-  --?: any;
-};
-
 export async function GET(
   _request: Request,
   { params }: { params: { code?: string } }
@@ -37,8 +24,10 @@ export async function GET(
       return NextResponse.json({ error: "Missing station code" }, { status: 400 });
     }
 
-    const PROJECT_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL;
-    const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE ?? process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const PROJECT_URL =
+      process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL;
+    const SERVICE_KEY =
+      process.env.SUPABASE_SERVICE_ROLE ?? process.env.SUPABASE_SERVICE_ROLE_KEY;
 
     if (!PROJECT_URL) {
       return NextResponse.json({ error: "SUPABASE URL not configured" }, { status: 500 });
@@ -47,16 +36,15 @@ export async function GET(
       return NextResponse.json({ error: "SUPABASE service key not configured" }, { status: 500 });
     }
 
-    // Helper to build public storage URL (assumes bucket name 'public')
+    // Helper: build public image URL (assumes bucket name 'public')
     const buildPublicImageUrl = (path?: string | null) => {
       if (!path) return null;
       if (/^https?:\/\//i.test(path)) return path;
-      // Ensure no leading slash
-      const cleaned = path.replace(/^\/+/, "");
+      const cleaned = String(path).replace(/^\/+/, "");
       return `${PROJECT_URL.replace(/\/$/, "")}/storage/v1/object/public/public/${encodeURIComponent(cleaned)}`;
     };
 
-    // 1) Fetch station metadata (Stations table)
+    // 1) Fetch station metadata
     const stationUrl = `${PROJECT_URL.replace(/\/$/, "")}/rest/v1/Stations?select=StationCode,StationName,State,District,image_url&StationCode=eq.${encodeURIComponent(
       code
     )}&limit=1`;
@@ -69,36 +57,41 @@ export async function GET(
       },
     });
 
-    if (!stationResp.ok) {
-      const txt = await stationResp.text();
+    let station: StationRow | null = null;
+    if (stationResp.ok) {
+      const stationJson: StationRow[] = await stationResp.json().catch(() => []);
+      station = stationJson && stationJson.length ? stationJson[0] : null;
+    } else {
+      // log but continue — restaurants may still be available
+      const txt = await stationResp.text().catch(() => "");
       console.error("Station fetch error:", stationResp.status, txt);
-      // Continue — station may not exist; still query restaurants
     }
 
-    const stationJson: StationRow[] = await stationResp.json().catch(() => []);
-    const station = stationJson && stationJson.length ? stationJson[0] : null;
-
-    // 2) Fetch restaurants from RestroMaster table
-    // Adjust column names if your table uses different names
+    // 2) Fetch restaurants from RestroMaster
+    // NOTE: Using exact column names observed in your CSV:
+    // "RestroCode","RestroName","RestroRating","IsPureVeg","RestroDisplayPhoto",
+    // "0penTime","ClosedTime","MinimumOrdermValue","IsActive","FSSAIStatus","RaileatsStatus"
     const selectCols = [
       "RestroCode",
       "RestroName",
       "RestroRating",
       "IsPureVeg",
       "RestroDisplayPhoto",
-      "OpenTime",
+      "0penTime",
       "ClosedTime",
-      "MinimumOrderValue",
+      "MinimumOrdermValue",
       "IsActive",
-      "FssaiActive" // include to double-check / filter if present
+      "FSSAIStatus",
+      "RaileatsStatus",
+      "StationCode",
+      "StationName"
     ].join(",");
 
-    // Query: StationCode eq code AND IsActive = true AND (FssaiActive = true OR FssaiActive IS NULL)
-    // PostgREST filters: use eq.true or is.null etc.
-    // We'll request rows and filter FSSAI in JS if column name differs.
+    // Query: StationCode eq code AND IsActive = true (some datasets use RaileatsStatus numeric 1 for active)
+    // We will request rows and then filter for FSSAIStatus = 'Active' (case-insensitive) and IsActive/RaileatsStatus.
     const restroUrl = `${PROJECT_URL.replace(/\/$/, "")}/rest/v1/RestroMaster?select=${encodeURIComponent(
       selectCols
-    )}&StationCode=eq.${encodeURIComponent(code)}&IsActive=eq.true`;
+    )}&StationCode=eq.${encodeURIComponent(code)}`;
 
     const restroResp = await fetch(restroUrl, {
       headers: {
@@ -109,53 +102,57 @@ export async function GET(
     });
 
     if (!restroResp.ok) {
-      const txt = await restroResp.text();
+      const txt = await restroResp.text().catch(() => "");
       console.error("RestroMaster fetch error:", restroResp.status, txt);
       return NextResponse.json({ error: "Failed to fetch restaurants" }, { status: 502 });
     }
 
     const restroRows: any[] = await restroResp.json().catch(() => []);
 
-    // 3) Filter out FSSAI-inactive rows (common column names: FssaiActive, FSSAIactive, FSSAIinactive)
-    const normalizeAndFilter = (row: any) => {
-      // detect FSSAI flags:
-      const fssaiActive =
-        row.FssaiActive ?? row.FSSAIActive ?? (row.FSSAIinactive !== undefined ? !row.FSSAIinactive : undefined);
+    // 3) Normalize & filter rows
+    const normalized = restroRows
+      .map((row) => {
+        // Determine activity: prefer IsActive boolean, else RaileatsStatus numeric (1=active)
+        const isActive =
+          row.IsActive === true ||
+          String(row.IsActive).toLowerCase() === "true" ||
+          String(row.RaileatsStatus) === "1" ||
+          String(row.RaileatsStatus).toLowerCase() === "active";
 
-      // Only include if FSSAIactive is true or undefined (if undefined, assume allowed)
-      if (fssaiActive === false) return null;
+        // FSSAI: column `FSSAIStatus` may be 'Active' / 'Inactive' / 'On' / 'Off'
+        const fssaiStatus = row.FSSAIStatus ?? row.FssaiStatus ?? row.Fssai_Status;
+        const fssaiActive =
+          fssaiStatus === undefined ||
+          fssaiStatus === null ||
+          String(fssaiStatus).toLowerCase() === "active" ||
+          String(fssaiStatus).toLowerCase() === "on" ||
+          String(fssaiStatus).toLowerCase() === "yes" ||
+          String(fssaiStatus).trim() === "";
 
-      // Map isPureVeg: if numeric 1 => true
-      const isPureVeg = row.IsPureVeg === 1 || row.IsPureVeg === "1" || row.IsPureVeg === true;
+        // Map IsPureVeg numeric 1 => true
+        const isPureVeg =
+          row.IsPureVeg === 1 || row.IsPureVeg === "1" || String(row.IsPureVeg).toLowerCase() === "true";
 
-      const photoUrl = buildPublicImageUrl(row.RestroDisplayPhoto);
+        const photoUrl = buildPublicImageUrl(row.RestroDisplayPhoto);
 
-      return {
-        RestroCode: row.RestroCode,
-        RestroName: row.RestroName,
-        RestroRating: row.RestroRating ?? null,
-        isPureVeg,
-        RestroDisplayPhoto: photoUrl,
-        OpenTime: row.OpenTime ?? null,
-        ClosedTime: row.ClosedTime ?? null,
-        MinimumOrderValue: row.MinimumOrderValue ?? null,
-      };
-    };
+        return {
+          RestroCode: row.RestroCode,
+          RestroName: row.RestroName,
+          RestroRating: row.RestroRating ?? null,
+          isPureVeg,
+          RestroDisplayPhoto: photoUrl,
+          OpenTime: row["0penTime"] ?? null,
+          ClosedTime: row.ClosedTime ?? null,
+          MinimumOrdermValue: row.MinimumOrdermValue ?? null,
+          _isActiveRaw: isActive,
+          _fssaiActiveRaw: fssaiActive,
+        };
+      })
+      // keep only active && fssaiActive
+      .filter((r) => r._isActiveRaw && r._fssaiActiveRaw)
+      // remove internal flags from response
+      .map(({ _isActiveRaw, _fssaiActiveRaw, ...rest }) => rest);
 
-    const restaurants = restroRows
-      .map(normalizeAndFilter)
-      .filter(Boolean) as Array<{
-        RestroCode: number | string;
-        RestroName?: string;
-        RestroRating?: number | null;
-        isPureVeg?: boolean;
-        RestroDisplayPhoto?: string | null;
-        OpenTime?: string | null;
-        ClosedTime?: string | null;
-        MinimumOrderValue?: number | null;
-      }>;
-
-    // 4) Final JSON shape
     const result = {
       station: station
         ? {
@@ -166,7 +163,7 @@ export async function GET(
             image_url: station.image_url ? buildPublicImageUrl(station.image_url) : null,
           }
         : { StationCode: code, StationName: null },
-      restaurants,
+      restaurants: normalized,
     };
 
     return NextResponse.json(result, { status: 200 });
