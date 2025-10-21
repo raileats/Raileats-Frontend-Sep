@@ -1,11 +1,10 @@
 // app/Stations/[code]/page.tsx
-import StationHeaderServer from "@/components/StationHeaderServer";
+import StationHeaderServer from "../../../components/StationHeaderServer";
 type Props = { params: { code: string } };
 
 export default async function StationPage({ params }: Props) {
   const code = (params.code || "").toString().toUpperCase();
-  const BASE = process.env.NEXT_PUBLIC_APP_URL || ""; // can be empty for relative fetch
-  // use server-side fetch to our API route
+  const BASE = process.env.NEXT_PUBLIC_APP_URL || ""; // leave empty if you want relative API path
   const res = await fetch(`${BASE}/api/stations/${encodeURIComponent(code)}`, { next: { revalidate: 60 } });
 
   if (!res.ok) {
@@ -43,8 +42,6 @@ export default async function StationPage({ params }: Props) {
                 <article key={r.code} className="border rounded p-3 flex gap-3 bg-white">
                   <div className="w-28 h-20 flex-shrink-0">
                     {r.image_url ? (
-                      // next/image cannot be used on remote dynamic urls server-side easily without config,
-                      // so use ordinary img
                       <img src={r.image_url} alt={r.name} className="w-full h-full object-cover rounded" />
                     ) : (
                       <div className="w-full h-full bg-gray-100 rounded flex items-center justify-center text-xs">No photo</div>
