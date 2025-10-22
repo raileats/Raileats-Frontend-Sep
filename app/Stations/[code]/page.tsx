@@ -26,6 +26,22 @@ type StationResp = {
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
+function formatTimeShort(t?: string | null) {
+  if (!t) return "—";
+  const parts = String(t).split(":");
+  if (parts.length < 2) return t;
+  let hh = parseInt(parts[0], 10);
+  const mm = parts[1];
+  const ampm = hh >= 12 ? "PM" : "AM";
+  hh = hh % 12;
+  if (hh === 0) hh = 12;
+  return `${hh}:${mm}${ampm}`;
+}
+function formatTimeRange(open?: string | null, close?: string | null) {
+  if (!open && !close) return "—";
+  return `${formatTimeShort(open)} to ${formatTimeShort(close)}`;
+}
+
 async function fetchStation(code: string): Promise<StationResp> {
   const ADMIN_BASE = process.env.NEXT_PUBLIC_ADMIN_APP_URL || "https://admin.raileats.in";
   const url = `${ADMIN_BASE.replace(/\/$/, "")}/api/stations/${encodeURIComponent(code)}`;
@@ -65,26 +81,22 @@ export default async function Page({ params }: { params: { code: string } }) {
     <main className="max-w-5xl mx-auto px-3 sm:px-6 py-6">
       {/* Hero / Station header */}
       <div className="mb-6">
-        <div
-          className="w-full rounded-md bg-gray-100 mb-4 flex items-center justify-center overflow-hidden"
-          style={{ height: 180 }}
-        >
+        <div className="w-full rounded-md bg-gray-100 mb-4 flex items-center justify-center overflow-hidden" style={{ aspectRatio: "16/6", maxHeight: 420 }}>
           {station?.image_url ? (
             <img
               src={station.image_url}
               alt={station.StationName ?? code}
               loading="lazy"
-              width={1200}
-              height={180}
               style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
             />
           ) : (
-            <div className="text-gray-400 text-sm">Station banner</div>
+            <div className="text-gray-400 text-sm">Station image</div>
           )}
         </div>
 
         <h1 className="text-2xl sm:text-3xl font-bold leading-tight">
-          {code} — {station?.StationName ?? "Unknown Station"}
+          {code}
+          {station?.StationName ? ` — ${station.StationName}` : ""}
         </h1>
         <p className="text-sm text-gray-600 mt-1">
           {(station?.State ? station.State + " • " : "") + (station?.District ?? "")}
@@ -104,17 +116,14 @@ export default async function Page({ params }: { params: { code: string } }) {
                 <article
                   key={String(r.RestroCode)}
                   className="flex flex-col md:flex-row items-stretch gap-3 p-3 sm:p-4 border rounded"
-                  style={{ minHeight: 96 }}
                 >
-                  {/* Image */}
-                  <div className="flex-shrink-0 w-full md:w-36 lg:w-44 h-24 md:h-24 bg-gray-100 rounded overflow-hidden">
+                  {/* Square thumbnail */}
+                  <div className="flex-shrink-0 w-full md:w-36 lg:w-44 h-44 md:h-36 bg-gray-100 rounded overflow-hidden">
                     {r.RestroDisplayPhoto ? (
                       <img
                         src={r.RestroDisplayPhoto}
                         alt={r.RestroName ?? "Restaurant image"}
                         loading="lazy"
-                        width={440}
-                        height={240}
                         style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
                       />
                     ) : (
@@ -125,29 +134,44 @@ export default async function Page({ params }: { params: { code: string } }) {
                   {/* Content */}
                   <div className="flex-1 flex flex-col justify-between">
                     <div>
-                      <h3 className="text-lg sm:text-xl font-semibold leading-tight truncate">
-                        {r.RestroName}
-                      </h3>
+                      <div className="flex items-start gap-3">
+                        <div className="flex-1">
+                          <h3 className="text-lg sm:text-xl font-semibold leading-tight truncate">{r.RestroName}</h3>
 
-                      <div className="mt-1 text-sm text-gray-600 flex flex-wrap items-center gap-2">
-                        <span>Rating: {r.RestroRating ?? "—"}</span>
-                        <span className="mx-1">•</span>
-                        <span>{r.isPureVeg ? "Veg" : "Non-Veg"}</span>
+                          <div className="mt-1 text-sm text-gray-600 flex items-center gap-3">
+                            <span>Rating: {r.RestroRating ?? "—"}</span>
+                            <span className="mx-1">•</span>
+
+                            <span className="flex items-center gap-1">
+                              {r.isPureVeg ? (
+                                <span aria-hidden className="w-3 h-3 rounded bg-green-600 inline-block" title="Veg" />
+                              ) : (
+                                <>
+                                  <span className="w-3 h-3 rounded bg-red-600 inline-block" title="Non-Veg" />
+                                  <span className="w-3 h-3 rounded bg-green-600 inline-block" title="Also serves Veg" />
+                                </>
+                              )}
+                            </span>
+                          </div>
+
+                          <div className="mt-2 text-sm text-gray-700"><strong>Multi Cuisines</strong></div>
+                        </div>
+
+                        <div className="ml-2 flex flex-col items-end gap-3">
+                          <div className="text-xs text-gray-500">Min order</div>
+                          <div className="font-medium text-base">₹{r.MinimumOrdermValue ?? "—"}</div>
+                        </div>
+                      </div>
+
+                      <div className="mt-3">
+                        <div className="inline-block px-2 py-1 rounded bg-gray-100 text-sm text-gray-700">
+                          {formatTimeRange(r.OpenTime, r.ClosedTime)}
+                        </div>
                       </div>
                     </div>
 
-                    <div className="mt-3 flex items-center gap-3">
-                      <div className="px-2 py-1 rounded bg-gray-100 text-sm text-gray-700">
-                        Open: {r.OpenTime ?? "—"} — {r.ClosedTime ?? "—"}
-                      </div>
-
-                      <div className="ml-auto text-right">
-                        <div className="text-xs text-gray-500">Min order</div>
-                        <div className="font-medium text-base">₹{r.MinimumOrdermValue ?? "—"}</div>
-                      </div>
-
-                      {/* Order button: mobile full width, desktop normal */}
-                      <div className="w-full md:w-auto md:ml-4">
+                    <div className="mt-3 flex items-center">
+                      <div className="ml-auto w-full md:w-auto">
                         <a
                           href={`/menu?restro=${encodeURIComponent(String(r.RestroCode))}`}
                           className="inline-block bg-green-600 text-white px-4 py-2 rounded text-sm w-full md:w-auto text-center"
