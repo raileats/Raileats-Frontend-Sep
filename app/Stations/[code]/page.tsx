@@ -73,7 +73,10 @@ export default async function Page({ params }: { params: { code: string } }) {
             <img
               src={station.image_url}
               alt={station.StationName ?? code}
-              className="w-full h-full object-cover"
+              loading="lazy"
+              width={1200}
+              height={180}
+              style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
             />
           ) : (
             <div className="text-gray-400 text-sm">Station banner</div>
@@ -109,7 +112,10 @@ export default async function Page({ params }: { params: { code: string } }) {
                       <img
                         src={r.RestroDisplayPhoto}
                         alt={r.RestroName ?? "Restaurant image"}
-                        className="w-full h-full object-cover"
+                        loading="lazy"
+                        width={440}
+                        height={240}
+                        style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-gray-400 text-sm">No image</div>
@@ -119,7 +125,7 @@ export default async function Page({ params }: { params: { code: string } }) {
                   {/* Content */}
                   <div className="flex-1 flex flex-col justify-between">
                     <div>
-                      <h3 className="text-lg sm:text-xl font-semibold leading-tight line-clamp-2">
+                      <h3 className="text-lg sm:text-xl font-semibold leading-tight truncate">
                         {r.RestroName}
                       </h3>
 
