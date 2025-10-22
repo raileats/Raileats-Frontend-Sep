@@ -77,11 +77,22 @@ export default async function Page({ params }: { params: { code: string } }) {
   const station = stationResp.station;
   const restaurants = stationResp.restaurants ?? [];
 
+  // Build nice station title: "BPL — Bhopal Jn. • Madhya Pradesh"
+  const stationLine =
+    station?.StationName && station?.State
+      ? `${code} — ${station.StationName} • ${station.State}`
+      : station?.StationName
+      ? `${code} — ${station.StationName}`
+      : code;
+
   return (
     <main className="max-w-5xl mx-auto px-3 sm:px-6 py-6">
       {/* Hero / Station header */}
       <div className="mb-6">
-        <div className="w-full rounded-md bg-gray-100 mb-4 flex items-center justify-center overflow-hidden" style={{ aspectRatio: "16/6", maxHeight: 420 }}>
+        <div
+          className="w-full rounded-md bg-gray-100 mb-4 flex items-center justify-center overflow-hidden"
+          style={{ aspectRatio: "16/6", maxHeight: 420 }}
+        >
           {station?.image_url ? (
             <img
               src={station.image_url}
@@ -94,12 +105,9 @@ export default async function Page({ params }: { params: { code: string } }) {
           )}
         </div>
 
-        <h1 className="text-2xl sm:text-3xl font-bold leading-tight">
-          {code}
-          {station?.StationName ? ` — ${station.StationName}` : ""}
-        </h1>
+        <h1 className="text-2xl sm:text-3xl font-bold leading-tight">{stationLine}</h1>
         <p className="text-sm text-gray-600 mt-1">
-          {(station?.State ? station.State + " • " : "") + (station?.District ?? "")}
+          {(station?.District ? station.District + " • " : "") + (station?.State ?? "")}
         </p>
       </div>
 
