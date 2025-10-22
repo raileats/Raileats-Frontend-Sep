@@ -9,6 +9,8 @@ export type Station = {
   StationCode?: string;
   State?: string;
   District?: string;
+  Lat?: number | null;
+  Long?: number | null;
 };
 
 export default function StationSearchBox({ onSelect }: { onSelect?: (s: Station | null) => void }) {
@@ -30,17 +32,14 @@ export default function StationSearchBox({ onSelect }: { onSelect?: (s: Station 
     timer.current = window.setTimeout(async () => {
       setLoading(true);
       try {
-        const resp = await fetch(`/api/search-stations?q=${encodeURIComponent(q)}`);
+        const resp = await fetch(`/api/search-stations?q=${encodeURIComponent(q)}`, { cache: "no-store" });
         if (!resp.ok) {
           console.error("search-stations proxy failed:", resp.status);
           setResults([]);
         } else {
-          const json = await resp.json();
-          const data = Array.isArray(json?.data)
-            ? json.data
-            : Array.isArray(json)
-            ? json
-            : json?.data ?? [];
+          const json = await resp.json().catch(() => ({}));
+          // our API returns { data: [...] }
+          const data = Array.isArray(json?.data) ? json.data : Array.isArray(json) ? json : [];
           setResults(data);
           setActiveIndex(data.length > 0 ? 0 : -1);
         }
