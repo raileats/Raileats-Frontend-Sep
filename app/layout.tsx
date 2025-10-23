@@ -18,10 +18,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* Fixed Navbar */}
         <Navbar />
 
-        {/* Force reload on back/forward navigation */}
+        {/* ForceReloadOnBack handles spinner on back/refresh/SPA nav */}
         <ForceReloadOnBack />
 
-        {/* Global fixed spinner (hidden by default; control via JS by toggling .show) */}
+        {/* Global fixed spinner (hidden by default) */}
         <div id="global-raileats-spinner" aria-hidden>
           <div className="outer-ring" aria-hidden>
             <div className="inner-logo" aria-hidden>
