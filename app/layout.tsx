@@ -1,3 +1,4 @@
+// app/layout.tsx
 import "./globals.css";
 import Navbar from "./components/Navbar";
 import BottomNav from "./components/BottomNav";
@@ -16,8 +17,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* Fixed Navbar */}
         <Navbar />
 
-        {/* Main content */}
-        <main className="main-content">{children}</main>
+        {/* Main content wrapper: centered & constrained width for desktop */}
+        <main className="main-content">
+          <div className="site-container">{children}</div>
+        </main>
 
         {/* Fixed Bottom Nav */}
         <BottomNav />
