@@ -16,35 +16,91 @@ export default function StationSearchBox({ onSelect }: { onSelect?: (s: Station 
   const [results, setResults] = useState<Station[]>([]);
   const [loading, setLoading] = useState(false);
   const [activeIndex, setActiveIndex] = useState<number>(-1);
+  const [debugMessage, setDebugMessage] = useState<string | null>(null);
   const timer = useRef<number | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
-  // helper to call backend search
+  // Normalize different server response shapes to Station[]
+  function normalizeServerResponse(raw: any): Station[] {
+    if (!raw) return [];
+    // If server already returned an array
+    if (Array.isArray(raw)) {
+      return raw as Station[];
+    }
+    // If server returned { status:..., data: [...] }
+    if (raw && Array.isArray(raw.data)) {
+      return raw.data as Station[];
+    }
+    // If server returned { data: {...} } single
+    if (raw && raw.data && !Array.isArray(raw.data) && typeof raw.data === "object") {
+      return [raw.data as Station];
+    }
+    // If it's an object array under some other key, try to find first array
+    if (typeof raw === "object") {
+      for (const k of Object.keys(raw)) {
+        if (Array.isArray((raw as any)[k])) return (raw as any)[k];
+      }
+    }
+    return [];
+  }
+
+  // Main search function
   const doSearch = async (term: string) => {
+    setDebugMessage(null);
+    setResults([]);
     if (!term || term.trim().length === 0) {
       setResults([]);
+      setActiveIndex(-1);
       return;
     }
+
     setLoading(true);
     try {
-      const resp = await fetch(`/api/search-stations?q=${encodeURIComponent(term.trim())}`, {
-        cache: "no-store",
-      });
-      if (!resp.ok) {
-        console.error("search-stations proxy failed:", resp.status);
-        setResults([]);
-      } else {
-        const json = await resp.json();
-        const data = Array.isArray(json?.data)
-          ? json.data
-          : Array.isArray(json)
-          ? json
-          : json?.data ?? [];
-        setResults(data);
-        setActiveIndex(data.length > 0 ? 0 : -1);
+      const url = `/api/search-stations?q=${encodeURIComponent(term.trim())}`;
+      console.debug("[StationSearchBox] fetching", url);
+      const resp = await fetch(url, { cache: "no-store" });
+
+      // show status for debug
+      console.debug("[StationSearchBox] HTTP status:", resp.status);
+
+      // try parse json, but be defensive
+      const text = await resp.text();
+      let parsed: any = null;
+      try {
+        parsed = text ? JSON.parse(text) : null;
+      } catch (e) {
+        // not JSON — log raw text
+        console.warn("[StationSearchBox] response is not JSON, raw text:", text);
+        parsed = text;
       }
-    } catch (err) {
-      console.error("StationSearchBox fetch error:", err);
+
+      // If server returned HTTP error
+      if (!resp.ok) {
+        console.error("[StationSearchBox] server error", resp.status, parsed);
+        setDebugMessage(`Server error ${resp.status}`);
+        setResults([]);
+        setActiveIndex(-1);
+        return;
+      }
+
+      const normalized = normalizeServerResponse(parsed);
+      console.debug("[StationSearchBox] normalized results:", normalized);
+
+      setResults(normalized);
+      setActiveIndex(normalized.length > 0 ? 0 : -1);
+
+      // If no results but server returned something, show debug
+      if (normalized.length === 0) {
+        // show helpful debug message so you can paste it back to me if needed
+        if (parsed) {
+          setDebugMessage(`No stations in normalized response (server returned ${typeof parsed}). Check console.`);
+        } else {
+          setDebugMessage("No stations found");
+        }
+      }
+    } catch (err: any) {
+      console.error("[StationSearchBox] fetch error", err);
+      setDebugMessage(`Network error: ${String(err.message ?? err)}`);
       setResults([]);
       setActiveIndex(-1);
     } finally {
@@ -52,21 +108,25 @@ export default function StationSearchBox({ onSelect }: { onSelect?: (s: Station 
     }
   };
 
-  // debounced query
+  // debounced search when user types
   useEffect(() => {
     if (timer.current) window.clearTimeout(timer.current);
     if (!q) {
       setResults([]);
       setActiveIndex(-1);
+      setDebugMessage(null);
       return;
     }
-    timer.current = window.setTimeout(() => doSearch(q), 300);
+    // 300ms debounce
+    timer.current = window.setTimeout(() => {
+      doSearch(q);
+    }, 300);
     return () => {
       if (timer.current) window.clearTimeout(timer.current);
     };
   }, [q]);
 
-  // click outside closes results
+  // close list when click outside
   useEffect(() => {
     function onDocClick(e: MouseEvent) {
       if (!containerRef.current) return;
@@ -79,58 +139,7 @@ export default function StationSearchBox({ onSelect }: { onSelect?: (s: Station 
     return () => document.removeEventListener("click", onDocClick);
   }, []);
 
-  // --- NEW: remove duplicate top buttons that may exist elsewhere on page ---
-  useEffect(() => {
-    // run after mount once
-    const container = containerRef.current;
-    if (!container) return;
-
-    // helper: hide nodes that look like duplicate search/clear buttons and are outside our container
-    const hideDuplicateButtons = () => {
-      const candidates = Array.from(document.querySelectorAll("button, input[type='button'], input[type='submit']"));
-      for (const el of candidates) {
-        if (container.contains(el)) continue; // skip our own buttons
-        const text = (el.textContent || (el as HTMLInputElement).value || "").trim().toLowerCase();
-        // match typical labels that are duplicate on the page
-        if (text === "search" || text === "clear" || text === "search ") {
-          // hide it (do not remove DOM structure to avoid breaking other scripts)
-          (el as HTMLElement).style.display = "none";
-        }
-      }
-    };
-
-    // call once now
-    hideDuplicateButtons();
-
-    // also observe DOM mutations for a short time (in case page renders the other buttons later)
-    const mo = new MutationObserver(() => hideDuplicateButtons());
-    mo.observe(document.body, { childList: true, subtree: true });
-
-    // stop observing after 5s (performance)
-    const timerId = window.setTimeout(() => {
-      mo.disconnect();
-    }, 5000);
-
-    return () => {
-      mo.disconnect();
-      clearTimeout(timerId);
-    };
-  }, []);
-
-  const handleClear = () => {
-    setQ("");
-    setResults([]);
-    setActiveIndex(-1);
-    onSelect?.(null);
-  };
-
-  const handleSelect = (s: Station) => {
-    onSelect?.(s);
-    setQ(`${s.StationName}${s.StationCode ? ` (${s.StationCode})` : ""}`);
-    setResults([]);
-    setActiveIndex(-1);
-  };
-
+  // keyboard navigation
   const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (results.length === 0) return;
     if (e.key === "ArrowDown") {
@@ -143,6 +152,9 @@ export default function StationSearchBox({ onSelect }: { onSelect?: (s: Station 
       e.preventDefault();
       if (activeIndex >= 0 && activeIndex < results.length) {
         handleSelect(results[activeIndex]);
+      } else {
+        // fallback: do a manual search if user presses Enter without selecting
+        doSearch(q);
       }
     } else if (e.key === "Escape") {
       e.preventDefault();
@@ -151,10 +163,24 @@ export default function StationSearchBox({ onSelect }: { onSelect?: (s: Station 
     }
   };
 
+  const handleClear = () => {
+    setQ("");
+    setResults([]);
+    setActiveIndex(-1);
+    setDebugMessage(null);
+    onSelect?.(null);
+  };
+
+  const handleSelect = (s: Station) => {
+    onSelect?.(s);
+    setQ(`${s.StationName}${s.StationCode ? ` (${s.StationCode})` : ""}`);
+    setResults([]);
+    setActiveIndex(-1);
+  };
+
   return (
-    <div ref={containerRef} className="relative w-full max-w-lg mx-auto" aria-haspopup="listbox">
+    <div ref={containerRef} className="relative w-full max-w-xl mx-auto" aria-haspopup="listbox">
       <div className="flex items-center gap-2">
-        {/* input */}
         <input
           type="text"
           placeholder="Enter station name or code..."
@@ -167,7 +193,6 @@ export default function StationSearchBox({ onSelect }: { onSelect?: (s: Station 
           className="w-full border rounded px-3 py-2"
         />
 
-        {/* Right-side controls: Clear + Search (ONLY these; any external duplicates will be hidden by the effect above) */}
         <div className="flex gap-2">
           <button
             type="button"
@@ -186,9 +211,7 @@ export default function StationSearchBox({ onSelect }: { onSelect?: (s: Station 
         </div>
       </div>
 
-      {loading && (
-        <div className="absolute mt-1 left-0 bg-white border p-2 text-sm">Searching…</div>
-      )}
+      {loading && <div className="mt-2 text-sm text-gray-600">Searching…</div>}
 
       {results.length > 0 && (
         <div
@@ -221,8 +244,14 @@ export default function StationSearchBox({ onSelect }: { onSelect?: (s: Station 
       )}
 
       {!loading && q && results.length === 0 && (
-        <div className="absolute z-50 bg-white border rounded w-full mt-1 p-2 text-sm text-gray-500">
-          No stations found
+        <div className="mt-2 text-sm text-gray-500">No stations found</div>
+      )}
+
+      {/* debug message for troubleshooting (remove later) */}
+      {debugMessage && (
+        <div className="mt-2 text-xs text-red-600 bg-red-50 p-2 rounded">
+          Debug: {debugMessage}
+          <div className="text-xs text-gray-500 mt-1">Check browser console (Network/Console) for raw server response.</div>
         </div>
       )}
     </div>
