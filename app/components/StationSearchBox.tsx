@@ -10,15 +10,20 @@ export type Station = {
   District?: string;
 };
 
-export default function StationSearchBox({ onSelect }: { onSelect?: (s: Station | null) => void }) {
+export default function StationSearchBox({
+  onSelect,
+}: {
+  onSelect?: (s: Station | null) => void;
+}) {
   const [q, setQ] = useState("");
   const [results, setResults] = useState<Station[]>([]);
   const [loading, setLoading] = useState(false);
   const [activeIndex, setActiveIndex] = useState<number>(-1);
+  const [selectedStation, setSelectedStation] = useState<Station | null>(null);
   const timer = useRef<number | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
-  // 🔍 Debounced search call
+  // 🔍 Debounced search
   useEffect(() => {
     if (!q) {
       setResults([]);
@@ -27,28 +32,29 @@ export default function StationSearchBox({ onSelect }: { onSelect?: (s: Station 
     }
 
     if (timer.current) window.clearTimeout(timer.current);
-
     timer.current = window.setTimeout(async () => {
       setLoading(true);
       try {
         const resp = await fetch(`/api/search-stations?q=${encodeURIComponent(q)}`);
-        if (!resp.ok) {
-          console.error("search-stations failed:", resp.status);
-          setResults([]);
-        } else {
-          const json = await resp.json();
-          const data = Array.isArray(json?.data)
-            ? json.data
-            : Array.isArray(json)
-            ? json
-            : json?.data ?? [];
-          setResults(data);
-          setActiveIndex(data.length > 0 ? 0 : -1);
-        }
+        const json = await resp.json();
+        const data = Array.isArray(json?.data)
+          ? json.data
+          : Array.isArray(json)
+          ? json
+          : json?.data ?? [];
+
+        // Fuzzy filter (IRCTC-like)
+        const filtered = data.filter(
+          (s) =>
+            s.StationName?.toLowerCase().includes(q.toLowerCase()) ||
+            s.StationCode?.toLowerCase().includes(q.toLowerCase())
+        );
+
+        setResults(filtered);
+        setActiveIndex(filtered.length > 0 ? 0 : -1);
       } catch (err) {
-        console.error("StationSearchBox fetch error:", err);
+        console.error("Station search error:", err);
         setResults([]);
-        setActiveIndex(-1);
       } finally {
         setLoading(false);
       }
@@ -59,7 +65,7 @@ export default function StationSearchBox({ onSelect }: { onSelect?: (s: Station 
     };
   }, [q]);
 
-  // 🖱 Close dropdown when clicked outside
+  // ✋ Click outside closes dropdown
   useEffect(() => {
     function onDocClick(e: MouseEvent) {
       if (!containerRef.current) return;
@@ -72,12 +78,21 @@ export default function StationSearchBox({ onSelect }: { onSelect?: (s: Station 
     return () => document.removeEventListener("click", onDocClick);
   }, []);
 
-  // 🔘 Select a station
+  // ✅ Select station
   const handleSelect = (s: Station) => {
+    setSelectedStation(s);
     onSelect?.(s);
     setQ(`${s.StationName}${s.StationCode ? ` (${s.StationCode})` : ""}`);
     setResults([]);
     setActiveIndex(-1);
+  };
+
+  const handleClear = () => {
+    setQ("");
+    setSelectedStation(null);
+    setResults([]);
+    setActiveIndex(-1);
+    onSelect?.(null);
   };
 
   // ⌨️ Keyboard navigation
@@ -89,11 +104,9 @@ export default function StationSearchBox({ onSelect }: { onSelect?: (s: Station 
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
       setActiveIndex((prev) => Math.max(prev - 1, 0));
-    } else if (e.key === "Enter") {
+    } else if (e.key === "Enter" && activeIndex >= 0) {
       e.preventDefault();
-      if (activeIndex >= 0 && activeIndex < results.length) {
-        handleSelect(results[activeIndex]);
-      }
+      handleSelect(results[activeIndex]);
     } else if (e.key === "Escape") {
       e.preventDefault();
       setResults([]);
@@ -101,22 +114,37 @@ export default function StationSearchBox({ onSelect }: { onSelect?: (s: Station 
     }
   };
 
-  // 🧱 UI
   return (
-    <div ref={containerRef} className="relative w-full" aria-haspopup="listbox">
-      {/* Single Input Field (no buttons) */}
+    <div ref={containerRef} className="relative w-full">
+      {/* 🔼 Buttons moved to top */}
+      <div className="flex justify-end gap-2 mb-2">
+        <button
+          type="button"
+          onClick={handleClear}
+          className="px-3 py-1 text-sm rounded bg-gray-200 hover:bg-gray-300"
+        >
+          Clear
+        </button>
+        <button
+          type="button"
+          onClick={() => onSelect?.(selectedStation)}
+          className="px-4 py-1 text-sm rounded bg-black text-white hover:bg-gray-800"
+        >
+          Search
+        </button>
+      </div>
+
+      {/* Input box (slightly smaller) */}
       <input
         type="text"
         placeholder="Enter station name or code..."
         value={q}
-        onChange={(e) => setQ(e.target.value)}
+        onChange={(e) => {
+          setQ(e.target.value);
+          setSelectedStation(null); // reset on typing
+        }}
         onKeyDown={onKeyDown}
-        aria-activedescendant={
-          activeIndex >= 0 ? `station-item-${results[activeIndex].StationId}` : undefined
-        }
-        aria-autocomplete="list"
-        aria-controls="station-search-list"
-        className="w-full border rounded px-3 py-2"
+        className="w-full border rounded px-3 py-1.5 text-sm"
       />
 
       {/* Loader */}
@@ -124,18 +152,13 @@ export default function StationSearchBox({ onSelect }: { onSelect?: (s: Station 
         <div className="absolute mt-1 left-0 bg-white border p-2 text-sm">Searching…</div>
       )}
 
-      {/* Results Dropdown */}
-      {results.length > 0 && (
-        <div
-          id="station-search-list"
-          role="listbox"
-          className="absolute z-50 bg-white border rounded w-full mt-1 max-h-60 overflow-auto shadow"
-        >
+      {/* Results dropdown */}
+      {results.length > 0 && !selectedStation && (
+        <div className="absolute z-50 bg-white border rounded w-full mt-1 max-h-60 overflow-auto shadow">
           {results.map((s, idx) => {
             const isActive = idx === activeIndex;
             return (
               <div
-                id={`station-item-${s.StationId}`}
                 key={s.StationId}
                 role="option"
                 aria-selected={isActive}
@@ -160,8 +183,8 @@ export default function StationSearchBox({ onSelect }: { onSelect?: (s: Station 
         </div>
       )}
 
-      {/* No Results */}
-      {!loading && q && results.length === 0 && (
+      {/* ❌ "No stations found" only if no results and nothing selected */}
+      {!loading && q && results.length === 0 && !selectedStation && (
         <div className="absolute z-50 bg-white border rounded w-full mt-1 p-2 text-sm text-gray-500">
           No stations found
         </div>
