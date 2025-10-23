@@ -15,8 +15,8 @@ type Restro = {
 type StationResp = {
   station: {
     StationCode?: string;
-    StationName?: string | null;
-    State?: string | null;
+    StationName?: string;
+    State?: string;
     District?: string | null;
     image_url?: string | null;
   } | null;
