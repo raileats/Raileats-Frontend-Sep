@@ -77,7 +77,7 @@ export default async function Page({ params }: { params: { code: string } }) {
   const station = stationResp.station;
   const restaurants = stationResp.restaurants ?? [];
 
-  // Build nice station title: "BPL — Bhopal Jn. • Madhya Pradesh"
+  // Build station title line
   const stationLine =
     station?.StationName && station?.State
       ? `${code} — ${station.StationName} • ${station.State}`
@@ -87,28 +87,39 @@ export default async function Page({ params }: { params: { code: string } }) {
 
   return (
     <main className="max-w-5xl mx-auto px-3 sm:px-6 py-6">
-      {/* Hero / Station header */}
+      {/* Hero / Station header: left square image, right text (stacked on mobile) */}
       <div className="mb-6">
-        <div
-          className="w-full rounded-md bg-gray-100 mb-4 flex items-center justify-center overflow-hidden"
-          style={{ aspectRatio: "16/6", maxHeight: 420 }}
-        >
-          {station?.image_url ? (
-            <img
-              src={station.image_url}
-              alt={station.StationName ?? code}
-              loading="lazy"
-              style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-            />
-          ) : (
-            <div className="text-gray-400 text-sm">Station image</div>
-          )}
-        </div>
+        <div className="w-full rounded-md bg-gray-100 mb-4 flex items-start justify-center overflow-visible">
+          <div className="w-full max-w-5xl mx-auto px-2">
+            <div className="grid grid-cols-1 md:grid-cols-[auto_1fr] gap-4 items-start">
+              {/* LEFT: square station image */}
+              <div className="flex-shrink-0">
+                <div className="w-28 h-28 md:w-36 md:h-36 lg:w-40 lg:h-40 rounded-lg overflow-hidden bg-gray-200">
+                  {station?.image_url ? (
+                    <img
+                      src={station.image_url}
+                      alt={station.StationName ?? code}
+                      loading="lazy"
+                      className="w-full h-full object-cover object-center block"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-gray-400 text-sm">No image</div>
+                  )}
+                </div>
+              </div>
 
-        <h1 className="text-2xl sm:text-3xl font-bold leading-tight">{stationLine}</h1>
-        <p className="text-sm text-gray-600 mt-1">
-          {(station?.District ? station.District + " • " : "") + (station?.State ?? "")}
-        </p>
+              {/* RIGHT: title + meta */}
+              <div className="flex flex-col justify-center">
+                <h1 className="text-xl sm:text-2xl md:text-3xl font-bold leading-tight">
+                  {stationLine}
+                </h1>
+                <p className="text-sm text-gray-600 mt-1">
+                  {(station?.District ? station.District + " • " : "") + (station?.State ?? "")}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Restaurants block */}
@@ -125,18 +136,45 @@ export default async function Page({ params }: { params: { code: string } }) {
                   key={String(r.RestroCode)}
                   className="flex flex-col md:flex-row items-stretch gap-3 p-3 sm:p-4 border rounded"
                 >
-                  {/* Square thumbnail */}
-                  <div className="flex-shrink-0 w-full md:w-36 lg:w-44 h-44 md:h-36 bg-gray-100 rounded overflow-hidden">
-                    {r.RestroDisplayPhoto ? (
-                      <img
-                        src={r.RestroDisplayPhoto}
-                        alt={r.RestroName ?? "Restaurant image"}
-                        loading="lazy"
-                        style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-gray-400 text-sm">No image</div>
-                    )}
+                  {/* Square thumbnail (responsive sizes) */}
+                  <div className="flex-shrink-0 w-full md:w-28 lg:w-36">
+                    <div className="w-full h-0" style={{ paddingTop: "100%", position: "relative" }}>
+                      {r.RestroDisplayPhoto ? (
+                        <img
+                          src={r.RestroDisplayPhoto}
+                          alt={r.RestroName ?? "Restaurant image"}
+                          loading="lazy"
+                          style={{
+                            position: "absolute",
+                            top: 0,
+                            left: 0,
+                            width: "100%",
+                            height: "100%",
+                            objectFit: "cover",
+                            display: "block",
+                            borderRadius: 8,
+                          }}
+                        />
+                      ) : (
+                        <div
+                          style={{
+                            position: "absolute",
+                            top: 0,
+                            left: 0,
+                            width: "100%",
+                            height: "100%",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            color: "#9CA3AF",
+                            borderRadius: 8,
+                            background: "#F3F4F6",
+                          }}
+                        >
+                          No image
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   {/* Content */}
