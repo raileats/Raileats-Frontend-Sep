@@ -14,8 +14,8 @@ type Restro = {
 
 type StationResp = {
   station: {
-    StationCode: string;
-    StationName: string | null;
+    StationCode?: string;
+    StationName?: string | null;
     State?: string | null;
     District?: string | null;
     image_url?: string | null;
@@ -77,13 +77,15 @@ export default async function Page({ params }: { params: { code: string } }) {
   const station = stationResp.station;
   const restaurants = stationResp.restaurants ?? [];
 
-  // Build station title line
-  const stationLine =
-    station?.StationName && station?.State
-      ? `${code} — ${station.StationName} • ${station.State}`
-      : station?.StationName
-      ? `${code} — ${station.StationName}`
-      : code;
+  // Build proper station title like: "BPL - Bhopal Jn - Madhya Pradesh"
+  const stationLineParts: string[] = [];
+  // prefer station.StationCode if present, else use `code`
+  if (station?.StationCode || code) stationLineParts.push(station?.StationCode ?? code);
+  if (station?.StationName) stationLineParts.push(station.StationName);
+  if (station?.District) stationLineParts.push(station.District);
+  if (station?.State) stationLineParts.push(station.State);
+
+  const stationLine = stationLineParts.join(" - ");
 
   return (
     <main className="max-w-5xl mx-auto px-3 sm:px-6 py-6">
