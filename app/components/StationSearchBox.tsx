@@ -12,12 +12,12 @@ export type Station = {
 
 export default function StationSearchBox({
   onSelect,
-  initialValue,
+  initialValue = "",
 }: {
   onSelect?: (s: Station | null) => void;
   initialValue?: string;
 }) {
-  const [q, setQ] = useState(initialValue ?? "");
+  const [q, setQ] = useState(initialValue || "");
   const [results, setResults] = useState<Station[]>([]);
   const [loading, setLoading] = useState(false);
   const [activeIndex, setActiveIndex] = useState<number>(-1);
@@ -25,11 +25,20 @@ export default function StationSearchBox({
   const timer = useRef<number | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
+  // sync initialValue changes
+  useEffect(() => {
+    setQ(initialValue || "");
+    if (!initialValue) {
+      setSelectedStation(null);
+    }
+  }, [initialValue]);
+
   // Debounced search
   useEffect(() => {
     if (!q) {
       setResults([]);
       setActiveIndex(-1);
+      setLoading(false);
       return;
     }
 
@@ -38,29 +47,35 @@ export default function StationSearchBox({
       setLoading(true);
       try {
         const resp = await fetch(`/api/search-stations?q=${encodeURIComponent(q)}`);
-        const json = await resp.json().catch(() => ({}));
-        const data = Array.isArray(json?.data)
-          ? json.data
-          : Array.isArray(json)
-          ? json
-          : json?.data ?? [];
+        if (!resp.ok) {
+          setResults([]);
+          setActiveIndex(-1);
+        } else {
+          const json = await resp.json();
+          const data = Array.isArray(json?.data)
+            ? json.data
+            : Array.isArray(json)
+            ? json
+            : json?.data ?? [];
 
-        // basic fuzzy: name or code includes q (case-insensitive)
-        const filtered = data.filter(
-          (s: any) =>
-            String(s.StationName || "").toLowerCase().includes(q.toLowerCase()) ||
-            String(s.StationCode || "").toLowerCase().includes(q.toLowerCase())
-        );
+          // filter fuzzy include (server returns many, do client filter)
+          const filtered = (data as any[]).filter(
+            (s) =>
+              String(s.StationName || "").toLowerCase().includes(q.toLowerCase()) ||
+              String(s.StationCode || "").toLowerCase().includes(q.toLowerCase())
+          );
 
-        setResults(filtered);
-        setActiveIndex(filtered.length > 0 ? 0 : -1);
+          setResults(filtered as Station[]);
+          setActiveIndex(filtered.length > 0 ? 0 : -1);
+        }
       } catch (err) {
         console.error("Station search error:", err);
         setResults([]);
+        setActiveIndex(-1);
       } finally {
         setLoading(false);
       }
-    }, 300);
+    }, 250);
 
     return () => {
       if (timer.current) window.clearTimeout(timer.current);
@@ -116,25 +131,25 @@ export default function StationSearchBox({
 
   return (
     <div ref={containerRef} className="relative w-full">
-      {/* input only — buttons are controlled by parent SearchBox */}
-      <input
-        type="text"
-        placeholder="Enter station name or code..."
-        value={q}
-        onChange={(e) => {
-          setQ(e.target.value);
-          setSelectedStation(null); // reset selected on typing
-          onSelect?.(null);
-        }}
-        onKeyDown={onKeyDown}
-        className="w-full border rounded px-3 py-2 text-sm"
-      />
+      <div className="flex w-full items-start gap-2">
+        <input
+          type="text"
+          placeholder="Enter station name or code..."
+          value={q}
+          onChange={(e) => {
+            setQ(e.target.value);
+            setSelectedStation(null); // reset selected on typing
+            onSelect?.(null);
+          }}
+          onKeyDown={onKeyDown}
+          className="flex-1 min-w-0 border rounded px-3 py-2 text-sm"
+        />
+      </div>
 
       {loading && (
         <div className="absolute mt-1 left-0 bg-white border p-2 text-sm">Searching…</div>
       )}
 
-      {/* results dropdown — only show when there are results AND user hasn't selected a station */}
       {results.length > 0 && !selectedStation && (
         <div className="absolute z-50 bg-white border rounded w-full mt-1 max-h-60 overflow-auto shadow">
           {results.map((s, idx) => {
@@ -160,12 +175,13 @@ export default function StationSearchBox({
         </div>
       )}
 
-      {/* "No stations found" shows only if no results and nothing selected */}
       {!loading && q && results.length === 0 && !selectedStation && (
         <div className="absolute z-50 bg-white border rounded w-full mt-1 p-2 text-sm text-gray-500">
           No stations found
         </div>
       )}
+
+      {/* no inline buttons here — parent will render them */}
     </div>
   );
 }
