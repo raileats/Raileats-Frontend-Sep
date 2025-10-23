@@ -4,18 +4,19 @@ import { useEffect } from "react";
 
 export default function ForceReloadOnBack() {
   useEffect(() => {
-    // Browser 'back' or 'forward' navigation detect karega
-    const handlePopState = () => {
-      // force reload current page fresh from server
-      window.location.reload();
+    // This event fires when a page is restored from bfcache (browser back/forward)
+    const handlePageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) {
+        // page came from browser cache → force reload for fresh data
+        window.location.reload();
+      }
     };
 
-    window.addEventListener("popstate", handlePopState);
-
+    window.addEventListener("pageshow", handlePageShow);
     return () => {
-      window.removeEventListener("popstate", handlePopState);
+      window.removeEventListener("pageshow", handlePageShow);
     };
   }, []);
 
-  return null; // No UI, sirf logic
+  return null;
 }
