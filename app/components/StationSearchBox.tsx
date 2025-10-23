@@ -25,15 +25,11 @@ export default function StationSearchBox({
   const timer = useRef<number | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
-  // sync initialValue changes
   useEffect(() => {
     setQ(initialValue || "");
-    if (!initialValue) {
-      setSelectedStation(null);
-    }
+    if (!initialValue) setSelectedStation(null);
   }, [initialValue]);
 
-  // Debounced search
   useEffect(() => {
     if (!q) {
       setResults([]);
@@ -52,13 +48,8 @@ export default function StationSearchBox({
           setActiveIndex(-1);
         } else {
           const json = await resp.json();
-          const data = Array.isArray(json?.data)
-            ? json.data
-            : Array.isArray(json)
-            ? json
-            : json?.data ?? [];
+          const data = Array.isArray(json?.data) ? json.data : Array.isArray(json) ? json : json?.data ?? [];
 
-          // filter fuzzy include (server returns many, do client filter)
           const filtered = (data as any[]).filter(
             (s) =>
               String(s.StationName || "").toLowerCase().includes(q.toLowerCase()) ||
@@ -82,7 +73,6 @@ export default function StationSearchBox({
     };
   }, [q]);
 
-  // click outside to close
   useEffect(() => {
     function onDocClick(e: MouseEvent) {
       if (!containerRef.current) return;
@@ -131,27 +121,28 @@ export default function StationSearchBox({
 
   return (
     <div ref={containerRef} className="relative w-full">
-      <div className="flex w-full items-start gap-2">
-        <input
-          type="text"
-          placeholder="Enter station name or code..."
-          value={q}
-          onChange={(e) => {
-            setQ(e.target.value);
-            setSelectedStation(null); // reset selected on typing
-            onSelect?.(null);
-          }}
-          onKeyDown={onKeyDown}
-          className="flex-1 min-w-0 border rounded px-3 py-2 text-sm"
-        />
-      </div>
+      <input
+        type="text"
+        placeholder="Enter station name or code..."
+        value={q}
+        onChange={(e) => {
+          setQ(e.target.value);
+          setSelectedStation(null);
+          onSelect?.(null);
+        }}
+        onKeyDown={onKeyDown}
+        className="w-full border rounded px-3 py-2 text-sm"
+      />
 
-      {loading && (
-        <div className="absolute mt-1 left-0 bg-white border p-2 text-sm">Searching…</div>
-      )}
+      {/* small loader text (optional) */}
+      {loading && <div className="absolute mt-1 left-0 bg-white border p-2 text-sm">Searching…</div>}
 
+      {/* RESULTS DROPDOWN */}
       {results.length > 0 && !selectedStation && (
-        <div className="absolute z-50 bg-white border rounded w-full mt-1 max-h-60 overflow-auto shadow">
+        <div
+          className="absolute z-50 bg-white border rounded w-full mt-1 max-h-60 overflow-auto shadow"
+          style={{ top: "calc(100% + 6px)" }}
+        >
           {results.map((s, idx) => {
             const isActive = idx === activeIndex;
             return (
@@ -166,9 +157,7 @@ export default function StationSearchBox({
                 <div className="text-sm font-medium">
                   {s.StationName} <span className="text-xs text-gray-500">({s.StationCode || ""})</span>
                 </div>
-                <div className="text-xs text-gray-500">
-                  {s.District || ""} {s.State ? `• ${s.State}` : ""}
-                </div>
+                <div className="text-xs text-gray-500">{s.District || ""} {s.State ? `• ${s.State}` : ""}</div>
               </div>
             );
           })}
@@ -180,8 +169,6 @@ export default function StationSearchBox({
           No stations found
         </div>
       )}
-
-      {/* no inline buttons here — parent will render them */}
     </div>
   );
 }
