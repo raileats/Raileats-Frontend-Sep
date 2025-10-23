@@ -72,7 +72,7 @@ export default function SearchBox() {
 
       <div className="px-3">
         {/* removed overflow-hidden to avoid clipping dropdown */}
-        <div className="w-full rounded-md border p-3"> 
+        <div className="w-full rounded-md border p-3">
           {searchType === "station" ? (
             <div className="flex items-center gap-3">
               <div className="flex-1">
@@ -108,34 +108,61 @@ export default function SearchBox() {
                     Search
                   </button>
 
-                  {/* Bubble spinner to right of Search button */}
+                  {/* ========== updated spinner: outer rotating ring, logo fixed center ========== */}
                   {loading && (
                     <div
                       aria-hidden
-                      className="absolute -right-12 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full flex items-center justify-center shadow"
-                      style={{ background: "#ffffff", border: "1px solid rgba(0,0,0,0.08)" }}
+                      className="absolute -right-12 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full flex items-center justify-center"
+                      style={{ pointerEvents: "none" }}
                     >
-                      {/* Try to use logo: public/raileats-logo.png — fallback to CSS spinner */}
-                      <img
-                        src="/raileats-logo.png"
-                        alt="logo"
-                        onError={(e) => {
-                          // if image not present, show fallback spinner by hiding image
-                          (e.target as HTMLImageElement).style.display = "none";
+                      {/* rotating ring (outer) */}
+                      <div
+                        className="absolute inset-0 rounded-full"
+                        style={{
+                          border: "3px solid rgba(0,0,0,0.08)",
+                          borderTopColor: "#111",
+                          boxSizing: "border-box",
+                          animation: "re-loader-spin 900ms linear infinite",
                         }}
-                        style={{ width: 20, height: 20, objectFit: "contain", animation: "spin 0.9s linear infinite" }}
                       />
+
+                      {/* center fixed logo (does NOT rotate) */}
+                      <div
+                        className="relative w-8 h-8 rounded-full flex items-center justify-center bg-white"
+                        style={{ overflow: "hidden", borderRadius: "50%" }}
+                      >
+                        <img
+                          src="/raileats-logo.png"
+                          alt="RailEats"
+                          onError={(e) => {
+                            // hide broken image; fallback dot will be visible
+                            (e.target as HTMLImageElement).style.display = "none";
+                          }}
+                          style={{ width: 28, height: 28, objectFit: "contain", transform: "translateZ(0)" }}
+                        />
+
+                        {/* fallback small dot if logo missing */}
+                        <div
+                          className="fallback-dot"
+                          style={{
+                            width: 10,
+                            height: 10,
+                            borderRadius: "50%",
+                            background: "#111",
+                            display: "none",
+                          }}
+                        />
+                      </div>
+
+                      {/* keyframes style inj (scoped) */}
                       <style>{`
-                        @keyframes spin { from { transform: rotate(0deg) } to { transform: rotate(360deg) } }
-                        /* fallback spinner if image is missing */
-                        .fallback-dot {
-                          width: 14px; height: 14px; border-radius: 50%;
-                          border: 2px solid rgba(0,0,0,0.15);
-                          border-top-color: #111;
-                          animation: spin 0.9s linear infinite;
+                        @keyframes re-loader-spin {
+                          from { transform: rotate(0deg); }
+                          to { transform: rotate(360deg); }
                         }
+                        /* if image fails, show fallback dot by overriding display */
+                        img[alt="RailEats"][onerror] { /* not reliable across browsers */ }
                       `}</style>
-                      <div className="fallback-dot" />
                     </div>
                   )}
                 </div>
