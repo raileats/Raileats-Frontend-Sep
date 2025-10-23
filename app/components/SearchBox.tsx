@@ -26,6 +26,7 @@ export default function SearchBox() {
       return;
     }
 
+    // start spinner ONLY on search click
     setLoading(true);
 
     if (searchType === "station") {
@@ -33,21 +34,19 @@ export default function SearchBox() {
       const safe = encodeURIComponent(String(rawCode).toUpperCase());
       const target = `/Stations/${safe}`;
 
-      // small delay to ensure spinner renders then navigate
+      // small timeout so spinner gets a render before navigation
       setTimeout(() => {
         window.location.href = target;
-      }, 40);
-
+      }, 50);
       return;
     }
 
-    // fallback for other types: use router navigation if you prefer
-    // Using window.location for consistent spinner behaviour:
     if (searchType === "pnr") {
-      window.location.href = `/pnr/${encodeURIComponent(inputValue.trim())}`;
+      setTimeout(() => (window.location.href = `/pnr/${encodeURIComponent(inputValue.trim())}`), 50);
       return;
     }
-    window.location.href = `/trains/${encodeURIComponent(inputValue.trim())}`;
+
+    setTimeout(() => (window.location.href = `/trains/${encodeURIComponent(inputValue.trim())}`), 50);
   };
 
   return (
@@ -72,7 +71,8 @@ export default function SearchBox() {
       </div>
 
       <div className="px-3">
-        <div className="w-full rounded-md border overflow-hidden p-3">
+        {/* removed overflow-hidden to avoid clipping dropdown */}
+        <div className="w-full rounded-md border p-3"> 
           {searchType === "station" ? (
             <div className="flex items-center gap-3">
               <div className="flex-1">
@@ -108,22 +108,34 @@ export default function SearchBox() {
                     Search
                   </button>
 
-                  {/* spinner bubble to the right of the search button */}
+                  {/* Bubble spinner to right of Search button */}
                   {loading && (
                     <div
                       aria-hidden
-                      className="absolute -right-12 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full flex items-center justify-center shadow animate-spin"
-                      style={{ background: "#fff" }}
+                      className="absolute -right-12 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full flex items-center justify-center shadow"
+                      style={{ background: "#ffffff", border: "1px solid rgba(0,0,0,0.08)" }}
                     >
-                      <div
-                        style={{
-                          width: 18,
-                          height: 18,
-                          borderRadius: 9,
-                          border: "2px solid rgba(0,0,0,0.15)",
-                          borderTopColor: "#111",
+                      {/* Try to use logo: public/raileats-logo.png — fallback to CSS spinner */}
+                      <img
+                        src="/raileats-logo.png"
+                        alt="logo"
+                        onError={(e) => {
+                          // if image not present, show fallback spinner by hiding image
+                          (e.target as HTMLImageElement).style.display = "none";
                         }}
+                        style={{ width: 20, height: 20, objectFit: "contain", animation: "spin 0.9s linear infinite" }}
                       />
+                      <style>{`
+                        @keyframes spin { from { transform: rotate(0deg) } to { transform: rotate(360deg) } }
+                        /* fallback spinner if image is missing */
+                        .fallback-dot {
+                          width: 14px; height: 14px; border-radius: 50%;
+                          border: 2px solid rgba(0,0,0,0.15);
+                          border-top-color: #111;
+                          animation: spin 0.9s linear infinite;
+                        }
+                      `}</style>
+                      <div className="fallback-dot" />
                     </div>
                   )}
                 </div>
