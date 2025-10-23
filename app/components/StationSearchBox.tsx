@@ -1,3 +1,4 @@
+// app/components/StationSearchBox.tsx
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
@@ -18,6 +19,7 @@ export default function StationSearchBox({ onSelect }: { onSelect?: (s: Station 
   const timer = useRef<number | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
+  // helper to call backend search
   const doSearch = async (term: string) => {
     if (!term || term.trim().length === 0) {
       setResults([]);
@@ -50,6 +52,7 @@ export default function StationSearchBox({ onSelect }: { onSelect?: (s: Station 
     }
   };
 
+  // debounced query
   useEffect(() => {
     if (timer.current) window.clearTimeout(timer.current);
     if (!q) {
@@ -63,6 +66,7 @@ export default function StationSearchBox({ onSelect }: { onSelect?: (s: Station 
     };
   }, [q]);
 
+  // click outside closes results
   useEffect(() => {
     function onDocClick(e: MouseEvent) {
       if (!containerRef.current) return;
@@ -73,6 +77,44 @@ export default function StationSearchBox({ onSelect }: { onSelect?: (s: Station 
     }
     document.addEventListener("click", onDocClick);
     return () => document.removeEventListener("click", onDocClick);
+  }, []);
+
+  // --- NEW: remove duplicate top buttons that may exist elsewhere on page ---
+  useEffect(() => {
+    // run after mount once
+    const container = containerRef.current;
+    if (!container) return;
+
+    // helper: hide nodes that look like duplicate search/clear buttons and are outside our container
+    const hideDuplicateButtons = () => {
+      const candidates = Array.from(document.querySelectorAll("button, input[type='button'], input[type='submit']"));
+      for (const el of candidates) {
+        if (container.contains(el)) continue; // skip our own buttons
+        const text = (el.textContent || (el as HTMLInputElement).value || "").trim().toLowerCase();
+        // match typical labels that are duplicate on the page
+        if (text === "search" || text === "clear" || text === "search ") {
+          // hide it (do not remove DOM structure to avoid breaking other scripts)
+          (el as HTMLElement).style.display = "none";
+        }
+      }
+    };
+
+    // call once now
+    hideDuplicateButtons();
+
+    // also observe DOM mutations for a short time (in case page renders the other buttons later)
+    const mo = new MutationObserver(() => hideDuplicateButtons());
+    mo.observe(document.body, { childList: true, subtree: true });
+
+    // stop observing after 5s (performance)
+    const timerId = window.setTimeout(() => {
+      mo.disconnect();
+    }, 5000);
+
+    return () => {
+      mo.disconnect();
+      clearTimeout(timerId);
+    };
   }, []);
 
   const handleClear = () => {
@@ -112,19 +154,20 @@ export default function StationSearchBox({ onSelect }: { onSelect?: (s: Station 
   return (
     <div ref={containerRef} className="relative w-full max-w-lg mx-auto" aria-haspopup="listbox">
       <div className="flex items-center gap-2">
+        {/* input */}
         <input
           type="text"
           placeholder="Enter station name or code..."
           value={q}
           onChange={(e) => setQ(e.target.value)}
           onKeyDown={onKeyDown}
-          aria-activedescendant={
-            activeIndex >= 0 ? `station-item-${results[activeIndex].StationId}` : undefined
-          }
+          aria-activedescendant={activeIndex >= 0 ? `station-item-${results[activeIndex].StationId}` : undefined}
           aria-autocomplete="list"
           aria-controls="station-search-list"
           className="w-full border rounded px-3 py-2"
         />
+
+        {/* Right-side controls: Clear + Search (ONLY these; any external duplicates will be hidden by the effect above) */}
         <div className="flex gap-2">
           <button
             type="button"
@@ -161,17 +204,12 @@ export default function StationSearchBox({ onSelect }: { onSelect?: (s: Station 
                 key={`${s.StationId}-${idx}`}
                 role="option"
                 aria-selected={isActive}
-                className={`p-2 hover:bg-gray-100 cursor-pointer ${
-                  isActive ? "bg-gray-100" : ""
-                }`}
+                className={`p-2 hover:bg-gray-100 cursor-pointer ${isActive ? "bg-gray-100" : ""}`}
                 onClick={() => handleSelect(s)}
                 onMouseEnter={() => setActiveIndex(idx)}
               >
                 <div className="text-sm font-medium">
-                  {s.StationName}{" "}
-                  <span className="text-xs text-gray-500">
-                    ({s.StationCode || ""})
-                  </span>
+                  {s.StationName} <span className="text-xs text-gray-500">({s.StationCode || ""})</span>
                 </div>
                 <div className="text-xs text-gray-500">
                   {s.District || ""} {s.State ? `• ${s.State}` : ""}
