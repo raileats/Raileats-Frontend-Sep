@@ -361,15 +361,4 @@ main { margin-top: 0 !important; }
 
 
 /* End additions */
-/* dropdown item wrapping / compacting */
-.station-dropdown-item { white-space: normal; word-wrap: break-word; }
-
-/* reduce overall desktop scale if you want site to feel smaller on large screens:
-   apply only if you truly want to shrink all content on >= 1200px.
-   Use with care — you can remove this if not desired.
-*/
-@media (min-width: 1280px) {
-  .page-scale-desktop { transform-origin: top center; transform: scale(0.92); }
-}
-
 
