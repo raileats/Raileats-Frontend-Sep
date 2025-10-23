@@ -4,60 +4,61 @@ export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
 
-/**
- * Search stations endpoint.
- * - supports query param `q`
- * - also supports path fallback: /api/search-stations/BPL
- *
- * Returns JSON array of station rows (not wrapped).
- */
-
-function getEnv() {
+const getEnv = () => {
   return {
     PROJECT_URL:
-      process.env.NEXT_PUBLIC_SUPABASE_URL ??
       process.env.SUPABASE_URL ??
+      process.env.NEXT_PUBLIC_SUPABASE_URL ??
       process.env.SUPABASE_PROJECT_URL,
     SERVICE_KEY:
       process.env.SUPABASE_SERVICE_ROLE ??
       process.env.SUPABASE_SERVICE_ROLE_KEY ??
       process.env.SUPABASE_SERVICE_KEY,
+    FRONTEND_ORIGIN:
+      process.env.NEXT_PUBLIC_APP_URL ?? process.env.NEXT_PUBLIC_FRONTEND_URL ?? "*",
   };
+};
+
+const corsHeaders = (origin: string | null = "*") => ({
+  "Access-Control-Allow-Origin": origin ?? "*",
+  "Access-Control-Allow-Methods": "GET,OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+  "Access-Control-Max-Age": "600",
+  "Content-Type": "application/json; charset=utf-8",
+});
+
+export async function OPTIONS() {
+  const { FRONTEND_ORIGIN } = getEnv();
+  return new NextResponse(null, { status: 204, headers: corsHeaders(FRONTEND_ORIGIN) });
 }
 
 export async function GET(request: Request) {
-  try {
-    const { PROJECT_URL, SERVICE_KEY } = getEnv();
+  const { PROJECT_URL, SERVICE_KEY, FRONTEND_ORIGIN } = getEnv();
+  const headers = corsHeaders(FRONTEND_ORIGIN ?? "*");
 
-    if (!SERVICE_KEY) {
-      return NextResponse.json({ error: "SUPABASE_SERVICE_ROLE not configured" }, { status: 500 });
-    }
-    if (!PROJECT_URL) {
-      return NextResponse.json({ error: "SUPABASE_URL not configured" }, { status: 500 });
+  try {
+    if (!PROJECT_URL || !SERVICE_KEY) {
+      return NextResponse.json({ error: "Supabase configuration missing" }, { status: 500, headers });
     }
 
     const url = new URL(request.url);
-    // support both ?q= and path param fallback (/api/search-stations/BPL)
-    let q = (url.searchParams.get("q") || "").trim();
-    // path fallback:
-    const pathname = url.pathname || "";
-    const pathParts = pathname.split("/").filter(Boolean); // e.g. ["api","search-stations","BPL"]
-    if (!q && pathParts.length >= 3) {
-      q = decodeURIComponent(pathParts[2] || "").trim();
+    const qRaw = (url.searchParams.get("q") || "").trim();
+    const q = qRaw.replace(/\s+/g, " "); // normalize spaces
+
+    // make safe minimal search — require at least 1 char (you can change to 2 if you want)
+    if (!q) {
+      // return empty list (frontend expects array inside data)
+      return NextResponse.json({ status: 200, data: [] }, { status: 200, headers });
     }
 
-    // Build PostgREST query:
-    let apiUrl: string;
-    const base = PROJECT_URL.replace(/\/$/, "");
+    // build ilike pattern to search StationName or StationCode
+    // we use % wildcard before and after so partial matches appear
+    const enc = encodeURIComponent(`%${q}%`);
+    const select = encodeURIComponent(
+      "StationId,StationName,StationCode,State,District,Lat,Long"
+    );
 
-    if (q) {
-      // use ilike with surrounding % (case-insensitive)
-      const pattern = encodeURIComponent(`%${q}%`);
-      apiUrl = `${base}/rest/v1/Stations?select=StationId,StationName,StationCode,State,District,Lat,Long&or=(StationName.ilike.${pattern},StationCode.ilike.${pattern})&limit=30`;
-    } else {
-      // short list for empty query
-      apiUrl = `${base}/rest/v1/Stations?select=StationId,StationName,StationCode,State,District,Lat,Long&limit=10`;
-    }
+    const apiUrl = `${PROJECT_URL.replace(/\/$/, "")}/rest/v1/Stations?select=${select}&or=(StationName.ilike.${enc},StationCode.ilike.${enc})&limit=30`;
 
     const resp = await fetch(apiUrl, {
       headers: {
@@ -65,33 +66,36 @@ export async function GET(request: Request) {
         Authorization: `Bearer ${SERVICE_KEY}`,
         Accept: "application/json",
       },
-      // No cache so fresh results in server functions
       cache: "no-store",
     });
 
-    const text = await resp.text();
+    const text = await resp.text().catch(() => "");
     if (!resp.ok) {
-      // forward error details for easier debugging
-      let details = text;
-      try {
-        const j = JSON.parse(text);
-        details = j?.message || JSON.stringify(j);
-      } catch {}
-      return NextResponse.json({ error: "Supabase query failed", status: resp.status, details }, { status: 502 });
+      // return the underlying error details for debugging
+      return NextResponse.json({ error: "Supabase request failed", status: resp.status, details: text }, { status: 502, headers });
     }
 
-    // parse array result; if parsing fails, return text
+    let data: any[] = [];
     try {
-      const data = JSON.parse(text);
-      // Ensure array
-      const arr = Array.isArray(data) ? data : [];
-      return NextResponse.json(arr, { status: 200 });
+      data = JSON.parse(text);
     } catch {
-      // return raw text
-      return new NextResponse(text, { status: resp.status });
+      data = [];
     }
+
+    // normalize shape (ensure minimal fields and types)
+    const normalized = (Array.isArray(data) ? data : []).map((s: any) => ({
+      StationId: s.StationId ?? s.id ?? null,
+      StationName: s.StationName ?? s.station_name ?? "",
+      StationCode: s.StationCode ?? s.station_code ?? "",
+      State: s.State ?? s.state ?? "",
+      District: s.District ?? s.district ?? "",
+      Lat: s.Lat ?? s.lat ?? null,
+      Long: s.Long ?? s.long ?? null,
+    }));
+
+    return NextResponse.json({ status: 200, data: normalized }, { status: 200, headers });
   } catch (err) {
     console.error("search-stations error:", err);
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    return NextResponse.json({ error: String(err) }, { status: 500, headers });
   }
 }
