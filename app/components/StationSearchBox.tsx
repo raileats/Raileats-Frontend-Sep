@@ -12,10 +12,12 @@ export type Station = {
 
 export default function StationSearchBox({
   onSelect,
+  initialValue,
 }: {
   onSelect?: (s: Station | null) => void;
+  initialValue?: string;
 }) {
-  const [q, setQ] = useState("");
+  const [q, setQ] = useState(initialValue ?? "");
   const [results, setResults] = useState<Station[]>([]);
   const [loading, setLoading] = useState(false);
   const [activeIndex, setActiveIndex] = useState<number>(-1);
@@ -36,13 +38,14 @@ export default function StationSearchBox({
       setLoading(true);
       try {
         const resp = await fetch(`/api/search-stations?q=${encodeURIComponent(q)}`);
-        const json = await resp.json();
+        const json = await resp.json().catch(() => ({}));
         const data = Array.isArray(json?.data)
           ? json.data
           : Array.isArray(json)
           ? json
           : json?.data ?? [];
 
+        // basic fuzzy: name or code includes q (case-insensitive)
         const filtered = data.filter(
           (s: any) =>
             String(s.StationName || "").toLowerCase().includes(q.toLowerCase()) ||
@@ -64,7 +67,7 @@ export default function StationSearchBox({
     };
   }, [q]);
 
-  // click outside to close dropdown
+  // click outside to close
   useEffect(() => {
     function onDocClick(e: MouseEvent) {
       if (!containerRef.current) return;
@@ -83,6 +86,14 @@ export default function StationSearchBox({
     setQ(`${s.StationName}${s.StationCode ? ` (${s.StationCode})` : ""}`);
     setResults([]);
     setActiveIndex(-1);
+  };
+
+  const handleClear = () => {
+    setQ("");
+    setSelectedStation(null);
+    setResults([]);
+    setActiveIndex(-1);
+    onSelect?.(null);
   };
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -105,43 +116,40 @@ export default function StationSearchBox({
 
   return (
     <div ref={containerRef} className="relative w-full">
-      {/* Input only — no buttons */}
+      {/* input only — buttons are controlled by parent SearchBox */}
       <input
         type="text"
         placeholder="Enter station name or code..."
         value={q}
         onChange={(e) => {
           setQ(e.target.value);
-          setSelectedStation(null);
+          setSelectedStation(null); // reset selected on typing
+          onSelect?.(null);
         }}
         onKeyDown={onKeyDown}
         className="w-full border rounded px-3 py-2 text-sm"
       />
 
-      {/* Loader */}
       {loading && (
         <div className="absolute mt-1 left-0 bg-white border p-2 text-sm">Searching…</div>
       )}
 
-      {/* Results dropdown */}
+      {/* results dropdown — only show when there are results AND user hasn't selected a station */}
       {results.length > 0 && !selectedStation && (
         <div className="absolute z-50 bg-white border rounded w-full mt-1 max-h-60 overflow-auto shadow">
           {results.map((s, idx) => {
             const isActive = idx === activeIndex;
             return (
               <div
-                key={s.StationId}
+                key={(s as any).StationId}
                 role="option"
                 aria-selected={isActive}
-                className={`p-2 hover:bg-gray-100 cursor-pointer ${
-                  isActive ? "bg-gray-100" : ""
-                }`}
+                className={`p-2 hover:bg-gray-100 cursor-pointer ${isActive ? "bg-gray-100" : ""}`}
                 onClick={() => handleSelect(s)}
                 onMouseEnter={() => setActiveIndex(idx)}
               >
                 <div className="text-sm font-medium">
-                  {s.StationName}{" "}
-                  <span className="text-xs text-gray-500">({s.StationCode || ""})</span>
+                  {s.StationName} <span className="text-xs text-gray-500">({s.StationCode || ""})</span>
                 </div>
                 <div className="text-xs text-gray-500">
                   {s.District || ""} {s.State ? `• ${s.State}` : ""}
@@ -152,7 +160,7 @@ export default function StationSearchBox({
         </div>
       )}
 
-      {/* No results */}
+      {/* "No stations found" shows only if no results and nothing selected */}
       {!loading && q && results.length === 0 && !selectedStation && (
         <div className="absolute z-50 bg-white border rounded w-full mt-1 p-2 text-sm text-gray-500">
           No stations found
