@@ -31,17 +31,27 @@ export default function SearchBox() {
     const q = inputValue.trim();
 
     try {
+      // Show spinner immediately
       setLoading(true);
 
       if (searchType === "station") {
         // prefer selectedStation if present
         const rawCode = selectedStation?.StationCode ?? extractStationCode(q);
         const safe = encodeURIComponent(String(rawCode).toUpperCase());
-        // await navigation so we can show loader until page loads
-        await router.push(`/Stations/${safe}`);
+
+        // Use full navigation so the browser actually unloads and shows spinner until next page loads.
+        // This ensures spinner remains visible until the new page has started loading.
+        const target = `/Stations/${safe}`;
+
+        // small delay (30ms) to allow spinner to render before navigation (helps multiple browsers)
+        setTimeout(() => {
+          window.location.href = target;
+        }, 30);
+
         return;
       }
 
+      // For non-station, use client navigation; spinner will show briefly
       if (searchType === "pnr") {
         await router.push(`/pnr/${encodeURIComponent(q)}`);
         return;
@@ -51,7 +61,8 @@ export default function SearchBox() {
     } catch (err) {
       console.error("Navigation error:", err);
     } finally {
-      // small delay to avoid abrupt hide (optional)
+      // If router.push completed client-side quickly, hide spinner shortly after.
+      // For window.location navigation above, component will unload so this code won't run.
       setTimeout(() => setLoading(false), 300);
     }
   };
@@ -80,7 +91,9 @@ export default function SearchBox() {
       <div className="px-3">
         <div className="w-full rounded-md border overflow-hidden p-3">
           {searchType === "station" ? (
-            <div className="flex items-start gap-3">
+            // Row layout: search input area (left) + buttons (right)
+            <div className="flex items-center gap-3">
+              {/* left: station search box */}
               <div className="flex-1">
                 <StationSearchBox
                   onSelect={(s) => {
@@ -93,8 +106,8 @@ export default function SearchBox() {
                 />
               </div>
 
-              {/* buttons right to the input (aligned) */}
-              <div className="flex flex-col items-end gap-2">
+              {/* right: clear + search (stacked vertically only if space is tight) */}
+              <div className="flex flex-col items-end gap-2 ml-2">
                 <button
                   onClick={() => {
                     setInputValue("");
@@ -111,28 +124,28 @@ export default function SearchBox() {
                     onClick={handleSearch}
                     disabled={loading}
                     className={`px-4 py-2 bg-black text-white rounded text-sm ${loading ? "opacity-70 cursor-wait" : ""}`}
+                    aria-label="Search station"
                   >
                     Search
                   </button>
 
-                  {/* spinner bubble (shows while loading) */}
+                  {/* round spinner bubble to the right of the search button */}
                   {loading && (
                     <div
                       aria-hidden
-                      className="absolute -right-10 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full flex items-center justify-center shadow animate-spin"
+                      className="absolute -right-12 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full flex items-center justify-center shadow animate-spin"
                       style={{ background: "#fff" }}
                     >
-                      {/* put logo image in publicraileats-logo.png for best effect */}
+                      {/* put logo image in public/raileats-logo.png for best effect */}
                       <img
                         src="/raileats-logo.png"
                         alt="RE"
-                        style={{ width: 26, height: 26, objectFit: "contain" }}
+                        style={{ width: 22, height: 22, objectFit: "contain" }}
                         onError={(e) => {
-                          // if logo missing show short text fallback
+                          // hide image if missing — fallback below will show RE text
                           (e.target as HTMLImageElement).style.display = "none";
                         }}
                       />
-                      {/* fallback small dot if image fails */}
                       <span style={{ fontSize: 10, color: "#111", fontWeight: 700 }}>RE</span>
                     </div>
                   )}
@@ -140,6 +153,7 @@ export default function SearchBox() {
               </div>
             </div>
           ) : (
+            // pnr / train search: standard single-line with the button on right
             <div className="flex items-stretch">
               <input
                 type={searchType === "pnr" ? "tel" : "text"}
@@ -159,7 +173,7 @@ export default function SearchBox() {
               <button
                 onClick={handleSearch}
                 disabled={loading}
-                className="shrink-0 w-20 sm:w-24 px-3 py-2 text-sm bg-black text-white hover:bg-gray-800 ml-2 rounded"
+                className="shrink-0 ml-2 w-24 px-3 py-2 text-sm bg-black text-white hover:bg-gray-800 rounded"
               >
                 {loading ? "..." : "Search"}
               </button>
