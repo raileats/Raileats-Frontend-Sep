@@ -43,7 +43,6 @@ export default function StationSearchBox({
           ? json
           : json?.data ?? [];
 
-        // basic fuzzy: name or code includes q (case-insensitive)
         const filtered = data.filter(
           (s: any) =>
             String(s.StationName || "").toLowerCase().includes(q.toLowerCase()) ||
@@ -65,7 +64,7 @@ export default function StationSearchBox({
     };
   }, [q]);
 
-  // click outside to close
+  // click outside to close dropdown
   useEffect(() => {
     function onDocClick(e: MouseEvent) {
       if (!containerRef.current) return;
@@ -84,19 +83,6 @@ export default function StationSearchBox({
     setQ(`${s.StationName}${s.StationCode ? ` (${s.StationCode})` : ""}`);
     setResults([]);
     setActiveIndex(-1);
-  };
-
-  const handleClear = () => {
-    setQ("");
-    setSelectedStation(null);
-    setResults([]);
-    setActiveIndex(-1);
-    onSelect?.(null);
-  };
-
-  const doSearch = () => {
-    // re-emit selectedStation even if already selected
-    onSelect?.(selectedStation);
   };
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -119,54 +105,32 @@ export default function StationSearchBox({
 
   return (
     <div ref={containerRef} className="relative w-full">
-      {/* --- INPUT + Buttons (inline) --- */}
-      <div className="flex w-full items-start gap-2">
-        {/* input: slightly smaller height to match design */}
-        <input
-          type="text"
-          placeholder="Enter station name or code..."
-          value={q}
-          onChange={(e) => {
-            setQ(e.target.value);
-            setSelectedStation(null); // reset selected on typing
-          }}
-          onKeyDown={onKeyDown}
-          className="flex-1 min-w-0 border rounded px-3 py-2 text-sm"
-        />
+      {/* Input only — no buttons */}
+      <input
+        type="text"
+        placeholder="Enter station name or code..."
+        value={q}
+        onChange={(e) => {
+          setQ(e.target.value);
+          setSelectedStation(null);
+        }}
+        onKeyDown={onKeyDown}
+        className="w-full border rounded px-3 py-2 text-sm"
+      />
 
-        {/* Buttons placed right to the input (green region) */}
-        <div className="flex-shrink-0 flex items-center gap-2">
-          <button
-            type="button"
-            onClick={handleClear}
-            className="px-3 py-2 border rounded text-sm bg-white hover:bg-gray-50"
-          >
-            Clear
-          </button>
-
-          <button
-            type="button"
-            onClick={doSearch}
-            className="px-4 py-2 bg-black text-white rounded text-sm hover:bg-gray-800"
-          >
-            Search
-          </button>
-        </div>
-      </div>
-
-      {/* small loader */}
+      {/* Loader */}
       {loading && (
         <div className="absolute mt-1 left-0 bg-white border p-2 text-sm">Searching…</div>
       )}
 
-      {/* results dropdown — only show when there are results AND user hasn't selected a station */}
+      {/* Results dropdown */}
       {results.length > 0 && !selectedStation && (
         <div className="absolute z-50 bg-white border rounded w-full mt-1 max-h-60 overflow-auto shadow">
           {results.map((s, idx) => {
             const isActive = idx === activeIndex;
             return (
               <div
-                key={(s as any).StationId}
+                key={s.StationId}
                 role="option"
                 aria-selected={isActive}
                 className={`p-2 hover:bg-gray-100 cursor-pointer ${
@@ -188,7 +152,7 @@ export default function StationSearchBox({
         </div>
       )}
 
-      {/* "No stations found" shows only if no results and nothing selected */}
+      {/* No results */}
       {!loading && q && results.length === 0 && !selectedStation && (
         <div className="absolute z-50 bg-white border rounded w-full mt-1 p-2 text-sm text-gray-500">
           No stations found
