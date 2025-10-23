@@ -2,13 +2,14 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import StationSearchBox from "./StationSearchBox";
+import StationSearchBox, { Station } from "./StationSearchBox";
 
 export default function SearchBox() {
   const router = useRouter();
   const [searchType, setSearchType] = useState<"pnr" | "train" | "station">("pnr");
   const [inputValue, setInputValue] = useState("");
-  const [selectedStationObj, setSelectedStationObj] = useState<any | null>(null);
+  const [selectedStation, setSelectedStation] = useState<Station | null>(null);
+  const [loading, setLoading] = useState(false);
 
   const extractStationCode = (val: string) => {
     const m = val.match(/\(([^)]+)\)$/);
@@ -21,26 +22,38 @@ export default function SearchBox() {
     return val.trim();
   };
 
-  const handleSearch = () => {
+  const handleSearch = async () => {
     if (!inputValue || inputValue.trim() === "") {
       alert("Please enter value");
       return;
     }
+
     const q = inputValue.trim();
 
-    if (searchType === "station") {
-      // if we have selectedStationObj prefer its code, else try to extract
-      const rawCode = selectedStationObj?.StationCode ?? extractStationCode(q);
-      const safe = encodeURIComponent(String(rawCode).toUpperCase());
-      router.push(`/Stations/${safe}`);
-      return;
-    }
+    try {
+      setLoading(true);
 
-    if (searchType === "pnr") {
-      router.push(`/pnr/${encodeURIComponent(q)}`);
-      return;
+      if (searchType === "station") {
+        // prefer selectedStation if present
+        const rawCode = selectedStation?.StationCode ?? extractStationCode(q);
+        const safe = encodeURIComponent(String(rawCode).toUpperCase());
+        // await navigation so we can show loader until page loads
+        await router.push(`/Stations/${safe}`);
+        return;
+      }
+
+      if (searchType === "pnr") {
+        await router.push(`/pnr/${encodeURIComponent(q)}`);
+        return;
+      }
+
+      await router.push(`/trains/${encodeURIComponent(q)}`);
+    } catch (err) {
+      console.error("Navigation error:", err);
+    } finally {
+      // small delay to avoid abrupt hide (optional)
+      setTimeout(() => setLoading(false), 300);
     }
-    router.push(`/trains/${encodeURIComponent(q)}`);
   };
 
   return (
@@ -56,7 +69,7 @@ export default function SearchBox() {
               onChange={(e) => {
                 setSearchType(e.target.value as any);
                 setInputValue("");
-                setSelectedStationObj(null);
+                setSelectedStation(null);
               }}
             />
             <span className="capitalize">{type}</span>
@@ -65,7 +78,7 @@ export default function SearchBox() {
       </div>
 
       <div className="px-3">
-        <div className="w-full rounded-md border overflow-hidden p-2">
+        <div className="w-full rounded-md border overflow-hidden p-3">
           {searchType === "station" ? (
             <div className="flex items-start gap-3">
               <div className="flex-1">
@@ -74,28 +87,56 @@ export default function SearchBox() {
                     const val = s ? (s.StationCode ?? s.StationName ?? "") : "";
                     const display = s ? `${s.StationName}${s.StationCode ? ` (${s.StationCode})` : ""}` : "";
                     setInputValue(display || val);
-                    setSelectedStationObj(s ?? null);
+                    setSelectedStation(s);
                   }}
+                  initialValue={inputValue}
                 />
               </div>
 
-              {/* Buttons placed inline to the right of the station input */}
-              <div className="flex-shrink-0 flex flex-col items-end gap-2">
+              {/* buttons right to the input (aligned) */}
+              <div className="flex flex-col items-end gap-2">
                 <button
                   onClick={() => {
                     setInputValue("");
-                    setSelectedStationObj(null);
+                    setSelectedStation(null);
                   }}
-                  className="px-4 py-2 border rounded text-sm bg-white hover:bg-gray-50"
+                  disabled={loading}
+                  className="px-3 py-2 border rounded bg-white hover:bg-gray-50 text-sm"
                 >
                   Clear
                 </button>
-                <button
-                  onClick={handleSearch}
-                  className="px-4 py-2 bg-black text-white rounded text-sm hover:bg-gray-800"
-                >
-                  Search
-                </button>
+
+                <div className="relative">
+                  <button
+                    onClick={handleSearch}
+                    disabled={loading}
+                    className={`px-4 py-2 bg-black text-white rounded text-sm ${loading ? "opacity-70 cursor-wait" : ""}`}
+                  >
+                    Search
+                  </button>
+
+                  {/* spinner bubble (shows while loading) */}
+                  {loading && (
+                    <div
+                      aria-hidden
+                      className="absolute -right-10 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full flex items-center justify-center shadow animate-spin"
+                      style={{ background: "#fff" }}
+                    >
+                      {/* put logo image in public/raileats-logo.png for best effect */}
+                      <img
+                        src="/raileats-logo.png"
+                        alt="RE"
+                        style={{ width: 26, height: 26, objectFit: "contain" }}
+                        onError={(e) => {
+                          // if logo missing show short text fallback
+                          (e.target as HTMLImageElement).style.display = "none";
+                        }}
+                      />
+                      {/* fallback small dot if image fails */}
+                      <span style={{ fontSize: 10, color: "#111", fontWeight: 700 }}>RE</span>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           ) : (
@@ -113,13 +154,14 @@ export default function SearchBox() {
                 }
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
-                className="min-w-0 flex-1 px-2 py-2 text-sm outline-none"
+                className="min-w-0 flex-1 px-2 py-2 text-sm outline-none border rounded"
               />
               <button
                 onClick={handleSearch}
-                className="shrink-0 w-20 sm:w-24 px-3 py-2 text-sm bg-black text-white hover:bg-gray-800"
+                disabled={loading}
+                className="shrink-0 w-20 sm:w-24 px-3 py-2 text-sm bg-black text-white hover:bg-gray-800 ml-2 rounded"
               >
-                Search
+                {loading ? "..." : "Search"}
               </button>
             </div>
           )}
