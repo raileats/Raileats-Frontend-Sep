@@ -1,4 +1,3 @@
-// app/components/StationSearchBox.tsx
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
@@ -16,91 +15,34 @@ export default function StationSearchBox({ onSelect }: { onSelect?: (s: Station 
   const [results, setResults] = useState<Station[]>([]);
   const [loading, setLoading] = useState(false);
   const [activeIndex, setActiveIndex] = useState<number>(-1);
-  const [debugMessage, setDebugMessage] = useState<string | null>(null);
   const timer = useRef<number | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
-  // Normalize different server response shapes to Station[]
-  function normalizeServerResponse(raw: any): Station[] {
-    if (!raw) return [];
-    // If server already returned an array
-    if (Array.isArray(raw)) {
-      return raw as Station[];
-    }
-    // If server returned { status:..., data: [...] }
-    if (raw && Array.isArray(raw.data)) {
-      return raw.data as Station[];
-    }
-    // If server returned { data: {...} } single
-    if (raw && raw.data && !Array.isArray(raw.data) && typeof raw.data === "object") {
-      return [raw.data as Station];
-    }
-    // If it's an object array under some other key, try to find first array
-    if (typeof raw === "object") {
-      for (const k of Object.keys(raw)) {
-        if (Array.isArray((raw as any)[k])) return (raw as any)[k];
-      }
-    }
-    return [];
-  }
-
-  // Main search function
   const doSearch = async (term: string) => {
-    setDebugMessage(null);
-    setResults([]);
     if (!term || term.trim().length === 0) {
       setResults([]);
-      setActiveIndex(-1);
       return;
     }
-
     setLoading(true);
     try {
-      const url = `/api/search-stations?q=${encodeURIComponent(term.trim())}`;
-      console.debug("[StationSearchBox] fetching", url);
-      const resp = await fetch(url, { cache: "no-store" });
-
-      // show status for debug
-      console.debug("[StationSearchBox] HTTP status:", resp.status);
-
-      // try parse json, but be defensive
-      const text = await resp.text();
-      let parsed: any = null;
-      try {
-        parsed = text ? JSON.parse(text) : null;
-      } catch (e) {
-        // not JSON — log raw text
-        console.warn("[StationSearchBox] response is not JSON, raw text:", text);
-        parsed = text;
-      }
-
-      // If server returned HTTP error
+      const resp = await fetch(`/api/search-stations?q=${encodeURIComponent(term.trim())}`, {
+        cache: "no-store",
+      });
       if (!resp.ok) {
-        console.error("[StationSearchBox] server error", resp.status, parsed);
-        setDebugMessage(`Server error ${resp.status}`);
+        console.error("search-stations proxy failed:", resp.status);
         setResults([]);
-        setActiveIndex(-1);
-        return;
+      } else {
+        const json = await resp.json();
+        const data = Array.isArray(json?.data)
+          ? json.data
+          : Array.isArray(json)
+          ? json
+          : json?.data ?? [];
+        setResults(data);
+        setActiveIndex(data.length > 0 ? 0 : -1);
       }
-
-      const normalized = normalizeServerResponse(parsed);
-      console.debug("[StationSearchBox] normalized results:", normalized);
-
-      setResults(normalized);
-      setActiveIndex(normalized.length > 0 ? 0 : -1);
-
-      // If no results but server returned something, show debug
-      if (normalized.length === 0) {
-        // show helpful debug message so you can paste it back to me if needed
-        if (parsed) {
-          setDebugMessage(`No stations in normalized response (server returned ${typeof parsed}). Check console.`);
-        } else {
-          setDebugMessage("No stations found");
-        }
-      }
-    } catch (err: any) {
-      console.error("[StationSearchBox] fetch error", err);
-      setDebugMessage(`Network error: ${String(err.message ?? err)}`);
+    } catch (err) {
+      console.error("StationSearchBox fetch error:", err);
       setResults([]);
       setActiveIndex(-1);
     } finally {
@@ -108,25 +50,19 @@ export default function StationSearchBox({ onSelect }: { onSelect?: (s: Station 
     }
   };
 
-  // debounced search when user types
   useEffect(() => {
     if (timer.current) window.clearTimeout(timer.current);
     if (!q) {
       setResults([]);
       setActiveIndex(-1);
-      setDebugMessage(null);
       return;
     }
-    // 300ms debounce
-    timer.current = window.setTimeout(() => {
-      doSearch(q);
-    }, 300);
+    timer.current = window.setTimeout(() => doSearch(q), 300);
     return () => {
       if (timer.current) window.clearTimeout(timer.current);
     };
   }, [q]);
 
-  // close list when click outside
   useEffect(() => {
     function onDocClick(e: MouseEvent) {
       if (!containerRef.current) return;
@@ -139,7 +75,20 @@ export default function StationSearchBox({ onSelect }: { onSelect?: (s: Station 
     return () => document.removeEventListener("click", onDocClick);
   }, []);
 
-  // keyboard navigation
+  const handleClear = () => {
+    setQ("");
+    setResults([]);
+    setActiveIndex(-1);
+    onSelect?.(null);
+  };
+
+  const handleSelect = (s: Station) => {
+    onSelect?.(s);
+    setQ(`${s.StationName}${s.StationCode ? ` (${s.StationCode})` : ""}`);
+    setResults([]);
+    setActiveIndex(-1);
+  };
+
   const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (results.length === 0) return;
     if (e.key === "ArrowDown") {
@@ -152,9 +101,6 @@ export default function StationSearchBox({ onSelect }: { onSelect?: (s: Station 
       e.preventDefault();
       if (activeIndex >= 0 && activeIndex < results.length) {
         handleSelect(results[activeIndex]);
-      } else {
-        // fallback: do a manual search if user presses Enter without selecting
-        doSearch(q);
       }
     } else if (e.key === "Escape") {
       e.preventDefault();
@@ -163,23 +109,8 @@ export default function StationSearchBox({ onSelect }: { onSelect?: (s: Station 
     }
   };
 
-  const handleClear = () => {
-    setQ("");
-    setResults([]);
-    setActiveIndex(-1);
-    setDebugMessage(null);
-    onSelect?.(null);
-  };
-
-  const handleSelect = (s: Station) => {
-    onSelect?.(s);
-    setQ(`${s.StationName}${s.StationCode ? ` (${s.StationCode})` : ""}`);
-    setResults([]);
-    setActiveIndex(-1);
-  };
-
   return (
-    <div ref={containerRef} className="relative w-full max-w-xl mx-auto" aria-haspopup="listbox">
+    <div ref={containerRef} className="relative w-full max-w-lg mx-auto" aria-haspopup="listbox">
       <div className="flex items-center gap-2">
         <input
           type="text"
@@ -187,12 +118,13 @@ export default function StationSearchBox({ onSelect }: { onSelect?: (s: Station 
           value={q}
           onChange={(e) => setQ(e.target.value)}
           onKeyDown={onKeyDown}
-          aria-activedescendant={activeIndex >= 0 ? `station-item-${results[activeIndex].StationId}` : undefined}
+          aria-activedescendant={
+            activeIndex >= 0 ? `station-item-${results[activeIndex].StationId}` : undefined
+          }
           aria-autocomplete="list"
           aria-controls="station-search-list"
           className="w-full border rounded px-3 py-2"
         />
-
         <div className="flex gap-2">
           <button
             type="button"
@@ -211,7 +143,9 @@ export default function StationSearchBox({ onSelect }: { onSelect?: (s: Station 
         </div>
       </div>
 
-      {loading && <div className="mt-2 text-sm text-gray-600">Searching…</div>}
+      {loading && (
+        <div className="absolute mt-1 left-0 bg-white border p-2 text-sm">Searching…</div>
+      )}
 
       {results.length > 0 && (
         <div
@@ -227,12 +161,17 @@ export default function StationSearchBox({ onSelect }: { onSelect?: (s: Station 
                 key={`${s.StationId}-${idx}`}
                 role="option"
                 aria-selected={isActive}
-                className={`p-2 hover:bg-gray-100 cursor-pointer ${isActive ? "bg-gray-100" : ""}`}
+                className={`p-2 hover:bg-gray-100 cursor-pointer ${
+                  isActive ? "bg-gray-100" : ""
+                }`}
                 onClick={() => handleSelect(s)}
                 onMouseEnter={() => setActiveIndex(idx)}
               >
                 <div className="text-sm font-medium">
-                  {s.StationName} <span className="text-xs text-gray-500">({s.StationCode || ""})</span>
+                  {s.StationName}{" "}
+                  <span className="text-xs text-gray-500">
+                    ({s.StationCode || ""})
+                  </span>
                 </div>
                 <div className="text-xs text-gray-500">
                   {s.District || ""} {s.State ? `• ${s.State}` : ""}
@@ -244,14 +183,8 @@ export default function StationSearchBox({ onSelect }: { onSelect?: (s: Station 
       )}
 
       {!loading && q && results.length === 0 && (
-        <div className="mt-2 text-sm text-gray-500">No stations found</div>
-      )}
-
-      {/* debug message for troubleshooting (remove later) */}
-      {debugMessage && (
-        <div className="mt-2 text-xs text-red-600 bg-red-50 p-2 rounded">
-          Debug: {debugMessage}
-          <div className="text-xs text-gray-500 mt-1">Check browser console (Network/Console) for raw server response.</div>
+        <div className="absolute z-50 bg-white border rounded w-full mt-1 p-2 text-sm text-gray-500">
+          No stations found
         </div>
       )}
     </div>
