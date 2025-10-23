@@ -1,3 +1,4 @@
+// app/components/SearchBox.tsx
 "use client";
 
 import { useState } from "react";
@@ -8,6 +9,7 @@ export default function SearchBox() {
   const router = useRouter();
   const [searchType, setSearchType] = useState<"pnr" | "train" | "station">("pnr");
   const [inputValue, setInputValue] = useState("");
+  const [results, setResults] = useState([]);
 
   const extractStationCode = (val: string) => {
     const m = val.match(/\(([^)]+)\)$/);
@@ -64,17 +66,17 @@ export default function SearchBox() {
       <div className="px-3">
         <div className="w-full rounded-md border overflow-hidden">
           {searchType === "station" ? (
+            // StationSearchBox renders results automatically
             <div className="p-2">
-              {/* StationSearchBox already renders input + Clear+Search buttons inline.
-                  We remove the parent-level buttons to avoid duplication. */}
               <StationSearchBox
                 onSelect={(s) => {
                   const val = s ? (s.StationCode ?? s.StationName ?? "") : "";
                   const display = s ? `${s.StationName}${s.StationCode ? ` (${s.StationCode})` : ""}` : "";
                   setInputValue(display || val);
+                  setResults([s]); // Set the selected result to avoid showing "No stations found"
                 }}
               />
-              {/* Parent's own Clear/Search removed on purpose (buttons are inside StationSearchBox) */}
+              {/* Remove Clear/Search buttons here, handled by SearchBox */}
             </div>
           ) : (
             <div className="flex items-stretch">
@@ -91,11 +93,28 @@ export default function SearchBox() {
                 }
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
-                className="min-w-0 flex-1 px-3 py-2 text-sm outline-none"
+                className="min-w-0 flex-1 px-2 py-2 text-sm outline-none"
               />
               <button
                 onClick={handleSearch}
                 className="shrink-0 w-20 sm:w-24 px-3 py-2 text-sm bg-black text-white hover:bg-gray-800"
+              >
+                Search
+              </button>
+            </div>
+          )}
+          {/* Move buttons to the top */}
+          {searchType === "station" && (
+            <div className="mt-2 flex justify-end gap-2">
+              <button
+                onClick={() => setInputValue("")}
+                className="px-4 py-2 border rounded"
+              >
+                Clear
+              </button>
+              <button
+                onClick={handleSearch}
+                className="px-4 py-2 bg-black text-white rounded"
               >
                 Search
               </button>
