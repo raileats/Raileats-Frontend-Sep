@@ -25,11 +25,13 @@ export default function StationSearchBox({
   const timer = useRef<number | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
+  // sync prop initialValue -> local
   useEffect(() => {
     setQ(initialValue || "");
     if (!initialValue) setSelectedStation(null);
   }, [initialValue]);
 
+  // debounced search
   useEffect(() => {
     if (!q) {
       setResults([]);
@@ -66,13 +68,14 @@ export default function StationSearchBox({
       } finally {
         setLoading(false);
       }
-    }, 250);
+    }, 220);
 
     return () => {
       if (timer.current) window.clearTimeout(timer.current);
     };
   }, [q]);
 
+  // click outside to close results
   useEffect(() => {
     function onDocClick(e: MouseEvent) {
       if (!containerRef.current) return;
@@ -101,6 +104,10 @@ export default function StationSearchBox({
     onSelect?.(null);
   };
 
+  const doSearch = () => {
+    onSelect?.(selectedStation);
+  };
+
   const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (results.length === 0) return;
     if (e.key === "ArrowDown") {
@@ -121,51 +128,86 @@ export default function StationSearchBox({
 
   return (
     <div ref={containerRef} className="relative w-full">
-      <input
-        type="text"
-        placeholder="Enter station name or code..."
-        value={q}
-        onChange={(e) => {
-          setQ(e.target.value);
-          setSelectedStation(null);
-          onSelect?.(null);
-        }}
-        onKeyDown={onKeyDown}
-        className="w-full border rounded px-3 py-2 text-sm"
-      />
+      {/* Input + inline buttons */}
+      <div className="flex items-start gap-2 w-full">
+        <input
+          type="text"
+          placeholder="Enter station name or code..."
+          value={q}
+          onChange={(e) => {
+            setQ(e.target.value);
+            setSelectedStation(null);
+            onSelect?.(null);
+          }}
+          onKeyDown={onKeyDown}
+          className="flex-1 min-w-0 border rounded px-3 py-3 text-sm sm:py-2 sm:text-sm"
+          aria-autocomplete="list"
+          aria-expanded={results.length > 0}
+        />
 
-      {/* small loader text (optional) */}
-      {loading && <div className="absolute mt-1 left-0 bg-white border p-2 text-sm">Searching…</div>}
+        <div className="flex-shrink-0 flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleClear}
+            className="px-3 py-2 border rounded text-sm bg-white hover:bg-gray-50"
+          >
+            Clear
+          </button>
 
-      {/* RESULTS DROPDOWN */}
+          <button
+            type="button"
+            onClick={doSearch}
+            className="px-4 py-2 bg-black text-white rounded text-sm hover:bg-gray-800"
+          >
+            Search
+          </button>
+        </div>
+      </div>
+
+      {/* small inline loader (simple text) */}
+      {loading && (
+        <div className="absolute mt-2 left-0 bg-white border p-2 text-sm rounded z-40">Searching…</div>
+      )}
+
+      {/* Results dropdown: vertical, wrapped text, 20% smaller on small screens */}
       {results.length > 0 && !selectedStation && (
         <div
-          className="absolute z-50 bg-white border rounded w-full mt-1 max-h-60 overflow-auto shadow"
-          style={{ top: "calc(100% + 6px)" }}
+          className="absolute z-50 bg-white border rounded mt-2 max-h-56 overflow-auto shadow left-0"
+          style={{
+            width: "80%", // mobile 80% (20% smaller)
+            minWidth: 220,
+            maxWidth: "60rem",
+          }}
         >
           {results.map((s, idx) => {
             const isActive = idx === activeIndex;
             return (
               <div
-                key={(s as any).StationId}
+                key={(s as any).StationId ?? `${s.StationCode}-${idx}`}
                 role="option"
                 aria-selected={isActive}
-                className={`p-2 hover:bg-gray-100 cursor-pointer ${isActive ? "bg-gray-100" : ""}`}
+                className={`p-3 hover:bg-gray-100 cursor-pointer ${isActive ? "bg-gray-100" : ""}`}
                 onClick={() => handleSelect(s)}
                 onMouseEnter={() => setActiveIndex(idx)}
               >
-                <div className="text-sm font-medium">
-                  {s.StationName} <span className="text-xs text-gray-500">({s.StationCode || ""})</span>
+                <div className="text-sm font-medium leading-tight break-words">
+                  {s.StationName}
                 </div>
-                <div className="text-xs text-gray-500">{s.District || ""} {s.State ? `• ${s.State}` : ""}</div>
+                <div className="text-xs text-gray-500 break-words">
+                  {s.StationCode ? `(${s.StationCode}) ` : ""} {s.District ? `${s.District} • ` : ""} {s.State ?? ""}
+                </div>
               </div>
             );
           })}
         </div>
       )}
 
+      {/* No stations found */}
       {!loading && q && results.length === 0 && !selectedStation && (
-        <div className="absolute z-50 bg-white border rounded w-full mt-1 p-2 text-sm text-gray-500">
+        <div
+          className="absolute z-50 bg-white border rounded mt-2 p-2 text-sm text-gray-500"
+          style={{ width: "80%", minWidth: 220 }}
+        >
           No stations found
         </div>
       )}
