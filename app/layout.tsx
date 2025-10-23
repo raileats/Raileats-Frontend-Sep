@@ -18,17 +18,24 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* Fixed Navbar */}
         <Navbar />
 
-        {/* ForceReloadOnBack handles spinner on back/refresh/SPA nav */}
+        {/* Force reload logic for back/refresh navigation */}
         <ForceReloadOnBack />
 
-        {/* Global fixed spinner (hidden by default) */}
+        {/* ===================== GLOBAL CENTER SPINNER ===================== */}
         <div id="global-raileats-spinner" aria-hidden>
-          <div className="outer-ring" aria-hidden>
-            <div className="inner-logo" aria-hidden>
-              <img src="/raileats-logo.png" alt="RailEats" />
+          <div className="spinner-overlay">
+            <div className="spinner-center">
+              {/* Outer blue rotating ring */}
+              <div className="outer-ring" aria-hidden></div>
+
+              {/* Fixed RailEats logo inside (does NOT rotate) */}
+              <div className="inner-logo" aria-hidden>
+                <img src="/raileats-logo.png" alt="RailEats" />
+              </div>
             </div>
           </div>
         </div>
+        {/* ===================== END SPINNER ===================== */}
 
         {/* Main content wrapper: centered & constrained width for desktop */}
         <main className="main-content">
