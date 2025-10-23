@@ -5,359 +5,150 @@
 /* ========= Base reset ========= */
 :root{
   --nav-h: 60px;
-  --bottom-h: 56px; /* bottom nav tabs ke barabar */
+  --bottom-h: 56px;
 }
 
 html, body {
   height: 100%;
   margin: 0;
   padding: 0;
-  background: #f9fafb; /* हल्का gray */
-  font-family: sans-serif;
-  overflow-x: hidden; /* horizontal scroll रोकें */
+  background: #f9fafb;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+  overflow-x: hidden;
 }
 
-img {
-  display: block;
-  max-width: 100%;
-  height: auto;
-}
-
-/* Tight typography spacing */
-h1, h2, h3, p { margin-top: 0; }
+img { display: block; max-width: 100%; height: auto; }
+h1,h2,h3,p { margin-top: 0; }
 
 /* ========= Safe area between navbars ========= */
 .main-content {
-  padding-top: var(--nav-h);             /* Top Navbar height */
+  padding-top: var(--nav-h);
   padding-bottom: calc(var(--bottom-h) + env(safe-area-inset-bottom, 0px));
 }
 
-/* Optional helper for pages not using .main-content */
-.safe-bottom { height: var(--bottom-h); }
-
-/* ========= Navbar (top) ========= */
-.navbar {
-  @apply fixed top-0 left-0 w-full z-50 flex items-center justify-between bg-white shadow-md px-4;
-  height: var(--nav-h);
-}
-
-/* ========= Bottom navbar (equal tabs) ========= */
-.bottom-nav {
-  @apply fixed bottom-0 left-0 w-full z-50 bg-white border-t shadow-sm flex justify-around items-center;
-  height: var(--bottom-h);
-}
-
-/* Remove old oversized partner button style (kept as noop for safety) */
-.partner-btn {
-  /* Old giant circle removed — tabs ab equal size hain */
-  width: auto;
-  height: auto;
-  margin-top: 0;
-  background: transparent;
-  box-shadow: none;
-  border-radius: 0;
-}
-
-/* ========= Slider images ========= */
-/* Keep 16:9 but avoid unwanted side gaps */
-.slider-img {
-  width: 100%;
-  aspect-ratio: 16/9;
-  object-fit: cover;     /* fill without letterboxing */
-  border-radius: 12px;
-}
-
-/* ========= Decorative animations (optional) ========= */
-@keyframes bubbleGlow {
-  0%, 100% { transform: scale(1); filter: drop-shadow(0 0 3px #ffeb3b); }
-  50%      { transform: scale(1.3); filter: drop-shadow(0 0 20px #ffd700); }
-}
-.animate-bubbleGlow { animation: bubbleGlow 3s infinite ease-in-out; }
-
-@keyframes shine {
-  0% { background: radial-gradient(circle, rgba(255,255,255,0.6) 20%, transparent 70%); opacity: 0; transform: scale(0.5); }
-  50% { opacity: 1; transform: scale(1.3); }
-  100% { opacity: 0; transform: scale(1.8); }
-}
-.animate-shine { animation: shine 3s infinite; }
-
-@keyframes textShine {
-  0% { background-position: 0% 50%; }
-  100% { background-position: 200% 50%; }
-}
-.animate-textShine { background-size: 200% auto; animation: textShine 3s linear infinite; }
-
-/* ========= Slick hardening (side-offset/width bugs) ========= */
-.slick-slider, .slick-list { width: 100%; overflow: hidden; }
-.slick-track { display: flex !important; align-items: stretch; }
-.slick-slide { height: auto; }
-.slick-slide > div { width: 100%; }
-.slick-dots { bottom: 8px; }
-
-/* Prevent stray gaps / scrollbars from images */
-.slick-slide img, .swiper-slide img, .slider img {
-  display: block;
-  width: 100%;
-  height: auto;
-}
-
-/* Full-width enforcement (mobile-first) */
-.slick-initialized .slick-slide { width: 100% !important; display: block !important; }
-.slick-list { padding: 0 !important; margin: 0 !important; overflow: hidden; }
-.slick-track { margin-left: 0 !important; }
-@media (min-width: 768px) {
-  .slick-initialized .slick-slide { width: 100% !important; }
-}
-
-/* ========= Section spacing helpers ========= */
-.section-tight { padding-top: 0.5rem; padding-bottom: 0.5rem; }
-.no-extra { margin: 0 !important; padding: 0 !important; }
-/* Kill accidental top gaps under sticky navbar on mobile */
-.welcome-strip { margin-top: 0 !important; }
-header + .welcome-strip { margin-top: 0 !important; }
-main { margin-top: 0 !important; }
-/* ===== Mobile hard-fixes (keep desktop unchanged) ===== */
-@media (max-width: 768px) {
-  /* 1) Navbar ↔ Welcome strip ke beech koi gap na rahe */
-  header { margin-bottom: 0 !important; }
-  header + .welcome-strip { margin-top: 0 !important; }
-  main { padding-top: 0 !important; }
-  /* agar first section me mt-* aaya ho to bhi kill */
-  main > section:first-of-type { margin-top: 0 !important; }
-}
-
-/* 2) Slick right-side bleed/overflow guard (blue mark fix) */
-.slick-slide { margin: 0 !important; float: none !important; }
-.slick-list { padding-right: 0 !important; padding-left: 0 !important; overflow: hidden !important; }
-
-/* 3) Safety: images always cover their frame in sliders */
-.slick-slide img { object-fit: cover; }
-/* ------------------------
-   Layout scaling & wrapper
-   ------------------------ */
-
-/* Slightly reduce root font-size on large screens so UI feels smaller (adjust if needed) */
-@media (min-width: 1024px) {
-  html { font-size: 14.5px; } /* ~9% smaller than 16px */
-}
-
-/* Constrain content on large screens so site doesn't look too big on desktop */
+/* Centered site wrapper — keeps desktop compact */
 .site-container {
   margin-left: auto;
   margin-right: auto;
   padding-left: 1rem;
   padding-right: 1rem;
   width: 100%;
-  max-width: 1024px; /* adjust: smaller => site looks more compact */
+  max-width: 1024px;
 }
 
-/* make sure main-content uses the centered container */
-.main-content > .site-container { /* if you used the wrapper in layout.tsx */ }
+/* navbar / bottom nav helpers */
+.navbar {
+  @apply fixed top-0 left-0 w-full z-50 flex items-center justify-between bg-white shadow-md px-4;
+  height: var(--nav-h);
+}
+.bottom-nav {
+  @apply fixed bottom-0 left-0 w-full z-50 bg-white border-t shadow-sm flex justify-around items-center;
+  height: var(--bottom-h);
+}
+
+/* Slider / image helpers */
+.slider-img { width: 100%; aspect-ratio: 16/9; object-fit: cover; border-radius: 12px; }
+
+/* Slick fixes */
+.slick-slider, .slick-list { width: 100%; overflow: hidden; }
+.slick-track { display: flex !important; align-items: stretch; }
+.slick-slide { height: auto; }
+.slick-slide > div { width: 100%; }
+.slick-dots { bottom: 8px; }
 
 /* ------------------------
-   Station / resto image 1:1
+   Station & restaurant thumbnails (1:1 square)
    ------------------------ */
-
-/* Generic selectors — change to your actual classnames if different */
 .station-card,
-.restaurant-card {
-  display: flex;
-  gap: 1rem;
-  align-items: center;
+.restaurant-card { display: flex; gap: 1rem; align-items: center; }
+
+.station-image, .resto-image,
+.station-thumb, .restro-thumb {
+  width: 120px; height: 120px; flex-shrink: 0; border-radius: 8px; overflow: hidden; background: #eee;
 }
 
-/* left image box: fixed square */
-.station-card .img,
-.restaurant-card .img,
-.station-image,
-.resto-image {
-  width: 120px;
-  height: 120px;
-  flex-shrink: 0;
-  border-radius: 8px;
-  overflow: hidden;
-  background: #eee;
+.station-image img, .resto-image img, .station-thumb img, .restro-thumb img {
+  width: 100%; height: 100%; object-fit: cover; display: block;
 }
 
-/* ensure img inside fills box */
-.station-card img,
-.restaurant-card img,
-.station-image img,
-.resto-image img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-
-/* smaller square on small screens */
+/* smaller on mobile */
 @media (max-width: 640px) {
-  .station-card .img,
-  .restaurant-card .img {
-    width: 88px;
-    height: 88px;
-  }
+  .station-image, .resto-image { width: 88px; height: 88px; }
 }
 
 /* ------------------------
-   Spinner / bubble styles
+   Bubble spinner (for near-button spinner)
    ------------------------ */
-
-/* bubble container positioned near search button (use as absolute sibling) */
 .bubble-spinner {
-  position: relative; /* parent should position it absolute near button */
-  width: 44px;
-  height: 44px;
-  border-radius: 9999px;
-  display: inline-flex;
+  position: relative;
+  width: 44px; height: 44px; border-radius: 9999px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: #fff; border: 1px solid rgba(0,0,0,0.08); box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+}
+.bubble-spinner .outer-ring {
+  position: absolute; inset: 0; border-radius: 9999px; box-sizing: border-box;
+  border: 3px solid rgba(0,0,0,0.06); border-top-color: rgba(0,0,0,0.18);
+  animation: bubble-spin 0.9s linear infinite; z-index: 1;
+}
+.bubble-spinner .inner-logo { width: 60%; height: 60%; z-index: 2; pointer-events: none; }
+@keyframes bubble-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+/* ------------------------
+   Global centered circular spinner with fixed inner logo
+   ------------------------ */
+#global-raileats-spinner {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 99999;
+  display: none;
   align-items: center;
   justify-content: center;
-  background: #fff;
-  border: 1px solid rgba(0,0,0,0.08);
-  box-shadow: 0 4px 10px rgba(0,0,0,0.08);
-  overflow: visible;
-}
-
-/* outer rotating ring (the visible loader) */
-.bubble-spinner .outer-ring {
-  position: absolute;
-  inset: 0;
-  border-radius: 9999px;
-  box-sizing: border-box;
-  border: 3px solid rgba(0,0,0,0.06);
-  border-top-color: rgba(0,0,0,0.18);
-  animation: bubble-spin 0.9s linear infinite;
-  z-index: 1;
-}
-
-/* inner fixed logo (does NOT rotate) */
-.bubble-spinner .inner-logo {
-  width: 60%;
-  height: 60%;
-  object-fit: contain;
-  z-index: 2;
   pointer-events: none;
 }
 
-/* fallback small dot if logo missing */
-.bubble-spinner .fallback-dot {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  border: 2px solid rgba(0,0,0,0.12);
-  border-top-color: #111; /* visible segment */
-  animation: bubble-spin 0.9s linear infinite;
-  z-index: 2;
+/* show state */
+#global-raileats-spinner.show {
+  display: flex;
+  animation: raileats-fade-in 160ms ease-out;
+  pointer-events: all;
 }
 
-/* outer-ring keyframes */
-@keyframes bubble-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-
-/* Slightly bigger bubble if you want +10% */
-.bubble-spinner.bigger { width: 48px; height: 48px; }
-.bubble-spinner.bigger .inner-logo { width: 62%; height: 62%; }
-
-/* ------------------------
-   Dropdown / z-index fixes
-   ------------------------ */
-
-/* Ensure autocomplete dropdown floats above wrapper and other elements */
-.station-search-dropdown,
-.station-search-dropdown * {
-  z-index: 9999 !important;
-}
-
-/* If you used an absolute dropdown container, ensure it's not clipped */
-.relative-no-overflow { overflow: visible !important; }
-
-/* ------------------------
-   Small polish
-   ------------------------ */
-
-/* Reduce large paddings on desktop forms if needed (keeps layout compact) */
-.form-card, .search-box-card {
-  padding: 0.75rem;
-  border-radius: 10px;
-}
-
-/* Keep slider images covering frame */
-.slider-img { object-fit: cover; }
-/* ===== Station & restro thumbnail helpers ===== */
-.station-header .station-thumb,
-.restro-thumb {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-
-/* explicitly ensure the small fixed square frame */
-.station-thumb-frame {
-  width: 9rem;  /* 144px (sm) */
-  height: 9rem;
-}
-@media (min-width: 640px) {
-  .station-thumb-frame { width: 11rem; height: 11rem; } /* 176px */
-}
-
-/* restaurant square */
-.restro-thumb-frame {
-  width: 9rem; height: 9rem;
-}
-@media (min-width: 768px) {
-  .restro-thumb-frame { width: 9rem; height: 9rem; }
-}
-
-/* ===== Global centered circular spinner with logo (fixed) ===== */
-#global-raileats-spinner {
-  position: fixed;
-  right: 1.25rem; /* near search button position on pages */
-  top: 50%;
-  transform: translateY(-50%);
-  z-index: 99999;
-  display: none; /* shown/hidden via JS */
-  align-items: center;
-  justify-content: center;
-}
-
-/* outer rotating ring */
+/* outer rotating blue ring (rotates) */
 #global-raileats-spinner .outer-ring {
-  width: 64px; height: 64px;
-  border-radius: 50%;
-  border: 4px solid rgba(59,130,246,0.15); /* subtle blue ring */
+  width: 78px; height: 78px; border-radius: 9999px;
+  border: 4px solid rgba(59,130,246,0.12);
   border-top-color: rgba(59,130,246,1);
   animation: raileats-ring-rotate 0.9s linear infinite;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: white;
-  box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+  display: flex; align-items: center; justify-content: center;
+  background: white; box-shadow: 0 10px 28px rgba(0,0,0,0.12);
+  position: relative;
 }
 
-/* static logo inside */
+/* inner fixed logo (does not rotate) */
 #global-raileats-spinner .inner-logo {
-  width: 34px; height: 34px;
-  border-radius: 50%;
-  overflow: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  width: 42px; height: 42px; border-radius: 9999px; overflow: hidden;
+  display: flex; align-items: center; justify-content: center; z-index: 2; background: white;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
 }
-#global-raileats-spinner .inner-logo img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  display: block;
-}
+#global-raileats-spinner .inner-logo img { width: 80%; height: 80%; object-fit: contain; display: block; transform: none !important; }
 
 /* ring animation */
-@keyframes raileats-ring-rotate {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+@keyframes raileats-ring-rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+@keyframes raileats-fade-in { from { opacity: 0; transform: translate(-50%, -52%) scale(0.98); } to { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
+
+/* responsive spinner sizes */
+@media (max-width: 480px) {
+  #global-raileats-spinner .outer-ring { width: 64px; height: 64px; border-width: 3px; }
+  #global-raileats-spinner .inner-logo { width: 36px; height: 36px; }
 }
 
-/* small states */
-#global-raileats-spinner.show { display: flex; }
+/* ------------------------
+   Autocomplete z-index fixes
+   ------------------------ */
+.station-search-dropdown, .station-search-dropdown * { z-index: 9999 !important; }
+.relative-no-overflow { overflow: visible !important; }
 
-
-/* End additions */
+/* small polish */
+.form-card, .search-box-card { padding: 0.75rem; border-radius: 10px; }
