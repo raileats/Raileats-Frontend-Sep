@@ -122,7 +122,7 @@ export default function SearchBox() {
                       className="absolute -right-10 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full flex items-center justify-center shadow animate-spin"
                       style={{ background: "#fff" }}
                     >
-                      {/* put logo image in public/logo.png for best effect */}
+                      {/* put logo image in publicraileats-logo.png for best effect */}
                       <img
                         src="/raileats-logo.png"
                         alt="RE"
