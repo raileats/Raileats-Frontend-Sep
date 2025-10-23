@@ -1,4 +1,3 @@
-// app/components/SearchBox.tsx
 "use client";
 
 import { useState } from "react";
@@ -9,7 +8,7 @@ export default function SearchBox() {
   const router = useRouter();
   const [searchType, setSearchType] = useState<"pnr" | "train" | "station">("pnr");
   const [inputValue, setInputValue] = useState("");
-  const [results, setResults] = useState([]);
+  const [selectedStationObj, setSelectedStationObj] = useState<any | null>(null);
 
   const extractStationCode = (val: string) => {
     const m = val.match(/\(([^)]+)\)$/);
@@ -30,8 +29,9 @@ export default function SearchBox() {
     const q = inputValue.trim();
 
     if (searchType === "station") {
-      const rawCode = extractStationCode(q);
-      const safe = encodeURIComponent(rawCode.toUpperCase());
+      // if we have selectedStationObj prefer its code, else try to extract
+      const rawCode = selectedStationObj?.StationCode ?? extractStationCode(q);
+      const safe = encodeURIComponent(String(rawCode).toUpperCase());
       router.push(`/Stations/${safe}`);
       return;
     }
@@ -56,6 +56,7 @@ export default function SearchBox() {
               onChange={(e) => {
                 setSearchType(e.target.value as any);
                 setInputValue("");
+                setSelectedStationObj(null);
               }}
             />
             <span className="capitalize">{type}</span>
@@ -64,19 +65,38 @@ export default function SearchBox() {
       </div>
 
       <div className="px-3">
-        <div className="w-full rounded-md border overflow-hidden">
+        <div className="w-full rounded-md border overflow-hidden p-2">
           {searchType === "station" ? (
-            // StationSearchBox renders results automatically
-            <div className="p-2">
-              <StationSearchBox
-                onSelect={(s) => {
-                  const val = s ? (s.StationCode ?? s.StationName ?? "") : "";
-                  const display = s ? `${s.StationName}${s.StationCode ? ` (${s.StationCode})` : ""}` : "";
-                  setInputValue(display || val);
-                  setResults([s]); // Set the selected result to avoid showing "No stations found"
-                }}
-              />
-              {/* Remove Clear/Search buttons here, handled by SearchBox */}
+            <div className="flex items-start gap-3">
+              <div className="flex-1">
+                <StationSearchBox
+                  onSelect={(s) => {
+                    const val = s ? (s.StationCode ?? s.StationName ?? "") : "";
+                    const display = s ? `${s.StationName}${s.StationCode ? ` (${s.StationCode})` : ""}` : "";
+                    setInputValue(display || val);
+                    setSelectedStationObj(s ?? null);
+                  }}
+                />
+              </div>
+
+              {/* Buttons placed inline to the right of the station input */}
+              <div className="flex-shrink-0 flex flex-col items-end gap-2">
+                <button
+                  onClick={() => {
+                    setInputValue("");
+                    setSelectedStationObj(null);
+                  }}
+                  className="px-4 py-2 border rounded text-sm bg-white hover:bg-gray-50"
+                >
+                  Clear
+                </button>
+                <button
+                  onClick={handleSearch}
+                  className="px-4 py-2 bg-black text-white rounded text-sm hover:bg-gray-800"
+                >
+                  Search
+                </button>
+              </div>
             </div>
           ) : (
             <div className="flex items-stretch">
@@ -98,23 +118,6 @@ export default function SearchBox() {
               <button
                 onClick={handleSearch}
                 className="shrink-0 w-20 sm:w-24 px-3 py-2 text-sm bg-black text-white hover:bg-gray-800"
-              >
-                Search
-              </button>
-            </div>
-          )}
-          {/* Move buttons to the top */}
-          {searchType === "station" && (
-            <div className="mt-2 flex justify-end gap-2">
-              <button
-                onClick={() => setInputValue("")}
-                className="px-4 py-2 border rounded"
-              >
-                Clear
-              </button>
-              <button
-                onClick={handleSearch}
-                className="px-4 py-2 bg-black text-white rounded"
               >
                 Search
               </button>
