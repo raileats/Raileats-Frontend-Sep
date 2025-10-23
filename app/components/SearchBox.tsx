@@ -1,3 +1,4 @@
+// app/components/SearchBox.tsx
 "use client";
 
 import { useState } from "react";
@@ -8,7 +9,7 @@ export default function SearchBox() {
   const router = useRouter();
   const [searchType, setSearchType] = useState<"pnr" | "train" | "station">("pnr");
   const [inputValue, setInputValue] = useState("");
-  const [isNavigating, setIsNavigating] = useState(false);
+  const [results, setResults] = useState([]);
 
   const extractStationCode = (val: string) => {
     const m = val.match(/\(([^)]+)\)$/);
@@ -28,22 +29,18 @@ export default function SearchBox() {
     }
     const q = inputValue.trim();
 
-    // show navigation spinner before actually navigating
-    setIsNavigating(true);
-
     if (searchType === "station") {
       const rawCode = extractStationCode(q);
       const safe = encodeURIComponent(rawCode.toUpperCase());
-      // use window.location to ensure browser navigation leaves page (spinner visible)
-      window.location.href = `/Stations/${safe}`;
+      router.push(`/Stations/${safe}`);
       return;
     }
 
     if (searchType === "pnr") {
-      window.location.href = `/pnr/${encodeURIComponent(q)}`;
+      router.push(`/pnr/${encodeURIComponent(q)}`);
       return;
     }
-    window.location.href = `/trains/${encodeURIComponent(q)}`;
+    router.push(`/trains/${encodeURIComponent(q)}`);
   };
 
   return (
@@ -69,71 +66,17 @@ export default function SearchBox() {
       <div className="px-3">
         <div className="w-full rounded-md border overflow-hidden">
           {searchType === "station" ? (
+            // StationSearchBox renders results automatically
             <div className="p-2">
-              <div className="flex items-start gap-3">
-                <div className="flex-1">
-                  <StationSearchBox
-                    onSelect={(s) => {
-                      const val = s ? (s.StationCode ?? s.StationName ?? "") : "";
-                      const display = s ? `${s.StationName}${s.StationCode ? ` (${s.StationCode})` : ""}` : "";
-                      setInputValue(display || val);
-                    }}
-                  />
-                </div>
-
-                {/* Buttons block (Clear + Search + spinner) placed right of input */}
-                <div className="flex flex-col items-end gap-2">
-                  <button
-                    onClick={() => setInputValue("")}
-                    className="px-3 py-2 border rounded text-sm bg-white hover:bg-gray-50"
-                    type="button"
-                    aria-label="Clear search"
-                    disabled={isNavigating}
-                  >
-                    Clear
-                  </button>
-
-                  <div className="relative">
-                    <button
-                      onClick={handleSearch}
-                      className="px-4 py-2 bg-black text-white rounded text-sm hover:bg-gray-800"
-                      type="button"
-                      aria-label="Search"
-                      disabled={isNavigating}
-                    >
-                      {isNavigating ? "Searching…" : "Search"}
-                    </button>
-
-                    {/* Spinner: shows only while isNavigating */}
-                    {isNavigating && (
-                      <div
-                        aria-hidden
-                        className="absolute -right-12 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full flex items-center justify-center shadow-md bg-white border border-gray-200"
-                      >
-                        <div className="relative w-full h-full flex items-center justify-center">
-                          <img
-                            src="/raileats-logo.png"
-                            alt="RailEats"
-                            className="w-8 h-8 object-contain"
-                            style={{ pointerEvents: "none" }}
-                          />
-                          <style>{`
-                            @keyframes pulseScale {
-                              0% { transform: scale(0.9); opacity: 0.9; }
-                              50% { transform: scale(1.1); opacity: 1; }
-                              100% { transform: scale(0.9); opacity: 0.9; }
-                            }
-                            .pulse-anim {
-                              animation: pulseScale 900ms ease-in-out infinite;
-                            }
-                          `}</style>
-                          <div className="absolute inset-0 rounded-full border border-gray-200 pulse-anim" />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
+              <StationSearchBox
+                onSelect={(s) => {
+                  const val = s ? (s.StationCode ?? s.StationName ?? "") : "";
+                  const display = s ? `${s.StationName}${s.StationCode ? ` (${s.StationCode})` : ""}` : "";
+                  setInputValue(display || val);
+                  setResults([s]); // Set the selected result to avoid showing "No stations found"
+                }}
+              />
+              {/* Remove Clear/Search buttons here, handled by SearchBox */}
             </div>
           ) : (
             <div className="flex items-stretch">
@@ -155,6 +98,23 @@ export default function SearchBox() {
               <button
                 onClick={handleSearch}
                 className="shrink-0 w-20 sm:w-24 px-3 py-2 text-sm bg-black text-white hover:bg-gray-800"
+              >
+                Search
+              </button>
+            </div>
+          )}
+          {/* Move buttons to the top */}
+          {searchType === "station" && (
+            <div className="mt-2 flex justify-end gap-2">
+              <button
+                onClick={() => setInputValue("")}
+                className="px-4 py-2 border rounded"
+              >
+                Clear
+              </button>
+              <button
+                onClick={handleSearch}
+                className="px-4 py-2 bg-black text-white rounded"
               >
                 Search
               </button>
