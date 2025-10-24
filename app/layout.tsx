@@ -25,10 +25,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <div id="global-raileats-spinner" aria-hidden>
           <div className="spinner-overlay">
             <div className="spinner-center">
-              {/* Outer blue rotating ring */}
+              {/* Blue rotating ring */}
               <div className="outer-ring" aria-hidden></div>
 
-              {/* Fixed RailEats logo inside (does NOT rotate) */}
+              {/* Fixed RailEats logo */}
               <div className="inner-logo" aria-hidden>
                 <img src="/raileats-logo.png" alt="RailEats" />
               </div>
@@ -37,7 +37,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </div>
         {/* ===================== END SPINNER ===================== */}
 
-        {/* Main content wrapper: centered & constrained width for desktop */}
+        {/* Main content wrapper */}
         <main className="main-content">
           <div className="site-container">{children}</div>
         </main>
