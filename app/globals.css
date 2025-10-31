@@ -169,12 +169,7 @@ p {
   }
 }
 
-/* ========= Global Centered Spinner with Fixed Inner Logo =========
-   - outer ring rotates
-   - inner logo stays visually fixed (no rotation)
-   - logo is centered and fully inside the ring
-   - toggled by adding/removing `show` class on #global-raileats-spinner
-*/
+/* ========= Global Centered Spinner with Fixed Inner Logo ========= */
 #global-raileats-spinner {
   position: fixed;
   left: 50%;
@@ -187,46 +182,54 @@ p {
   pointer-events: none;
 }
 
-/* show state */
+/* Show spinner */
 #global-raileats-spinner.show {
   display: flex;
   animation: raileats-fade-in 180ms ease-out;
-  pointer-events: all; /* blocks interactions while shown */
+  pointer-events: all;
 }
 
-/* rotating outer blue ring */
+/* Rotating outer blue ring — reduced size 85% */
 #global-raileats-spinner .outer-ring {
-  width: 78px;
-  height: 78px;
-  border-radius: 9999px;
+  width: 66px; /* 15% smaller */
+  height: 66px;
+  border-radius: 50%;
+  background: white;
+  position: relative;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+}
+
+/* Add rotating border with ::before */
+#global-raileats-spinner .outer-ring::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
   border: 4px solid rgba(59, 130, 246, 0.12);
   border-top-color: rgba(59, 130, 246, 1);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: white;
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.12);
-  position: relative;
   animation: raileats-ring-rotate 0.9s linear infinite;
   box-sizing: border-box;
 }
 
-/* inner fixed logo (does NOT spin) */
+/* Fixed inner logo (no rotation) — also 15% smaller */
 #global-raileats-spinner .inner-logo {
-  width: 42px;
-  height: 42px;
-  border-radius: 9999px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
   overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 2;
   background: white;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 2;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-  /* keep logo fixed - no rotation animation here */
 }
 
-/* perfect fit logo */
+/* Logo inside stays fixed */
 #global-raileats-spinner .inner-logo img {
   width: 100%;
   height: 100%;
@@ -256,16 +259,15 @@ p {
   }
 }
 
-/* smaller devices */
+/* Smaller devices */
 @media (max-width: 480px) {
   #global-raileats-spinner .outer-ring {
-    width: 64px;
-    height: 64px;
-    border-width: 3px;
+    width: 56px;
+    height: 56px;
   }
   #global-raileats-spinner .inner-logo {
-    width: 36px;
-    height: 36px;
+    width: 30px;
+    height: 30px;
   }
 }
 
@@ -274,6 +276,7 @@ p {
 .station-search-dropdown * {
   z-index: 9999 !important;
 }
+
 .relative-no-overflow {
   overflow: visible !important;
 }
