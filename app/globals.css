@@ -169,7 +169,12 @@ p {
   }
 }
 
-/* ========= Global Centered Spinner with Fixed Inner Logo ========= */
+/* ========= Global Centered Spinner with Fixed Inner Logo =========
+   - outer ring rotates
+   - inner logo stays visually fixed (no rotation)
+   - logo is centered and fully inside the ring
+   - toggled by adding/removing `show` class on #global-raileats-spinner
+*/
 #global-raileats-spinner {
   position: fixed;
   left: 50%;
@@ -186,7 +191,7 @@ p {
 #global-raileats-spinner.show {
   display: flex;
   animation: raileats-fade-in 180ms ease-out;
-  pointer-events: all;
+  pointer-events: all; /* blocks interactions while shown */
 }
 
 /* rotating outer blue ring */
@@ -203,9 +208,10 @@ p {
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.12);
   position: relative;
   animation: raileats-ring-rotate 0.9s linear infinite;
+  box-sizing: border-box;
 }
 
-/* inner fixed logo (counter rotation cancel trick) */
+/* inner fixed logo (does NOT spin) */
 #global-raileats-spinner .inner-logo {
   width: 42px;
   height: 42px;
@@ -217,7 +223,7 @@ p {
   z-index: 2;
   background: white;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-  animation: raileats-ring-counter 0.9s linear infinite;
+  /* keep logo fixed - no rotation animation here */
 }
 
 /* perfect fit logo */
@@ -236,15 +242,6 @@ p {
   }
   to {
     transform: rotate(360deg);
-  }
-}
-
-@keyframes raileats-ring-counter {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(-360deg);
   }
 }
 
