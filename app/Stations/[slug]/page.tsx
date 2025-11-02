@@ -1,3 +1,4 @@
+// app/Stations/[slug]/page.tsx
 import React from "react";
 import type { Metadata } from "next";
 import { redirect, permanentRedirect } from "next/navigation";
@@ -51,9 +52,7 @@ const ADMIN_BASE =
   process.env.NEXT_PUBLIC_ADMIN_APP_URL || "https://admin.raileats.in";
 
 async function fetchStation(code: string): Promise<StationResp> {
-  const url = `${ADMIN_BASE.replace(/\/$/, "")}/api/stations/${encodeURIComponent(
-    code
-  )}`;
+  const url = `${ADMIN_BASE.replace(/\/$/, "")}/api/stations/${encodeURIComponent(code)}`;
   const resp = await fetch(url, { cache: "no-store" });
   if (!resp.ok) {
     const txt = await resp.text().catch(() => "");
@@ -103,9 +102,7 @@ async function filterHolidayBlocked(restros: Restro[]): Promise<Restro[]> {
   const window = 6;
   for (let i = 0; i < restros.length; i += window) {
     const slice = restros.slice(i, i + window);
-    const results = await Promise.all(
-      slice.map((r) => hasActiveHoliday(r.RestroCode))
-    );
+    const results = await Promise.all(slice.map((r) => hasActiveHoliday(r.RestroCode)));
     slice.forEach((r, idx) => {
       if (!results[idx]) out.push(r);
     });
@@ -175,7 +172,7 @@ export default async function Page({ params }: { params: { slug: string } }) {
     );
   }
 
-  // If URL was just "/Stations/BPL", redirect to SEO slug
+  // If the URL was only "/Stations/BPL", redirect to SEO slug
   if (!raw.includes("-") && stationResp?.station?.StationName) {
     const seo = makeStationSlug(code, stationResp.station.StationName);
     try {
@@ -199,7 +196,7 @@ export default async function Page({ params }: { params: { slug: string } }) {
       ? `${station.StationCode} — ${station.StationName}`
       : code;
 
-  // Precompute station SEO slug for “Order Now” links
+  // Precompute station SEO slug for links
   const stationSeo = makeStationSlug(code, station?.StationName ?? code);
 
   return (
@@ -234,7 +231,7 @@ export default async function Page({ params }: { params: { slug: string } }) {
         </div>
       </div>
 
-      {/* Restaurants */}
+      {/* Restaurants block */}
       <section className="mb-8">
         <div className="bg-white rounded-md shadow p-4 sm:p-6">
           <h2 className="text-lg font-semibold mb-3">
@@ -248,17 +245,12 @@ export default async function Page({ params }: { params: { slug: string } }) {
           ) : (
             <div className="space-y-4">
               {restaurants.map((r) => {
-                const restroSeo = makeRestroSlug(
-                  String(r.RestroCode),
-                  r.RestroName || "restaurant"
-                );
-                const href = `/Stations/${stationSeo}/${restroSeo}`;
+                const restroSeo = makeRestroSlug(String(r.RestroCode), r.RestroName ?? "");
                 return (
                   <article
                     key={String(r.RestroCode)}
                     className="flex flex-col md:flex-row items-stretch gap-3 p-3 sm:p-4 border rounded"
                   >
-                    {/* Image */}
                     <div className="flex-shrink-0 w-full md:w-36 lg:w-44 h-44 md:h-36 bg-gray-100 rounded overflow-hidden">
                       {r.RestroDisplayPhoto ? (
                         <img
@@ -274,7 +266,6 @@ export default async function Page({ params }: { params: { slug: string } }) {
                       )}
                     </div>
 
-                    {/* Content */}
                     <div className="flex-1 flex flex-col justify-between">
                       <div>
                         <div className="flex items-start gap-3">
@@ -305,7 +296,9 @@ export default async function Page({ params }: { params: { slug: string } }) {
 
                           <div className="ml-2 flex flex-col items-end gap-3">
                             <div className="text-xs text-gray-500">Min order</div>
-                            <div className="font-medium text-base">₹{r.MinimumOrdermValue ?? "—"}</div>
+                            <div className="font-medium text-base">
+                              ₹{r.MinimumOrdermValue ?? "—"}
+                            </div>
                           </div>
                         </div>
 
@@ -319,7 +312,7 @@ export default async function Page({ params }: { params: { slug: string } }) {
                       <div className="mt-3 flex items-center">
                         <div className="ml-auto w-full md:w-auto">
                           <a
-                            href={href}
+                            href={`/Stations/${stationSeo}/${restroSeo}`}
                             className="inline-block bg-green-600 text-white px-4 py-2 rounded text-sm w-full md:w-auto text-center"
                             aria-label={`Order now from ${r.RestroName}`}
                           >
