@@ -5,6 +5,7 @@ import { extractStationCode } from "../../../lib/stationSlug";
 import { extractRestroCode } from "../../../lib/restroSlug";
 import RestroMenuClient from "./RestroMenuClient";
 
+/* ------------ types ------------ */
 type MenuItem = {
   id: number;
   restro_code: string | number;
@@ -22,22 +23,23 @@ type MenuItem = {
   status?: "ON" | "OFF" | "DELETED" | null;
 };
 
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
 const ADMIN_BASE =
   process.env.NEXT_PUBLIC_ADMIN_APP_URL || "https://admin.raileats.in";
 
-const fmtHM = (s?: string | null) => (s ? s.slice(0, 5) : "");
-
+/** "mizaz-e-bhopal-restraurant-1004" -> "Mizaz E Bhopal Restraurant" */
 function humanizeFromSlug(restroSlug: string) {
-  // turns "mizaz-e-bhopal-restraurant-1004" -> "Mizaz E Bhopal Restraurant"
-  const withoutCode = String(restroSlug).replace(/-?\d+$/,"").replace(/-$/,"");
+  const withoutCode = String(restroSlug).replace(/-?\d+$/, "").replace(/-$/, "");
   return withoutCode
     .split("-")
     .filter(Boolean)
-    .map(w => w[0]?.toUpperCase() + w.slice(1))
+    .map((w) => (w[0] ? w[0].toUpperCase() + w.slice(1) : w))
     .join(" ");
 }
 
-/* ---------------- SEO ---------------- */
+/* ------------ SEO ------------ */
 export async function generateMetadata({
   params,
 }: {
@@ -45,34 +47,40 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const stationCode = extractStationCode(params.slug) || "";
   const outletName = humanizeFromSlug(params.restroSlug);
+
+  const title = `${outletName} Menu at ${stationCode} | RailEats`;
+  const description = `See ${outletName} (${stationCode}) live menu — Veg/Non-Veg, prices, timings. Order fresh food in train with RailEats.`;
+
   return {
-    title: `${outletName} Menu at ${stationCode} | RailEats`,
-    description: `See ${outletName} (${stationCode}) live menu — Veg/Non-Veg, prices, timings. Order fresh food in train with RailEats.`,
+    title,
+    description,
     alternates: {
       canonical: `/Stations/${params.slug}/${params.restroSlug}`,
     },
     openGraph: {
-      title: `${outletName} Menu at ${stationCode} | RailEats`,
-      description: `Live menu and ordering for ${outletName} at ${stationCode}.`,
+      title,
+      description,
       url: `/Stations/${params.slug}/${params.restroSlug}`,
       type: "website",
     },
   };
 }
 
-/* --------------- data fetchers (server) --------------- */
+/* ------------ server fetchers ------------ */
 async function fetchOnMenu(restroCode: string | number): Promise<MenuItem[]> {
-  const url = `${ADMIN_BASE.replace(/\/$/,"")}/api/restros/${encodeURIComponent(
+  const url = `${ADMIN_BASE.replace(/\/$/, "")}/api/restros/${encodeURIComponent(
     String(restroCode)
   )}/menu?status=ON`;
+
   const res = await fetch(url, { cache: "no-store" });
   if (!res.ok) return [];
-  const j = await res.json().catch(() => ({}));
-  // support both {rows:[...]} and raw array
+
+  const j = await res.json().catch(() => ({} as any));
   const rows: MenuItem[] = (j?.rows ?? j?.data ?? (Array.isArray(j) ? j : [])) as any[];
-  return rows || [];
+  return rows ?? [];
 }
 
+/* ------------ page ------------ */
 export default async function Page({
   params,
 }: {
@@ -84,15 +92,9 @@ export default async function Page({
 
   const items = await fetchOnMenu(restroCode);
 
-  // shape a small station/restro header object for the client
-  const header = {
-    stationCode,
-    restroCode,
-    outletName,
-  };
+  const header = { stationCode, restroCode, outletName };
 
-  // Optional: detect an offer/discount from Admin (if you add an API later).
-  // For now, pass null and the client will hide the box.
+  // If/when you add offers in Admin, pass them here; client hides when null.
   const offer: { text: string } | null = null;
 
   return (
