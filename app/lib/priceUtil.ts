@@ -39,10 +39,10 @@ export function sum(nums: Array<number | null | undefined>): number {
   return t;
 }
 
-/** Cart line type (keep it very loose so checkout can pass anything). */
+/** Cart line type (loose) */
 export type CartLineLike = {
   qty?: number | string | null;
-  price?: number | string | null; // base price per unit
+  price?: number | string | null;
 };
 
 /** Compute basic cart totals (no taxes/fees yet). */
@@ -79,3 +79,6 @@ export function applyPercentDiscount(amount: number, percent: number) {
     totalLabel: formatINRCompact(total),
   };
 }
+
+/** Alias to match pages that import { priceStr } */
+export const priceStr = formatINRCompact;
