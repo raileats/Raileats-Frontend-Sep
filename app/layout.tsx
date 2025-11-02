@@ -6,6 +6,9 @@ import ForceReloadOnBack from "./components/ForceReloadOnBack";
 import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
 
+// ✅ NEW: mini cart bubble
+import CartWidget from "./components/CartWidget";
+
 export const metadata = {
   title: "RailEats",
   description: "Fresh Food on Trains | RailEats",
@@ -35,6 +38,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <main className="main-content">
           <div className="site-container">{children}</div>
         </main>
+
+        {/* ✅ Mini Cart bubble (floats, high z-index so it stays above BottomNav) */}
+        <CartWidget />
 
         {/* Fixed Bottom Nav */}
         <BottomNav />
