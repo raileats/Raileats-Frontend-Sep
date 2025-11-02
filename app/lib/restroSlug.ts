@@ -1,4 +1,3 @@
-// app/lib/restroSlug.ts
 export function slugifyName(name: string) {
   return String(name || "")
     .toLowerCase()
@@ -16,8 +15,13 @@ export function makeRestroSlug(restroName: string, restroCode: string | number) 
   return `${base}-${restroCode}`;
 }
 
-/** Extract the numeric/actual code from "...-1004" */
+/** Extract numeric outlet code from slug.
+ * Supports BOTH styles:
+ *  - "1004-mizaz-e-bhopal"   (code-first)
+ *  - "mizaz-e-bhopal-1004"   (code-last)
+ */
 export function extractRestroCode(restroSlug: string) {
-  const m = String(restroSlug || "").match(/(\d+)(?:\/)?$/);
+  const s = String(restroSlug || "");
+  const m = s.match(/^(\d{2,})\b/) || s.match(/(\d{2,})$/);
   return m ? m[1] : "";
 }
