@@ -2,7 +2,7 @@
 import React from "react";
 import type { Metadata } from "next";
 import { redirect, permanentRedirect } from "next/navigation";
-import { makeStationSlug, extractStationCode } from "@/app/lib/stationSlug";
+import { makeStationSlug, extractStationCode } from "../../lib/stationSlug";
 
 /* ---------------- types ---------------- */
 type Restro = {
