@@ -14,10 +14,15 @@ function money(n: number) {
   return `₹${n.toFixed(2).replace(/\.00$/, "")}`;
 }
 
+const ADMIN_BASE =
+  process.env.NEXT_PUBLIC_ADMIN_APP_URL || "https://admin.raileats.in";
+
 export default function CheckoutClient({ restroCode }: { restroCode: string | number }) {
   const storageKey = `re-cart:${restroCode}`;
   const [cart, setCart] = useState<Record<number, CartLine>>({});
   const [loading, setLoading] = useState(true);
+  const [posting, setPosting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // simple address form
   const [fullName, setFullName] = useState("");
@@ -43,8 +48,7 @@ export default function CheckoutClient({ restroCode }: { restroCode: string | nu
 
   const summary = useMemo(() => {
     const subtotal = lines.reduce((a, b) => a + b.qty * b.price, 0);
-    // example policy: delivery fee Rs 30 if subtotal < 300
-    const deliveryFee = subtotal > 0 && subtotal < 300 ? 30 : 0;
+    const deliveryFee = subtotal > 0 && subtotal < 300 ? 30 : 0; // example rule
     const total = subtotal + deliveryFee;
     return { subtotal, deliveryFee, total, count: lines.reduce((a, b) => a + b.qty, 0) };
   }, [lines]);
@@ -53,11 +57,13 @@ export default function CheckoutClient({ restroCode }: { restroCode: string | nu
     setCart((c) => {
       const line = c[id];
       if (!line) return c;
-      if (qty <= 0) {
-        const { [id]: _, ...rest } = c;
-        return rest;
-      }
-      const next = { ...c, [id]: { ...line, qty } };
+      const next =
+        qty <= 0
+          ? (() => {
+              const { [id]: _, ...rest } = c;
+              return rest;
+            })()
+          : { ...c, [id]: { ...line, qty } };
       try {
         localStorage.setItem(storageKey, JSON.stringify(next));
       } catch {}
@@ -73,25 +79,80 @@ export default function CheckoutClient({ restroCode }: { restroCode: string | nu
   }
 
   async function placeOrder() {
-    // super-basic validation
-    if (!fullName.trim()) return alert("Please enter your full name.");
-    if (!/^\d{10}$/.test(phone.trim())) return alert("Please enter a valid 10-digit phone number.");
-    if (!trainNo.trim()) return alert("Please enter your Train No.");
-    if (!coach.trim() || !seat.trim()) return alert("Please enter Coach and Seat.");
-    if (lines.length === 0) return alert("Your cart is empty.");
+    setError(null);
 
-    // STEP 3 (next): post to Admin API to actually create an order
+    // validations
+    if (!fullName.trim()) return setError("Please enter your full name.");
+    if (!/^\d{10}$/.test(phone.trim())) return setError("Please enter a valid 10-digit phone number.");
+    if (!trainNo.trim()) return setError("Please enter your Train No.");
+    if (!coach.trim() || !seat.trim()) return setError("Please enter Coach and Seat.");
+    if (lines.length === 0) return setError("Your cart is empty.");
+
+    // build payload expected by Admin (adjust fields later if API differs)
     const payload = {
-      restroCode,
-      lines,
-      customer: { fullName, phone, pnr: pnr.trim() || null, trainNo, coach, seat, note: note.trim() || null },
-      pricing: summary,
+      restro_code: String(restroCode),
+      customer: {
+        full_name: fullName.trim(),
+        phone: phone.trim(),
+        pnr: pnr.trim() || null,
+      },
+      delivery: {
+        train_no: trainNo.trim(),
+        coach: coach.trim(),
+        seat: seat.trim(),
+        note: note.trim() || null,
+      },
+      pricing: {
+        subtotal: summary.subtotal,
+        delivery_fee: summary.deliveryFee,
+        total: summary.total,
+        currency: "INR",
+      },
+      items: lines.map((l) => ({
+        item_id: l.id,
+        name: l.name,
+        qty: l.qty,
+        base_price: l.price,
+        line_total: l.qty * l.price,
+      })),
+      // meta space if you want to pass UTM/referrer later
+      meta: {
+        source: "web",
+      },
     };
-    console.log("Order payload", payload);
 
-    alert("Order UI ready! In the next step we'll connect this to the Admin API.");
-    // optionally clear cart after success
-    // clearCart();
+    setPosting(true);
+    try {
+      const url = `${ADMIN_BASE.replace(/\/$/, "")}/api/orders`;
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      // expected response formats supported:
+      // 1) { ok:true, order_id:"xxx" }
+      // 2) { id:"xxx" }
+      // 3) { data:{ id:"xxx" } }
+      const j = await res.json().catch(() => ({} as any));
+      const orderId =
+        j?.order_id || j?.id || j?.data?.id || j?.data?.order_id || null;
+
+      if (!res.ok || !orderId) {
+        const msg = j?.error || j?.message || `Failed (${res.status})`;
+        throw new Error(msg);
+      }
+
+      // success → clear cart & redirect
+      try {
+        localStorage.removeItem(storageKey);
+      } catch {}
+      window.location.href = `/orders/success?orderId=${encodeURIComponent(orderId)}`;
+    } catch (e: any) {
+      setError(e?.message || "Failed to place order. Please try again.");
+    } finally {
+      setPosting(false);
+    }
   }
 
   if (loading) {
@@ -123,7 +184,11 @@ export default function CheckoutClient({ restroCode }: { restroCode: string | nu
               </div>
               <div>
                 <label className="text-sm">Phone (10 digits)</label>
-                <input className="mt-1 w-full rounded border px-3 py-2" value={phone} onChange={(e) => setPhone(e.target.value.replace(/[^\d]/g, "").slice(0, 10))} />
+                <input
+                  className="mt-1 w-full rounded border px-3 py-2"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value.replace(/[^\d]/g, "").slice(0, 10))}
+                />
               </div>
               <div>
                 <label className="text-sm">PNR (optional)</label>
@@ -153,6 +218,8 @@ export default function CheckoutClient({ restroCode }: { restroCode: string | nu
               <input className="mt-1 w-full rounded border px-3 py-2" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Extra instructions, allergies, etc." />
             </div>
           </div>
+
+          {error && <p className="text-sm text-red-600">{error}</p>}
         </section>
 
         {/* Right: summary */}
@@ -161,7 +228,7 @@ export default function CheckoutClient({ restroCode }: { restroCode: string | nu
             <div className="flex items-center justify-between mb-2">
               <h2 className="font-semibold">Your Items</h2>
               {lines.length > 0 && (
-                <button className="text-sm rounded border px-2 py-1" onClick={clearCart}>
+                <button className="text-sm rounded border px-2 py-1" onClick={clearCart} disabled={posting}>
                   Clear
                 </button>
               )}
@@ -181,11 +248,11 @@ export default function CheckoutClient({ restroCode }: { restroCode: string | nu
                     </div>
                     <div className="flex items-center gap-2">
                       <div className="inline-flex items-center border rounded overflow-hidden">
-                        <button className="px-2 py-1" onClick={() => changeQty(ln.id, ln.qty - 1)}>
+                        <button className="px-2 py-1" onClick={() => changeQty(ln.id, ln.qty - 1)} disabled={posting}>
                           −
                         </button>
                         <span className="px-3 py-1 border-l border-r">{ln.qty}</span>
-                        <button className="px-2 py-1" onClick={() => changeQty(ln.id, ln.qty + 1)}>
+                        <button className="px-2 py-1" onClick={() => changeQty(ln.id, ln.qty + 1)} disabled={posting}>
                           +
                         </button>
                       </div>
@@ -211,16 +278,18 @@ export default function CheckoutClient({ restroCode }: { restroCode: string | nu
 
                 <button
                   type="button"
-                  className="w-full mt-2 rounded bg-green-600 text-white py-2"
+                  className="w-full mt-2 rounded bg-green-600 text-white py-2 disabled:opacity-60"
                   onClick={placeOrder}
+                  disabled={posting}
                 >
-                  Place Order
+                  {posting ? "Placing Order…" : "Place Order"}
                 </button>
 
                 <button
                   type="button"
                   className="w-full mt-2 rounded border py-2"
                   onClick={() => history.back()}
+                  disabled={posting}
                 >
                   ← Back to Menu
                 </button>
