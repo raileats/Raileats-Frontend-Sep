@@ -1,4 +1,3 @@
-// app/Stations/[slug]/[restroSlug]/page.tsx
 import React from "react";
 import { extractStationCode } from "../../../lib/stationSlug";
 import { extractRestroCode } from "../../../lib/restroSlug";
