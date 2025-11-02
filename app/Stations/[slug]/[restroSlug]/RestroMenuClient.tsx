@@ -63,6 +63,7 @@ const priceStr = (n?: number | null) =>
 
 export default function RestroMenuClient({ header, items, offer }: Props) {
   const [vegOnly, setVegOnly] = useState(false);
+  const [showMobileCart, setShowMobileCart] = useState(false); // 📱 overlay
 
   // global cart
   const { lines, count, total, add, changeQty, remove, clearCart } = useCart();
@@ -115,12 +116,29 @@ export default function RestroMenuClient({ header, items, offer }: Props) {
     <>
       {/* header */}
       <div className="mb-4">
-        <h1 className="text-2xl sm:text-3xl font-bold leading-tight">
-          {header.outletName} — Menu
-        </h1>
-        <p className="mt-1 text-sm text-gray-600">
-          Station: {header.stationCode} • Outlet Code: {header.restroCode}
-        </p>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold leading-tight">
+              {header.outletName} — Menu
+            </h1>
+            <p className="mt-1 text-sm text-gray-600">
+              Station: {header.stationCode} • Outlet Code: {header.restroCode}
+            </p>
+          </div>
+
+          {/* 📱 Mobile pill: count • total • View cart (desktop hidden) */}
+          {count > 0 && (
+            <button
+              onClick={() => setShowMobileCart(true)}
+              className="lg:hidden shrink-0 rounded-full bg-blue-600 text-white px-3 py-1.5 text-sm shadow"
+              aria-label="View cart"
+            >
+              <span className="font-semibold mr-1">{count}</span>
+              <span className="opacity-90 mr-2">{priceStr(total)}</span>
+              <span className="underline">View cart</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* top controls */}
@@ -143,7 +161,7 @@ export default function RestroMenuClient({ header, items, offer }: Props) {
         )}
       </div>
 
-      {/* two-column layout: left menu (single vertical list), right sticky cart */}
+      {/* two-column layout: left menu, right sticky cart (desktop) */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* LEFT: Menu in one vertical column */}
         <div className="lg:col-span-2 space-y-8">
@@ -225,8 +243,8 @@ export default function RestroMenuClient({ header, items, offer }: Props) {
           )}
         </div>
 
-        {/* RIGHT: Sticky Cart */}
-        <aside className="lg:col-span-1">
+        {/* RIGHT: Sticky Cart (desktop only) */}
+        <aside className="lg:col-span-1 hidden lg:block">
           <div className="lg:sticky lg:top-24 border rounded-lg p-4 bg-white">
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-base font-semibold">Your Cart</h3>
@@ -283,15 +301,96 @@ export default function RestroMenuClient({ header, items, offer }: Props) {
         </aside>
       </div>
 
-      {/* Mobile-only floating CTA (desktop has side cart) */}
-      {count > 0 && (
-        <Link
-          href="/checkout"
-          className="lg:hidden fixed bottom-4 right-4 shadow-lg rounded-full bg-blue-600 text-white px-4 py-2 text-sm"
-          aria-label="View Cart"
-        >
-          View Cart • {count} item{count > 1 ? "s" : ""} • {priceStr(total)}
-        </Link>
+      {/* 📱 Mobile cart overlay (90% screen) */}
+      {showMobileCart && (
+        <div className="lg:hidden fixed inset-0 z-[1000]">
+          {/* dimmer */}
+          <button
+            className="absolute inset-0 bg-black/40"
+            onClick={() => setShowMobileCart(false)}
+            aria-label="Close cart"
+          />
+
+          {/* panel */}
+          <div className="absolute left-1/2 -translate-x-1/2 top-[5vh] h-[90vh] w-[92vw] rounded-2xl bg-white shadow-2xl p-4 flex flex-col">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-base font-semibold">Your Cart</h3>
+              <div className="flex items-center gap-2">
+                {count > 0 && (
+                  <button className="text-sm px-2 py-1 rounded border" onClick={clearCart}>
+                    Clear
+                  </button>
+                )}
+                <button
+                  className="rounded border px-2 py-1"
+                  onClick={() => setShowMobileCart(false)}
+                  aria-label="Close"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-auto">
+              {count === 0 ? (
+                <p className="text-sm text-gray-600">Cart is empty.</p>
+              ) : (
+                <div className="space-y-3">
+                  {lines.map((line) => (
+                    <div key={line.id} className="flex items-center justify-between">
+                      <div className="min-w-0">
+                        <div className="font-medium truncate">{line.name}</div>
+                        <div className="text-xs text-gray-500">
+                          {priceStr(line.price)} × {line.qty}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="inline-flex items-center border rounded overflow-hidden">
+                          <button className="px-2 py-1" onClick={() => changeQty(line.id, line.qty - 1)}>
+                            −
+                          </button>
+                          <span className="px-3 py-1 border-l border-r">{line.qty}</span>
+                          <button className="px-2 py-1" onClick={() => changeQty(line.id, line.qty + 1)}>
+                            +
+                          </button>
+                        </div>
+                        <button className="text-rose-600 text-sm ml-1" onClick={() => remove(line.id)}>
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="pt-3 border-t mt-3">
+              <div className="flex items-center justify-between mb-3">
+                <div className="font-semibold">Subtotal</div>
+                <div className="font-semibold">{priceStr(total)}</div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                {/* Add More Items -> just close modal */}
+                <button
+                  type="button"
+                  onClick={() => setShowMobileCart(false)}
+                  className="rounded border py-2"
+                >
+                  Add More Items
+                </button>
+
+                <Link
+                  href="/checkout"
+                  className="rounded bg-green-600 text-white py-2 text-center"
+                  onClick={() => setShowMobileCart(false)}
+                >
+                  Checkout
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </>
   );
