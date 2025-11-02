@@ -1,8 +1,8 @@
-// app/Stations/[code]/page.tsx
+// app/Stations/[slug]/page.tsx
 import React from "react";
 import type { Metadata } from "next";
 import { redirect, permanentRedirect } from "next/navigation";
-import { makeStationSlug } from "@/app/lib/stationSlug";
+import { makeStationSlug, extractStationCode } from "@/app/lib/stationSlug";
 
 /* ---------------- types ---------------- */
 type Restro = {
@@ -82,13 +82,13 @@ async function hasActiveHoliday(restroCode: string | number): Promise<boolean> {
     const now = Date.now();
     for (const r of rows) {
       const deletedAt = r?.deleted_at ? Date.parse(r.deleted_at) : null;
-      if (deletedAt) continue; // deleted => ignore
+      if (deletedAt) continue;
 
       const start = r?.start_at ? Date.parse(r.start_at) : NaN;
       const end = r?.end_at ? Date.parse(r.end_at) : NaN;
       if (!Number.isFinite(start) || !Number.isFinite(end)) continue;
 
-      if (start <= now && now <= end) return true; // ACTIVE
+      if (start <= now && now <= end) return true;
     }
     return false;
   } catch {
@@ -96,10 +96,9 @@ async function hasActiveHoliday(restroCode: string | number): Promise<boolean> {
   }
 }
 
-/** Filter out outlets that currently have an active holiday */
+/** Filter out outlets with an active holiday */
 async function filterHolidayBlocked(restros: Restro[]): Promise<Restro[]> {
   if (!restros?.length) return [];
-  // simple concurrency window (6)
   const out: Restro[] = [];
   const window = 6;
   for (let i = 0; i < restros.length; i += window) {
@@ -118,18 +117,18 @@ async function filterHolidayBlocked(restros: Restro[]): Promise<Restro[]> {
 export async function generateMetadata({
   params,
 }: {
-  params: { code: string };
+  params: { slug: string };
 }): Promise<Metadata> {
-  const code = (params?.code || "").toUpperCase();
+  // `slug` can be just "BPL" OR "BPL-bhopal-jn-food-delivery-in-train"
+  const stationCode = extractStationCode(params.slug);
   try {
-    const data = await fetchStation(code);
-    const name = data?.station?.StationName || code;
+    const data = await fetchStation(stationCode);
+    const name = data?.station?.StationName || stationCode;
     const state = data?.station?.State ? `, ${data.station.State}` : "";
-    const title = `Food delivery in train at ${name} (${code})${state} | RailEats`;
-    const desc = `Order hot, hygienic food in train at ${name} (${code}${state}) from verified restaurants. Veg & Non-Veg options, on-time delivery at your seat.`;
+    const title = `Food delivery in train at ${name} (${stationCode})${state} | RailEats`;
+    const desc = `Order hot, hygienic food in train at ${name} (${stationCode}${state}) from verified restaurants. Veg & Non-Veg options, on-time delivery at your seat.`;
 
-    // canonical slug
-    const slug = makeStationSlug(code, name);
+    const slug = makeStationSlug(stationCode, name);
 
     return {
       title,
@@ -154,13 +153,13 @@ export async function generateMetadata({
 }
 
 /* ---------------- page ---------------- */
-export default async function Page({ params }: { params: { code: string } }) {
-  // In this route, `params.code` is expected to be raw station code (e.g., BPL).
-  // We'll fetch station, build slug, and redirect to the SEO URL if needed.
-  const code = (params?.code || "").toUpperCase();
+export default async function Page({ params }: { params: { slug: string } }) {
+  const raw = params.slug || "";
+  const stationCode = extractStationCode(raw); // first token before '-'
+  const code = stationCode.toUpperCase();
 
+  // Load station
   let stationResp: StationResp | null = null;
-
   try {
     stationResp = await fetchStation(code);
   } catch (err: any) {
@@ -179,16 +178,13 @@ export default async function Page({ params }: { params: { code: string } }) {
     );
   }
 
-  // ---- SEO redirect to slug path ----
-  if (stationResp?.station?.StationName) {
-    const slug = makeStationSlug(code, stationResp.station.StationName);
-    // If path is /Stations/BPL (no hyphen-name), move to /Stations/BPL-<name>-food-delivery-in-train
-    // Use permanent redirect for SEO (308). If your Next version lacks permanentRedirect,
-    // redirect() is fine too.
+  // If the URL was only "/Stations/BPL" (no hyphenized name), redirect to SEO slug
+  if (!raw.includes("-") && stationResp?.station?.StationName) {
+    const seo = makeStationSlug(code, stationResp.station.StationName);
     try {
-      permanentRedirect(`/Stations/${slug}`);
+      permanentRedirect(`/Stations/${seo}`);
     } catch {
-      redirect(`/Stations/${slug}`);
+      redirect(`/Stations/${seo}`);
     }
   }
 
