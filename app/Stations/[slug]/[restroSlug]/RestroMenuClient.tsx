@@ -115,30 +115,29 @@ export default function RestroMenuClient({ header, items, offer }: Props) {
   return (
     <>
       {/* header */}
-      <div className="mb-4">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold leading-tight">
-              {header.outletName} — Menu
-            </h1>
-            <p className="mt-1 text-sm text-gray-600">
-              Station: {header.stationCode} • Outlet Code: {header.restroCode}
-            </p>
-          </div>
-
-          {/* 📱 Mobile pill: count • total • View cart (desktop hidden) */}
-          {count > 0 && (
-            <button
-              onClick={() => setShowMobileCart(true)}
-              className="lg:hidden shrink-0 rounded-full bg-blue-600 text-white px-3 py-1.5 text-sm shadow"
-              aria-label="View cart"
-            >
-              <span className="font-semibold mr-1">{count}</span>
-              <span className="opacity-90 mr-2">{priceStr(total)}</span>
-              <span className="underline">View cart</span>
-            </button>
-          )}
+      <div className="mb-4 relative">
+        <div>
+          {/* Mobile par text wrap na ho -> right padding; desktop par reset */}
+          <h1 className="text-2xl sm:text-3xl font-bold leading-tight pr-40 lg:pr-0">
+            {header.outletName} — Menu
+          </h1>
+          <p className="mt-1 text-sm text-gray-600">
+            Station: {header.stationCode} • Outlet Code: {header.restroCode}
+          </p>
         </div>
+
+        {/* 📱 Mobile pill: count • total • View cart (desktop hidden) — lifted up/right */}
+        {count > 0 && (
+          <button
+            onClick={() => setShowMobileCart(true)}
+            className="lg:hidden absolute right-0 top-0 -translate-y-1 rounded-full bg-blue-600 text-white px-3 py-1.5 text-sm shadow whitespace-nowrap"
+            aria-label="View cart"
+          >
+            <span className="font-semibold mr-1">{count}</span>
+            <span className="opacity-90 mr-2">{priceStr(total)}</span>
+            <span className="underline">View cart</span>
+          </button>
+        )}
       </div>
 
       {/* top controls */}
