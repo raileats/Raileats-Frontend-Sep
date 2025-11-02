@@ -18,8 +18,10 @@ type CartContextValue = {
   setQty: (id: number, qty: number) => void;
   remove: (id: number) => void;
   clear: () => void;
-  count: number;   // total items (sum of qty)
+  clearCart: () => void;   // alias for clear (checkout uses this)
+  count: number;           // total items (sum of qty)
   subtotal: number;
+  total: number;           // alias for subtotal (checkout uses this)
 };
 
 const CartCtx = createContext<CartContextValue | null>(null);
@@ -31,6 +33,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     const lines = Object.values(cart);
     const count = lines.reduce((a, b) => a + b.qty, 0);
     const subtotal = lines.reduce((a, b) => a + b.qty * b.price, 0);
+
+    const clear = () => setCart({});
 
     return {
       cart,
@@ -55,9 +59,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           const { [id]: _, ...rest } = c;
           return rest;
         }),
-      clear: () => setCart({}),
+      clear,
+      clearCart: clear, // alias
       count,
       subtotal,
+      total: subtotal,  // alias
     };
   }, [cart]);
 
@@ -66,13 +72,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
 export function useCart() {
   const ctx = useContext(CartCtx);
-  if (!ctx) {
-    throw new Error("useCart must be used within <CartProvider>");
-  }
+  if (!ctx) throw new Error("useCart must be used within <CartProvider>");
   return ctx;
 }
 
-// Keep both named and default exports so existing imports work:
-// - import useCart from "../lib/useCart"
-// - import { useCart } from "../lib/useCart"
+// keep default export for existing imports
 export default useCart;
