@@ -67,41 +67,45 @@ type CartLine = {
 
 export default function RestroMenuClient({ header, items, offer }: Props) {
   const [vegOnly, setVegOnly] = useState(false);
-  const [cart, setCart] = useState<Record<number, CartLine>>({}); // key by item.id
+  const [cart, setCart] = useState<Record<number, CartLine>>({});
   const [showCart, setShowCart] = useState(false);
 
-  // filter ON (already ON from server) + veg-only
   const visible = useMemo(() => {
     const arr = (items || []).filter((x) => x.status === "ON");
     if (!vegOnly) return arr;
     return arr.filter((x) => isVegLike(x.item_category));
   }, [items, vegOnly]);
 
-  // group by menu_type with preferred ordering
   const grouped = useMemo(() => {
     const byType = new Map<string, MenuItem[]>();
-    for (const it of visible) {
+    for (let i = 0; i < visible.length; i++) {
+      const it = visible[i];
       const key = it.menu_type?.trim() || "Others";
-      if (!byType.has(key)) byType.set(key, []);
-      byType.get(key)!.push(it);
+      const list = byType.get(key);
+      if (list) list.push(it);
+      else byType.set(key, [it]);
     }
-    // sort each group by item_name
-    for (const [, list] of byType) {
+
+    // sort each group's items by name (use Map#forEach to avoid downlevel iteration issue)
+    byType.forEach((list) => {
       list.sort((a, b) => a.item_name.localeCompare(b.item_name));
-    }
+    });
+
     // order groups
     const out: { type: string; items: MenuItem[] }[] = [];
     const used = new Set<string>();
-    for (const t of ORDER_MENU_TYPES) {
-      if (byType.has(t)) {
-        out.push({ type: t, items: byType.get(t)! });
-        used.add(t);
+    for (let i = 0; i < ORDER_MENU_TYPES.length; i++) {
+      const type = ORDER_MENU_TYPES[i];
+      if (byType.has(type)) {
+        out.push({ type, items: byType.get(type)! });
+        used.add(type);
       }
     }
-    // rest
-    for (const [k, list] of byType) {
+    // append remaining groups (Array.from to avoid for..of on Map)
+    Array.from(byType.entries()).forEach(([k, list]) => {
       if (!used.has(k)) out.push({ type: k, items: list });
-    }
+    });
+
     return out;
   }, [visible]);
 
@@ -147,7 +151,6 @@ export default function RestroMenuClient({ header, items, offer }: Props) {
 
       {/* top controls */}
       <div className="mb-4 flex flex-wrap items-center gap-3">
-        {/* Veg-only toggle */}
         <label className="inline-flex items-center gap-2 cursor-pointer select-none">
           <input
             type="checkbox"
@@ -159,7 +162,6 @@ export default function RestroMenuClient({ header, items, offer }: Props) {
           <span className="text-sm">Veg only</span>
         </label>
 
-        {/* Offer pill (optional) */}
         {offer?.text && (
           <span className="text-sm bg-amber-100 text-amber-800 px-2 py-1 rounded">
             {offer.text}
@@ -201,7 +203,6 @@ export default function RestroMenuClient({ header, items, offer }: Props) {
                           </div>
                         </div>
 
-                        {/* add / qty controls */}
                         <div className="mt-3">
                           {!inCart ? (
                             <button
@@ -247,7 +248,6 @@ export default function RestroMenuClient({ header, items, offer }: Props) {
         )}
       </div>
 
-      {/* floating mini cart chip */}
       {summary.count > 0 && (
         <button
           type="button"
@@ -259,7 +259,6 @@ export default function RestroMenuClient({ header, items, offer }: Props) {
         </button>
       )}
 
-      {/* simple cart drawer */}
       {showCart && (
         <div
           className="fixed inset-0 z-[1000] flex items-end sm:items-center sm:justify-center"
