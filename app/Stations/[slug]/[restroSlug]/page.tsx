@@ -1,6 +1,6 @@
 import React from "react";
-import { extractStationCode } from "../../lib/stationSlug";
-import { extractRestroCode } from "../../lib/restroSlug";
+import { extractStationCode } from "../../../lib/stationSlug";
+import { extractRestroCode } from "../../../lib/restroSlug";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
