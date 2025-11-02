@@ -1,75 +1,78 @@
+// app/lib/useCart.ts
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { createContext, useContext, useMemo, useState } from "react";
 
 export type CartLine = {
   id: number;
   name: string;
   qty: number;
-  price: number;
+  price: number; // base price per unit
 };
 
 type CartState = Record<number, CartLine>;
 
-const LS_KEY = "raileats_cart";
+type CartContextValue = {
+  cart: CartState;
+  add: (line: CartLine) => void;
+  setQty: (id: number, qty: number) => void;
+  remove: (id: number) => void;
+  clear: () => void;
+  count: number;   // total items (sum of qty)
+  subtotal: number;
+};
 
-function loadCart(): CartState {
-  try {
-    const raw = localStorage.getItem(LS_KEY);
-    return raw ? JSON.parse(raw) : {};
-  } catch {
-    return {};
-  }
-}
+const CartCtx = createContext<CartContextValue | null>(null);
 
-function saveCart(cart: CartState) {
-  try {
-    localStorage.setItem(LS_KEY, JSON.stringify(cart));
-  } catch {}
+export function CartProvider({ children }: { children: React.ReactNode }) {
+  const [cart, setCart] = useState<CartState>({});
+
+  const value = useMemo<CartContextValue>(() => {
+    const lines = Object.values(cart);
+    const count = lines.reduce((a, b) => a + b.qty, 0);
+    const subtotal = lines.reduce((a, b) => a + b.qty * b.price, 0);
+
+    return {
+      cart,
+      add: (line) =>
+        setCart((c) => {
+          const prev = c[line.id];
+          if (!prev) return { ...c, [line.id]: { ...line, qty: Math.max(1, line.qty) } };
+          return { ...c, [line.id]: { ...prev, qty: prev.qty + Math.max(1, line.qty) } };
+        }),
+      setQty: (id, qty) =>
+        setCart((c) => {
+          const cur = c[id];
+          if (!cur) return c;
+          if (qty <= 0) {
+            const { [id]: _, ...rest } = c;
+            return rest;
+          }
+          return { ...c, [id]: { ...cur, qty } };
+        }),
+      remove: (id) =>
+        setCart((c) => {
+          const { [id]: _, ...rest } = c;
+          return rest;
+        }),
+      clear: () => setCart({}),
+      count,
+      subtotal,
+    };
+  }, [cart]);
+
+  return <CartCtx.Provider value={value}>{children}</CartCtx.Provider>;
 }
 
 export function useCart() {
-  const [cart, setCart] = useState<CartState>({});
-
-  // Load on mount
-  useEffect(() => {
-    setCart(loadCart());
-  }, []);
-
-  // Persist to localStorage
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      saveCart(cart);
-    }
-  }, [cart]);
-
-  function add(id: number, name: string, price: number) {
-    setCart((c) => {
-      const line = c[id];
-      if (!line) return { ...c, [id]: { id, name, qty: 1, price } };
-      return { ...c, [id]: { ...line, qty: line.qty + 1 } };
-    });
+  const ctx = useContext(CartCtx);
+  if (!ctx) {
+    throw new Error("useCart must be used within <CartProvider>");
   }
-
-  function change(id: number, qty: number) {
-    setCart((c) => {
-      const line = c[id];
-      if (!line) return c;
-      if (qty <= 0) {
-        const { [id]: _, ...rest } = c;
-        return rest;
-      }
-      return { ...c, [id]: { ...line, qty } };
-    });
-  }
-
-  function clear() {
-    setCart({});
-  }
-
-  const lines = Object.values(cart);
-  const count = lines.reduce((a, b) => a + b.qty, 0);
-  const total = lines.reduce((a, b) => a + b.qty * b.price, 0);
-
-  return { cart, add, change, clear, count, total };
+  return ctx;
 }
+
+// Keep both named and default exports so existing imports work:
+// - import useCart from "../lib/useCart"
+// - import { useCart } from "../lib/useCart"
+export default useCart;
