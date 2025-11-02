@@ -81,10 +81,10 @@ export default function RestroMenuClient({ header, items, offer }: Props) {
 
     const out: { type: string; items: MenuItem[] }[] = [];
     const used = new Set<string>();
-    for (const t of ORDER_MENU_TYPES) {
-      if (byType.has(t)) {
-        out.push({ type: t, items: byType.get(t)! });
-        used.add(t);
+    for (const tp of ORDER_MENU_TYPES) {
+      if (byType.has(tp)) {
+        out.push({ type: tp, items: byType.get(tp)! });
+        used.add(tp);
       }
     }
     Array.from(byType.entries()).forEach(([k, list]) => {
@@ -96,11 +96,11 @@ export default function RestroMenuClient({ header, items, offer }: Props) {
   const getQty = (id: number) => lines.find((l) => l.id === id)?.qty ?? 0;
 
   const addOne = (it: MenuItem) => {
-  const price = Number(it.base_price || 0);
-  if (!price) return;
-  // qty required by CartLine
-  add({ id: it.id, name: it.item_name, price, qty: 1 });
-};
+    const price = Number(it.base_price || 0);
+    if (!price) return;
+    // add expects CartLine; include qty
+    add({ id: it.id, name: it.item_name, price, qty: 1 });
+  };
 
   return (
     <>
@@ -212,7 +212,7 @@ export default function RestroMenuClient({ header, items, offer }: Props) {
         )}
       </div>
 
-      {/* simple floating link to checkout (global CartWidget bhi ho to chalega) */}
+      {/* simple floating link to checkout (CartWidget in navbar will also work) */}
       {count > 0 && (
         <Link
           href="/checkout"
