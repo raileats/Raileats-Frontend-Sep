@@ -61,6 +61,7 @@ type Props = {
 
 export default function RestroMenuClient({ header, items, offer }: Props) {
   const [vegOnly, setVegOnly] = useState(false);
+  const [showCart, setShowCart] = useState(false); // ▶ drawer state
 
   // 🔗 global cart (context)
   const { lines, count, total, add, changeQty, remove } = useCart();
@@ -212,15 +213,126 @@ export default function RestroMenuClient({ header, items, offer }: Props) {
         )}
       </div>
 
-      {/* simple floating link to checkout (CartWidget in navbar will also work) */}
+      {/* floating trigger to open drawer */}
       {count > 0 && (
-        <Link
-          href="/checkout"
+        <button
+          type="button"
+          onClick={() => setShowCart(true)}
           className="fixed bottom-4 right-4 shadow-lg rounded-full bg-blue-600 text-white px-4 py-2 text-sm"
           aria-label="View Cart"
         >
           View Cart • {count} item{count > 1 ? "s" : ""} • {priceStr(total)}
-        </Link>
+        </button>
+      )}
+
+      {/* right-side cart drawer */}
+      {showCart && (
+        <div className="fixed inset-0 z-[1000]" role="dialog" aria-modal="true">
+          {/* backdrop */}
+          <button
+            className="absolute inset-0 bg-black/40"
+            aria-label="Close cart"
+            onClick={() => setShowCart(false)}
+          />
+          {/* panel */}
+          <aside
+            className="absolute right-0 top-0 h-full w-full max-w-md bg-white shadow-xl
+                       rounded-l-2xl p-4 flex flex-col animate-[slideIn_.2s_ease-out]"
+          >
+            {/* header */}
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-lg font-semibold">Your Cart</h3>
+              <div className="flex items-center gap-2">
+                <button
+                  className="rounded border px-2 py-1 text-sm"
+                  onClick={() => {
+                    // clear all lines
+                    lines.forEach((l) => remove(l.id));
+                  }}
+                  title="Clear cart"
+                >
+                  Clear
+                </button>
+                <button
+                  className="rounded border px-2 py-1 text-sm"
+                  onClick={() => setShowCart(false)}
+                  aria-label="Close"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+
+            {/* items */}
+            <div className="flex-1 overflow-auto space-y-3 pr-1">
+              {lines.length === 0 ? (
+                <p className="text-sm text-gray-600">Cart is empty.</p>
+              ) : (
+                lines.map((line) => (
+                  <div key={line.id} className="flex items-center justify-between">
+                    <div className="min-w-0">
+                      <div className="font-medium truncate">{line.name}</div>
+                      <div className="text-xs text-gray-500">
+                        {priceStr(line.price)} × {line.qty}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="inline-flex items-center border rounded overflow-hidden">
+                        <button
+                          className="px-2 py-1"
+                          onClick={() => changeQty(line.id, line.qty - 1)}
+                          aria-label="Decrease"
+                        >
+                          −
+                        </button>
+                        <span className="px-3 py-1 border-l border-r">{line.qty}</span>
+                        <button
+                          className="px-2 py-1"
+                          onClick={() => changeQty(line.id, line.qty + 1)}
+                          aria-label="Increase"
+                        >
+                          +
+                        </button>
+                      </div>
+                      <div className="w-20 text-right font-medium">
+                        {priceStr(line.qty * line.price)}
+                      </div>
+                      <button
+                        className="ml-2 text-rose-600 text-sm"
+                        onClick={() => remove(line.id)}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* footer */}
+            <div className="pt-3 mt-2 border-t">
+              <div className="flex items-center justify-between mb-2">
+                <div className="font-semibold">Subtotal</div>
+                <div className="font-semibold">{priceStr(total)}</div>
+              </div>
+              <Link
+                href="/checkout"
+                className="block w-full rounded bg-green-600 text-white py-2 text-center"
+                onClick={() => setShowCart(false)}
+              >
+                Go to Checkout
+              </Link>
+            </div>
+          </aside>
+
+          {/* tiny keyframe for slide-in */}
+          <style jsx>{`
+            @keyframes slideIn {
+              from { transform: translateX(100%); opacity: .6; }
+              to   { transform: translateX(0%);   opacity: 1; }
+            }
+          `}</style>
+        </div>
       )}
     </>
   );
