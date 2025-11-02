@@ -96,11 +96,11 @@ export default function RestroMenuClient({ header, items, offer }: Props) {
   const getQty = (id: number) => lines.find((l) => l.id === id)?.qty ?? 0;
 
   const addOne = (it: MenuItem) => {
-    const price = Number(it.base_price || 0);
-    if (!price) return;
-    // our context add expects an object { id, name, price }
-    add({ id: it.id, name: it.item_name, price });
-  };
+  const price = Number(it.base_price || 0);
+  if (!price) return;
+  // qty required by CartLine
+  add({ id: it.id, name: it.item_name, price, qty: 1 });
+};
 
   return (
     <>
