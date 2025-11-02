@@ -1,7 +1,6 @@
-// app/Stations/[slug]/[restroSlug]/RestroMenuClient.tsx
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 
 type MenuItem = {
   id: number;
@@ -49,11 +48,10 @@ const dot = (cat?: string | null) => {
 };
 
 const t = (s?: string | null) => (s ? s.slice(0, 5) : "");
-const priceStr = (n?: number | null) =>
-  typeof n === "number" ? `₹${Number(n).toFixed(2).replace(/\.00$/, "")}` : "—";
+const money = (n: number) => `₹${n.toFixed(2).replace(/\.00$/, "")}`;
 
 type Props = {
-  header: { stationCode: string; restroCode: string; outletName: string };
+  header: { stationCode: string; restroCode: string | number; outletName: string };
   items: MenuItem[];
   offer: { text: string } | null;
 };
@@ -70,12 +68,43 @@ export default function RestroMenuClient({ header, items, offer }: Props) {
   const [cart, setCart] = useState<Record<number, CartLine>>({});
   const [showCart, setShowCart] = useState(false);
 
+  // --- persist per outlet ---
+  const storageKey = useMemo(
+    () => `re-cart:${header.restroCode}`,
+    [header.restroCode]
+  );
+  const firstLoad = useRef(true);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(storageKey);
+      if (raw) {
+        const parsed = JSON.parse(raw) as Record<number, CartLine>;
+        if (parsed && typeof parsed === "object") setCart(parsed);
+      }
+    } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storageKey]);
+
+  useEffect(() => {
+    // avoid saving the empty state that we just loaded
+    if (firstLoad.current) {
+      firstLoad.current = false;
+      return;
+    }
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(cart));
+    } catch {}
+  }, [cart, storageKey]);
+
+  // --- visible items (status + veg filter) ---
   const visible = useMemo(() => {
     const arr = (items || []).filter((x) => x.status === "ON");
     if (!vegOnly) return arr;
     return arr.filter((x) => isVegLike(x.item_category));
   }, [items, vegOnly]);
 
+  // --- group by menu_type and order groups ---
   const grouped = useMemo(() => {
     const byType = new Map<string, MenuItem[]>();
     for (let i = 0; i < visible.length; i++) {
@@ -86,12 +115,12 @@ export default function RestroMenuClient({ header, items, offer }: Props) {
       else byType.set(key, [it]);
     }
 
-    // sort each group's items by name (use Map#forEach to avoid downlevel iteration issue)
+    // sort each group's items by name
     byType.forEach((list) => {
       list.sort((a, b) => a.item_name.localeCompare(b.item_name));
     });
 
-    // order groups
+    // order groups by preferred list then rest
     const out: { type: string; items: MenuItem[] }[] = [];
     const used = new Set<string>();
     for (let i = 0; i < ORDER_MENU_TYPES.length; i++) {
@@ -101,7 +130,6 @@ export default function RestroMenuClient({ header, items, offer }: Props) {
         used.add(type);
       }
     }
-    // append remaining groups (Array.from to avoid for..of on Map)
     Array.from(byType.entries()).forEach(([k, list]) => {
       if (!used.has(k)) out.push({ type: k, items: list });
     });
@@ -109,6 +137,7 @@ export default function RestroMenuClient({ header, items, offer }: Props) {
     return out;
   }, [visible]);
 
+  // --- cart summary ---
   const summary = useMemo(() => {
     const lines = Object.values(cart);
     const count = lines.reduce((a, b) => a + b.qty, 0);
@@ -116,6 +145,7 @@ export default function RestroMenuClient({ header, items, offer }: Props) {
     return { count, total };
   }, [cart]);
 
+  // --- cart ops ---
   function addToCart(it: MenuItem) {
     const price = Number(it.base_price || 0);
     if (!price) return;
@@ -135,6 +165,9 @@ export default function RestroMenuClient({ header, items, offer }: Props) {
       }
       return { ...c, [id]: { ...line, qty } };
     });
+  }
+  function clearCart() {
+    setCart({});
   }
 
   return (
@@ -172,9 +205,7 @@ export default function RestroMenuClient({ header, items, offer }: Props) {
       {/* groups */}
       <div className="space-y-8">
         {grouped.length === 0 ? (
-          <div className="p-4 bg-gray-50 rounded text-sm text-gray-700">
-            No items available.
-          </div>
+          <div className="p-4 bg-gray-50 rounded text-sm text-gray-700">No items available.</div>
         ) : (
           grouped.map((g) => (
             <section key={g.type}>
@@ -190,16 +221,16 @@ export default function RestroMenuClient({ header, items, offer }: Props) {
                           <div className="min-w-0">
                             <h3 className="font-medium leading-snug">{it.item_name}</h3>
                             {it.item_description && (
-                              <p className="mt-0.5 text-xs text-gray-600 line-clamp-2">
-                                {it.item_description}
-                              </p>
+                              <p className="mt-0.5 text-xs text-gray-600 line-clamp-2">{it.item_description}</p>
                             )}
                             <p className="mt-1 text-xs text-gray-500">
-                              {t(it.start_time)}{it.start_time ? "-" : ""}{t(it.end_time)}
+                              {t(it.start_time)}
+                              {it.start_time ? "-" : ""}
+                              {t(it.end_time)}
                             </p>
                           </div>
                           <div className="text-right whitespace-nowrap">
-                            <div className="font-semibold">{priceStr(it.base_price)}</div>
+                            <div className="font-semibold">{money(Number(it.base_price || 0))}</div>
                           </div>
                         </div>
 
@@ -218,6 +249,7 @@ export default function RestroMenuClient({ header, items, offer }: Props) {
                                 type="button"
                                 className="px-3 py-1.5"
                                 onClick={() => changeQty(it.id, inCart.qty - 1)}
+                                aria-label="Decrease"
                               >
                                 −
                               </button>
@@ -225,13 +257,18 @@ export default function RestroMenuClient({ header, items, offer }: Props) {
                                 className="w-10 text-center border-l border-r py-1.5"
                                 value={inCart.qty}
                                 onChange={(e) =>
-                                  changeQty(it.id, Math.max(0, parseInt(e.target.value || "0", 10) || 0))
+                                  changeQty(
+                                    it.id,
+                                    Math.max(0, parseInt(e.target.value || "0", 10) || 0)
+                                  )
                                 }
+                                aria-label="Quantity"
                               />
                               <button
                                 type="button"
                                 className="px-3 py-1.5"
                                 onClick={() => changeQty(it.id, inCart.qty + 1)}
+                                aria-label="Increase"
                               >
                                 +
                               </button>
@@ -248,6 +285,7 @@ export default function RestroMenuClient({ header, items, offer }: Props) {
         )}
       </div>
 
+      {/* floating view cart button */}
       {summary.count > 0 && (
         <button
           type="button"
@@ -255,10 +293,11 @@ export default function RestroMenuClient({ header, items, offer }: Props) {
           className="fixed bottom-4 right-4 shadow-lg rounded-full bg-blue-600 text-white px-4 py-2 text-sm"
           aria-label="View Cart"
         >
-          View Cart • {summary.count} item{summary.count > 1 ? "s" : ""} • {priceStr(summary.total)}
+          View Cart • {summary.count} item{summary.count > 1 ? "s" : ""} • {money(summary.total)}
         </button>
       )}
 
+      {/* cart modal */}
       {showCart && (
         <div
           className="fixed inset-0 z-[1000] flex items-end sm:items-center sm:justify-center"
@@ -273,10 +312,16 @@ export default function RestroMenuClient({ header, items, offer }: Props) {
           <div className="relative z-10 w-full sm:max-w-lg bg-white rounded-t-2xl sm:rounded-2xl p-4">
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-lg font-semibold">Your Cart</h3>
-              <button className="rounded border px-2 py-1" onClick={() => setShowCart(false)}>
-                ✕
-              </button>
+              <div className="flex items-center gap-2">
+                <button className="rounded border px-2 py-1" onClick={clearCart} title="Clear cart">
+                  Clear
+                </button>
+                <button className="rounded border px-2 py-1" onClick={() => setShowCart(false)} aria-label="Close">
+                  ✕
+                </button>
+              </div>
             </div>
+
             {summary.count === 0 ? (
               <p className="text-sm text-gray-600">Cart is empty.</p>
             ) : (
@@ -285,31 +330,34 @@ export default function RestroMenuClient({ header, items, offer }: Props) {
                   <div key={line.id} className="flex items-center justify-between">
                     <div className="min-w-0">
                       <div className="font-medium truncate">{line.name}</div>
-                      <div className="text-xs text-gray-500">{priceStr(line.price)} × {line.qty}</div>
+                      <div className="text-xs text-gray-500">
+                        {money(line.price)} × {line.qty}
+                      </div>
                     </div>
                     <div className="flex items-center gap-2">
                       <div className="inline-flex items-center border rounded overflow-hidden">
-                        <button className="px-2 py-1" onClick={() => changeQty(line.id, line.qty - 1)}>−</button>
+                        <button className="px-2 py-1" onClick={() => changeQty(line.id, line.qty - 1)}>
+                          −
+                        </button>
                         <span className="px-3 py-1 border-l border-r">{line.qty}</span>
-                        <button className="px-2 py-1" onClick={() => changeQty(line.id, line.qty + 1)}>+</button>
+                        <button className="px-2 py-1" onClick={() => changeQty(line.id, line.qty + 1)}>
+                          +
+                        </button>
                       </div>
-                      <div className="w-20 text-right font-medium">
-                        {priceStr(line.qty * line.price)}
-                      </div>
+                      <div className="w-20 text-right font-medium">{money(line.qty * line.price)}</div>
                     </div>
                   </div>
                 ))}
                 <div className="pt-3 border-t flex items-center justify-between">
                   <div className="font-semibold">Subtotal</div>
-                  <div className="font-semibold">{priceStr(summary.total)}</div>
+                  <div className="font-semibold">{money(summary.total)}</div>
                 </div>
-                <button
-                  type="button"
-                  className="w-full mt-1 rounded bg-green-600 text-white py-2"
-                  onClick={() => alert("Proceed to checkout • coming soon")}
+                <a
+                  href={`/orders/checkout?restro=${encodeURIComponent(String(header.restroCode))}`}
+                  className="block w-full mt-1 rounded bg-green-600 text-white py-2 text-center"
                 >
                   Proceed to Checkout
-                </button>
+                </a>
               </div>
             )}
           </div>
