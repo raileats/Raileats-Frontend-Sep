@@ -1,4 +1,3 @@
-// app/Stations/[slug]/[restroSlug]/page.tsx
 import React from "react";
 import type { Metadata } from "next";
 import { extractStationCode } from "../../../lib/stationSlug";
@@ -29,11 +28,23 @@ export const runtime = "nodejs";
 const ADMIN_BASE =
   process.env.NEXT_PUBLIC_ADMIN_APP_URL || "https://admin.raileats.in";
 
-/** "mizaz-e-bhopal-restraurant-1004" -> "Mizaz E Bhopal Restraurant" */
+/** Make a human title from slug.
+ * Works for both:
+ *  - "1004-mizaz-e-bhopal"
+ *  - "mizaz-e-bhopal-1004"
+ * and decodes %20, etc.
+ */
 function humanizeFromSlug(restroSlug: string) {
-  const withoutCode = String(restroSlug).replace(/-?\d+$/, "").replace(/-$/, "");
-  return withoutCode
-    .split("-")
+  const decoded = decodeURIComponent(String(restroSlug || ""));
+  const cleaned = decoded
+    .replace(/^\d+-/, "")   // drop leading code if present
+    .replace(/-\d+$/, "")   // drop trailing code if present
+    .replace(/-/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  return cleaned
+    .split(" ")
     .filter(Boolean)
     .map((w) => (w[0] ? w[0].toUpperCase() + w.slice(1) : w))
     .join(" ");
