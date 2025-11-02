@@ -287,3 +287,60 @@ p {
   padding: 0.75rem;
   border-radius: 10px;
 }
+
+/* ========= (NEW) Small form input (checkout etc.) ========= */
+.input {
+  width: 100%;
+  border: 1px solid #d1d5db; /* gray-300 */
+  padding: 10px 12px;
+  border-radius: 6px;
+  font-size: 14px;
+  background: #fff;
+}
+.input:focus {
+  outline: none;
+  border-color: #60a5fa; /* blue-400 */
+  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.25);
+}
+
+/* ========= (NEW) Mini cart bubble (fixed bottom-right) ========= */
+.cart-bubble {
+  position: fixed;
+  right: 16px;
+  bottom: calc(var(--bottom-h) + 12px);
+  z-index: 60; /* above bottom nav */
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #111827; /* gray-900 */
+  color: #fff;
+  border-radius: 9999px;
+  padding: 8px 12px;
+  box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+  cursor: pointer;
+}
+.cart-bubble__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  font-size: 12px;
+  font-weight: 700;
+  border-radius: 9999px;
+  background: #10b981; /* emerald-500 */
+  color: #fff;
+}
+.cart-bubble__total {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+/* small screens: lift a bit more */
+@media (max-width: 640px) {
+  .cart-bubble {
+    right: 12px;
+    bottom: calc(var(--bottom-h) + 8px);
+  }
+}
