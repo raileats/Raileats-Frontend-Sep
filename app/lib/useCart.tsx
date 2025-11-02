@@ -1,4 +1,3 @@
-// app/lib/useCart.tsx
 "use client";
 
 import React, { createContext, useContext, useMemo, useState } from "react";
@@ -10,71 +9,85 @@ export type CartLine = {
   price: number; // base price per unit
 };
 
-type CartState = Record<number, CartLine>;
+type CartMap = Record<number, CartLine>;
 
-type CartContextValue = {
-  cart: CartState;
+export type CartContextValue = {
+  /** internal map */
+  cart: CartMap;
+
+  /** list views (aliases; same data) */
+  items: CartLine[];  // preferred
+  lines: CartLine[];  // backward compatibility
+
+  /** derived */
+  count: number;
+  total: number;
+
+  /** actions */
   add: (line: CartLine) => void;
-  setQty: (id: number, qty: number) => void;
+  changeQty: (id: number, qty: number) => void;
   remove: (id: number) => void;
-  clear: () => void;
-  clearCart: () => void;   // alias for clear (checkout uses this)
-  count: number;           // total items (sum of qty)
-  subtotal: number;
-  total: number;           // alias for subtotal (checkout uses this)
+  clearCart: () => void;
 };
 
 const CartCtx = createContext<CartContextValue | null>(null);
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
-  const [cart, setCart] = useState<CartState>({});
+  const [cart, setCart] = useState<CartMap>({});
+
+  const add: CartContextValue["add"] = (line) => {
+    if (!line || !line.id) return;
+    setCart((c) => {
+      const existing = c[line.id];
+      if (!existing) return { ...c, [line.id]: { ...line, qty: Math.max(1, line.qty || 1) } };
+      return { ...c, [line.id]: { ...existing, qty: existing.qty + Math.max(1, line.qty || 1) } };
+    });
+  };
+
+  const changeQty: CartContextValue["changeQty"] = (id, qty) => {
+    setCart((c) => {
+      const row = c[id];
+      if (!row) return c;
+      if (qty <= 0) {
+        const { [id]: _, ...rest } = c;
+        return rest;
+      }
+      return { ...c, [id]: { ...row, qty } };
+    });
+  };
+
+  const remove: CartContextValue["remove"] = (id) => {
+    setCart((c) => {
+      if (!(id in c)) return c;
+      const { [id]: _, ...rest } = c;
+      return rest;
+    });
+  };
+
+  const clearCart = () => setCart({});
 
   const value = useMemo<CartContextValue>(() => {
-    const lines = Object.values(cart);
-    const count = lines.reduce((a, b) => a + b.qty, 0);
-    const subtotal = lines.reduce((a, b) => a + b.qty * b.price, 0);
-
-    const clear = () => setCart({});
-
+    const items = Object.values(cart);
+    const count = items.reduce((a, b) => a + b.qty, 0);
+    const total = items.reduce((a, b) => a + b.qty * b.price, 0);
     return {
       cart,
-      add: (line) =>
-        setCart((c) => {
-          const prev = c[line.id];
-          if (!prev) return { ...c, [line.id]: { ...line, qty: Math.max(1, line.qty) } };
-          return { ...c, [line.id]: { ...prev, qty: prev.qty + Math.max(1, line.qty) } };
-        }),
-      setQty: (id, qty) =>
-        setCart((c) => {
-          const cur = c[id];
-          if (!cur) return c;
-          if (qty <= 0) {
-            const { [id]: _, ...rest } = c;
-            return rest;
-          }
-          return { ...c, [id]: { ...cur, qty } };
-        }),
-      remove: (id) =>
-        setCart((c) => {
-          const { [id]: _, ...rest } = c;
-          return rest;
-        }),
-      clear,
-      clearCart: clear, // alias
+      items,
+      lines: items, // alias for backward compatibility
       count,
-      subtotal,
-      total: subtotal,  // alias
+      total,
+      add,
+      changeQty,
+      remove,
+      clearCart,
     };
   }, [cart]);
 
   return <CartCtx.Provider value={value}>{children}</CartCtx.Provider>;
 }
 
-export function useCart() {
+export function useCart(): CartContextValue {
   const ctx = useContext(CartCtx);
   if (!ctx) throw new Error("useCart must be used within <CartProvider>");
   return ctx;
 }
-
-// keep default export for existing imports
-export default useCart;
