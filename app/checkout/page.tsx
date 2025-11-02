@@ -6,13 +6,8 @@ import { useCart } from "../lib/useCart";
 import { priceStr } from "../lib/priceUtil";
 
 export default function CheckoutPage() {
-  // NOTE: lines -> items (fix)
- // old:
-// const { cart, lines, count, total, changeQty, remove, clearCart } = useCart();
-
-// safe (items ko lines naam se alias kar lete hain for readability):
-const { items: lines, count, total, changeQty, remove, clearCart } = useCart();
-
+  // NOTE: use 'lines' from the cart context
+  const { lines, count, total, changeQty, remove, clearCart } = useCart();
 
   const [pnr, setPnr] = useState("");
   const [coach, setCoach] = useState("");
@@ -30,7 +25,6 @@ const { items: lines, count, total, changeQty, remove, clearCart } = useCart();
 
   function placeOrder() {
     if (!canPlace) return;
-    // TODO: integrate actual order API here
     alert(
       `Order placed!\nItems: ${count}\nSubtotal: ${priceStr(total)}\nPNR: ${pnr}, Coach: ${coach}, Seat: ${seat}`
     );
@@ -56,7 +50,7 @@ const { items: lines, count, total, changeQty, remove, clearCart } = useCart();
           <section className="md:col-span-2 bg-white rounded border p-4">
             <h2 className="font-semibold mb-3">Items</h2>
             <div className="space-y-3">
-              {items.map((line) => (
+              {lines.map((line) => (
                 <div key={line.id} className="flex items-center justify-between">
                   <div className="min-w-0">
                     <div className="font-medium truncate">{line.name}</div>
@@ -161,9 +155,7 @@ const { items: lines, count, total, changeQty, remove, clearCart } = useCart();
 
               <button
                 type="button"
-                className={`w-full mt-2 rounded py-2 text-white ${
-                  canPlace ? "bg-green-600" : "bg-gray-400 cursor-not-allowed"
-                }`}
+                className={`w-full mt-2 rounded py-2 text-white ${canPlace ? "bg-green-600" : "bg-gray-400 cursor-not-allowed"}`}
                 disabled={!canPlace}
                 onClick={placeOrder}
               >
