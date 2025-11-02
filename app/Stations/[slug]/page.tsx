@@ -1,8 +1,8 @@
-// app/Stations/[slug]/page.tsx
 import React from "react";
 import type { Metadata } from "next";
 import { redirect, permanentRedirect } from "next/navigation";
 import { makeStationSlug, extractStationCode } from "../../lib/stationSlug";
+import { makeRestroSlug } from "../../lib/restroSlug";
 
 /* ---------------- types ---------------- */
 type Restro = {
@@ -119,7 +119,6 @@ export async function generateMetadata({
 }: {
   params: { slug: string };
 }): Promise<Metadata> {
-  // `slug` can be just "BPL" OR "BPL-bhopal-jn-food-delivery-in-train"
   const stationCode = extractStationCode(params.slug);
   try {
     const data = await fetchStation(stationCode);
@@ -133,9 +132,7 @@ export async function generateMetadata({
     return {
       title,
       description: desc,
-      alternates: {
-        canonical: `/Stations/${slug}`,
-      },
+      alternates: { canonical: `/Stations/${slug}` },
       openGraph: {
         title,
         description: desc,
@@ -155,7 +152,7 @@ export async function generateMetadata({
 /* ---------------- page ---------------- */
 export default async function Page({ params }: { params: { slug: string } }) {
   const raw = params.slug || "";
-  const stationCode = extractStationCode(raw); // first token before '-'
+  const stationCode = extractStationCode(raw);
   const code = stationCode.toUpperCase();
 
   // Load station
@@ -178,7 +175,7 @@ export default async function Page({ params }: { params: { slug: string } }) {
     );
   }
 
-  // If the URL was only "/Stations/BPL" (no hyphenized name), redirect to SEO slug
+  // If URL was just "/Stations/BPL", redirect to SEO slug
   if (!raw.includes("-") && stationResp?.station?.StationName) {
     const seo = makeStationSlug(code, stationResp.station.StationName);
     try {
@@ -194,7 +191,7 @@ export default async function Page({ params }: { params: { slug: string } }) {
   const originalRestaurants = stationResp.restaurants ?? [];
   const restaurants = await filterHolidayBlocked(originalRestaurants);
 
-  // Header line: "BPL — Bhopal Jn • Madhya Pradesh"
+  // Header line
   const stationLine =
     station?.StationName && station?.State
       ? `${station.StationCode} — ${station.StationName} • ${station.State}`
@@ -202,12 +199,14 @@ export default async function Page({ params }: { params: { slug: string } }) {
       ? `${station.StationCode} — ${station.StationName}`
       : code;
 
+  // Precompute station SEO slug for “Order Now” links
+  const stationSeo = makeStationSlug(code, station?.StationName ?? code);
+
   return (
     <main className="max-w-5xl mx-auto px-3 sm:px-6 py-6">
-      {/* Header with left square station image + right details */}
+      {/* Header */}
       <div className="mb-6">
         <div className="bg-gray-100 rounded-md p-4 flex flex-col sm:flex-row items-start gap-4">
-          {/* left: square thumbnail */}
           <div className="w-36 h-36 sm:w-44 sm:h-44 rounded overflow-hidden flex-shrink-0 bg-white">
             {station?.image_url ? (
               <img
@@ -223,7 +222,6 @@ export default async function Page({ params }: { params: { slug: string } }) {
             )}
           </div>
 
-          {/* right: text */}
           <div className="flex-1">
             <h1 className="text-2xl sm:text-3xl font-bold leading-tight">{stationLine}</h1>
             <p className="text-sm text-gray-600 mt-1">
@@ -236,7 +234,7 @@ export default async function Page({ params }: { params: { slug: string } }) {
         </div>
       </div>
 
-      {/* Restaurants block */}
+      {/* Restaurants */}
       <section className="mb-8">
         <div className="bg-white rounded-md shadow p-4 sm:p-6">
           <h2 className="text-lg font-semibold mb-3">
@@ -249,96 +247,90 @@ export default async function Page({ params }: { params: { slug: string } }) {
             </div>
           ) : (
             <div className="space-y-4">
-              {restaurants.map((r) => (
-                <article
-                  key={String(r.RestroCode)}
-                  className="flex flex-col md:flex-row items-stretch gap-3 p-3 sm:p-4 border rounded"
-                >
-                  {/* Square thumbnail (1:1) */}
-                  <div className="flex-shrink-0 w-full md:w-36 lg:w-44 h-44 md:h-36 bg-gray-100 rounded overflow-hidden">
-                    {r.RestroDisplayPhoto ? (
-                      <img
-                        src={r.RestroDisplayPhoto}
-                        alt={r.RestroName ?? "Restaurant image"}
-                        loading="lazy"
-                        style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-gray-400 text-sm">
-                        No image
-                      </div>
-                    )}
-                  </div>
+              {restaurants.map((r) => {
+                const restroSeo = makeRestroSlug(
+                  String(r.RestroCode),
+                  r.RestroName || "restaurant"
+                );
+                const href = `/Stations/${stationSeo}/${restroSeo}`;
+                return (
+                  <article
+                    key={String(r.RestroCode)}
+                    className="flex flex-col md:flex-row items-stretch gap-3 p-3 sm:p-4 border rounded"
+                  >
+                    {/* Image */}
+                    <div className="flex-shrink-0 w-full md:w-36 lg:w-44 h-44 md:h-36 bg-gray-100 rounded overflow-hidden">
+                      {r.RestroDisplayPhoto ? (
+                        <img
+                          src={r.RestroDisplayPhoto}
+                          alt={r.RestroName ?? "Restaurant image"}
+                          loading="lazy"
+                          style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-gray-400 text-sm">
+                          No image
+                        </div>
+                      )}
+                    </div>
 
-                  {/* Content */}
-                  <div className="flex-1 flex flex-col justify-between">
-                    <div>
-                      <div className="flex items-start gap-3">
-                        <div className="flex-1">
-                          <h3 className="text-lg sm:text-xl font-semibold leading-tight truncate">
-                            {r.RestroName}
-                          </h3>
+                    {/* Content */}
+                    <div className="flex-1 flex flex-col justify-between">
+                      <div>
+                        <div className="flex items-start gap-3">
+                          <div className="flex-1">
+                            <h3 className="text-lg sm:text-xl font-semibold leading-tight truncate">
+                              {r.RestroName}
+                            </h3>
 
-                          <div className="mt-1 text-sm text-gray-600 flex items-center gap-3">
-                            <span>Rating: {r.RestroRating ?? "—"}</span>
-                            <span className="mx-1">•</span>
+                            <div className="mt-1 text-sm text-gray-600 flex items-center gap-3">
+                              <span>Rating: {r.RestroRating ?? "—"}</span>
+                              <span className="mx-1">•</span>
+                              <span className="flex items-center gap-1">
+                                {r.isPureVeg ? (
+                                  <span aria-hidden className="w-3 h-3 rounded bg-green-600 inline-block" title="Veg" />
+                                ) : (
+                                  <>
+                                    <span className="w-3 h-3 rounded bg-red-600 inline-block" title="Non-Veg" />
+                                    <span className="w-3 h-3 rounded bg-green-600 inline-block" title="Also serves Veg" />
+                                  </>
+                                )}
+                              </span>
+                            </div>
 
-                            <span className="flex items-center gap-1">
-                              {r.isPureVeg ? (
-                                <span
-                                  aria-hidden
-                                  className="w-3 h-3 rounded bg-green-600 inline-block"
-                                  title="Veg"
-                                />
-                              ) : (
-                                <>
-                                  <span
-                                    className="w-3 h-3 rounded bg-red-600 inline-block"
-                                    title="Non-Veg"
-                                  />
-                                  <span
-                                    className="w-3 h-3 rounded bg-green-600 inline-block"
-                                    title="Also serves Veg"
-                                  />
-                                </>
-                              )}
-                            </span>
+                            <div className="mt-2 text-sm text-gray-700">
+                              <strong>Multi Cuisines</strong>
+                            </div>
                           </div>
 
-                          <div className="mt-2 text-sm text-gray-700">
-                            <strong>Multi Cuisines</strong>
+                          <div className="ml-2 flex flex-col items-end gap-3">
+                            <div className="text-xs text-gray-500">Min order</div>
+                            <div className="font-medium text-base">₹{r.MinimumOrdermValue ?? "—"}</div>
                           </div>
                         </div>
 
-                        <div className="ml-2 flex flex-col items-end gap-3">
-                          <div className="text-xs text-gray-500">Min order</div>
-                          <div className="font-medium text-base">
-                            ₹{r.MinimumOrdermValue ?? "—"}
+                        <div className="mt-3">
+                          <div className="inline-block px-2 py-1 rounded bg-gray-100 text-sm text-gray-700">
+                            {formatTimeRange(r.OpenTime, r.ClosedTime)}
                           </div>
                         </div>
                       </div>
 
-                      <div className="mt-3">
-                        <div className="inline-block px-2 py-1 rounded bg-gray-100 text-sm text-gray-700">
-                          {formatTimeRange(r.OpenTime, r.ClosedTime)}
+                      <div className="mt-3 flex items-center">
+                        <div className="ml-auto w-full md:w-auto">
+                          <a
+                            href={href}
+                            className="inline-block bg-green-600 text-white px-4 py-2 rounded text-sm w-full md:w-auto text-center"
+                            aria-label={`Order now from ${r.RestroName}`}
+                          >
+                            Order Now
+                          </a>
                         </div>
                       </div>
                     </div>
-
-                    <div className="mt-3 flex items-center">
-                      <div className="ml-auto w-full md:w-auto">
-                        <a
-                          href={`/menu?restro=${encodeURIComponent(String(r.RestroCode))}`}
-                          className="inline-block bg-green-600 text-white px-4 py-2 rounded text-sm w-full md:w-auto text-center"
-                          aria-label={`Order now from ${r.RestroName}`}
-                        >
-                          Order Now
-                        </a>
-                      </div>
-                    </div>
-                  </div>
-                </article>
-              ))}
+                  </article>
+                );
+              })}
             </div>
           )}
         </div>
