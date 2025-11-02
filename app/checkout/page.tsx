@@ -6,7 +6,8 @@ import { useCart } from "../lib/useCart";
 import { priceStr } from "../lib/priceUtil";
 
 export default function CheckoutPage() {
-  const { cart, lines, count, total, changeQty, remove, clearCart } = useCart();
+  // NOTE: lines -> items (fix)
+  const { items, count, total, changeQty, remove, clearCart } = useCart();
 
   const [pnr, setPnr] = useState("");
   const [coach, setCoach] = useState("");
@@ -50,7 +51,7 @@ export default function CheckoutPage() {
           <section className="md:col-span-2 bg-white rounded border p-4">
             <h2 className="font-semibold mb-3">Items</h2>
             <div className="space-y-3">
-              {lines.map((line) => (
+              {items.map((line) => (
                 <div key={line.id} className="flex items-center justify-between">
                   <div className="min-w-0">
                     <div className="font-medium truncate">{line.name}</div>
@@ -155,7 +156,9 @@ export default function CheckoutPage() {
 
               <button
                 type="button"
-                className={`w-full mt-2 rounded py-2 text-white ${canPlace ? "bg-green-600" : "bg-gray-400 cursor-not-allowed"}`}
+                className={`w-full mt-2 rounded py-2 text-white ${
+                  canPlace ? "bg-green-600" : "bg-gray-400 cursor-not-allowed"
+                }`}
                 disabled={!canPlace}
                 onClick={placeOrder}
               >
