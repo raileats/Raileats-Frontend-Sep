@@ -1,6 +1,10 @@
 // app/Stations/[code]/page.tsx
 import React from "react";
+import type { Metadata } from "next";
+import { redirect, permanentRedirect } from "next/navigation";
+import { makeStationSlug } from "@/app/lib/stationSlug";
 
+/* ---------------- types ---------------- */
 type Restro = {
   RestroCode: string | number;
   RestroName?: string;
@@ -95,7 +99,7 @@ async function hasActiveHoliday(restroCode: string | number): Promise<boolean> {
 /** Filter out outlets that currently have an active holiday */
 async function filterHolidayBlocked(restros: Restro[]): Promise<Restro[]> {
   if (!restros?.length) return [];
-  // Fire requests in parallel, but cap concurrency to be safe (simple window of 6)
+  // simple concurrency window (6)
   const out: Restro[] = [];
   const window = 6;
   for (let i = 0; i < restros.length; i += window) {
@@ -104,15 +108,57 @@ async function filterHolidayBlocked(restros: Restro[]): Promise<Restro[]> {
       slice.map((r) => hasActiveHoliday(r.RestroCode))
     );
     slice.forEach((r, idx) => {
-      if (!results[idx]) out.push(r); // keep only if NOT active-holiday
+      if (!results[idx]) out.push(r);
     });
   }
   return out;
 }
 
+/* ---------------- SEO metadata ---------------- */
+export async function generateMetadata({
+  params,
+}: {
+  params: { code: string };
+}): Promise<Metadata> {
+  const code = (params?.code || "").toUpperCase();
+  try {
+    const data = await fetchStation(code);
+    const name = data?.station?.StationName || code;
+    const state = data?.station?.State ? `, ${data.station.State}` : "";
+    const title = `Food delivery in train at ${name} (${code})${state} | RailEats`;
+    const desc = `Order hot, hygienic food in train at ${name} (${code}${state}) from verified restaurants. Veg & Non-Veg options, on-time delivery at your seat.`;
+
+    // canonical slug
+    const slug = makeStationSlug(code, name);
+
+    return {
+      title,
+      description: desc,
+      alternates: {
+        canonical: `/Stations/${slug}`,
+      },
+      openGraph: {
+        title,
+        description: desc,
+        url: `/Stations/${slug}`,
+        type: "website",
+      },
+    };
+  } catch {
+    return {
+      title: `Food delivery in train | RailEats`,
+      description:
+        "Order hot, hygienic food in train from verified restaurants. Veg & Non-Veg options, on-time delivery at your seat.",
+    };
+  }
+}
+
 /* ---------------- page ---------------- */
 export default async function Page({ params }: { params: { code: string } }) {
+  // In this route, `params.code` is expected to be raw station code (e.g., BPL).
+  // We'll fetch station, build slug, and redirect to the SEO URL if needed.
   const code = (params?.code || "").toUpperCase();
+
   let stationResp: StationResp | null = null;
 
   try {
@@ -133,13 +179,26 @@ export default async function Page({ params }: { params: { code: string } }) {
     );
   }
 
+  // ---- SEO redirect to slug path ----
+  if (stationResp?.station?.StationName) {
+    const slug = makeStationSlug(code, stationResp.station.StationName);
+    // If path is /Stations/BPL (no hyphen-name), move to /Stations/BPL-<name>-food-delivery-in-train
+    // Use permanent redirect for SEO (308). If your Next version lacks permanentRedirect,
+    // redirect() is fine too.
+    try {
+      permanentRedirect(`/Stations/${slug}`);
+    } catch {
+      redirect(`/Stations/${slug}`);
+    }
+  }
+
   const station = stationResp.station;
 
-  // ↓↓↓ NEW: filter-out active-holiday outlets
+  // Filter-out active-holiday outlets
   const originalRestaurants = stationResp.restaurants ?? [];
   const restaurants = await filterHolidayBlocked(originalRestaurants);
 
-  // Build station header text: "BPL — Bhopal Jn. • Madhya Pradesh"
+  // Header line: "BPL — Bhopal Jn • Madhya Pradesh"
   const stationLine =
     station?.StationName && station?.State
       ? `${station.StationCode} — ${station.StationName} • ${station.State}`
