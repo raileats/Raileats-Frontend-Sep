@@ -7,7 +7,12 @@ import { priceStr } from "../lib/priceUtil";
 
 export default function CheckoutPage() {
   // NOTE: lines -> items (fix)
-  const { items, count, total, changeQty, remove, clearCart } = useCart();
+ // old:
+// const { cart, lines, count, total, changeQty, remove, clearCart } = useCart();
+
+// safe (items ko lines naam se alias kar lete hain for readability):
+const { items: lines, count, total, changeQty, remove, clearCart } = useCart();
+
 
   const [pnr, setPnr] = useState("");
   const [coach, setCoach] = useState("");
