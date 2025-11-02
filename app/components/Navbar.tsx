@@ -1,7 +1,9 @@
+// app/components/Navbar.tsx
 "use client";
 
 import Link from "next/link";
 import LoginMenu from "./LoginMenu";
+import CartWidget from "./CartWidget"; // ⬅️ add
 
 export default function Navbar() {
   return (
@@ -19,8 +21,10 @@ export default function Navbar() {
           - On md+, this row itself will get the black background and rounded/border styling,
             so it becomes the centered black bar.
         */}
-        <div className="h-14 md:h-16 w-full flex items-center justify-between gap-2
-                        md:bg-black md:rounded-b-md md:border-b md:border-gray-800">
+        <div
+          className="h-14 md:h-16 w-full flex items-center justify-between gap-2
+                     md:bg-black md:rounded-b-md md:border-b md:border-gray-800"
+        >
           {/* Left: Logo + Brand */}
           <Link href="/" className="flex items-center gap-2 md:gap-3 group">
             <img
@@ -38,8 +42,9 @@ export default function Navbar() {
             </span>
           </Link>
 
-          {/* Right: Login / User Menu */}
-          <div>
+          {/* Right: Cart + Login */}
+          <div className="flex items-center gap-2">
+            <CartWidget />     {/* ⬅️ shows only when cart has items */}
             <LoginMenu />
           </div>
         </div>
