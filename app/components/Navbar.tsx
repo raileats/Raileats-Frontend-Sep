@@ -3,7 +3,7 @@
 
 import Link from "next/link";
 import LoginMenu from "./LoginMenu";
-import CartWidget from "./CartWidget"; // ⬅️ add
+import CartWidget from "./CartWidget";
 
 export default function Navbar() {
   return (
@@ -16,7 +16,7 @@ export default function Navbar() {
     <header className="sticky top-0 z-50 w-full bg-black md:bg-transparent">
       {/* Site container — controls centered max width on desktop, still has px on mobile */}
       <div className="mx-auto max-w-5xl px-4">
-        {/* 
+        {/*
           - On mobile this inner row will sit on header's black background (full-width black).
           - On md+, this row itself will get the black background and rounded/border styling,
             so it becomes the centered black bar.
@@ -42,9 +42,12 @@ export default function Navbar() {
             </span>
           </Link>
 
-          {/* Right: Cart + Login */}
+          {/* Right: Cart (desktop only) + Login */}
           <div className="flex items-center gap-2">
-            <CartWidget />     {/* ⬅️ shows only when cart has items */}
+            {/* Hide cart chip on mobile; show from md and up */}
+            <div className="hidden md:inline-flex">
+              <CartWidget />
+            </div>
             <LoginMenu />
           </div>
         </div>
