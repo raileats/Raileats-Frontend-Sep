@@ -79,7 +79,7 @@ export default function RestroMenuClient({ header, items, offer }: Props) {
     return vegOnly ? arr.filter((x) => isVegLike(x.item_category)) : arr;
   }, [items, vegOnly]);
 
-  // group items by menu_type (use Map.forEach to be TS-friendly)
+  // group items by menu_type (Map.forEach to be TS-friendly)
   const grouped = useMemo(() => {
     const by = new Map<string, MenuItem[]>();
     for (const it of visible) {
@@ -92,7 +92,6 @@ export default function RestroMenuClient({ header, items, offer }: Props) {
     const out: { type: string; items: MenuItem[] }[] = [];
     const used = new Set<string>();
 
-    // preferred order
     for (const k of ORDER_MENU_TYPES) {
       const list = by.get(k);
       if (list) {
@@ -100,7 +99,6 @@ export default function RestroMenuClient({ header, items, offer }: Props) {
         used.add(k);
       }
     }
-    // append remaining groups
     by.forEach((list, k) => {
       if (!used.has(k)) out.push({ type: k, items: list });
     });
@@ -116,40 +114,37 @@ export default function RestroMenuClient({ header, items, offer }: Props) {
     add({ id: it.id, name: it.item_name, price, qty: 1 }); // include qty to satisfy CartLine
   };
 
-  // mobile-styling: scale small screens by 90% (to reduce wrapping)
-  // and make checkout area safe from bottom nav
   return (
     <>
-      {/* small-screen CSS tweak (scoped) */}
+      {/* scoped CSS adjustments for tiny mobile tweaks (keeps desktop unchanged) */}
       <style jsx>{`
         @media (max-width: 640px) {
-          .re-scale { transform-origin: top left; font-size: 0.9rem; } /* reduce text globally in this block */
-        }
-        /* ensure checkout / pages have extra bottom padding (to avoid bottom nav overlap) */
-        @media (max-width: 640px) {
+          /* slightly reduce H1 on mobile to avoid wrapping */
+          .mobile-h1 { font-size: 1.6rem; line-height: 1.05; }
+          /* ensure the page has extra bottom padding to avoid bottom nav cropping */
           .page-safe-bottom { padding-bottom: calc(env(safe-area-inset-bottom) + 72px); }
         }
       `}</style>
 
-      <div className="mb-4 relative re-scale page-safe-bottom">
+      <div className="mb-4 relative page-safe-bottom">
         <div>
-          {/* On mobile we add right padding so the floating pill doesn't wrap the heading */}
-          <h1 className="text-2xl sm:text-3xl font-bold leading-tight pr-44 sm:pr-0">
+          {/* H1 class uses mobile-h1 so it's slightly smaller on mobile */}
+          <h1 className="text-2xl sm:text-3xl font-bold leading-tight mobile-h1 pr-44 sm:pr-0">
             {header.outletName} — Menu
           </h1>
 
           <p className="mt-1 text-sm text-gray-600">
-            {/* show stationCode + stationName if available, don't show restroCode */}
+            {/* show stationCode + stationName if available, do NOT show restroCode on UI */}
             {header.stationCode}
             {header.stationName ? ` • ${header.stationName}` : ""}
           </p>
         </div>
 
-        {/* Mobile pill: moved up just below navbar (adjust top value if your navbar height changes) */}
+        {/* Mobile pill: uses absolute top so it sits under navbar; desktop hidden */}
         {count > 0 && (
           <button
             onClick={() => setShowMobileCart(true)}
-            className="lg:hidden absolute right-3 top-[62px] rounded-full bg-blue-600 text-white px-3 py-1.5 text-sm shadow whitespace-nowrap z-40"
+            className="lg:hidden cart-pill-mobile rounded-full bg-blue-600 text-white px-3 py-1.5 text-sm shadow whitespace-nowrap z-40"
             aria-label="View cart"
           >
             <span className="font-semibold mr-1">{count}</span>
