@@ -1,6 +1,6 @@
 "use client";
 
-import { useCart } from "../lib/useCart"; // ✅ Fixed (relative path)
+import { useCart } from "../lib/useCart"; // relative path (adjust if needed)
 import Link from "next/link";
 
 type Props = {
@@ -23,17 +23,15 @@ export default function CartPillMobile({ onOpen, className = "" }: Props) {
     </span>
   );
 
-  // ✅ Mobile only — Top Navbar ke bilkul neeche
-  const basePos =
-    "lg:hidden fixed right-3 top-[60px] z-[9999]"; 
-  // your navbar height = 56px (approx) so top ~60px
+  // Mobile only — positioned below navbar using .cart-pill-mobile (from globals.css)
+  const baseClass = `lg:hidden cart-pill-mobile ${className}`;
 
   return onOpen ? (
-    <button className={`${basePos} ${className}`} onClick={onOpen} aria-label="View cart">
+    <button className={baseClass} onClick={onOpen} aria-label="View cart">
       {content}
     </button>
   ) : (
-    <Link href="/checkout" className={`${basePos} ${className}`} aria-label="View cart">
+    <Link href="/checkout" className={baseClass} aria-label="View cart">
       {content}
     </Link>
   );
