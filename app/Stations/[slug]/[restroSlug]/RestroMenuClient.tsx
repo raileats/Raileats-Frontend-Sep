@@ -3,7 +3,6 @@
 import React, { useMemo, useState } from "react";
 import Link from "next/link";
 import { useCart } from "../../../lib/useCart";
-import CartPillMobile from "../../../components/CartPillMobile"; // ✅ add
 
 // ---- Types ----
 type MenuItem = {
@@ -12,7 +11,7 @@ type MenuItem = {
   item_code?: string | null;
   item_name: string;
   item_description?: string | null;
-  item_category?: string | null;
+  item_category?: string | null; // Veg | Jain | Non-Veg
   item_cuisine?: string | null;
   menu_type?: string | null;
   start_time?: string | null;
@@ -24,47 +23,61 @@ type MenuItem = {
 };
 
 type Props = {
-  header: { stationCode: string; restroCode: string | number; outletName: string };
+  header: {
+    stationCode: string;
+    restroCode: string | number;
+    outletName: string;
+    /** Optional, so old pages don’t break */
+    stationName?: string; // e.g. "Bhopal Jn"
+  };
   items: MenuItem[];
   offer: { text: string } | null;
 };
 
-// ---- Helpers ----
+// ---- Constants & helpers ----
 const ORDER_MENU_TYPES = [
-  "Thalis","Combos","Breakfast","Rice And Biryani","Roti Paratha",
-  "Pizza and Sandwiches","Fast Food","Burger","Starters and Snacks",
-  "Sweets","Beverages","Restro Specials","Bakery",
+  "Thalis",
+  "Combos",
+  "Breakfast",
+  "Rice And Biryani",
+  "Roti Paratha",
+  "Pizza and Sandwiches",
+  "Fast Food",
+  "Burger",
+  "Starters and Snacks",
+  "Sweets",
+  "Beverages",
+  "Restro Specials",
+  "Bakery",
 ];
+
 const isVegLike = (cat?: string | null) => {
   const c = String(cat || "").toLowerCase();
   return c === "veg" || c === "jain";
 };
 const isNonVeg = (cat?: string | null) => String(cat || "").toLowerCase() === "non-veg";
-const dot = (cat?: string | null) =>
-  isVegLike(cat) ? (
-    <span className="inline-block w-3 h-3 rounded-full bg-green-600" title="Veg" />
-  ) : isNonVeg(cat) ? (
-    <span className="inline-block w-3 h-3 rounded-full bg-red-600" title="Non-Veg" />
-  ) : (
-    <span className="inline-block w-3 h-3 rounded-full bg-gray-400" title="Unspecified" />
-  );
+
+const dot = (cat?: string | null) => {
+  if (isVegLike(cat)) return <span className="inline-block w-3 h-3 rounded-full bg-green-600" title="Veg" />;
+  if (isNonVeg(cat)) return <span className="inline-block w-3 h-3 rounded-full bg-red-600" title="Non-Veg" />;
+  return <span className="inline-block w-3 h-3 rounded-full bg-gray-400" title="Unspecified" />;
+};
+
 const t = (s?: string | null) => (s ? s.slice(0, 5) : "");
 const priceStr = (n?: number | null) =>
   typeof n === "number" ? `₹${Number(n).toFixed(2).replace(/\.00$/, "")}` : "—";
 
 export default function RestroMenuClient({ header, items, offer }: Props) {
   const [vegOnly, setVegOnly] = useState(false);
-  const [showMobileCart, setShowMobileCart] = useState(false); // 📱 overlay
+  const [showMobileCart, setShowMobileCart] = useState(false);
 
   const { lines, count, total, add, changeQty, remove, clearCart } = useCart();
 
-  // visible items
   const visible = useMemo(() => {
     const arr = (items || []).filter((x) => x.status === "ON");
     return vegOnly ? arr.filter((x) => isVegLike(x.item_category)) : arr;
   }, [items, vegOnly]);
 
-  // groups
   const grouped = useMemo(() => {
     const by = new Map<string, MenuItem[]>();
     for (const it of visible) {
@@ -76,6 +89,7 @@ export default function RestroMenuClient({ header, items, offer }: Props) {
 
     const out: { type: string; items: MenuItem[] }[] = [];
     const used = new Set<string>();
+
     for (const k of ORDER_MENU_TYPES) {
       const list = by.get(k);
       if (list) {
@@ -97,23 +111,46 @@ export default function RestroMenuClient({ header, items, offer }: Props) {
     add({ id: it.id, name: it.item_name, price, qty: 1 });
   };
 
+  const stationLabel = header.stationName
+    ? `${header.stationName} (${header.stationCode})`
+    : header.stationCode;
+
   return (
     <>
-      {/* 📱 Mobile cart chip — navbar ke bilkul neeche */}
-      <CartPillMobile onOpen={() => setShowMobileCart(true)} />
-
       {/* header */}
-      <div className="mb-4">
-        <h1 className="text-2xl sm:text-3xl font-bold leading-tight pr-40 lg:pr-0">
-          {header.outletName} — Menu
-        </h1>
-        <p className="mt-1 text-sm text-gray-600">
-          Station: {header.stationCode} • Outlet Code: {header.restroCode}
-        </p>
+      <div className="mb-4 relative">
+        <div>
+          {/* Mobile: slightly smaller; Desktop unchanged */}
+          <h1
+            className="
+              text-[1.55rem] md:text-3xl font-bold leading-tight tracking-tight
+              pr-40 lg:pr-0
+            "
+          >
+            {header.outletName} — Menu
+          </h1>
+          <p className="mt-1 text-[0.92rem] md:text-sm text-gray-600">
+            {/* Outlet code intentionally hidden as requested */}
+            Station: {stationLabel}
+          </p>
+        </div>
+
+        {/* Mobile pill – just under the navbar, right side */}
+        {count > 0 && (
+          <button
+            onClick={() => setShowMobileCart(true)}
+            className="lg:hidden absolute right-0 -top-10 sm:top-0 sm:-translate-y-1 rounded-full bg-blue-600 text-white px-3 py-1.5 text-sm shadow whitespace-nowrap"
+            aria-label="View cart"
+          >
+            <span className="font-semibold mr-1">{count}</span>
+            <span className="opacity-90 mr-2">{priceStr(total)}</span>
+            <span className="underline">View cart</span>
+          </button>
+        )}
       </div>
 
       {/* top controls */}
-      <div className="mb-4 flex flex-wrap items-center gap-3 text-[90%] sm:text-[100%]">
+      <div className="mb-4 flex flex-wrap items-center gap-3">
         <label className="inline-flex items-center gap-2 cursor-pointer select-none">
           <input
             type="checkbox"
@@ -132,10 +169,10 @@ export default function RestroMenuClient({ header, items, offer }: Props) {
         )}
       </div>
 
-      {/* layout */}
+      {/* two-column layout */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* LEFT */}
-        <div className="lg:col-span-2 space-y-8 text-[90%] sm:text-[100%]">
+        {/* LEFT: single vertical list */}
+        <div className="lg:col-span-2 space-y-8">
           {grouped.length === 0 ? (
             <div className="p-4 bg-gray-50 rounded text-sm text-gray-700">No items available.</div>
           ) : (
@@ -214,7 +251,7 @@ export default function RestroMenuClient({ header, items, offer }: Props) {
           )}
         </div>
 
-        {/* RIGHT (desktop sticky cart unchanged) */}
+        {/* RIGHT: sticky cart (desktop) */}
         <aside className="lg:col-span-1 hidden lg:block">
           <div className="lg:sticky lg:top-24 border rounded-lg p-4 bg-white">
             <div className="flex items-center justify-between mb-2">
@@ -272,7 +309,7 @@ export default function RestroMenuClient({ header, items, offer }: Props) {
         </aside>
       </div>
 
-      {/* 📱 90% screen mobile overlay — unchanged */}
+      {/* Mobile cart overlay (90% height) */}
       {showMobileCart && (
         <div className="lg:hidden fixed inset-0 z-[1000]">
           <button
