@@ -33,6 +33,7 @@ type Props = {
   offer: { text: string } | null;
 };
 
+// ---- helpers ----
 const ORDER_MENU_TYPES = [
   "Thalis",
   "Combos",
@@ -108,146 +109,122 @@ export default function RestroMenuClient({ header, items, offer }: Props) {
     add({ id: it.id, name: it.item_name, price, qty: 1 });
   };
 
-  // small scoped CSS to tweak spacing only for this component (desktop unaffected mostly)
-  // reduces group spacing, item spacing, heading sizes on mobile
   return (
     <>
+      {/* Scoped CSS tweaks for spacing + pill placement */}
       <style jsx>{`
-        /* tighten vertical spacing between groups and items */
-        .group-gap { margin-bottom: 0.6rem; }
-        .item-gap { margin-bottom: 0.45rem; }
-        .section-title { margin-top: 0.28rem; margin-bottom: 0.5rem; font-weight: 600; }
-        @media (max-width: 768px) {
-          .mobile-h1 { font-size: 1.5rem; line-height: 1.05; }
-          .header-wrap { margin-bottom: 0.5rem; }
-          .item-desc { font-size: 0.85rem; }
-          .item-name { font-size: 1rem; }
-          .cart-pill-mobile { top: 62px; right: 12px; }
-        }
-        @media (min-width: 769px) {
-          /* desktop: keep original spacing but slightly reduced between menu groups */
-          .group-gap { margin-bottom: 1rem; }
-          .item-gap { margin-bottom: 0.6rem; }
-        }
+        /* header row: tighten gap between navbar & header */
+        .header-row { margin-top: 6px; margin-bottom: 8px; display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
+        .title-block { min-width:0; }
+        .title { font-size: 1.5rem; line-height:1.05; margin:0; font-weight:700; }
+        .subtitle { margin-top:6px; color:#6b7280; font-size:0.95rem; }
 
-        /* allow name + time inline with truncation; price stuck to right */
-        .item-top {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 8px;
+        /* place veg toggle & cart pill inline on right */
+        .right-controls { display:flex; gap:10px; align-items:center; flex-shrink:0; }
+
+        /* mobile pill position: just below navbar, right */
+        .mobile-pill { position: absolute; right: 12px; top: 58px; z-index:40; }
+
+        /* group/item spacing reduced */
+        .group { margin-bottom: 0.9rem; }
+        .item { margin-bottom: 0.5rem; }
+
+        /* item top: name + time left, price right */
+        .item-top { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+        .item-left { min-width:0; display:flex; gap:10px; align-items:center; }
+        .item-name { font-weight:600; white-space:normal; }
+        .item-time { color:#6b7280; font-size:0.86rem; flex-shrink:0; }
+        .item-price { font-weight:700; white-space:nowrap; }
+
+        @media (min-width: 1024px) {
+          .mobile-pill { display:none; } /* desktop uses sticky cart */
         }
-        .item-left {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          min-width: 0;
-        }
-        .item-name-wrap {
-          min-width: 0;
-        }
-        .item-name {
-          display: block;
-          font-weight: 600;
-          white-space: normal;
-          overflow-wrap: anywhere;
-        }
-        .item-time {
-          font-size: 0.85rem;
-          color: #6b7280; /* gray-500 */
-          flex-shrink: 0;
-        }
-        .item-price {
-          white-space: nowrap;
-          font-weight: 700;
+        @media (max-width: 640px) {
+          .title { font-size:1.4rem; } /* slightly smaller on small phones */
+          .subtitle { font-size:0.9rem; }
         }
       `}</style>
 
-      {/* HEADER */}
-      <div className="mb-3 header-wrap">
-        <div>
-          <h1 className="text-2xl sm:text-3xl mobile-h1 font-bold leading-tight pr-44 sm:pr-0">
-            {header.outletName} — Menu
-          </h1>
-          <p className="mt-1 text-sm text-gray-600">
+      {/* HEADER ROW */}
+      <div className="header-row">
+        <div className="title-block">
+          {/* only restaurant name here (no "— Menu") */}
+          <h1 className="title">{header.outletName}</h1>
+
+          {/* station code + optional station name; DO NOT show restroCode */}
+          <div className="subtitle">
             {header.stationCode}
             {header.stationName ? ` • ${header.stationName}` : ""}
-          </p>
+          </div>
         </div>
 
-        {/* mobile pill */}
-        {count > 0 && (
-          <button
-            onClick={() => setShowMobileCart(true)}
-            className="lg:hidden cart-pill-mobile rounded-full bg-blue-600 text-white px-3 py-1.5 text-sm shadow whitespace-nowrap"
-            aria-label="View cart"
-          >
-            <span className="font-semibold mr-1">{count}</span>
-            <span className="opacity-90 mr-2">{priceStr(total)}</span>
-            <span className="underline">View cart</span>
-          </button>
-        )}
+        {/* right side controls: Veg toggle + mobile cart pill */}
+        <div className="right-controls">
+          {/* Veg only toggle (small) */}
+          <label className="inline-flex items-center gap-2 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              className="sr-only peer"
+              checked={vegOnly}
+              onChange={(e) => setVegOnly(e.target.checked)}
+            />
+            <span className="w-10 h-6 bg-gray-300 rounded-full relative after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:w-5 after:h-5 after:bg-white after:rounded-full after:transition-all peer-checked:after:translate-x-4 peer-checked:bg-green-500" />
+            <span className="text-sm">Veg only</span>
+          </label>
+
+          {/* mobile cart pill (visible only on small screens) */}
+          {count > 0 && (
+            <div className="mobile-pill lg:hidden">
+              <button
+                onClick={() => setShowMobileCart(true)}
+                className="inline-flex items-center rounded-full bg-blue-600 text-white px-3 py-1.5 text-sm shadow whitespace-nowrap"
+                aria-label="View cart"
+              >
+                <span className="font-semibold mr-1">{count}</span>
+                <span className="opacity-90 mr-2">{priceStr(total)}</span>
+                <span className="underline">View cart</span>
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* controls */}
-      <div className="mb-3 flex flex-wrap items-center gap-2">
-        <label className="inline-flex items-center gap-2 cursor-pointer select-none">
-          <input
-            type="checkbox"
-            className="sr-only peer"
-            checked={vegOnly}
-            onChange={(e) => setVegOnly(e.target.checked)}
-          />
-          <span className="w-10 h-6 bg-gray-300 rounded-full relative after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:w-5 after:h-5 after:bg-white after:rounded-full after:transition-all peer-checked:after:translate-x-4 peer-checked:bg-green-500" />
-          <span className="text-sm">Veg only</span>
-        </label>
+      {/* small top gap */}
+      <div style={{ height: 4 }} />
 
-        {offer?.text && (
-          <span className="text-sm bg-amber-100 text-amber-800 px-2 py-1 rounded">{offer.text}</span>
-        )}
-      </div>
-
-      {/* content grid */}
+      {/* groups grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* left menu column */}
         <div className="lg:col-span-2">
           {grouped.length === 0 ? (
             <div className="p-3 bg-gray-50 rounded text-sm text-gray-700">No items available.</div>
           ) : (
             grouped.map((g) => (
-              <section key={g.type} className="group-gap">
-                <h2 className="text-lg section-title">{g.type}</h2>
+              <section key={g.type} className="group">
+                <h2 className="text-lg font-semibold mb-2">{g.type}</h2>
 
                 <div>
                   {g.items.map((it) => {
                     const qty = getQty(it.id);
                     return (
-                      <article key={it.id} className="border rounded p-3 item-gap">
+                      <article key={it.id} className="border rounded p-3 item">
                         <div className="flex gap-3">
                           <div className="pt-0.5">{dot(it.item_category)}</div>
 
                           <div className="flex-1">
-                            {/* top row: name + time (left) / price (right) */}
                             <div className="item-top">
                               <div className="item-left min-w-0">
-                                <div className="item-name-wrap">
-                                  <div className="item-name">{it.item_name}</div>
-                                </div>
-
-                                {/* time next to name (kept small) */}
-                                <div className="item-time">
-                                  {t(it.start_time)}{it.start_time ? "-" : ""}{t(it.end_time)}
-                                </div>
+                                <div className="item-name">{it.item_name}</div>
+                                <div className="item-time ml-2">{t(it.start_time)}{it.start_time ? "-" : ""}{t(it.end_time)}</div>
                               </div>
 
                               <div className="item-price">{priceStr(it.base_price)}</div>
                             </div>
 
-                            {/* description under the single-line top row */}
                             {it.item_description && (
-                              <p className="mt-1 text-xs text-gray-600 item-desc">{it.item_description}</p>
+                              <p className="mt-1 text-xs text-gray-600">{it.item_description}</p>
                             )}
 
-                            {/* controls */}
                             <div className="mt-2">
                               {qty === 0 ? (
                                 <button
@@ -259,28 +236,10 @@ export default function RestroMenuClient({ header, items, offer }: Props) {
                                 </button>
                               ) : (
                                 <div className="inline-flex items-center border rounded overflow-hidden">
-                                  <button
-                                    type="button"
-                                    className="px-3 py-1.5"
-                                    onClick={() => changeQty(it.id, qty - 1)}
-                                  >
-                                    −
-                                  </button>
+                                  <button type="button" className="px-3 py-1.5" onClick={() => changeQty(it.id, qty - 1)}>−</button>
                                   <span className="w-10 text-center border-l border-r py-1.5">{qty}</span>
-                                  <button
-                                    type="button"
-                                    className="px-3 py-1.5"
-                                    onClick={() => changeQty(it.id, qty + 1)}
-                                  >
-                                    +
-                                  </button>
-                                  <button
-                                    type="button"
-                                    className="ml-2 text-rose-600 text-sm px-2"
-                                    onClick={() => remove(it.id)}
-                                  >
-                                    Remove
-                                  </button>
+                                  <button type="button" className="px-3 py-1.5" onClick={() => changeQty(it.id, qty + 1)}>+</button>
+                                  <button type="button" className="ml-2 text-rose-600 text-sm px-2" onClick={() => remove(it.id)}>Remove</button>
                                 </div>
                               )}
                             </div>
@@ -342,7 +301,7 @@ export default function RestroMenuClient({ header, items, offer }: Props) {
         </aside>
       </div>
 
-      {/* mobile cart overlay (unchanged) */}
+      {/* Mobile cart overlay (unchanged) */}
       {showMobileCart && (
         <div className="lg:hidden fixed inset-0 z-[1000]">
           <button className="absolute inset-0 bg-black/40" onClick={() => setShowMobileCart(false)} aria-label="Close cart" />
