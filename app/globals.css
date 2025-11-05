@@ -6,8 +6,26 @@
 :root {
   --nav-h: 60px;
   --bottom-h: 56px;
+  /* small tweak: mobile navbar slightly taller so mobile cart-pill can sit nicely below it
+     (overridden in media query for small screens) */
 }
 
+/* ====== MOBILE NAV HEIGHT ADJUSTMENT ======
+   If mobile navbar in your site is taller (e.g. with extra padding),
+   this media rule increases --nav-h for small screens so top offsets based on it work.
+*/
+@media (max-width: 640px) {
+  :root {
+    --nav-h: 64px; /* you can tweak 60->64->68 as needed */
+  }
+}
+
+/* Reduce global font-size on small screens by ~10% to avoid large wrapping */
+@media (max-width: 640px) {
+  html { font-size: 90%; } /* ~10% smaller on mobile only */
+}
+
+/* Desktop keeps default font size */
 html,
 body {
   height: 100%;
@@ -16,6 +34,11 @@ body {
   background: #f9fafb;
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
   overflow-x: hidden;
+}
+
+/* Small devices: slightly reduced base line-height to compact layout */
+@media (max-width: 480px) {
+  body { line-height: 1.25; }
 }
 
 img {
@@ -31,9 +54,12 @@ p {
   margin-top: 0;
 }
 
-/* ========= Safe area between navbars ========= */
+/* ========= Safe area between navbars =========
+   main-content uses --nav-h and --bottom-h so pages don't get overlapped.
+   We keep extra small fallback using env(safe-area-inset-bottom).
+*/
 .main-content {
-  padding-top: var(--nav-h);
+  padding-top: calc(var(--nav-h));
   padding-bottom: calc(var(--bottom-h) + env(safe-area-inset-bottom, 0px));
 }
 
@@ -45,14 +71,22 @@ p {
   padding-right: 1rem;
   width: 100%;
   max-width: 1024px;
+  box-sizing: border-box;
+}
+
+/* For pages like checkout, ensure inner cards don't get hidden: add small min-height */
+.site-container > * {
+  min-height: 1px;
 }
 
 /* ========= Navbar & Bottom Nav ========= */
+/* Provide base utility classes (you may already have tailwind classes in Navbar) */
 .navbar {
   @apply fixed top-0 left-0 w-full z-50 flex items-center justify-between bg-white shadow-md px-4;
   height: var(--nav-h);
 }
 
+/* bottom nav fixed height variable used in other components */
 .bottom-nav {
   @apply fixed bottom-0 left-0 w-full z-50 bg-white border-t shadow-sm flex justify-around items-center;
   height: var(--bottom-h);
@@ -259,18 +293,6 @@ p {
   }
 }
 
-/* Smaller devices */
-@media (max-width: 480px) {
-  #global-raileats-spinner .outer-ring {
-    width: 56px;
-    height: 56px;
-  }
-  #global-raileats-spinner .inner-logo {
-    width: 30px;
-    height: 30px;
-  }
-}
-
 /* ========= Dropdown Z-Index Fix ========= */
 .station-search-dropdown,
 .station-search-dropdown * {
@@ -343,4 +365,65 @@ p {
     right: 12px;
     bottom: calc(var(--bottom-h) + 8px);
   }
+}
+
+/* ====== Cart pill for top-right (mobile) - use class .cart-pill-mobile
+   This relies on --nav-h variable so it always sits just under navbar.
+   Use this class if you want to avoid inline top-[..] values.
+*/
+.cart-pill-mobile {
+  position: fixed;
+  right: 12px;
+  top: calc(var(--nav-h) + 6px); /* sits ~6px below nav */
+  z-index: 60;
+}
+
+/* small screens: slightly smaller pill */
+@media (max-width: 480px) {
+  .cart-pill-mobile { transform: translateY(0); right: 10px; top: calc(var(--nav-h) + 4px); }
+}
+
+/* ========= Checkout / cards safety ========= */
+/* Ensure card containers have enough top/bottom spacing on mobile so they don't get cropped */
+.card-safe {
+  padding: 1rem;
+  border-radius: 10px;
+  background: white;
+  box-shadow: 0 1px 0 rgb(16 24 40 / 4%);
+}
+
+/* If you have a checkout panel that's tall, use this helper to ensure it scrolls */
+.full-height-scroll {
+  max-height: calc(100vh - calc(var(--nav-h) + var(--bottom-h) + 40px));
+  overflow: auto;
+}
+
+/* ========= Small typography polish for mobile headings (reduce and avoid wrap) */
+@media (max-width: 640px) {
+  /* H1 slightly smaller and tighter leading to reduce wrapping */
+  h1 {
+    font-size: 1.6rem; /* roughly 10% smaller than common 1.78rem */
+    line-height: 1.05;
+    word-break: normal;
+    hyphens: none;
+  }
+
+  /* heading containers should not wrap at mid-word */
+  .no-wrap-words {
+    word-break: keep-all;
+    overflow-wrap: normal;
+  }
+}
+
+/* ========= Small helpers ========= */
+.hidden-on-mobile { display: none; }
+@media (min-width: 1024px) {
+  .hidden-desktop { display: none; }
+  .hidden-on-mobile { display: block; }
+}
+
+/* ========= (Optional) small polish for checkout panels on mobile ======== */
+@media (max-width: 640px) {
+  .checkout-card { padding: 0.75rem; border-radius: 10px; }
+  .checkout-card .input { font-size: 13px; padding: 9px 10px; }
 }
