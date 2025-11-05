@@ -1,4 +1,3 @@
-// app/layout.tsx
 import "./globals.css";
 import Navbar from "./components/Navbar";
 import BottomNav from "./components/BottomNav";
@@ -18,13 +17,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <body>
         <Providers>
-          {/* Fixed top Navbar */}
           <Navbar />
-
-          {/* Force reload / spinner behaviour on back / refresh */}
           <ForceReloadOnBack />
 
-          {/* GLOBAL CENTER SPINNER */}
+          {/* GLOBAL CENTER SPINNER (hidden by default) */}
           <div id="global-raileats-spinner" aria-hidden>
             <div className="outer-ring" aria-hidden>
               <div className="inner-logo" aria-hidden>
@@ -34,14 +30,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </div>
 
           {/* Main content wrapper */}
-          <main className="main-content">
-            {/* ✅ Mobile font 10% smaller, Desktop normal */}
-            <div className="site-container text-[90%] sm:text-[100%]">
-              {children}
-            </div>
+          <main className="main-content min-h-screen pb-24 md:pb-8">
+            <div className="site-container">{children}</div>
           </main>
 
-          {/* Fixed Bottom Nav */}
           <BottomNav />
         </Providers>
       </body>
