@@ -3,7 +3,7 @@ import "./globals.css";
 import Navbar from "./components/Navbar";
 import BottomNav from "./components/BottomNav";
 import ForceReloadOnBack from "./components/ForceReloadOnBack";
-import Providers from "./components/Providers"; // ⭐ add
+import Providers from "./components/Providers";
 
 import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
@@ -17,7 +17,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body>
-        {/* Wrap the whole interactive app in CartProvider */}
         <Providers>
           {/* Fixed top Navbar */}
           <Navbar />
@@ -25,8 +24,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           {/* Force reload / spinner behaviour on back / refresh */}
           <ForceReloadOnBack />
 
-          {/* GLOBAL CENTER SPINNER (hidden by default) */}
-          {/* toggle with: document.getElementById('global-raileats-spinner')?.classList.add('show') */}
+          {/* GLOBAL CENTER SPINNER */}
           <div id="global-raileats-spinner" aria-hidden>
             <div className="outer-ring" aria-hidden>
               <div className="inner-logo" aria-hidden>
@@ -37,7 +35,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
           {/* Main content wrapper */}
           <main className="main-content">
-            <div className="site-container">{children}</div>
+            {/* ✅ Mobile font 10% smaller, Desktop normal */}
+            <div className="site-container text-[90%] sm:text-[100%]">
+              {children}
+            </div>
           </main>
 
           {/* Fixed Bottom Nav */}
