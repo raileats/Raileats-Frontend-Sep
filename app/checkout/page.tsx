@@ -30,11 +30,9 @@ export default function CheckoutPage() {
     clearCart();
   }
 
-  // Make lines stable for rendering
   const items = useMemo(() => lines || [], [lines]);
 
   return (
-    // site-container + main-content are expected from your globals/layout
     <main className="site-container page-safe-bottom">
       <div className="pt-4 pb-6">
         <h1 className="text-2xl font-bold mb-2">Checkout</h1>
@@ -49,12 +47,10 @@ export default function CheckoutPage() {
             </p>
           </div>
         ) : (
-          // Grid layout: items (left) / details (right) on md+, stacked on mobile
           <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* Items column */}
+            {/* Items */}
             <section
               className="md:col-span-2 card-safe"
-              // allow this column to scroll if very tall but keep safe space for bottom action
               style={{
                 maxHeight:
                   "calc(100vh - (var(--nav-h,64px) + var(--bottom-h,56px) + 180px))",
@@ -65,41 +61,57 @@ export default function CheckoutPage() {
 
               <div className="space-y-3">
                 {items.map((line) => (
-                  <div key={line.id} className="flex items-center justify-between">
-                    <div className="min-w-0 pr-3">
-                      <div className="font-medium truncate">{line.name}</div>
-                      <div className="text-xs text-gray-500">
-                        {priceStr(line.price)} × {line.qty}
-                      </div>
-                    </div>
+                  <div
+                    key={line.id}
+                    className="w-full border-b pb-3 last:border-b-0 last:pb-0"
+                  >
+                    {/* Desktop: single-row. Mobile: stacked */}
+                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+                      {/* Name (full) */}
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium text-base break-words">
+                          {line.name}
+                        </div>
 
-                    <div className="flex items-center gap-3">
-                      <div className="inline-flex items-center border rounded overflow-hidden">
-                        <button
-                          className="px-3 py-2"
-                          onClick={() => changeQty(line.id, Math.max(0, line.qty - 1))}
-                          aria-label="Decrease"
-                        >
-                          −
-                        </button>
-                        <span className="px-4 py-2 border-l border-r">{line.qty}</span>
-                        <button
-                          className="px-3 py-2"
-                          onClick={() => changeQty(line.id, line.qty + 1)}
-                          aria-label="Increase"
-                        >
-                          +
-                        </button>
+                        <div className="text-xs text-gray-500 mt-1 sm:mt-0">
+                          {priceStr(line.price)} × {line.qty}
+                        </div>
                       </div>
 
-                      <div className="w-20 text-right font-medium">{priceStr(line.price * line.qty)}</div>
+                      {/* Right controls on desktop; second-row on mobile */}
+                      <div className="flex items-center gap-3 sm:flex-shrink-0 sm:flex-col sm:items-end">
+                        {/* Qty controls */}
+                        <div className="inline-flex items-center border rounded overflow-hidden">
+                          <button
+                            className="px-2 py-1 text-sm"
+                            onClick={() => changeQty(line.id, Math.max(0, line.qty - 1))}
+                            aria-label="Decrease"
+                          >
+                            −
+                          </button>
+                          <span className="px-3 py-1 border-l border-r text-sm">{line.qty}</span>
+                          <button
+                            className="px-2 py-1 text-sm"
+                            onClick={() => changeQty(line.id, line.qty + 1)}
+                            aria-label="Increase"
+                          >
+                            +
+                          </button>
+                        </div>
 
-                      <button
-                        className="text-rose-600 text-sm ml-2"
-                        onClick={() => remove(line.id)}
-                      >
-                        Remove
-                      </button>
+                        {/* Price shown on mobile and desktop (desktop also shows to the right) */}
+                        <div className="w-24 text-right font-medium text-base">
+                          {priceStr(line.price * line.qty)}
+                        </div>
+
+                        {/* Remove */}
+                        <button
+                          className="text-rose-600 text-sm ml-1 sm:ml-0"
+                          onClick={() => remove(line.id)}
+                        >
+                          Remove
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -121,7 +133,7 @@ export default function CheckoutPage() {
               </div>
             </section>
 
-            {/* Journey / customer details */}
+            {/* Details */}
             <aside className="card-safe">
               <h2 className="font-semibold mb-3">Journey Details</h2>
 
@@ -178,7 +190,6 @@ export default function CheckoutPage() {
                   />
                 </div>
 
-                {/* On desktop this button is regular block; on mobile we'll also present a fixed action row (below) */}
                 <div className="hidden md:block">
                   <button
                     type="button"
@@ -199,11 +210,7 @@ export default function CheckoutPage() {
         )}
       </div>
 
-      {/* ===== Mobile fixed action row (keeps above bottom nav) =====
-          - visible only on small screens (md:hidden)
-          - lives above bottom nav using calc(var(--bottom-h) + 10px)
-          - small vertical lift so it doesn't sit flush against bottom nav
-      */}
+      {/* Mobile fixed action row */}
       {items.length > 0 && (
         <div
           className="md:hidden fixed left-0 right-0 px-4"
@@ -221,7 +228,6 @@ export default function CheckoutPage() {
               <div className="w-1/2 flex gap-2">
                 <button
                   onClick={() => {
-                    // go back to menu (history back works if user came from there)
                     if (typeof window !== "undefined") window.history.back();
                   }}
                   className="flex-1 rounded border py-2"
