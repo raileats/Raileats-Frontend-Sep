@@ -2,7 +2,7 @@
 
 import React, { useMemo, useState } from "react";
 import Link from "next/link";
-import { useCart } from "../../../lib/useCart";
+import { useCart } from "../../../lib/useCart"; // global cart
 
 // ---- Types ----
 type MenuItem = {
@@ -27,8 +27,7 @@ type Props = {
     stationCode: string;
     restroCode: string | number;
     outletName: string;
-    /** Optional, so old pages don’t break */
-    stationName?: string; // e.g. "Bhopal Jn"
+    stationName?: string; // optional; if provided display instead of restroCode
   };
   items: MenuItem[];
   offer: { text: string } | null;
@@ -69,15 +68,18 @@ const priceStr = (n?: number | null) =>
 
 export default function RestroMenuClient({ header, items, offer }: Props) {
   const [vegOnly, setVegOnly] = useState(false);
-  const [showMobileCart, setShowMobileCart] = useState(false);
+  const [showMobileCart, setShowMobileCart] = useState(false); // 📱 overlay
 
+  // global cart
   const { lines, count, total, add, changeQty, remove, clearCart } = useCart();
 
+  // visible items
   const visible = useMemo(() => {
     const arr = (items || []).filter((x) => x.status === "ON");
     return vegOnly ? arr.filter((x) => isVegLike(x.item_category)) : arr;
   }, [items, vegOnly]);
 
+  // group items by menu_type (use Map.forEach to be TS-friendly)
   const grouped = useMemo(() => {
     const by = new Map<string, MenuItem[]>();
     for (const it of visible) {
@@ -90,6 +92,7 @@ export default function RestroMenuClient({ header, items, offer }: Props) {
     const out: { type: string; items: MenuItem[] }[] = [];
     const used = new Set<string>();
 
+    // preferred order
     for (const k of ORDER_MENU_TYPES) {
       const list = by.get(k);
       if (list) {
@@ -97,9 +100,11 @@ export default function RestroMenuClient({ header, items, offer }: Props) {
         used.add(k);
       }
     }
+    // append remaining groups
     by.forEach((list, k) => {
       if (!used.has(k)) out.push({ type: k, items: list });
     });
+
     return out;
   }, [visible]);
 
@@ -108,38 +113,43 @@ export default function RestroMenuClient({ header, items, offer }: Props) {
   const addOne = (it: MenuItem) => {
     const price = Number(it.base_price || 0);
     if (!price) return;
-    add({ id: it.id, name: it.item_name, price, qty: 1 });
+    add({ id: it.id, name: it.item_name, price, qty: 1 }); // include qty to satisfy CartLine
   };
 
-  const stationLabel = header.stationName
-    ? `${header.stationName} (${header.stationCode})`
-    : header.stationCode;
-
+  // mobile-styling: scale small screens by 90% (to reduce wrapping)
+  // and make checkout area safe from bottom nav
   return (
     <>
-      {/* header */}
-      <div className="mb-4 relative">
+      {/* small-screen CSS tweak (scoped) */}
+      <style jsx>{`
+        @media (max-width: 640px) {
+          .re-scale { transform-origin: top left; font-size: 0.9rem; } /* reduce text globally in this block */
+        }
+        /* ensure checkout / pages have extra bottom padding (to avoid bottom nav overlap) */
+        @media (max-width: 640px) {
+          .page-safe-bottom { padding-bottom: calc(env(safe-area-inset-bottom) + 72px); }
+        }
+      `}</style>
+
+      <div className="mb-4 relative re-scale page-safe-bottom">
         <div>
-          {/* Mobile: slightly smaller; Desktop unchanged */}
-          <h1
-            className="
-              text-[1.55rem] md:text-3xl font-bold leading-tight tracking-tight
-              pr-40 lg:pr-0
-            "
-          >
+          {/* On mobile we add right padding so the floating pill doesn't wrap the heading */}
+          <h1 className="text-2xl sm:text-3xl font-bold leading-tight pr-44 sm:pr-0">
             {header.outletName} — Menu
           </h1>
-          <p className="mt-1 text-[0.92rem] md:text-sm text-gray-600">
-            {/* Outlet code intentionally hidden as requested */}
-            Station: {stationLabel}
+
+          <p className="mt-1 text-sm text-gray-600">
+            {/* show stationCode + stationName if available, don't show restroCode */}
+            {header.stationCode}
+            {header.stationName ? ` • ${header.stationName}` : ""}
           </p>
         </div>
 
-        {/* Mobile pill – just under the navbar, right side */}
+        {/* Mobile pill: moved up just below navbar (adjust top value if your navbar height changes) */}
         {count > 0 && (
           <button
             onClick={() => setShowMobileCart(true)}
-            className="lg:hidden absolute right-0 -top-10 sm:top-0 sm:-translate-y-1 rounded-full bg-blue-600 text-white px-3 py-1.5 text-sm shadow whitespace-nowrap"
+            className="lg:hidden absolute right-3 top-[62px] rounded-full bg-blue-600 text-white px-3 py-1.5 text-sm shadow whitespace-nowrap z-40"
             aria-label="View cart"
           >
             <span className="font-semibold mr-1">{count}</span>
@@ -169,9 +179,9 @@ export default function RestroMenuClient({ header, items, offer }: Props) {
         )}
       </div>
 
-      {/* two-column layout */}
+      {/* two-column layout: left menu, right sticky cart (desktop) */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* LEFT: single vertical list */}
+        {/* LEFT: Menu in one vertical column */}
         <div className="lg:col-span-2 space-y-8">
           {grouped.length === 0 ? (
             <div className="p-4 bg-gray-50 rounded text-sm text-gray-700">No items available.</div>
@@ -251,7 +261,7 @@ export default function RestroMenuClient({ header, items, offer }: Props) {
           )}
         </div>
 
-        {/* RIGHT: sticky cart (desktop) */}
+        {/* RIGHT: Sticky Cart (desktop only) */}
         <aside className="lg:col-span-1 hidden lg:block">
           <div className="lg:sticky lg:top-24 border rounded-lg p-4 bg-white">
             <div className="flex items-center justify-between mb-2">
@@ -309,14 +319,17 @@ export default function RestroMenuClient({ header, items, offer }: Props) {
         </aside>
       </div>
 
-      {/* Mobile cart overlay (90% height) */}
+      {/* 📱 Mobile cart overlay (90% screen) */}
       {showMobileCart && (
         <div className="lg:hidden fixed inset-0 z-[1000]">
+          {/* dimmer */}
           <button
             className="absolute inset-0 bg-black/40"
             onClick={() => setShowMobileCart(false)}
             aria-label="Close cart"
           />
+
+          {/* panel */}
           <div className="absolute left-1/2 -translate-x-1/2 top-[5vh] h-[90vh] w-[92vw] rounded-2xl bg-white shadow-2xl p-4 flex flex-col">
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-base font-semibold">Your Cart</h3>
@@ -326,7 +339,11 @@ export default function RestroMenuClient({ header, items, offer }: Props) {
                     Clear
                   </button>
                 )}
-                <button className="rounded border px-2 py-1" onClick={() => setShowMobileCart(false)} aria-label="Close">
+                <button
+                  className="rounded border px-2 py-1"
+                  onClick={() => setShowMobileCart(false)}
+                  aria-label="Close"
+                >
                   ✕
                 </button>
               </div>
@@ -372,10 +389,20 @@ export default function RestroMenuClient({ header, items, offer }: Props) {
               </div>
 
               <div className="grid grid-cols-2 gap-3">
-                <button type="button" onClick={() => setShowMobileCart(false)} className="rounded border py-2">
+                {/* Add More Items -> just close modal */}
+                <button
+                  type="button"
+                  onClick={() => setShowMobileCart(false)}
+                  className="rounded border py-2"
+                >
                   Add More Items
                 </button>
-                <Link href="/checkout" className="rounded bg-green-600 text-white py-2 text-center" onClick={() => setShowMobileCart(false)}>
+
+                <Link
+                  href="/checkout"
+                  className="rounded bg-green-600 text-white py-2 text-center"
+                  onClick={() => setShowMobileCart(false)}
+                >
                   Checkout
                 </Link>
               </div>
