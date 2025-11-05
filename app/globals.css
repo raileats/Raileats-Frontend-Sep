@@ -2,32 +2,29 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ========= Base reset ========= */
+/* =========================
+   Core sizing variables
+   ========================= */
 :root {
-  --nav-h: 60px;
-  --bottom-h: 56px;
-  /* small tweak: mobile navbar slightly taller so mobile cart-pill can sit nicely below it
-     (overridden in media query for small screens) */
+  --nav-h: 60px;     /* desktop navbar height */
+  --bottom-h: 56px;  /* bottom nav height */
 }
 
-/* ====== MOBILE NAV HEIGHT ADJUSTMENT ======
-   If mobile navbar in your site is taller (e.g. with extra padding),
-   this media rule increases --nav-h for small screens so top offsets based on it work.
-*/
+/* Mobile navbars are a hair taller; let the UI (cart pill, content top pad)
+   always read from this variable so nothing overlaps. */
 @media (max-width: 640px) {
-  :root {
-    --nav-h: 64px; /* you can tweak 60->64->68 as needed */
-  }
+  :root { --nav-h: 64px; }
 }
 
-/* Reduce global font-size on small screens by ~10% to avoid large wrapping */
+/* Shrink mobile typography ~10% to reduce wraps without touching desktop. */
 @media (max-width: 640px) {
-  html { font-size: 90%; } /* ~10% smaller on mobile only */
+  html { font-size: 90%; }
 }
 
-/* Desktop keeps default font size */
-html,
-body {
+/* =========================
+   Base reset
+   ========================= */
+html, body {
   height: 100%;
   margin: 0;
   padding: 0;
@@ -36,34 +33,20 @@ body {
   overflow-x: hidden;
 }
 
-/* Small devices: slightly reduced base line-height to compact layout */
 @media (max-width: 480px) {
   body { line-height: 1.25; }
 }
 
-img {
-  display: block;
-  max-width: 100%;
-  height: auto;
-}
+img { display: block; max-width: 100%; height: auto; }
+h1, h2, h3, p { margin-top: 0; }
 
-h1,
-h2,
-h3,
-p {
-  margin-top: 0;
-}
-
-/* ========= Safe area between navbars =========
-   main-content uses --nav-h and --bottom-h so pages don't get overlapped.
-   We keep extra small fallback using env(safe-area-inset-bottom).
-*/
+/* Keep space between fixed navbar & bottom nav. */
 .main-content {
-  padding-top: calc(var(--nav-h));
+  padding-top: var(--nav-h);
   padding-bottom: calc(var(--bottom-h) + env(safe-area-inset-bottom, 0px));
 }
 
-/* Centered site wrapper — keeps desktop compact */
+/* Centered wrapper */
 .site-container {
   margin-left: auto;
   margin-right: auto;
@@ -73,357 +56,146 @@ p {
   max-width: 1024px;
   box-sizing: border-box;
 }
+.site-container > * { min-height: 1px; }
 
-/* For pages like checkout, ensure inner cards don't get hidden: add small min-height */
-.site-container > * {
-  min-height: 1px;
-}
-
-/* ========= Navbar & Bottom Nav ========= */
-/* Provide base utility classes (you may already have tailwind classes in Navbar) */
+/* =========================
+   Nav bars (helpers if you need them)
+   ========================= */
 .navbar {
   @apply fixed top-0 left-0 w-full z-50 flex items-center justify-between bg-white shadow-md px-4;
   height: var(--nav-h);
 }
-
-/* bottom nav fixed height variable used in other components */
 .bottom-nav {
   @apply fixed bottom-0 left-0 w-full z-50 bg-white border-t shadow-sm flex justify-around items-center;
   height: var(--bottom-h);
 }
 
-/* ========= Slider Images ========= */
-.slider-img {
-  width: 100%;
-  aspect-ratio: 16 / 9;
-  object-fit: cover;
-  border-radius: 12px;
-}
+/* =========================
+   Sliders
+   ========================= */
+.slider-img { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 12px; }
+.slick-slider, .slick-list { width: 100%; overflow: hidden; }
+.slick-track { display: flex !important; align-items: stretch; }
+.slick-slide { height: auto; }
+.slick-slide > div { width: 100%; }
+.slick-dots { bottom: 8px; }
 
-/* ========= Slick Fixes ========= */
-.slick-slider,
-.slick-list {
-  width: 100%;
-  overflow: hidden;
+/* =========================
+   Thumbnails
+   ========================= */
+.station-card, .restaurant-card { display: flex; gap: 1rem; align-items: center; }
+.station-image, .resto-image, .station-thumb, .restro-thumb {
+  width: 120px; height: 120px; flex-shrink: 0; border-radius: 8px; overflow: hidden; background: #eee;
 }
-
-.slick-track {
-  display: flex !important;
-  align-items: stretch;
+.station-image img, .resto-image img, .station-thumb img, .restro-thumb img {
+  width: 100%; height: 100%; object-fit: cover; display: block;
 }
-
-.slick-slide {
-  height: auto;
-}
-
-.slick-slide > div {
-  width: 100%;
-}
-
-.slick-dots {
-  bottom: 8px;
-}
-
-/* ========= Station & Restaurant Thumbnails (1:1) ========= */
-.station-card,
-.restaurant-card {
-  display: flex;
-  gap: 1rem;
-  align-items: center;
-}
-
-.station-image,
-.resto-image,
-.station-thumb,
-.restro-thumb {
-  width: 120px;
-  height: 120px;
-  flex-shrink: 0;
-  border-radius: 8px;
-  overflow: hidden;
-  background: #eee;
-}
-
-.station-image img,
-.resto-image img,
-.station-thumb img,
-.restro-thumb img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-
 @media (max-width: 640px) {
-  .station-image,
-  .resto-image {
-    width: 88px;
-    height: 88px;
-  }
+  .station-image, .resto-image { width: 88px; height: 88px; }
 }
 
-/* ========= Bubble Spinner (Inline near buttons) ========= */
-.bubble-spinner {
-  position: relative;
-  width: 44px;
-  height: 44px;
-  border-radius: 9999px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: #fff;
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
-}
+/* =========================
+   Spinners
+   ========================= */
+.bubble-spinner { position: relative; width: 44px; height: 44px; border-radius: 9999px; display: inline-flex; align-items: center; justify-content: center; background: #fff; border: 1px solid rgba(0,0,0,.08); box-shadow: 0 4px 10px rgba(0,0,0,.08); }
+.bubble-spinner .outer-ring { position: absolute; inset: 0; border-radius: 9999px; box-sizing: border-box; border: 3px solid rgba(0,0,0,.06); border-top-color: rgba(0,0,0,.18); animation: bubble-spin .9s linear infinite; z-index: 1; }
+.bubble-spinner .inner-logo { width: 60%; height: 60%; z-index: 2; pointer-events: none; }
+@keyframes bubble-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 
-.bubble-spinner .outer-ring {
-  position: absolute;
-  inset: 0;
-  border-radius: 9999px;
-  box-sizing: border-box;
-  border: 3px solid rgba(0, 0, 0, 0.06);
-  border-top-color: rgba(0, 0, 0, 0.18);
-  animation: bubble-spin 0.9s linear infinite;
-  z-index: 1;
-}
+#global-raileats-spinner { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 99999; display: none; align-items: center; justify-content: center; pointer-events: none; }
+#global-raileats-spinner.show { display: flex; animation: raileats-fade-in 180ms ease-out; pointer-events: all; }
+#global-raileats-spinner .outer-ring { width: 66px; height: 66px; border-radius: 50%; background: white; position: relative; box-shadow: 0 8px 20px rgba(0,0,0,.12); }
+#global-raileats-spinner .outer-ring::before { content: ""; position: absolute; inset: 0; border-radius: 50%; border: 4px solid rgba(59,130,246,.12); border-top-color: rgba(59,130,246,1); animation: raileats-ring-rotate .9s linear infinite; box-sizing: border-box; }
+#global-raileats-spinner .inner-logo { width: 36px; height: 36px; border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center; background: white; position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); z-index: 2; box-shadow: 0 2px 8px rgba(0,0,0,.06); }
+#global-raileats-spinner .inner-logo img { width: 100%; height: 100%; object-fit: cover; display: block; transform: none !important; }
+@keyframes raileats-ring-rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+@keyframes raileats-fade-in { from { opacity: 0; transform: translate(-50%, -52%) scale(.98); } to { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
 
-.bubble-spinner .inner-logo {
-  width: 60%;
-  height: 60%;
-  z-index: 2;
-  pointer-events: none;
-}
+/* =========================
+   Z-index help
+   ========================= */
+.station-search-dropdown, .station-search-dropdown * { z-index: 9999 !important; }
+.relative-no-overflow { overflow: visible !important; }
 
-@keyframes bubble-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
+/* =========================
+   Forms
+   ========================= */
+.form-card, .search-box-card { padding: 0.75rem; border-radius: 10px; }
+.input { width: 100%; border: 1px solid #d1d5db; padding: 10px 12px; border-radius: 6px; font-size: 14px; background: #fff; }
+.input:focus { outline: none; border-color: #60a5fa; box-shadow: 0 0 0 3px rgba(96,165,250,.25); }
 
-/* ========= Global Centered Spinner with Fixed Inner Logo ========= */
-#global-raileats-spinner {
-  position: fixed;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  z-index: 99999;
-  display: none;
-  align-items: center;
-  justify-content: center;
-  pointer-events: none;
-}
-
-/* Show spinner */
-#global-raileats-spinner.show {
-  display: flex;
-  animation: raileats-fade-in 180ms ease-out;
-  pointer-events: all;
-}
-
-/* Rotating outer blue ring — reduced size 85% */
-#global-raileats-spinner .outer-ring {
-  width: 66px; /* 15% smaller */
-  height: 66px;
-  border-radius: 50%;
-  background: white;
-  position: relative;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
-}
-
-/* Add rotating border with ::before */
-#global-raileats-spinner .outer-ring::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  border: 4px solid rgba(59, 130, 246, 0.12);
-  border-top-color: rgba(59, 130, 246, 1);
-  animation: raileats-ring-rotate 0.9s linear infinite;
-  box-sizing: border-box;
-}
-
-/* Fixed inner logo (no rotation) — also 15% smaller */
-#global-raileats-spinner .inner-logo {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  overflow: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: white;
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  z-index: 2;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-}
-
-/* Logo inside stays fixed */
-#global-raileats-spinner .inner-logo img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-  transform: none !important;
-}
-
-/* Animations */
-@keyframes raileats-ring-rotate {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@keyframes raileats-fade-in {
-  from {
-    opacity: 0;
-    transform: translate(-50%, -52%) scale(0.98);
-  }
-  to {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(1);
-  }
-}
-
-/* ========= Dropdown Z-Index Fix ========= */
-.station-search-dropdown,
-.station-search-dropdown * {
-  z-index: 9999 !important;
-}
-
-.relative-no-overflow {
-  overflow: visible !important;
-}
-
-/* ========= Small Polish ========= */
-.form-card,
-.search-box-card {
-  padding: 0.75rem;
-  border-radius: 10px;
-}
-
-/* ========= (NEW) Small form input (checkout etc.) ========= */
-.input {
-  width: 100%;
-  border: 1px solid #d1d5db; /* gray-300 */
-  padding: 10px 12px;
-  border-radius: 6px;
-  font-size: 14px;
-  background: #fff;
-}
-.input:focus {
-  outline: none;
-  border-color: #60a5fa; /* blue-400 */
-  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.25);
-}
-
-/* ========= (NEW) Mini cart bubble (fixed bottom-right) ========= */
+/* =========================
+   Cart bubble (bottom-right)
+   ========================= */
 .cart-bubble {
-  position: fixed;
-  right: 16px;
-  bottom: calc(var(--bottom-h) + 12px);
-  z-index: 60; /* above bottom nav */
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  background: #111827; /* gray-900 */
-  color: #fff;
-  border-radius: 9999px;
-  padding: 8px 12px;
-  box-shadow: 0 10px 20px rgba(0,0,0,0.2);
-  cursor: pointer;
+  position: fixed; right: 16px; bottom: calc(var(--bottom-h) + 12px); z-index: 60;
+  display: inline-flex; align-items: center; gap: 8px;
+  background: #111827; color: #fff; border-radius: 9999px; padding: 8px 12px;
+  box-shadow: 0 10px 20px rgba(0,0,0,.2); cursor: pointer;
 }
-.cart-bubble__badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 22px;
-  height: 22px;
-  padding: 0 6px;
-  font-size: 12px;
-  font-weight: 700;
-  border-radius: 9999px;
-  background: #10b981; /* emerald-500 */
-  color: #fff;
-}
-.cart-bubble__total {
-  font-weight: 600;
-  font-size: 14px;
-}
-
-/* small screens: lift a bit more */
+.cart-bubble__badge { display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 22px; padding: 0 6px; font-size: 12px; font-weight: 700; border-radius: 9999px; background: #10b981; color: #fff; }
+.cart-bubble__total { font-weight: 600; font-size: 14px; }
 @media (max-width: 640px) {
-  .cart-bubble {
-    right: 12px;
-    bottom: calc(var(--bottom-h) + 8px);
-  }
+  .cart-bubble { right: 12px; bottom: calc(var(--bottom-h) + 8px); }
 }
 
-/* ====== Cart pill for top-right (mobile) - use class .cart-pill-mobile
-   This relies on --nav-h variable so it always sits just under navbar.
-   Use this class if you want to avoid inline top-[..] values.
-*/
+/* =========================
+   Mobile cart pill (top-right)
+   Use this class on the pill’s wrapper.
+   ========================= */
 .cart-pill-mobile {
   position: fixed;
   right: 12px;
-  top: calc(var(--nav-h) + 6px); /* sits ~6px below nav */
+  top: calc(var(--nav-h) + 6px); /* sits just under navbar */
   z-index: 60;
 }
-
-/* small screens: slightly smaller pill */
 @media (max-width: 480px) {
-  .cart-pill-mobile { transform: translateY(0); right: 10px; top: calc(var(--nav-h) + 4px); }
+  .cart-pill-mobile { right: 10px; top: calc(var(--nav-h) + 4px); }
 }
 
-/* ========= Checkout / cards safety ========= */
-/* Ensure card containers have enough top/bottom spacing on mobile so they don't get cropped */
-.card-safe {
-  padding: 1rem;
-  border-radius: 10px;
-  background: white;
-  box-shadow: 0 1px 0 rgb(16 24 40 / 4%);
-}
+/* =========================
+   Checkout safety & alignment
+   ========================= */
+.card-safe { padding: 1rem; border-radius: 10px; background: #fff; box-shadow: 0 1px 0 rgb(16 24 40 / 4%); }
 
-/* If you have a checkout panel that's tall, use this helper to ensure it scrolls */
+/* Prevent “cropped” feel on tall panels on mobile. */
 .full-height-scroll {
-  max-height: calc(100vh - calc(var(--nav-h) + var(--bottom-h) + 40px));
+  max-height: calc(100vh - (var(--nav-h) + var(--bottom-h) + 40px));
   overflow: auto;
 }
 
-/* ========= Small typography polish for mobile headings (reduce and avoid wrap) */
+/* Slightly reduce side padding on mobile to give a bit more width (keeps desktop same) */
 @media (max-width: 640px) {
-  /* H1 slightly smaller and tighter leading to reduce wrapping */
-  h1 {
-    font-size: 1.6rem; /* roughly 10% smaller than common 1.78rem */
-    line-height: 1.05;
-    word-break: normal;
-    hyphens: none;
-  }
-
-  /* heading containers should not wrap at mid-word */
-  .no-wrap-words {
-    word-break: keep-all;
-    overflow-wrap: normal;
-  }
+  .site-container { padding-left: 0.875rem; padding-right: 0.875rem; }
+  .checkout-card { padding: 0.75rem; border-radius: 10px; }
+  .checkout-card .input { font-size: 13px; padding: 9px 10px; }
 }
 
-/* ========= Small helpers ========= */
+/* =========================
+   Menu page compaction
+   (Used by the updated RestroMenuClient)
+   ========================= */
+/* Header: less gap under navbar, smaller subtitle on mobile, no wrap mid-words */
+@media (max-width: 640px) {
+  h1 { font-size: 1.6rem; line-height: 1.05; word-break: normal; overflow-wrap: normal; }
+}
+
+/* Section/group spacing tighter so more items fit in one view */
+.menu-group { margin-bottom: 0.9rem; }
+.menu-card  { margin-bottom: 0.5rem; }
+
+/* Item top row: name + time (left) and price (right) should stay compact */
+.item-top { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.item-left { min-width:0; display:flex; gap:10px; align-items:center; }
+.item-name { font-weight:600; }
+.item-time { color:#6b7280; font-size:0.86rem; flex-shrink:0; }
+.item-price { font-weight:700; white-space:nowrap; }
+
+/* =========================
+   Helpers
+   ========================= */
 .hidden-on-mobile { display: none; }
 @media (min-width: 1024px) {
   .hidden-desktop { display: none; }
   .hidden-on-mobile { display: block; }
-}
-
-/* ========= (Optional) small polish for checkout panels on mobile ======== */
-@media (max-width: 640px) {
-  .checkout-card { padding: 0.75rem; border-radius: 10px; }
-  .checkout-card .input { font-size: 13px; padding: 9px 10px; }
 }
