@@ -4,33 +4,38 @@
 
 /* ========= Base reset ========= */
 :root {
-  --nav-h: 60px;     /* desktop navbar height */
-  --bottom-h: 56px;  /* bottom nav height */
+  --nav-h: 60px;
+  --bottom-h: 56px;
 }
 
-/* Mobile: thoda bada navbar assume so pill nicely sits below */
+/* Mobile: slightly taller nav so cart-pill sits nicely below it */
 @media (max-width: 640px) {
-  :root { --nav-h: 64px; } /* tweak 60/64/68 if needed */
+  :root { --nav-h: 64px; }
 }
 
-/* Mobile: ~10% smaller type to reduce wrapping */
+/* Reduce global font-size on small screens by ~10% to avoid large wrapping */
 @media (max-width: 640px) {
   html { font-size: 90%; }
 }
 
-/* Base */
-html, body {
+/* Desktop keeps default font size */
+html,
+body {
   height: 100%;
-  margin: 0; padding: 0;
+  margin: 0;
+  padding: 0;
   background: #f9fafb;
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
   overflow-x: hidden;
 }
 
-/* Slightly tighter leading on very small phones */
-@media (max-width: 480px) { body { line-height: 1.25; } }
+/* Small devices: slightly reduced base line-height to compact layout */
+@media (max-width: 480px) {
+  body { line-height: 1.25; }
+}
 
 img { display: block; max-width: 100%; height: auto; }
+
 h1, h2, h3, p { margin-top: 0; }
 
 /* ========= Safe area between navbars ========= */
@@ -39,44 +44,55 @@ h1, h2, h3, p { margin-top: 0; }
   padding-bottom: calc(var(--bottom-h) + env(safe-area-inset-bottom, 0px));
 }
 
-/* Centered site wrapper — desktop compact */
+/* Centered site wrapper — keeps desktop compact */
 .site-container {
-  margin-left: auto; margin-right: auto;
-  padding-left: 1rem; padding-right: 1rem;
-  width: 100%; max-width: 1024px; box-sizing: border-box;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 1rem;
+  padding-right: 1rem;
+  width: 100%;
+  max-width: 1024px;
+  box-sizing: border-box;
 }
-/* lightweight guard so inner cards never collapse */
 .site-container > * { min-height: 1px; }
 
-/* ========= Navbar & Bottom Nav (reference classes) ========= */
-.navbar { @apply fixed top-0 left-0 w-full z-50 flex items-center justify-between bg-white shadow-md px-4; height: var(--nav-h); }
-.bottom-nav { @apply fixed bottom-0 left-0 w-full z-50 bg-white border-t shadow-sm flex justify-around items-center; height: var(--bottom-h); }
+/* ========= Navbar & Bottom Nav ========= */
+.navbar {
+  @apply fixed top-0 left-0 w-full z-50 flex items-center justify-between bg-white shadow-md px-4;
+  height: var(--nav-h);
+}
+.bottom-nav {
+  @apply fixed bottom-0 left-0 w-full z-50 bg-white border-t shadow-sm flex justify-around items-center;
+  height: var(--bottom-h);
+}
 
 /* ========= Slider Images ========= */
-.slider-img { width: 100%; aspect-ratio: 16/9; object-fit: cover; border-radius: 12px; }
+.slider-img { width:100%; aspect-ratio:16/9; object-fit:cover; border-radius:12px; }
 
 /* ========= Slick Fixes ========= */
-.slick-slider, .slick-list { width: 100%; overflow: hidden; }
-.slick-track { display: flex !important; align-items: stretch; }
-.slick-slide { height: auto; }
-.slick-slide > div { width: 100%; }
-.slick-dots { bottom: 8px; }
+.slick-slider, .slick-list { width:100%; overflow:hidden; }
+.slick-track { display:flex !important; align-items:stretch; }
+.slick-slide { height:auto; }
+.slick-slide > div { width:100%; }
+.slick-dots { bottom:8px; }
 
-/* ========= 1:1 Thumbs ========= */
+/* ========= Thumbnails ========= */
 .station-card, .restaurant-card { display:flex; gap:1rem; align-items:center; }
 .station-image, .resto-image, .station-thumb, .restro-thumb {
   width:120px; height:120px; flex-shrink:0; border-radius:8px; overflow:hidden; background:#eee;
 }
-.station-image img, .resto-image img, .station-thumb img, .restro-thumb img { width:100%; height:100%; object-fit:cover; display:block; }
-@media (max-width: 640px) { .station-image, .resto-image { width:88px; height:88px; } }
+.station-image img, .resto-image img, .station-thumb img, .restro-thumb img {
+  width:100%; height:100%; object-fit:cover; display:block;
+}
+@media (max-width:640px) { .station-image, .resto-image { width:88px; height:88px; } }
 
-/* ========= Bubble Spinner (inline) ========= */
+/* ========= Bubble Spinner (Inline near buttons) ========= */
 .bubble-spinner { position:relative; width:44px; height:44px; border-radius:9999px; display:inline-flex; align-items:center; justify-content:center; background:#fff; border:1px solid rgba(0,0,0,.08); box-shadow:0 4px 10px rgba(0,0,0,.08); }
 .bubble-spinner .outer-ring { position:absolute; inset:0; border-radius:9999px; box-sizing:border-box; border:3px solid rgba(0,0,0,.06); border-top-color:rgba(0,0,0,.18); animation:bubble-spin .9s linear infinite; z-index:1; }
 .bubble-spinner .inner-logo { width:60%; height:60%; z-index:2; pointer-events:none; }
 @keyframes bubble-spin { from{transform:rotate(0)} to{transform:rotate(360deg)} }
 
-/* ========= Global Center Spinner ========= */
+/* ========= Global Centered Spinner ========= */
 #global-raileats-spinner { position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); z-index:99999; display:none; align-items:center; justify-content:center; pointer-events:none; }
 #global-raileats-spinner.show { display:flex; animation:raileats-fade-in 180ms ease-out; pointer-events:all; }
 #global-raileats-spinner .outer-ring { width:66px; height:66px; border-radius:50%; background:#fff; position:relative; box-shadow:0 8px 20px rgba(0,0,0,.12); }
@@ -84,10 +100,10 @@ h1, h2, h3, p { margin-top: 0; }
 #global-raileats-spinner .inner-logo { width:36px; height:36px; border-radius:50%; overflow:hidden; display:flex; align-items:center; justify-content:center; background:#fff; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); z-index:2; box-shadow:0 2px 8px rgba(0,0,0,.06); }
 #global-raileats-spinner .inner-logo img { width:100%; height:100%; object-fit:cover; display:block; transform:none !important; }
 @keyframes raileats-ring-rotate { from{transform:rotate(0)} to{transform:rotate(360deg)} }
-@keyframes raileats-fade-in { from{opacity:0; transform:translate(-50%,-52%) scale(.98)} to{opacity:1; transform:translate(-50%,-50%) scale(1)} }
+@keyframes raileats-fade-in { from{ opacity:0; transform:translate(-50%,-52%) scale(.98)} to{ opacity:1; transform:translate(-50%,-50%) scale(1)} }
 
-/* ========= Dropdown Z-Index Fix ========= */
-.station-search-dropdown, .station-search-dropdown * { z-index: 9999 !important; }
+/* ========= Dropdown / z-index fixes ========= */
+.station-search-dropdown, .station-search-dropdown * { z-index:9999 !important; }
 .relative-no-overflow { overflow: visible !important; }
 
 /* ========= Small Polish ========= */
@@ -98,52 +114,78 @@ h1, h2, h3, p { margin-top: 0; }
 .input:focus { outline:none; border-color:#60a5fa; box-shadow:0 0 0 3px rgba(96,165,250,.25); }
 
 /* ========= Mini cart bubble (fixed bottom-right) ========= */
-.cart-bubble {
-  position:fixed; right:16px; bottom:calc(var(--bottom-h) + 12px); z-index:60;
-  display:inline-flex; align-items:center; gap:8px; background:#111827; color:#fff;
-  border-radius:9999px; padding:8px 12px; box-shadow:0 10px 20px rgba(0,0,0,.2); cursor:pointer;
-}
+.cart-bubble { position:fixed; right:16px; bottom:calc(var(--bottom-h) + 12px); z-index:60; display:inline-flex; align-items:center; gap:8px; background:#111827; color:#fff; border-radius:9999px; padding:8px 12px; box-shadow:0 10px 20px rgba(0,0,0,.2); cursor:pointer; }
 .cart-bubble__badge { display:inline-flex; align-items:center; justify-content:center; min-width:22px; height:22px; padding:0 6px; font-size:12px; font-weight:700; border-radius:9999px; background:#10b981; color:#fff; }
 .cart-bubble__total { font-weight:600; font-size:14px; }
-@media (max-width: 640px) { .cart-bubble { right:12px; bottom:calc(var(--bottom-h) + 8px); } }
+@media (max-width:640px) { .cart-bubble { right:12px; bottom:calc(var(--bottom-h) + 8px); } }
 
 /* ====== Top-right mobile cart pill utility ====== */
 .cart-pill-mobile { position:fixed; right:12px; top:calc(var(--nav-h) + 6px); z-index:60; }
-@media (max-width: 480px) { .cart-pill-mobile { right:10px; top:calc(var(--nav-h) + 4px); } }
+@media (max-width:480px) { .cart-pill-mobile { right:10px; top:calc(var(--nav-h) + 4px); } }
 
-/* ========= Card safety helpers ========= */
-.card-safe { padding:1rem; border-radius:10px; background:#fff; box-shadow:0 1px 0 rgb(16 24 40 / 4%); }
-.full-height-scroll { max-height: calc(100vh - (var(--nav-h) + var(--bottom-h) + 40px)); overflow:auto; }
+/* ========= Checkout / cards safety ========= */
+.card-safe { padding:1rem; border-radius:10px; background:white; box-shadow:0 1px 0 rgb(16 24 40 / 4%); }
+.full-height-scroll { max-height: calc(100vh - calc(var(--nav-h) + var(--bottom-h) + 40px)); overflow:auto; }
 
-/* ========= Mobile heading polish (avoid wrap) ========= */
-@media (max-width: 640px) {
+/* ========= Make headings tighter on mobile (avoid wrap) ========= */
+@media (max-width:640px) {
   h1 { font-size:1.6rem; line-height:1.05; word-break:normal; hyphens:none; }
-  .no-wrap-words { word-break: keep-all; overflow-wrap: normal; }
+  .no-wrap-words { word-break:keep-all; overflow-wrap:normal; }
 }
 
-/* ========= Tighten vertical gaps on mobile (site-wide but gentle) ========= */
-@media (max-width: 640px) {
-  /* reduce big utility gaps that often become huge on mobile */
-  .site-container .mb-8 { margin-bottom: 1.25rem !important; }
-  .site-container .mb-6 { margin-bottom: 1rem !important; }
-  .site-container .mb-4 { margin-bottom: .75rem !important; }
-
-  /* stacks made with space-y-* : compress a bit */
-  .space-y-8 > :where(* + *) { margin-top: 1.25rem !important; }
+/* ========= Tighten vertical gaps on mobile so more fits on screen ========= */
+@media (max-width:640px) {
+  /* compress space-y helpers moderately */
+  .space-y-8 > :where(* + *) { margin-top: 1rem !important; }  /* was larger */
   .space-y-6 > :where(* + *) { margin-top: .9rem !important; }
+  /* tighten top-level margins which were creating extra whitespace */
+  .mb-8 { margin-bottom:1.25rem !important; }
+  .mb-6 { margin-bottom:1rem !important; }
+  .mb-4 { margin-bottom:.75rem !important; }
 
-  /* generic section/item compaction without touching desktop */
-  .site-container section { margin-bottom: 0.9rem; }
-  .site-container article { margin-bottom: 0.5rem; }
+  /* slightly smaller article/card padding so item list is denser */
+  article.border.rounded.p-3 { padding: .75rem !important; }
 
-  /* checkout cards a tad tighter & inputs smaller */
-  .checkout-card { padding: .75rem; border-radius: 10px; }
-  .checkout-card .input { font-size: 13px; padding: 9px 10px; }
+  /* make item description smaller and compact */
+  .site-container p.text-xs { font-size: 0.85rem !important; }
+
+  /* checkout card compact */
+  .checkout-card { padding:.75rem; border-radius:10px; }
+  .checkout-card .input { font-size:13px; padding:9px 10px; }
+}
+
+/* ========= Pull up overlay action buttons (so they don't hide behind bottom nav) ========= */
+/* This selector intentionally catches the typical structure used in the cart overlay:
+   a bottom action container that follows content and has a border-top (pt-3 border-t).
+   When you add the helper class `fixed-bottom-action` to the wrapper of action buttons,
+   it will get fixed/raised and scrolls above the overlay content. */
+.fixed-bottom-action {
+  position: sticky;           /* inside overlay -> sticks to bottom area while content scrolls */
+  bottom: calc(var(--bottom-h) + 12px);
+  margin-top: 12px;
+  z-index: 80;
+  background: white;          /* match overlay background so it looks native */
+  padding-top: .5rem;
+  padding-bottom: .5rem;
+  border-radius: 8px;
+}
+
+/* A fallback for cases where sticky is not desired: raise plain bottom action containers slightly */
+.absolute .pt-3.border-t,
+.modal .pt-3.border-t,
+.overlay .pt-3.border-t {
+  margin-bottom: calc(var(--bottom-h) + 12px);
 }
 
 /* ========= Small helpers ========= */
-.hidden-on-mobile { display: none; }
-@media (min-width: 1024px) {
-  .hidden-desktop { display: none; }
-  .hidden-on-mobile { display: block; }
+.hidden-on-mobile { display:none; }
+@media (min-width:1024px) {
+  .hidden-desktop { display:none; }
+  .hidden-on-mobile { display:block; }
+}
+
+/* small polish for checkout panels on mobile */
+@media (max-width:640px) {
+  .checkout-card { padding:.75rem; border-radius:10px; }
+  .checkout-card .input { font-size:13px; padding:9px 10px; }
 }
