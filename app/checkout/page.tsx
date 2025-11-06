@@ -139,7 +139,6 @@ export default function CheckoutPage() {
                       </button>
                     </div>
                   </div>
-                  {/* optional small spacer */}
                 </div>
               ))}
 
@@ -198,22 +197,22 @@ export default function CheckoutPage() {
         </div>
       )}
 
-      {/* Bottom action panel */}
+      {/* —— NEW: bottom action panel as a normal block BELOW page content —— */}
       {items.length > 0 && (
         <div
-          className="fixed-bottom-action bottom-action-elevated"
-          role="region"
-          aria-label="Cart actions"
+          className="bottom-action-elevated"
           style={{
-            position: "fixed",
-            left: "50%",
-            transform: "translateX(-50%)",
-            bottom: "calc(var(--bottom-h) + 12px)",
             width: "min(1024px, calc(100% - 2rem))",
-            zIndex: 90,
+            margin: "1rem auto",
+            padding: ".6rem",
+            boxSizing: "border-box",
+            borderRadius: 10,
+            background: "#fff",
+            // ensure space for mobile bottom nav (panel sits above nav but not overlapping)
+            marginBottom: "calc(var(--bottom-h) + 12px)",
           }}
         >
-          <div className="flex items-center justify-between gap-3 bg-white p-3 rounded">
+          <div className="flex items-center justify-between gap-3">
             <div>
               <div className="text-xs text-gray-600">Subtotal</div>
               <div className="font-semibold">{priceStr(total)}</div>
