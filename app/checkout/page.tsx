@@ -5,14 +5,6 @@ import Link from "next/link";
 import { useCart } from "../lib/useCart";
 import { priceStr } from "../lib/priceUtil";
 
-/**
- * Replace your existing CheckoutPage with this.
- * Assumes globals.css contains the helper classes you shared:
- * - .site-container, .page-safe-bottom
- * - .card-safe, .checkout-card
- * - .fixed-bottom-action
- */
-
 export default function CheckoutPage() {
   const { lines, count, total, changeQty, remove, clearCart } = useCart();
 
@@ -32,7 +24,6 @@ export default function CheckoutPage() {
 
   function placeOrder() {
     if (!canPlace) return;
-    // Replace with real submit logic
     alert(`Order placed!\nItems: ${count}\nSubtotal: ${priceStr(total)}`);
     clearCart();
   }
@@ -41,14 +32,13 @@ export default function CheckoutPage() {
 
   return (
     <main className="site-container page-safe-bottom">
-      {/* Compact header with actions */}
-      <div className="checkout-header-actions" style={{ marginBottom: ".5rem" }}>
+      {/* Header */}
+      <div className="checkout-header-actions" style={{ marginBottom: ".6rem" }}>
         <div>
           <h1 className="text-2xl font-bold">Checkout</h1>
           <p className="text-sm text-gray-600 mt-1">Review items & journey details</p>
         </div>
 
-        {/* Desktop actions: Add more / Checkout */}
         {items.length > 0 && (
           <div className="hidden sm:flex items-center gap-2">
             <button
@@ -57,7 +47,6 @@ export default function CheckoutPage() {
             >
               Add More
             </button>
-
             <button
               onClick={placeOrder}
               disabled={!canPlace}
@@ -94,51 +83,55 @@ export default function CheckoutPage() {
           >
             <div className="space-y-3">
               {items.map((line) => (
-                <div
-                  key={line.id}
-                  className="w-full border-b pb-3 last:border-b-0 last:pb-0"
-                >
-                  {/* Row: left=text, right=controls */}
+                <div key={line.id} className="w-full border-b pb-3 last:border-b-0 last:pb-0">
+                  {/* MAIN ROW */}
                   <div className="flex items-start justify-between gap-3">
-                    {/* Left: name + meta */}
+                    {/* LEFT: name (single-line) + below it qty controls + price×qty */}
                     <div className="flex-1 min-w-0 pr-3">
+                      {/* item name — single line with ellipsis */}
                       <div
-                        className="font-medium text-base checkout-item-name"
+                        className="font-medium text-base truncate"
                         title={line.name}
+                        style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
                       >
                         {line.name}
                       </div>
-                      <div className="text-xs text-gray-500 mt-1">
-                        {priceStr(line.price)} × {line.qty}
+
+                      {/* controls row under name */}
+                      <div className="flex items-center gap-3 mt-2">
+                        <div
+                          className="inline-flex items-center border rounded overflow-hidden"
+                          role="group"
+                          aria-label={`Quantity controls for ${line.name}`}
+                        >
+                          <button
+                            className="px-2 py-1 text-sm"
+                            onClick={() => changeQty(line.id, Math.max(0, line.qty - 1))}
+                            aria-label={`Decrease ${line.name}`}
+                          >
+                            −
+                          </button>
+                          <span className="px-3 py-1 border-l border-r text-sm">{line.qty}</span>
+                          <button
+                            className="px-2 py-1 text-sm"
+                            onClick={() => changeQty(line.id, line.qty + 1)}
+                            aria-label={`Increase ${line.name}`}
+                          >
+                            +
+                          </button>
+                        </div>
+
+                        <div className="text-xs text-gray-500">
+                          {priceStr(line.price)} × {line.qty}
+                        </div>
                       </div>
                     </div>
 
-                    {/* Right: qty controls + total + remove */}
-                    <div className="flex items-center gap-3 flex-shrink-0">
-                      <div className="inline-flex items-center border rounded overflow-hidden" role="group" aria-label={`Quantity controls for ${line.name}`}>
-                        <button
-                          className="px-2 py-1 text-sm"
-                          onClick={() => changeQty(line.id, Math.max(0, line.qty - 1))}
-                          aria-label={`Decrease ${line.name}`}
-                        >
-                          −
-                        </button>
-                        <span className="px-3 py-1 border-l border-r text-sm">{line.qty}</span>
-                        <button
-                          className="px-2 py-1 text-sm"
-                          onClick={() => changeQty(line.id, line.qty + 1)}
-                          aria-label={`Increase ${line.name}`}
-                        >
-                          +
-                        </button>
-                      </div>
-
-                      <div className="w-24 text-right font-medium text-base">
-                        {priceStr(line.price * line.qty)}
-                      </div>
-
+                    {/* RIGHT: line total + Remove (stacked) */}
+                    <div className="flex flex-col items-end flex-shrink-0">
+                      <div className="font-medium text-base">{priceStr(line.price * line.qty)}</div>
                       <button
-                        className="text-rose-600 text-sm"
+                        className="text-rose-600 text-sm mt-2"
                         onClick={() => remove(line.id)}
                         aria-label={`Remove ${line.name}`}
                       >
@@ -146,21 +139,18 @@ export default function CheckoutPage() {
                       </button>
                     </div>
                   </div>
+                  {/* optional small spacer */}
                 </div>
               ))}
 
-              {/* Subtotal */}
+              {/* subtotal */}
               <div className="pt-3 border-t flex items-center justify-between">
                 <div className="font-semibold">Subtotal</div>
                 <div className="font-semibold">{priceStr(total)}</div>
               </div>
 
-              <div className="flex items-center gap-3 mt-2">
-                <button
-                  type="button"
-                  className="text-sm text-gray-600 underline"
-                  onClick={clearCart}
-                >
+              <div className="mt-2">
+                <button className="text-sm text-gray-600 underline" onClick={clearCart}>
                   Clear cart
                 </button>
               </div>
@@ -174,43 +164,23 @@ export default function CheckoutPage() {
             <div className="space-y-3">
               <div>
                 <label className="text-sm block mb-1">PNR</label>
-                <input
-                  className="input"
-                  value={pnr}
-                  onChange={(e) => setPnr(e.target.value)}
-                  placeholder="10-digit or 6+ chars"
-                />
+                <input className="input" value={pnr} onChange={(e) => setPnr(e.target.value)} placeholder="10-digit or 6+ chars" />
               </div>
 
               <div className="flex gap-3">
                 <div className="flex-1">
                   <label className="text-sm block mb-1">Coach</label>
-                  <input
-                    className="input"
-                    value={coach}
-                    onChange={(e) => setCoach(e.target.value)}
-                    placeholder="e.g. B3"
-                  />
+                  <input className="input" value={coach} onChange={(e) => setCoach(e.target.value)} placeholder="e.g. B3" />
                 </div>
                 <div className="flex-1">
                   <label className="text-sm block mb-1">Seat</label>
-                  <input
-                    className="input"
-                    value={seat}
-                    onChange={(e) => setSeat(e.target.value)}
-                    placeholder="e.g. 42"
-                  />
+                  <input className="input" value={seat} onChange={(e) => setSeat(e.target.value)} placeholder="e.g. 42" />
                 </div>
               </div>
 
               <div>
                 <label className="text-sm block mb-1">Name</label>
-                <input
-                  className="input"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Passenger name"
-                />
+                <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Passenger name" />
               </div>
 
               <div>
@@ -228,10 +198,7 @@ export default function CheckoutPage() {
         </div>
       )}
 
-      {/* Bottom action panel for mobile & small screens:
-          - uses fixed-bottom-action helper from globals.css
-          - positioned above bottom-nav by design */
-      }
+      {/* Bottom action panel */}
       {items.length > 0 && (
         <div
           className="fixed-bottom-action bottom-action-elevated"
