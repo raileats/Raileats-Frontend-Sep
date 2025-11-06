@@ -82,3 +82,6 @@ export function applyPercentDiscount(amount: number, percent: number) {
 
 /** Alias to match pages that import { priceStr } */
 export const priceStr = formatINRCompact;
+
+/** Default export for legacy imports */
+export default formatINRCompact;
