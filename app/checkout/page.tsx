@@ -32,15 +32,18 @@ export default function CheckoutPage() {
 
   return (
     <main className="site-container page-safe-bottom">
-      {/* === Compact header with top-right actions === */}
-      <div className="checkout-header-actions">
-        <h1>Items</h1>
+      {/* Compact header */}
+      <div className="flex items-center justify-between gap-4 mb-4">
+        <div>
+          <h1 className="text-2xl font-bold">Checkout</h1>
+          <p className="text-sm text-gray-600 mt-1">Review your items and journey details</p>
+        </div>
+
+        {/* Header actions (Add More / Place Order) — hidden on very narrow when not needed */}
         {items.length > 0 && (
-          <div className="flex items-center gap-2">
+          <div className="hidden sm:flex items-center gap-2">
             <button
-              onClick={() => {
-                if (typeof window !== "undefined") window.history.back();
-              }}
+              onClick={() => (typeof window !== "undefined" ? window.history.back() : null)}
               className="rounded border px-3 py-1 text-sm"
             >
               Add More
@@ -69,7 +72,7 @@ export default function CheckoutPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* Cart items */}
+          {/* ITEMS LIST */}
           <section
             className="md:col-span-2 card-safe"
             style={{
@@ -77,49 +80,51 @@ export default function CheckoutPage() {
                 "calc(100vh - (var(--nav-h,64px) + var(--bottom-h,56px) + 120px))",
               overflow: "auto",
             }}
+            aria-label="Cart items"
           >
             <div className="space-y-3">
               {items.map((line) => (
-                <div
-                  key={line.id}
-                  className="w-full border-b pb-3 last:border-b-0 last:pb-0"
-                >
+                <div key={line.id} className="w-full border-b pb-3 last:border-b-0 last:pb-0">
+                  {/* Using flex-row on small screens so item name is visible and amount/quantity is to the right */}
                   <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+                    {/* Left: name + small meta */}
                     <div className="flex-1 min-w-0">
-                      <div className="font-medium text-base break-words">
-                        {line.name}
-                      </div>
+                      <div className="font-medium text-base break-words">{line.name}</div>
+
+                      {/* small meta row (price × qty as a line) */}
                       <div className="text-xs text-gray-500 mt-1 sm:mt-0">
                         {priceStr(line.price)} × {line.qty}
                       </div>
                     </div>
 
+                    {/* Right: qty controls + line total + remove */}
                     <div className="flex items-center gap-3 sm:flex-shrink-0 sm:flex-col sm:items-end">
                       <div className="inline-flex items-center border rounded overflow-hidden">
                         <button
                           className="px-2 py-1 text-sm"
-                          onClick={() =>
-                            changeQty(line.id, Math.max(0, line.qty - 1))
-                          }
+                          onClick={() => changeQty(line.id, Math.max(0, line.qty - 1))}
+                          aria-label={`Decrease ${line.name}`}
                         >
                           −
                         </button>
-                        <span className="px-3 py-1 border-l border-r text-sm">
-                          {line.qty}
-                        </span>
+                        <span className="px-3 py-1 border-l border-r text-sm">{line.qty}</span>
                         <button
                           className="px-2 py-1 text-sm"
                           onClick={() => changeQty(line.id, line.qty + 1)}
+                          aria-label={`Increase ${line.name}`}
                         >
                           +
                         </button>
                       </div>
+
                       <div className="w-24 text-right font-medium text-base">
                         {priceStr(line.price * line.qty)}
                       </div>
+
                       <button
                         className="text-rose-600 text-sm"
                         onClick={() => remove(line.id)}
+                        aria-label={`Remove ${line.name}`}
                       >
                         Remove
                       </button>
@@ -128,6 +133,7 @@ export default function CheckoutPage() {
                 </div>
               ))}
 
+              {/* Subtotal */}
               <div className="pt-3 border-t flex items-center justify-between">
                 <div className="font-semibold">Subtotal</div>
                 <div className="font-semibold">{priceStr(total)}</div>
@@ -143,8 +149,8 @@ export default function CheckoutPage() {
             </div>
           </section>
 
-          {/* Journey details */}
-          <aside className="card-safe">
+          {/* JOURNEY DETAILS */}
+          <aside className="card-safe checkout-card">
             <h2 className="font-semibold mb-3">Journey Details</h2>
 
             <div className="space-y-3">
@@ -201,6 +207,44 @@ export default function CheckoutPage() {
               </div>
             </div>
           </aside>
+        </div>
+      )}
+
+      {/* Bottom action panel (sticky/raised so not blocked by bottom nav) */}
+      {items.length > 0 && (
+        <div
+          className="fixed-bottom-action"
+          role="region"
+          aria-label="Cart actions"
+          style={{ width: "calc(100% - 2rem)", maxWidth: "1024px", margin: "0 auto", left: 0, right: 0 }}
+        >
+          <div className="site-container" style={{ padding: 0 }}>
+            <div className="flex items-center justify-between gap-3 bg-white p-3 rounded shadow">
+              <div>
+                <div className="text-xs text-gray-600">Subtotal</div>
+                <div className="font-semibold">{priceStr(total)}</div>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <button
+                  className="rounded border px-3 py-2 text-sm"
+                  onClick={() => (typeof window !== "undefined" ? window.history.back() : null)}
+                >
+                  Add More Items
+                </button>
+
+                <button
+                  className={`rounded px-4 py-2 text-sm text-white ${
+                    canPlace ? "bg-green-600" : "bg-gray-400 cursor-not-allowed"
+                  }`}
+                  onClick={placeOrder}
+                  disabled={!canPlace}
+                >
+                  Checkout
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </main>
