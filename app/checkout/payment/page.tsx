@@ -1,3 +1,4 @@
+// app/checkout/payment/page.tsx
 "use client";
 
 import React, { useEffect, useState } from "react";
@@ -22,8 +23,7 @@ export default function PaymentPage() {
   if (!payload) return <main className="site-container page-safe-bottom card-safe">Loading…</main>;
 
   const onPay = () => {
-    // In real app: call payment gateway, handle redirect / callback
-    // Here: simulate success and save order
+    // Real app: integrate with payment gateway (create order, redirect/handle callback)
     const order = {
       id: "ORD" + Date.now(),
       items: payload.draft.items,
@@ -38,7 +38,6 @@ export default function PaymentPage() {
     sessionStorage.setItem("raileats_last_order", JSON.stringify(order));
     sessionStorage.removeItem("raileats_order_draft");
     sessionStorage.removeItem("raileats_payment_payload");
-    // navigate to order summary (mock)
     router.push("/checkout/summary");
   };
 
