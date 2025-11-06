@@ -35,7 +35,6 @@ body {
 }
 
 img { display: block; max-width: 100%; height: auto; }
-
 h1, h2, h3, p { margin-top: 0; }
 
 /* ========= Safe area between navbars ========= */
@@ -48,13 +47,18 @@ h1, h2, h3, p { margin-top: 0; }
 .site-container {
   margin-left: auto;
   margin-right: auto;
-  padding-left: 1rem;
-  padding-right: 1rem;
+  padding-left: 0.75rem;   /* reduced from 1rem for denser mobile layout */
+  padding-right: 0.75rem;  /* reduced from 1rem */
   width: 100%;
   max-width: 1024px;
   box-sizing: border-box;
 }
 .site-container > * { min-height: 1px; }
+
+/* Small helper to ensure pages reserve bottom nav area */
+.page-safe-bottom {
+  padding-bottom: calc(var(--bottom-h) + env(safe-area-inset-bottom, 8px));
+}
 
 /* ========= Navbar & Bottom Nav ========= */
 .navbar {
@@ -110,7 +114,7 @@ h1, h2, h3, p { margin-top: 0; }
 .form-card, .search-box-card { padding:.75rem; border-radius:10px; }
 
 /* ========= Inputs ========= */
-.input { width:100%; border:1px solid #d1d5db; padding:10px 12px; border-radius:6px; font-size:14px; background:#fff; }
+.input { width:100%; border:1px solid #d1d5db; padding:10px 12px; border-radius:6px; font-size:14px; background:#fff; box-sizing:border-box; }
 .input:focus { outline:none; border-color:#60a5fa; box-shadow:0 0 0 3px rgba(96,165,250,.25); }
 
 /* ========= Mini cart bubble (fixed bottom-right) ========= */
@@ -120,14 +124,21 @@ h1, h2, h3, p { margin-top: 0; }
 @media (max-width:640px) { .cart-bubble { right:12px; bottom:calc(var(--bottom-h) + 8px); } }
 
 /* ====== Top-right mobile cart pill utility ====== */
-.cart-pill-mobile { position:fixed; right:12px; top:calc(var(--nav-h) + 6px); z-index:60; }
-@media (max-width:480px) { .cart-pill-mobile { right:10px; top:calc(var(--nav-h) + 4px); } }
+/* Use this class for the floating "2 ₹350 View cart" pill under the navbar */
+.cart-pill-mobile {
+  position: fixed;
+  right: 12px;
+  top: calc(var(--nav-h) + 6px); /* sits ~6px below nav */
+  z-index: 9999; /* placed above navbar and bottom nav */
+  transform: translateZ(0);
+}
+@media (max-width:480px) { .cart-pill-mobile { right:10px; top: calc(var(--nav-h) + 4px); } }
 
 /* ========= Checkout / cards safety ========= */
-.card-safe { padding:1rem; border-radius:10px; background:white; box-shadow:0 1px 0 rgb(16 24 40 / 4%); }
+.card-safe { padding:1rem; border-radius:10px; background:white; box-shadow:0 1px 0 rgb(16 24 40 / 4%); box-sizing:border-box; }
 .full-height-scroll { max-height: calc(100vh - calc(var(--nav-h) + var(--bottom-h) + 40px)); overflow:auto; }
 
-/* ========= Make headings tighter on mobile (avoid wrap) ========= */
+/* compact heading style for mobile so restaurant/menu headings don't wrap too much */
 @media (max-width:640px) {
   h1 { font-size:1.6rem; line-height:1.05; word-break:normal; hyphens:none; }
   .no-wrap-words { word-break:keep-all; overflow-wrap:normal; }
@@ -136,9 +147,10 @@ h1, h2, h3, p { margin-top: 0; }
 /* ========= Tighten vertical gaps on mobile so more fits on screen ========= */
 @media (max-width:640px) {
   /* compress space-y helpers moderately */
-  .space-y-8 > :where(* + *) { margin-top: 1rem !important; }  /* was larger */
+  .space-y-8 > :where(* + *) { margin-top: 1rem !important; }
   .space-y-6 > :where(* + *) { margin-top: .9rem !important; }
-  /* tighten top-level margins which were creating extra whitespace */
+
+  /* tighten top-level margins */
   .mb-8 { margin-bottom:1.25rem !important; }
   .mb-6 { margin-bottom:1rem !important; }
   .mb-4 { margin-bottom:.75rem !important; }
@@ -155,10 +167,7 @@ h1, h2, h3, p { margin-top: 0; }
 }
 
 /* ========= Pull up overlay action buttons (so they don't hide behind bottom nav) ========= */
-/* This selector intentionally catches the typical structure used in the cart overlay:
-   a bottom action container that follows content and has a border-top (pt-3 border-t).
-   When you add the helper class `fixed-bottom-action` to the wrapper of action buttons,
-   it will get fixed/raised and scrolls above the overlay content. */
+/* Use helper class `fixed-bottom-action` on the wrapper of bottom action buttons inside overlays/modal */
 .fixed-bottom-action {
   position: sticky;           /* inside overlay -> sticks to bottom area while content scrolls */
   bottom: calc(var(--bottom-h) + 12px);
@@ -170,7 +179,7 @@ h1, h2, h3, p { margin-top: 0; }
   border-radius: 8px;
 }
 
-/* A fallback for cases where sticky is not desired: raise plain bottom action containers slightly */
+/* fallback for cases where sticky isn't applied: add extra bottom margin before bottom nav */
 .absolute .pt-3.border-t,
 .modal .pt-3.border-t,
 .overlay .pt-3.border-t {
@@ -189,3 +198,20 @@ h1, h2, h3, p { margin-top: 0; }
   .checkout-card { padding:.75rem; border-radius:10px; }
   .checkout-card .input { font-size:13px; padding:9px 10px; }
 }
+
+/* ====== Compact checkout header (use in Checkout component) ====== */
+/* Add class "checkout-header-actions" to a wrapper that contains page title and top-right actions */
+.checkout-header-actions {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:12px;
+  margin-bottom:0.6rem;
+}
+.checkout-header-actions h1 { font-size:1.25rem; font-weight:600; margin:0; }
+
+/* ensure long item names in checkout can break and show properly */
+.checkout-item-name { word-break: break-word; overflow-wrap: anywhere; hyphens: none; }
+
+/* small tweak to make the floating bottom action panel look slightly elevated */
+.bottom-action-elevated { box-shadow: 0 -6px 18px rgba(0,0,0,0.06); border-radius: 10px; padding: .6rem; background: white; }
