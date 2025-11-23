@@ -272,11 +272,21 @@ export default async function Page({ params }: { params: { slug: string } }) {
                             <span className="mx-1">•</span>
                             <span className="flex items-center gap-1">
                               {r.isPureVeg ? (
-                                <span aria-hidden className="w-3 h-3 rounded bg-green-600 inline-block" title="Veg" />
+                                <span
+                                  aria-hidden
+                                  className="w-3 h-3 rounded bg-green-600 inline-block"
+                                  title="Veg"
+                                />
                               ) : (
                                 <>
-                                  <span className="w-3 h-3 rounded bg-red-600 inline-block" title="Non-Veg" />
-                                  <span className="w-3 h-3 rounded bg-green-600 inline-block" title="Also serves Veg" />
+                                  <span
+                                    className="w-3 h-3 rounded bg-red-600 inline-block"
+                                    title="Non-Veg"
+                                  />
+                                  <span
+                                    className="w-3 h-3 rounded bg-green-600 inline-block"
+                                    title="Also serves Veg"
+                                  />
                                 </>
                               )}
                             </span>
@@ -300,10 +310,13 @@ export default async function Page({ params }: { params: { slug: string } }) {
                       </div>
                     </div>
 
+                    {/* 👉 yahan se URL change kiya hai */}
                     <div className="mt-3 flex items-center">
                       <div className="ml-auto w-full md:w-auto">
                         <a
-                          href={`/menu?restro=${encodeURIComponent(String(r.RestroCode))}`}
+                          href={`/Stations/${raw}/${encodeURIComponent(
+                            `${r.RestroCode}-${r.RestroName ?? "Restaurant"}`
+                          )}`}
                           className="inline-block bg-green-600 text-white px-4 py-2 rounded text-sm w-full md:w-auto text-center"
                           aria-label={`Order now from ${r.RestroName}`}
                         >
