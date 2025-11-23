@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import StationSearchBox, { Station } from "./StationSearchBox";
+import { makeStationSlug } from "../lib/stationSlug";
 
 export default function SearchBox() {
   const [searchType, setSearchType] = useState<"pnr" | "train" | "station">("pnr");
@@ -31,8 +32,28 @@ export default function SearchBox() {
 
     if (searchType === "station") {
       const rawCode = selectedStation?.StationCode ?? extractStationCode(inputValue);
-      const safe = encodeURIComponent(String(rawCode).toUpperCase());
-      const target = `/Stations/${safe}`;
+      if (!rawCode) {
+        alert("Please enter a valid station code");
+        setLoading(false);
+        return;
+      }
+
+      let slug: string;
+
+      // ✅ agar user ne dropdown se station select kiya hai
+      if (selectedStation?.StationCode && selectedStation?.StationName) {
+        slug = makeStationSlug(
+          String(selectedStation.StationCode),
+          selectedStation.StationName
+        );
+      } else {
+        // fallback: sirf code se slug (BPL-bpl-food-delivery-in-train)
+        const upper = String(rawCode).toUpperCase();
+        const lower = upper.toLowerCase();
+        slug = `${upper}-${lower}-food-delivery-in-train`;
+      }
+
+      const target = `/Stations/${slug}`;
 
       // small timeout so spinner gets a render before navigation
       setTimeout(() => {
@@ -42,11 +63,17 @@ export default function SearchBox() {
     }
 
     if (searchType === "pnr") {
-      setTimeout(() => (window.location.href = `/pnr/${encodeURIComponent(inputValue.trim())}`), 50);
+      setTimeout(
+        () => (window.location.href = `/pnr/${encodeURIComponent(inputValue.trim())}`),
+        50
+      );
       return;
     }
 
-    setTimeout(() => (window.location.href = `/trains/${encodeURIComponent(inputValue.trim())}`), 50);
+    setTimeout(
+      () => (window.location.href = `/trains/${encodeURIComponent(inputValue.trim())}`),
+      50
+    );
   };
 
   return (
@@ -80,7 +107,9 @@ export default function SearchBox() {
                   initialValue={inputValue}
                   onSelect={(s) => {
                     const val = s ? (s.StationCode ?? s.StationName ?? "") : "";
-                    const display = s ? `${s.StationName}${s.StationCode ? ` (${s.StationCode})` : ""}` : "";
+                    const display = s
+                      ? `${s.StationName}${s.StationCode ? ` (${s.StationCode})` : ""}`
+                      : "";
                     setInputValue(display || val);
                     setSelectedStation(s || null);
                   }}
@@ -103,7 +132,9 @@ export default function SearchBox() {
                   <button
                     onClick={handleSearch}
                     disabled={loading}
-                    className={`px-4 py-2 bg-black text-white rounded text-sm ${loading ? "opacity-70 cursor-wait" : ""}`}
+                    className={`px-4 py-2 bg-black text-white rounded text-sm ${
+                      loading ? "opacity-70 cursor-wait" : ""
+                    }`}
                   >
                     Search
                   </button>
@@ -138,7 +169,12 @@ export default function SearchBox() {
                             // hide broken image; fallback dot will be visible
                             (e.target as HTMLImageElement).style.display = "none";
                           }}
-                          style={{ width: 28, height: 28, objectFit: "contain", transform: "translateZ(0)" }}
+                          style={{
+                            width: 28,
+                            height: 28,
+                            objectFit: "contain",
+                            transform: "translateZ(0)",
+                          }}
                         />
 
                         {/* fallback small dot if logo missing */}
@@ -160,8 +196,6 @@ export default function SearchBox() {
                           from { transform: rotate(0deg); }
                           to { transform: rotate(360deg); }
                         }
-                        /* if image fails, show fallback dot by overriding display */
-                        img[alt="RailEats"][onerror] { /* not reliable across browsers */ }
                       `}</style>
                     </div>
                   )}
