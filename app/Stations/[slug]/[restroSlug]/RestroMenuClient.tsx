@@ -19,7 +19,8 @@ type MenuItem = {
   base_price?: number | null;
   gst_percent?: number | null;
   selling_price?: number | null;
-  status?: "ON" | "OFF" | "DELETED" | null;
+  // IMPORTANT: yahan string | null rakha hai, taa ki server-side type se match ho
+  status?: string | null;
 };
 
 type Props = {
@@ -54,17 +55,37 @@ const isVegLike = (cat?: string | null) => {
   const c = String(cat || "").toLowerCase();
   return c === "veg" || c === "jain";
 };
-const isNonVeg = (cat?: string | null) => String(cat || "").toLowerCase() === "non-veg";
+const isNonVeg = (cat?: string | null) =>
+  String(cat || "").toLowerCase() === "non-veg";
 
 const dot = (cat?: string | null) => {
-  if (isVegLike(cat)) return <span className="inline-block w-3 h-3 rounded-full bg-green-600" title="Veg" />;
-  if (isNonVeg(cat)) return <span className="inline-block w-3 h-3 rounded-full bg-red-600" title="Non-Veg" />;
-  return <span className="inline-block w-3 h-3 rounded-full bg-gray-400" title="Unspecified" />;
+  if (isVegLike(cat))
+    return (
+      <span
+        className="inline-block w-3 h-3 rounded-full bg-green-600"
+        title="Veg"
+      />
+    );
+  if (isNonVeg(cat))
+    return (
+      <span
+        className="inline-block w-3 h-3 rounded-full bg-red-600"
+        title="Non-Veg"
+      />
+    );
+  return (
+    <span
+      className="inline-block w-3 h-3 rounded-full bg-gray-400"
+      title="Unspecified"
+    />
+  );
 };
 
 const t = (s?: string | null) => (s ? s.slice(0, 5) : "");
 const priceStr = (n?: number | null) =>
-  typeof n === "number" ? `₹${Number(n).toFixed(2).replace(/\.00$/, "")}` : "—";
+  typeof n === "number"
+    ? `₹${Number(n).toFixed(2).replace(/\.00$/, "")}`
+    : "—";
 
 export default function RestroMenuClient({ header, items, offer }: Props) {
   const [vegOnly, setVegOnly] = useState(false);
@@ -72,25 +93,25 @@ export default function RestroMenuClient({ header, items, offer }: Props) {
 
   const { lines, count, total, add, changeQty, remove, clearCart } = useCart();
 
-  // 👉 yahi se checkout ko pata chalega kaunsa station + outlet hai
+  // 🔴 restroCode & stationCode ko sessionStorage me save
   useEffect(() => {
     if (typeof window === "undefined") return;
     try {
-      sessionStorage.setItem("raileats_current_station_code", header.stationCode || "");
-      sessionStorage.setItem("raileats_current_restro_code", String(header.restroCode));
-
-      // optional: pura meta bhi store kar lo future ke liye
-      const meta = {
-        stationCode: header.stationCode,
-        restroCode: header.restroCode,
-        outletName: header.outletName,
-        stationName: header.stationName ?? null,
+      // yahan simple object store kar raha hun jisse checkout me easily use kar sake
+      const outletMeta = {
+        restroCode: String(header.restroCode),
+        stationCode: header.stationCode || "",
+        outletName: header.outletName || "",
+        stationName: header.stationName || "",
       };
-      sessionStorage.setItem("raileats_current_outlet_meta", JSON.stringify(meta));
+      sessionStorage.setItem(
+        "raileats_current_outlet",
+        JSON.stringify(outletMeta),
+      );
     } catch {
-      // ignore
+      // ignore storage error
     }
-  }, [header.stationCode, header.restroCode, header.outletName, header.stationName]);
+  }, [header.restroCode, header.stationCode, header.outletName, header.stationName]);
 
   const visible = useMemo(() => {
     const arr = (items || []).filter((x) => x.status === "ON");
@@ -132,26 +153,84 @@ export default function RestroMenuClient({ header, items, offer }: Props) {
   return (
     <>
       <style jsx>{`
-        .header-row { margin-top: 6px; margin-bottom: 8px; display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
-        .title-block { min-width:0; }
-        .title { font-size: 1.5rem; line-height:1.05; margin:0; font-weight:700; }
-        .subtitle { margin-top:6px; color:#6b7280; font-size:0.95rem; }
-        .right-controls { display:flex; gap:10px; align-items:center; flex-shrink:0; }
-        .mobile-pill { position: absolute; right: 12px; top: 58px; z-index:40; }
-        .group { margin-bottom: 0.9rem; }
-        .item { margin-bottom: 0.5rem; }
-        .item-top { display:flex; align-items:center; justify-content:space-between; gap:12px; }
-        .item-left { min-width:0; display:flex; gap:10px; align-items:center; }
-        .item-name { font-weight:600; white-space:normal; }
-        .item-time { color:#6b7280; font-size:0.86rem; flex-shrink:0; }
-        .item-price { font-weight:700; white-space:nowrap; }
+        .header-row {
+          margin-top: 6px;
+          margin-bottom: 8px;
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 12px;
+        }
+        .title-block {
+          min-width: 0;
+        }
+        .title {
+          font-size: 1.5rem;
+          line-height: 1.05;
+          margin: 0;
+          font-weight: 700;
+        }
+        .subtitle {
+          margin-top: 6px;
+          color: #6b7280;
+          font-size: 0.95rem;
+        }
+        .right-controls {
+          display: flex;
+          gap: 10px;
+          align-items: center;
+          flex-shrink: 0;
+        }
+        .mobile-pill {
+          position: absolute;
+          right: 12px;
+          top: 58px;
+          z-index: 40;
+        }
+        .group {
+          margin-bottom: 0.9rem;
+        }
+        .item {
+          margin-bottom: 0.5rem;
+        }
+        .item-top {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+        }
+        .item-left {
+          min-width: 0;
+          display: flex;
+          gap: 10px;
+          align-items: center;
+        }
+        .item-name {
+          font-weight: 600;
+          white-space: normal;
+        }
+        .item-time {
+          color: #6b7280;
+          font-size: 0.86rem;
+          flex-shrink: 0;
+        }
+        .item-price {
+          font-weight: 700;
+          white-space: nowrap;
+        }
 
         @media (min-width: 1024px) {
-          .mobile-pill { display:none; }
+          .mobile-pill {
+            display: none;
+          }
         }
         @media (max-width: 640px) {
-          .title { font-size:1.4rem; }
-          .subtitle { font-size:0.9rem; }
+          .title {
+            font-size: 1.4rem;
+          }
+          .subtitle {
+            font-size: 0.9rem;
+          }
         }
       `}</style>
 
