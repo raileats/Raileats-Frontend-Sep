@@ -72,22 +72,25 @@ export default function RestroMenuClient({ header, items, offer }: Props) {
 
   const { lines, count, total, add, changeQty, remove, clearCart } = useCart();
 
-  // 🔴 IMPORTANT: yahan se restroCode & stationCode ko sessionStorage me save kar rahe hain
+  // 👉 yahi se checkout ko pata chalega kaunsa station + outlet hai
   useEffect(() => {
     if (typeof window === "undefined") return;
     try {
-      sessionStorage.setItem(
-        "raileats_current_restro_code",
-        String(header.restroCode),
-      );
-      sessionStorage.setItem(
-        "raileats_current_station_code",
-        header.stationCode || "",
-      );
+      sessionStorage.setItem("raileats_current_station_code", header.stationCode || "");
+      sessionStorage.setItem("raileats_current_restro_code", String(header.restroCode));
+
+      // optional: pura meta bhi store kar lo future ke liye
+      const meta = {
+        stationCode: header.stationCode,
+        restroCode: header.restroCode,
+        outletName: header.outletName,
+        stationName: header.stationName ?? null,
+      };
+      sessionStorage.setItem("raileats_current_outlet_meta", JSON.stringify(meta));
     } catch {
-      // ignore storage error
+      // ignore
     }
-  }, [header.restroCode, header.stationCode]);
+  }, [header.stationCode, header.restroCode, header.outletName, header.stationName]);
 
   const visible = useMemo(() => {
     const arr = (items || []).filter((x) => x.status === "ON");
@@ -192,11 +195,7 @@ export default function RestroMenuClient({ header, items, offer }: Props) {
 
       <div style={{ height: 4 }} />
 
-      {/* groups grid – बाकी code ज्यों का त्यों */}
-      {/* ... (yahi se aapka pura existing body exactly same rehne do) */}
-      {/* NOTE: maine नीचे ke logic ko nahi बदला, सिर्फ ऊपर useEffect add किया hai */}
-      {/* === START of original body === */}
-
+      {/* groups grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* left menu column */}
         <div className="lg:col-span-2">
@@ -363,7 +362,7 @@ export default function RestroMenuClient({ header, items, offer }: Props) {
         </aside>
       </div>
 
-      {/* Mobile cart overlay – same as pehle */}
+      {/* Mobile cart overlay */}
       {showMobileCart && (
         <div className="lg:hidden fixed inset-0 z-[1000]">
           <button
@@ -470,8 +469,6 @@ export default function RestroMenuClient({ header, items, offer }: Props) {
           </div>
         </div>
       )}
-
-      {/* === END of original body === */}
     </>
   );
 }
