@@ -1,3 +1,4 @@
+// app/checkout/page.tsx
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
@@ -6,94 +7,122 @@ import Link from "next/link";
 import { useCart } from "../lib/useCart";
 import { priceStr } from "../lib/priceUtil";
 
-function timeToMinutes(str: string | null | undefined): number | null {
-  if (!str) return null;
-  const parts = String(str).split(":");
-  if (parts.length < 2) return null;
-  const h = Number(parts[0]);
-  const m = Number(parts[1]);
-  if (Number.isNaN(h) || Number.isNaN(m)) return null;
-  return h * 60 + m;
+type OutletMeta = {
+  stationCode: string;
+  stationName?: string;
+  restroCode: string | number;
+  outletName?: string;
+};
+
+type TrainRouteRow = {
+  trainId: number;
+  trainNumber: number | null;
+  trainName: string | null;
+  StationCode: string | null;
+  StationName: string | null;
+  Arrives: string | null;
+  Departs: string | null;
+  Day: number | null;
+};
+
+function todayYMD() {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  const d = String(now.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
 }
 
 export default function CheckoutPage() {
   const router = useRouter();
   const { lines, count, total, changeQty, remove, clearCart } = useCart();
 
-  // journey fields
+  // cart → items
+  const items = useMemo(() => lines || [], [lines]);
+
+  // outlet meta (station + restro)
+  const [outlet, setOutlet] = useState<OutletMeta | null>(null);
+  const [metaError, setMetaError] = useState<string>("");
+
+  // train search state
+  const [trainNo, setTrainNo] = useState("");
+  const [deliveryDate, setDeliveryDate] = useState(todayYMD());
+  const [deliveryTime, setDeliveryTime] = useState<string>("");
+  const [trainOptions, setTrainOptions] = useState<TrainRouteRow[]>([]);
+  const [trainLoading, setTrainLoading] = useState(false);
+  const [trainMsg, setTrainMsg] = useState<string>("");
+
+  // journey details
   const [pnr, setPnr] = useState("");
   const [coach, setCoach] = useState("");
   const [seat, setSeat] = useState("");
   const [name, setName] = useState("");
   const [mobile, setMobile] = useState("");
 
-  // outlet + station
-  const [stationCode, setStationCode] = useState("");
-  const [restroCode, setRestroCode] = useState("");
-
-  // train selection
-  const [trainQuery, setTrainQuery] = useState("");
-  const [trainOptions, setTrainOptions] = useState<any[]>([]);
-  const [selectedTrain, setSelectedTrain] = useState<any | null>(null);
-
-  // delivery date/time (train se auto)
-  const [deliveryDate, setDeliveryDate] = useState<string>("");
-  const [deliveryTime, setDeliveryTime] = useState<string>("");
-
-  const [validationError, setValidationError] = useState<string>("");
-
-  // cart lines memo
-  const items = useMemo(() => lines || [], [lines]);
-
-  // load station + restro from sessionStorage
+  // ✅ outlet meta load
   useEffect(() => {
     if (typeof window === "undefined") return;
-
     try {
-      const st = sessionStorage.getItem("raileats_current_station_code") || "";
-      const rc = sessionStorage.getItem("raileats_current_restro_code") || "";
-      setStationCode(st);
-      setRestroCode(rc);
-
-      // default delivery date = today
-      const today = new Date();
-      setDeliveryDate(today.toISOString().slice(0, 10));
+      const raw = sessionStorage.getItem("raileats_current_outlet");
+      if (!raw) {
+        setMetaError(
+          "Station not detected. Please go back to the restaurant and open checkout again.",
+        );
+        setOutlet(null);
+        return;
+      }
+      const meta = JSON.parse(raw) as OutletMeta;
+      if (!meta?.stationCode) {
+        setMetaError(
+          "Station not detected. Please go back to the restaurant and open checkout again.",
+        );
+        setOutlet(null);
+        return;
+      }
+      setOutlet(meta);
+      setMetaError("");
     } catch {
-      // ignore
+      setMetaError(
+        "Could not read station details. Please go back and select outlet again.",
+      );
+      setOutlet(null);
     }
   }, []);
 
-  /* ------------ journey field validation (PNR, Coach, Seat, Name, Mobile) ------------ */
-  function canProceedJourneyFields() {
-    return (
-      count > 0 &&
-      pnr.trim().length >= 6 &&
-      coach.trim().length >= 1 &&
-      seat.trim().length >= 1 &&
-      name.trim().length >= 2 &&
-      /^\d{10}$/.test(mobile.trim())
-    );
-  }
+  const canProceed =
+    count > 0 &&
+    trainNo.trim().length >= 4 &&
+    deliveryDate &&
+    deliveryTime &&
+    pnr.trim().length >= 6 &&
+    coach.trim().length >= 1 &&
+    seat.trim().length >= 1 &&
+    name.trim().length >= 2 &&
+    /^\d{10}$/.test(mobile.trim());
 
-  /* ------------ Train search + selection ------------ */
+  /* ------------ TRAIN SEARCH ------------ */
   async function searchTrain() {
-    setValidationError("");
-    setTrainOptions([]);
-    setSelectedTrain(null);
-
-    if (!stationCode) {
-      setValidationError("Station not detected. Please go back and select outlet again.");
+    if (!outlet?.stationCode) {
+      setMetaError(
+        "Station not detected. Please go back and select the outlet again.",
+      );
       return;
     }
-    if (!trainQuery.trim()) {
-      setValidationError("Please enter train number or name.");
+    const t = trainNo.trim();
+    if (!t) {
+      alert("Please enter train number.");
       return;
     }
 
     try {
+      setTrainLoading(true);
+      setTrainMsg("");
+      setTrainOptions([]);
+
       const params = new URLSearchParams();
-      params.set("stationCode", stationCode);
-      params.set("query", trainQuery.trim());
+      params.set("train", t);
+      params.set("station", outlet.stationCode);
+      params.set("date", deliveryDate);
 
       const res = await fetch(`/api/train-routes?${params.toString()}`, {
         cache: "no-store",
@@ -102,82 +131,39 @@ export default function CheckoutPage() {
 
       if (!res.ok || !json?.ok) {
         console.error("train search failed", json);
-        setValidationError("Unable to search trains. Please try again.");
+        setTrainMsg("Train search failed. Please try again.");
         return;
       }
 
-      if (!Array.isArray(json.trains) || json.trains.length === 0) {
-        setValidationError(
-          `Selected train not found for station ${stationCode}.`
+      const rows: TrainRouteRow[] = json.rows || [];
+      if (!rows.length) {
+        setTrainMsg(
+          `No matching schedule found for ${t} at ${outlet.stationCode}.`,
         );
         return;
       }
 
-      setTrainOptions(json.trains);
-      setValidationError("");
+      setTrainOptions(rows);
+
+      // first matching row ka arrival time le lo
+      const first = rows[0];
+      const arr = (first.Arrives || first.Departs || "").slice(0, 5);
+      setDeliveryTime(arr);
+      setTrainMsg(
+        `Found ${rows.length} result(s). Arrival ~ ${arr || "time not set"}.`,
+      );
     } catch (e) {
       console.error("train search error", e);
-      setValidationError("Something went wrong while searching train.");
+      setTrainMsg("Train search error. Please try again.");
+    } finally {
+      setTrainLoading(false);
     }
   }
 
-  function selectTrain(t: any) {
-    setSelectedTrain(t);
-    setTrainOptions([]);
-    setTrainQuery(String(t.trainNumber ?? t.train_no ?? ""));
-    const arrive = String(t.Arrives ?? t.arrival_time ?? "").slice(0, 5);
-    setDeliveryTime(arrive);
-    setValidationError("");
-  }
-
-  /* ------------ extra validations before going to review ------------ */
-  function runExtraChecks(): boolean {
-    // must have selected train
-    if (!selectedTrain) {
-      setValidationError("Please select a train for this station.");
-      return false;
-    }
-
-    // delivery time valid?
-    const arrMin = timeToMinutes(deliveryTime);
-    if (arrMin == null) {
-      setValidationError("Invalid arrival time for selected train.");
-      return false;
-    }
-
-    const now = new Date();
-    const todayStr = now.toISOString().slice(0, 10);
-
-    // train already passed (if same date)
-    if (deliveryDate === todayStr) {
-      const nowMin = now.getHours() * 60 + now.getMinutes();
-      if (arrMin <= nowMin) {
-        setValidationError("Selected train has already passed this station for today.");
-        return false;
-      }
-    }
-
-    // ⚠️ TODO (next step):
-    // - outlet open/close time + cutoff minutes check (Supabase / Admin API se)
-    // - each menu item's start_time/end_time vs arrivalTime check
-    // Abhi ke liye unhe skip kar rahe hain taaki flow chal sake.
-
-    setValidationError("");
-    return true;
-  }
-
-  /* ------------ final canProceed for button ------------ */
-  const canProceed = canProceedJourneyFields() && !!selectedTrain && !validationError;
-
-  /* ------------ draft create + navigation ------------ */
+  /* ------------ Proceed to review ------------ */
   function goToReview() {
-    if (!canProceedJourneyFields()) {
-      alert("कृपया PNR, Coach, Seat, Name और 10-digit Mobile सही भरें।");
-      return;
-    }
-
-    if (!runExtraChecks()) {
-      // error message validationError me aa chuka hoga
+    if (!canProceed) {
+      alert("Please fill all details correctly before proceeding.");
       return;
     }
 
@@ -192,19 +178,16 @@ export default function CheckoutPage() {
       count,
       subtotal: total,
       journey: {
+        trainNo: trainNo.trim(),
+        deliveryDate,
+        deliveryTime,
         pnr: pnr.trim(),
         coach: coach.trim(),
         seat: seat.trim(),
         name: name.trim(),
         mobile: mobile.trim(),
       },
-      outlet: {
-        stationCode,
-        restroCode,
-        trainNo: selectedTrain ? String(selectedTrain.trainNumber ?? "") : "",
-        deliveryDate,
-        deliveryTime,
-      },
+      outlet, // ✅ yahan se outlet + station meta jayega
       createdAt: Date.now(),
     };
 
@@ -215,11 +198,14 @@ export default function CheckoutPage() {
     router.push("/checkout/review");
   }
 
-  /* ------------ UI ------------ */
+  /* ------------ UI (cart part aapka purana hi hai) ------------ */
 
   return (
     <main className="site-container page-safe-bottom">
-      <div className="checkout-header-actions" style={{ marginBottom: ".6rem" }}>
+      <div
+        className="checkout-header-actions"
+        style={{ marginBottom: ".6rem" }}
+      >
         <div>
           <h1 className="text-2xl font-bold">Checkout</h1>
           <p className="text-sm text-gray-600 mt-1">
@@ -239,7 +225,7 @@ export default function CheckoutPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* ITEMS */}
+          {/* ITEMS (unchanged) */}
           <section
             className="md:col-span-2 card-safe"
             aria-label="Cart items"
@@ -331,70 +317,62 @@ export default function CheckoutPage() {
             </div>
           </section>
 
-          {/* JOURNEY + TRAIN */}
+          {/* JOURNEY + TRAIN DETAILS */}
           <aside className="card-safe checkout-card">
             <h2 className="font-semibold mb-3">Journey Details</h2>
 
-            <div className="space-y-3">
-              {/* Train selection */}
-              <div>
-                <label className="text-sm block mb-1">
-                  Train number (at {stationCode || "station"})
-                </label>
-                <div className="flex gap-2">
+            {/* Train number + search */}
+            <div className="space-y-3 mb-3">
+              <div className="flex gap-2 items-end">
+                <div className="flex-1">
+                  <label className="text-sm block mb-1">
+                    Train number (at station)
+                  </label>
                   <input
-                    className="input flex-1"
-                    value={trainQuery}
-                    onChange={(e) => setTrainQuery(e.target.value)}
-                    placeholder="Enter train no. or name"
+                    className="input"
+                    value={trainNo}
+                    onChange={(e) => setTrainNo(e.target.value)}
+                    placeholder="e.g. 11016"
                   />
-                  <button
-                    type="button"
-                    className="rounded border px-3 py-2 text-sm"
-                    onClick={searchTrain}
-                  >
-                    Search
-                  </button>
                 </div>
-
-                {trainOptions.length > 0 && (
-                  <div className="mt-2 border rounded max-h-40 overflow-auto text-sm bg-white">
-                    {trainOptions.map((t: any, idx: number) => (
-                      <button
-                        key={`${t.trainNumber ?? idx}-${t.StationCode ?? idx}`}
-                        type="button"
-                        onClick={() => selectTrain(t)}
-                        className="block w-full text-left px-2 py-1 hover:bg-gray-100"
-                      >
-                        {t.trainNumber} – {t.trainName} (
-                        {String(t.Arrives).slice(0, 5)})
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {selectedTrain && (
-                  <div className="mt-1 text-xs text-gray-600">
-                    Selected: {selectedTrain.trainNumber} –{" "}
-                    {selectedTrain.trainName} • Arr{" "}
-                    {String(selectedTrain.Arrives).slice(0, 5)}
-                  </div>
-                )}
+                <button
+                  type="button"
+                  className="rounded px-3 py-2 text-sm bg-blue-600 text-white"
+                  onClick={searchTrain}
+                  disabled={trainLoading}
+                >
+                  {trainLoading ? "Searching…" : "Search"}
+                </button>
               </div>
 
-              {/* Delivery date/time (read-only for now) */}
-              <div className="flex gap-3 text-xs text-gray-600">
+              <div className="flex gap-3">
                 <div className="flex-1">
-                  <div className="font-medium">Delivery date</div>
-                  <div>{deliveryDate || "—"}</div>
+                  <label className="text-sm block mb-1">Delivery date</label>
+                  <input
+                    type="date"
+                    className="input"
+                    value={deliveryDate}
+                    onChange={(e) => setDeliveryDate(e.target.value)}
+                  />
                 </div>
                 <div className="flex-1">
-                  <div className="font-medium">Delivery time</div>
-                  <div>{deliveryTime || "—"}</div>
+                  <label className="text-sm block mb-1">Delivery time</label>
+                  <input
+                    className="input"
+                    value={deliveryTime}
+                    onChange={(e) => setDeliveryTime(e.target.value)}
+                    placeholder="HH:MM"
+                  />
                 </div>
               </div>
 
-              {/* Journey fields */}
+              {trainMsg && (
+                <p className="text-xs text-gray-600 mt-1">{trainMsg}</p>
+              )}
+            </div>
+
+            {/* PNR + passenger details (same as pehle) */}
+            <div className="space-y-3">
               <div>
                 <label className="text-sm block mb-1">PNR</label>
                 <input
@@ -446,17 +424,19 @@ export default function CheckoutPage() {
                   inputMode="numeric"
                 />
               </div>
-
-              {validationError && (
-                <div className="text-xs text-red-600 mt-1">
-                  {validationError}
-                </div>
-              )}
             </div>
+
+            {(metaError || !outlet) && (
+              <p className="mt-3 text-xs text-red-600">
+                {metaError ||
+                  "Station not detected. Please go back and select outlet again."}
+              </p>
+            )}
           </aside>
         </div>
       )}
 
+      {/* bottom panel */}
       {items.length > 0 && (
         <div
           className="bottom-action-elevated"
