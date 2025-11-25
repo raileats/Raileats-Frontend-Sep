@@ -19,7 +19,7 @@ type MenuItem = {
   base_price?: number | null;
   gst_percent?: number | null;
   selling_price?: number | null;
-  // IMPORTANT: yahan string | null rakha hai, taa ki server-side type se match ho
+  // server se aa raha status string hai, isliye yahan string | null
   status?: string | null;
 };
 
@@ -87,31 +87,47 @@ const priceStr = (n?: number | null) =>
     ? `₹${Number(n).toFixed(2).replace(/\.00$/, "")}`
     : "—";
 
-export default function RestroMenuClient({ header, items, offer }: Props) {
+export default function RestroMenuClient({ header, items }: Props) {
   const [vegOnly, setVegOnly] = useState(false);
   const [showMobileCart, setShowMobileCart] = useState(false);
 
   const { lines, count, total, add, changeQty, remove, clearCart } = useCart();
 
-  // 🔴 restroCode & stationCode ko sessionStorage me save
+  // ✅ outlet + station meta ko sessionStorage me store
   useEffect(() => {
     if (typeof window === "undefined") return;
     try {
-      // yahan simple object store kar raha hun jisse checkout me easily use kar sake
       const outletMeta = {
         restroCode: String(header.restroCode),
         stationCode: header.stationCode || "",
         outletName: header.outletName || "",
         stationName: header.stationName || "",
       };
+
+      // naya detailed object – checkout/train validation isse use karega
       sessionStorage.setItem(
         "raileats_current_outlet",
         JSON.stringify(outletMeta),
       );
+
+      // purane simple keys (agar kahin aur use ho rahe hon)
+      sessionStorage.setItem(
+        "raileats_current_restro_code",
+        String(header.restroCode),
+      );
+      sessionStorage.setItem(
+        "raileats_current_station_code",
+        header.stationCode || "",
+      );
     } catch {
       // ignore storage error
     }
-  }, [header.restroCode, header.stationCode, header.outletName, header.stationName]);
+  }, [
+    header.restroCode,
+    header.stationCode,
+    header.outletName,
+    header.stationName,
+  ]);
 
   const visible = useMemo(() => {
     const arr = (items || []).filter((x) => x.status === "ON");
