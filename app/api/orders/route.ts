@@ -1,6 +1,6 @@
 // app/api/orders/route.ts
 import { NextResponse } from "next/server";
-import { serviceClient } from "../../lib/supabaseServer";
+import { serviceClient } from "@/lib/supabaseServer";
 
 /** ---------- Incoming types (loose) ---------- */
 
@@ -41,6 +41,17 @@ type IncomingOutlet = {
   StationName?: string;
 };
 
+/** RestroMenuItems row (metadata for items) */
+type RestroMenuItemRow = {
+  id: number;
+  item_description?: string | null;
+  item_category?: string | null;
+  item_cuisine?: string | null;
+  menu_type?: string | null;
+  gst_percent?: number | null;
+  selling_price?: number | null;
+};
+
 /** ---------- Helpers ---------- */
 
 function toNumber(v: any, fallback = 0): number {
@@ -76,7 +87,7 @@ export async function POST(req: Request) {
       );
     }
 
-    // draft + pricing (जो review page से आ रहा है)
+    // review page se aa raha payload
     const draft: any = body.draft || {};
     const pricing: any = body.pricing || {};
 
@@ -84,11 +95,8 @@ export async function POST(req: Request) {
 
     let rawItems: IncomingItem[] = [];
 
-    // direct body.items (future compat)
     if (Array.isArray(body.items)) rawItems = body.items;
-    // main case: draft.items
     else if (Array.isArray(draft.items)) rawItems = draft.items;
-    // कुछ और नाम हों तो
     else if (Array.isArray(draft.lines)) rawItems = draft.lines;
     else if (Array.isArray(body.lines)) rawItems = body.lines;
     else if (Array.isArray(body.cartLines)) rawItems = body.cartLines;
@@ -173,7 +181,6 @@ export async function POST(req: Request) {
 
     /* ---- 2) OUTLET + JOURNEY ---- */
 
-    // outlet – पहले draft, फिर body
     const outlet: IncomingOutlet =
       draft.outlet ||
       draft.outletMeta ||
@@ -190,14 +197,15 @@ export async function POST(req: Request) {
         body.RestroCode,
       NaN,
     );
-    const stationCode = String(
+    const stationCodeRaw =
       outlet.stationCode ??
-        outlet.StationCode ??
-        draft.stationCode ??
-        body.stationCode ??
-        body.StationCode ??
-        "",
-    ).toUpperCase();
+      outlet.StationCode ??
+      draft.stationCode ??
+      body.stationCode ??
+      body.StationCode ??
+      "";
+
+    const stationCode = String(stationCodeRaw || "").toUpperCase();
 
     if (!Number.isFinite(restroCode) || !stationCode) {
       return NextResponse.json(
@@ -210,7 +218,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const restroName =
+    const restroNameRaw =
       outlet.RestroName ??
       outlet.outletName ??
       draft.RestroName ??
@@ -219,16 +227,22 @@ export async function POST(req: Request) {
       body.outletName ??
       `Restro ${restroCode}`;
 
-    const stationName =
+    const restroName = String(restroNameRaw || "").slice(0, 200);
+
+    const stationNameRaw =
       outlet.StationName ??
       outlet.stationName ??
       draft.StationName ??
       draft.stationName ??
       body.StationName ??
       body.stationName ??
-      stationCode;
+      "";
 
-    // journey – पहले draft, फिर body
+    // agar stationName empty ho to कम से कम stationCode save karo
+    const stationName =
+      String(stationNameRaw || "").trim() || stationCode;
+
+    // journey – draft/journey से
     const journey: IncomingJourney =
       draft.journey ||
       draft.journeyDetails ||
@@ -311,15 +325,38 @@ export async function POST(req: Request) {
         body.Seat ??
         "") || null;
 
+    // ✅ PaymentMode ka bug fix – sirf "ONLINE" hone par hi ONLINE,
+    // baaki sab COD (to ensure COD sahi save ho)
+    const rawPm = body.paymentMode ?? draft.paymentMode;
     const PaymentMode: "COD" | "ONLINE" =
-      body.paymentMode ??
-      draft.paymentMode === "ONLINE"
-        ? "ONLINE"
-        : "COD";
+      rawPm === "ONLINE" ? "ONLINE" : "COD";
 
-    /* ---- 3) Build rows for Supabase ---- */
+    /* ---- 3) Prepare & fetch item metadata from RestroMenuItems ---- */
 
     const supa = serviceClient;
+
+    const wantedCodes = normItems.map((it) => it.ItemCode);
+
+    let menuMap = new Map<number, RestroMenuItemRow>();
+    if (wantedCodes.length) {
+      const { data: menuData, error: menuErr } = await supa
+        .from<RestroMenuItemRow>("RestroMenuItems")
+        .select(
+          "id, item_description, item_category, item_cuisine, menu_type, gst_percent, selling_price",
+        )
+        .eq("restro_code", restroCode)
+        .in("id", wantedCodes);
+
+      if (menuErr) {
+        console.error("RestroMenuItems fetch error", menuErr);
+      } else if (menuData) {
+        for (const row of menuData) {
+          menuMap.set(row.id, row);
+        }
+      }
+    }
+
+    /* ---- 4) Build rows for Supabase ---- */
 
     // OrderId: RE-YYYYMMDDHHMMSS-rand
     const stamp = new Date()
@@ -348,35 +385,42 @@ export async function POST(req: Request) {
       PlatformCharge,
       TotalAmount,
       PaymentMode,
-      Status: "Booked" as const,
+      // ✅ Status ko lowercase "booked" rakha hai
+      Status: "booked" as const,
       JourneyPayload: journey,
+      // CreatedAt / UpdatedAt DB ke default now() se aa jayega (UTC),
+      // admin panel me IST dikhana front-end ka kaam hai.
     };
 
-    const itemRows = normItems.map((it) => ({
-      OrderId,
-      RestroCode: restroCode,
-      ItemCode: it.ItemCode,
-      ItemName: it.ItemName,
-      ItemDescription: null,
-      ItemCategory: null,
-      Cuisine: null,
-      MenuType: null,
-      BasePrice: it.BasePrice,
-      GSTPercent: it.GSTPercent,
-      SellingPrice: it.SellingPrice,
-      Quantity: it.Quantity,
-      LineTotal: it.LineTotal,
-    }));
+    const itemRows = normItems.map((it) => {
+      const meta = menuMap.get(it.ItemCode);
+      return {
+        OrderId,
+        RestroCode: restroCode,
+        ItemCode: it.ItemCode,
+        ItemName: it.ItemName,
+        ItemDescription: meta?.item_description ?? null,
+        ItemCategory: meta?.item_category ?? null,
+        Cuisine: meta?.item_cuisine ?? null,
+        MenuType: meta?.menu_type ?? null,
+        BasePrice: it.BasePrice,
+        GSTPercent: meta?.gst_percent ?? it.GSTPercent,
+        SellingPrice: meta?.selling_price ?? it.SellingPrice,
+        Quantity: it.Quantity,
+        LineTotal: it.LineTotal,
+      };
+    });
 
     const historyRow = {
       OrderId,
       OldStatus: null,
-      NewStatus: "Booked",
+      NewStatus: "booked",
       Note: "Order created from website",
       ChangedBy: "system",
+      // ChangedAt default now() in DB
     };
 
-    /* ---- 4) Insert into Supabase ---- */
+    /* ---- 5) Insert into Supabase ---- */
 
     const { error: orderErr } = await supa.from("Orders").insert(orderRow);
     if (orderErr) {
@@ -392,7 +436,7 @@ export async function POST(req: Request) {
       .insert(itemRows);
     if (itemsErr) {
       console.error("OrderItems insert error", itemsErr);
-      // order create ho chuka hai, yahan se fail nahi कर रहे
+      // order create ho chuka hai, yahan se fail nahi kar rahe
     }
 
     const { error: histErr } = await supa
