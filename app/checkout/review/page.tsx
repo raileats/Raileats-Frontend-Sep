@@ -4,18 +4,39 @@ import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { priceStr } from "../../lib/priceUtil";
 
+type Draft = {
+  id: string;
+  items: { id: number; name: string; price: number; qty: number }[];
+  count: number;
+  subtotal: number;
+  journey: {
+    pnr: string;
+    coach: string;
+    seat: string;
+    name: string;
+    mobile: string;
+  };
+  outlet: {
+    restroCode?: string | number;
+    restroName?: string;
+    stationCode?: string;
+    stationName?: string;
+  } | null;
+  createdAt: number;
+};
+
 export default function ReviewPage() {
   const router = useRouter();
-  const [draft, setDraft] = useState<any | null>(null);
+  const [draft, setDraft] = useState<Draft | null>(null);
 
-  const [platformCharge, setPlatformCharge] = useState<number>(20); // default charge
+  const [platformCharge, setPlatformCharge] = useState<number>(20);
   const gstPercent = 5;
   const [mode, setMode] = useState<"cod" | "online">("cod");
-  const [placing, setPlacing] = useState(false);
+  const [booking, setBooking] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const raw = window.sessionStorage.getItem("raileats_order_draft");
+    const raw = sessionStorage.getItem("raileats_order_draft");
     if (!raw) {
       router.replace("/checkout");
       return;
@@ -39,31 +60,31 @@ export default function ReviewPage() {
   const gst = +(subtotal * (gstPercent / 100));
   const final = +(subtotal + gst + Number(platformCharge || 0));
 
-  // 🔹 COD order ko backend (/api/orders) par POST karo
+  // ✅ COD order → Supabase API
   const placeCodOrder = async () => {
-    if (placing) return;
-    setPlacing(true);
+    if (booking) return;
+    setBooking(true);
     try {
-      const journey = draft.journey || {};
-      const meta = draft.meta || {};
+      const outlet = draft.outlet || {};
+      const restroCode = outlet.restroCode ?? outlet.restroCode ?? null;
 
-      if (!meta.restroCode) {
-        alert("Restaurant information missing. Please start from station page again.");
-        setPlacing(false);
+      if (!restroCode) {
+        alert("Restaurant info missing. Please go back and select again.");
+        setBooking(false);
         return;
       }
 
       const payload = {
-        restro_code: meta.restroCode,
+        restro_code: restroCode,
         customer: {
-          full_name: String(journey.name || "").trim(),
-          phone: String(journey.mobile || "").trim(),
+          full_name: draft.journey.name,
+          phone: draft.journey.mobile,
         },
         delivery: {
-          train_no: String(journey.pnr || "").trim(),
-          coach: String(journey.coach || "").trim(),
-          seat: String(journey.seat || "").trim(),
-          // aap future me date/time choose karwaoge to yahan bhej dena
+          train_no: draft.journey.pnr, // filhaal PNR as train_no
+          coach: draft.journey.coach,
+          seat: draft.journey.seat,
+          // Delivery date/time backend me default ho jaayega
         },
         pricing: {
           subtotal,
@@ -72,19 +93,17 @@ export default function ReviewPage() {
           total: final,
           payment_mode: "COD",
         },
-        items: (draft.items || []).map((it: any) => ({
+        items: draft.items.map((it) => ({
           item_id: it.id,
           name: it.name,
           qty: it.qty,
           base_price: it.price,
-          line_total: (it.price || 0) * (it.qty || 1),
+          line_total: it.price * it.qty,
         })),
         meta: {
-          journey,
-          stationCode: meta.stationCode || null,
-          stationName: meta.stationName || null,
-          outletName: meta.outletName || null,
-          draftId: draft.id || null,
+          journey: draft.journey,
+          outlet,
+          draftId: draft.id,
         },
       };
 
@@ -94,21 +113,20 @@ export default function ReviewPage() {
         body: JSON.stringify(payload),
       });
 
-      const json = await res.json().catch(() => ({} as any));
+      const json = await res.json().catch(() => null);
 
       if (!res.ok || !json?.ok) {
-        console.error("Order POST failed", res.status, json);
+        console.error("Order booking failed", json);
         alert("Order booking failed. Please try again.");
-        setPlacing(false);
+        setBooking(false);
         return;
       }
 
-      const orderId = json.order_id || json.id || "ORD" + Date.now();
-
-      const summaryOrder = {
-        id: orderId,
+      // Friendly summary ke liye
+      const order = {
+        id: json.order_id || draft.id,
         items: draft.items,
-        journey,
+        journey: draft.journey,
         subtotal,
         gst,
         platformCharge,
@@ -118,30 +136,21 @@ export default function ReviewPage() {
       };
 
       if (typeof window !== "undefined") {
-        window.sessionStorage.setItem(
-          "raileats_last_order",
-          JSON.stringify(summaryOrder),
-        );
-        window.sessionStorage.removeItem("raileats_order_draft");
+        sessionStorage.setItem("raileats_last_order", JSON.stringify(order));
+        sessionStorage.removeItem("raileats_order_draft");
       }
 
       router.push("/checkout/summary");
     } catch (e) {
       console.error("placeCodOrder error", e);
-      alert("Something went wrong while booking the order.");
-      setPlacing(false);
+      alert("Order booking failed. Please try again.");
+      setBooking(false);
     }
   };
 
   const gotoPayOnline = () => {
-    // future: yahan bhi API hit kar sakte ho, abhi purana flow hi rehne de
     const payload = { draft, platformCharge, gstPercent, gst, final };
-    if (typeof window !== "undefined") {
-      window.sessionStorage.setItem(
-        "raileats_payment_payload",
-        JSON.stringify(payload),
-      );
-    }
+    sessionStorage.setItem("raileats_payment_payload", JSON.stringify(payload));
     router.push("/checkout/payment");
   };
 
@@ -153,10 +162,10 @@ export default function ReviewPage() {
         <div className="flex justify-between items-start">
           <div>
             <div className="text-sm text-gray-600">To</div>
-            <div className="font-medium">{draft.journey?.name}</div>
+            <div className="font-medium">{draft.journey.name}</div>
             <div className="text-xs text-gray-500">
-              {draft.journey?.pnr} • Coach {draft.journey?.coach} • Seat{" "}
-              {draft.journey?.seat}
+              {draft.journey.pnr} • Coach {draft.journey.coach} • Seat{" "}
+              {draft.journey.seat}
             </div>
           </div>
 
@@ -225,13 +234,14 @@ export default function ReviewPage() {
             <button
               className="rounded px-4 py-2 bg-green-600 text-white"
               onClick={placeCodOrder}
-              disabled={placing}
+              disabled={booking}
             >
-              {placing ? "Booking…" : "Book"}
+              {booking ? "Booking…" : "Book"}
             </button>
             <button
               className="rounded border px-4 py-2"
               onClick={() => router.back()}
+              disabled={booking}
             >
               Edit
             </button>
