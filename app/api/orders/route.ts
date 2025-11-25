@@ -1,6 +1,6 @@
 // app/api/orders/route.ts
 import { NextResponse } from "next/server";
-import { serviceClient } from "../../../lib/supabaseServer";
+import { serviceClient } from "../../lib/supabaseServer";
 
 // TABLE TYPES (for Supabase strict mode)
 type OrderItemPayload = {
