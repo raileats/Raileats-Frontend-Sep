@@ -32,15 +32,15 @@ export default function CheckoutPage() {
       return;
     }
 
-    // 🔹 cart meta (restroCode + stationCode) read karo
-    let meta: any = null;
+    // ✅ outlet meta read from sessionStorage
+    let outlet: any = null;
     if (typeof window !== "undefined") {
-      const rawMeta = window.sessionStorage.getItem("raileats_cart_meta");
-      if (rawMeta) {
+      const raw = sessionStorage.getItem("raileats_current_outlet");
+      if (raw) {
         try {
-          meta = JSON.parse(rawMeta);
-        } catch (e) {
-          console.error("Invalid raileats_cart_meta", e);
+          outlet = JSON.parse(raw);
+        } catch {
+          outlet = null;
         }
       }
     }
@@ -62,31 +62,27 @@ export default function CheckoutPage() {
         name: name.trim(),
         mobile: mobile.trim(),
       },
-      meta, // 🔹 yahi meta aage API ko bhejenge
+      outlet, // ✅ yahan store
       createdAt: Date.now(),
     };
 
     if (typeof window !== "undefined") {
-      window.sessionStorage.setItem(
-        "raileats_order_draft",
-        JSON.stringify(draft),
-      );
+      sessionStorage.setItem("raileats_order_draft", JSON.stringify(draft));
     }
 
     router.push("/checkout/review");
   }
 
+  // ... baaki UI same as pehle (unchanged)
+  // (exact same JSX jo aapke current file me hai, sirf goToReview wala part change hua hai)
+  // ---- copy the JSX from your existing file below this comment ----
+
   return (
     <main className="site-container page-safe-bottom">
-      <div
-        className="checkout-header-actions"
-        style={{ marginBottom: ".6rem" }}
-      >
+      <div className="checkout-header-actions" style={{ marginBottom: ".6rem" }}>
         <div>
           <h1 className="text-2xl font-bold">Checkout</h1>
-          <p className="text-sm text-gray-600 mt-1">
-            Review items & journey details
-          </p>
+          <p className="text-sm text-gray-600 mt-1">Review items & journey details</p>
         </div>
       </div>
 
@@ -253,7 +249,6 @@ export default function CheckoutPage() {
         </div>
       )}
 
-      {/* bottom panel normal block (not fixed) */}
       {items.length > 0 && (
         <div
           className="bottom-action-elevated"
@@ -277,9 +272,7 @@ export default function CheckoutPage() {
               <button
                 className="rounded border px-3 py-2 text-sm"
                 onClick={() =>
-                  typeof window !== "undefined"
-                    ? window.history.back()
-                    : null
+                  typeof window !== "undefined" ? window.history.back() : null
                 }
               >
                 Add More Items
