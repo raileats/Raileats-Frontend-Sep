@@ -2,12 +2,17 @@
 import { NextResponse } from "next/server";
 import { serviceClient } from "../../lib/supabaseServer";
 
-/** ---- Types coming from frontend ---- */
+/** ---------- Incoming types (loose) ---------- */
+
 type IncomingItem = {
   id?: number;
+  itemId?: number;
+  item_code?: number;
   name?: string;
   itemName?: string;
+  title?: string;
   price?: number | string;
+  base_price?: number | string;
   unitPrice?: number | string;
   qty?: number | string;
   quantity?: number | string;
@@ -27,6 +32,7 @@ type IncomingJourney = {
 type IncomingOutlet = {
   restroCode?: number | string;
   RestroCode?: number | string;
+  restro_id?: number | string;
   outletName?: string;
   RestroName?: string;
   stationCode?: string;
@@ -35,24 +41,22 @@ type IncomingOutlet = {
   StationName?: string;
 };
 
-type NormalisedItem = {
-  ItemCode: number;
-  ItemName: string;
-  BasePrice: number;
-  GSTPercent: number | null;
-  SellingPrice: number | null;
-  Quantity: number;
-  LineTotal: number;
-};
+/** ---------- Helpers ---------- */
 
-/** ---- Helpers ---- */
-
-function toNumber(n: any, fallback = 0): number {
-  const v = Number(n);
-  return Number.isFinite(v) ? v : fallback;
+function toNumber(v: any, fallback = 0): number {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : fallback;
 }
 
-function normaliseTimeHHMM(t?: string | null): string {
+function todayYMD() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function normTimeHHMMSS(t?: string | null) {
   if (!t) return "00:00:00";
   const s = String(t).trim();
   if (!s) return "00:00:00";
@@ -60,15 +64,7 @@ function normaliseTimeHHMM(t?: string | null): string {
   return `${hh.padStart(2, "0")}:${mm.padStart(2, "0")}:00`;
 }
 
-function todayYMD() {
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = String(now.getMonth() + 1).padStart(2, "0");
-  const d = String(now.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-}
-
-/** ---- POST /api/orders ---- */
+/** ---------- POST /api/orders ---------- */
 export async function POST(req: Request) {
   try {
     const body: any = await req.json().catch(() => null);
@@ -80,7 +76,8 @@ export async function POST(req: Request) {
       );
     }
 
-    // ----- 1) ITEMS (cart lines) -----
+    /* ---- 1) ITEMS (cart lines) ---- */
+
     let rawItems: IncomingItem[] = [];
 
     if (Array.isArray(body.items)) rawItems = body.items;
@@ -88,6 +85,7 @@ export async function POST(req: Request) {
     else if (Array.isArray(body.cartLines)) rawItems = body.cartLines;
 
     if (!Array.isArray(rawItems) || rawItems.length === 0) {
+      // यहाँ हमने debugKeys भी भेज दिए ताकि आगे कुछ और mismatch हो तो तुरंत दिख जाये
       return NextResponse.json(
         {
           ok: false,
@@ -98,57 +96,92 @@ export async function POST(req: Request) {
       );
     }
 
-    const normItems: NormalisedItem[] = rawItems.map((it, idx) => {
-      const qty = toNumber(it.qty ?? it.quantity ?? 0, 0);
-      const price = toNumber(it.price ?? it.unitPrice ?? 0, 0);
+    const normItems = rawItems
+      .map((it, idx) => {
+        const qty = toNumber(it.qty ?? it.quantity, 0);
+        const price = toNumber(
+          it.price ?? it.base_price ?? it.unitPrice,
+          0,
+        );
+        if (qty <= 0 || !Number.isFinite(price) || price <= 0) return null;
 
-      return {
-        ItemCode: toNumber(it.id ?? idx + 1, idx + 1),
-        ItemName: String(it.name ?? it.itemName ?? "Item").slice(0, 200),
-        BasePrice: price,
-        GSTPercent: null,
-        SellingPrice: null,
-        Quantity: qty,
-        LineTotal: qty * price,
-      };
-    });
+        const code =
+          it.id ?? it.itemId ?? it.item_code ?? (idx + 1);
 
-    const filteredItems = normItems.filter((i) => i.Quantity > 0);
-    if (!filteredItems.length) {
+        const name =
+          it.name ?? it.itemName ?? it.title ?? `Item ${idx + 1}`;
+
+        const lineTotal = qty * price;
+
+        return {
+          ItemCode: toNumber(code, idx + 1),
+          ItemName: String(name).slice(0, 200),
+          BasePrice: price,
+          GSTPercent: null as number | null,
+          SellingPrice: null as number | null,
+          Quantity: qty,
+          LineTotal: lineTotal,
+        };
+      })
+      .filter(Boolean) as {
+      ItemCode: number;
+      ItemName: string;
+      BasePrice: number;
+      GSTPercent: number | null;
+      SellingPrice: number | null;
+      Quantity: number;
+      LineTotal: number;
+    }[];
+
+    if (!normItems.length) {
       return NextResponse.json(
-        { ok: false, error: "no_positive_qty_items" },
+        { ok: false, error: "no_valid_items" },
         { status: 400 },
       );
     }
 
-    // totals (fallback if frontend ne nahi bheja)
-    const subtotalFromItems = filteredItems.reduce(
+    const subtotalFromItems = normItems.reduce(
       (sum, it) => sum + it.LineTotal,
       0,
     );
 
-    const subTotal = toNumber(body.subtotal, subtotalFromItems);
-    const gstAmount = toNumber(body.gst ?? body.gstAmount, 0);
-    const platformCharge = toNumber(body.platformCharge, 0);
-    const totalAmount = toNumber(
+    const SubTotal = toNumber(body.subtotal, subtotalFromItems);
+    const GSTAmount = toNumber(body.gst ?? body.gstAmount, 0);
+    const PlatformCharge = toNumber(body.platformCharge, 0);
+    const TotalAmount = toNumber(
       body.total,
-      subTotal + gstAmount + platformCharge,
+      SubTotal + GSTAmount + PlatformCharge,
     );
 
-    // ----- 2) JOURNEY + OUTLET META -----
-    const journey: IncomingJourney = body.journey || {};
-    const outlet: IncomingOutlet = body.outlet || {};
+    /* ---- 2) OUTLET + JOURNEY ---- */
+
+    // outlet – पहले nested, फिर root level fallbacks
+    const outlet: IncomingOutlet =
+      body.outlet || body.outletMeta || {};
 
     const restroCode = toNumber(
-      outlet.restroCode ?? outlet.RestroCode,
+      outlet.restroCode ??
+        outlet.RestroCode ??
+        outlet.restro_id ??
+        body.restroCode ??
+        body.RestroCode,
       NaN,
     );
-    const stationCode =
-      (outlet.stationCode ?? outlet.StationCode ?? "").toString().toUpperCase();
+    const stationCode = String(
+      outlet.stationCode ??
+        outlet.StationCode ??
+        body.stationCode ??
+        body.StationCode ??
+        "",
+    ).toUpperCase();
 
     if (!Number.isFinite(restroCode) || !stationCode) {
       return NextResponse.json(
-        { ok: false, error: "missing_outlet_meta" },
+        {
+          ok: false,
+          error: "missing_outlet_meta",
+          debug: { restroCode, stationCode },
+        },
         { status: 400 },
       );
     }
@@ -156,62 +189,118 @@ export async function POST(req: Request) {
     const restroName =
       outlet.RestroName ??
       outlet.outletName ??
-      "Restaurant " + String(restroCode);
-    const stationName = outlet.StationName ?? outlet.stationName ?? stationCode;
+      body.RestroName ??
+      body.outletName ??
+      `Restro ${restroCode}`;
 
-    const trainNumber = String(journey.trainNo ?? "").trim();
-    const customerMobile = String(journey.mobile ?? "").trim();
+    const stationName =
+      outlet.StationName ??
+      outlet.stationName ??
+      body.StationName ??
+      body.stationName ??
+      stationCode;
+
+    // journey – nested + root fallbacks
+    const journey: IncomingJourney =
+      body.journey ||
+      body.journeyDetails || {
+        trainNo: body.trainNo ?? body.TrainNumber,
+        deliveryDate: body.deliveryDate,
+        deliveryTime: body.deliveryTime,
+        pnr: body.pnr,
+        coach: body.coach,
+        seat: body.seat,
+        name: body.name ?? body.customerName,
+        mobile: body.mobile ?? body.customerMobile,
+      };
+
+    const trainNumber = String(
+      journey.trainNo ?? body.trainNo ?? body.TrainNumber ?? "",
+    ).trim();
+
+    const customerMobile = String(
+      journey.mobile ?? body.mobile ?? body.CustomerMobile ?? "",
+    ).trim();
 
     if (!trainNumber || !customerMobile) {
+      // यह वही error है जो अभी दिख रहा था, लेकिन अब हम multi-fallback के बाद ही दे रहे हैं
       return NextResponse.json(
-        { ok: false, error: "missing_journey_meta" },
+        {
+          ok: false,
+          error: "missing_journey",
+          debug: {
+            hasJourney: !!body.journey,
+            hasJourneyDetails: !!body.journeyDetails,
+            trainNumber,
+            customerMobile,
+            bodyKeys: Object.keys(body),
+          },
+        },
         { status: 400 },
       );
     }
 
-    const deliveryDate = (journey.deliveryDate || todayYMD()).slice(0, 10);
-    const deliveryTime = normaliseTimeHHMM(journey.deliveryTime);
+    const DeliveryDate = (
+      journey.deliveryDate ??
+      body.deliveryDate ??
+      todayYMD()
+    ).slice(0, 10);
 
-    const customerName = String(journey.name ?? "").slice(0, 120) || null;
-    const coach = String(journey.coach ?? "").slice(0, 20) || null;
-    const seat = String(journey.seat ?? "").slice(0, 20) || null;
+    const DeliveryTime = normTimeHHMMSS(
+      journey.deliveryTime ?? body.deliveryTime,
+    );
 
-    const paymentMode: "COD" | "ONLINE" =
+    const CustomerName =
+      (journey.name ??
+        body.name ??
+        body.customerName ??
+        "") || null;
+
+    const Coach =
+      (journey.coach ?? body.coach ?? body.Coach ?? "") || null;
+    const Seat =
+      (journey.seat ?? body.seat ?? body.Seat ?? "") || null;
+
+    const PaymentMode: "COD" | "ONLINE" =
       body.paymentMode === "ONLINE" ? "ONLINE" : "COD";
 
-    // ----- 3) BUILD DB PAYLOADS -----
+    /* ---- 3) Build rows for Supabase ---- */
+
     const supa = serviceClient;
 
-    // create order id (RE-YYYYMMDDHHMMSS-random)
-    const stamp = new Date().toISOString().replace(/[-:TZ.]/g, "").slice(0, 14);
-    const orderId = `RE-${stamp}-${Math.floor(Math.random() * 900 + 100)}`;
+    // OrderId: RE-YYYYMMDDHHMMSS-rand
+    const stamp = new Date()
+      .toISOString()
+      .replace(/[-:TZ.]/g, "")
+      .slice(0, 14);
+    const OrderId = `RE-${stamp}-${Math.floor(
+      Math.random() * 900 + 100,
+    )}`;
 
-    // Orders row
     const orderRow = {
-      OrderId: orderId,
+      OrderId,
       RestroCode: restroCode,
       RestroName: restroName,
       StationCode: stationCode,
       StationName: stationName,
-      DeliveryDate: deliveryDate,
-      DeliveryTime: deliveryTime,
+      DeliveryDate,
+      DeliveryTime,
       TrainNumber: trainNumber,
-      Coach: coach,
-      Seat: seat,
-      CustomerName: customerName,
+      Coach,
+      Seat,
+      CustomerName,
       CustomerMobile: customerMobile,
-      SubTotal: subTotal,
-      GSTAmount: gstAmount,
-      PlatformCharge: platformCharge,
-      TotalAmount: totalAmount,
-      PaymentMode: paymentMode,
+      SubTotal,
+      GSTAmount,
+      PlatformCharge,
+      TotalAmount,
+      PaymentMode,
       Status: "Booked" as const,
       JourneyPayload: journey,
     };
 
-    // OrderItems rows
-    const itemRows = filteredItems.map((it) => ({
-      OrderId: orderId,
+    const itemRows = normItems.map((it) => ({
+      OrderId,
       RestroCode: restroCode,
       ItemCode: it.ItemCode,
       ItemName: it.ItemName,
@@ -226,16 +315,16 @@ export async function POST(req: Request) {
       LineTotal: it.LineTotal,
     }));
 
-    // Status history row
-    const statusRow = {
-      OrderId: orderId,
+    const historyRow = {
+      OrderId,
       OldStatus: null,
       NewStatus: "Booked",
       Note: "Order created from website",
       ChangedBy: "system",
     };
 
-    // ----- 4) Insert into Supabase -----
+    /* ---- 4) Insert into Supabase ---- */
+
     const { error: orderErr } = await supa.from("Orders").insert(orderRow);
     if (orderErr) {
       console.error("Orders insert error", orderErr);
@@ -245,23 +334,22 @@ export async function POST(req: Request) {
       );
     }
 
-    const { error: itemsErr } = await supa.from("OrderItems").insert(itemRows);
+    const { error: itemsErr } = await supa
+      .from("OrderItems")
+      .insert(itemRows);
     if (itemsErr) {
       console.error("OrderItems insert error", itemsErr);
-      // NOTE: order ban chuka hai, is case me bhi user ko success dikha sakte hain
+      // order create ho chuka hai, isliye yahan se fail nahi kar रहे
     }
 
     const { error: histErr } = await supa
       .from("OrderStatusHistory")
-      .insert(statusRow);
+      .insert(historyRow);
     if (histErr) {
       console.error("OrderStatusHistory insert error", histErr);
     }
 
-    return NextResponse.json({
-      ok: true,
-      orderId,
-    });
+    return NextResponse.json({ ok: true, orderId: OrderId });
   } catch (err) {
     console.error("orders.POST server_error", err);
     return NextResponse.json(
@@ -271,7 +359,7 @@ export async function POST(req: Request) {
   }
 }
 
-/** Optional: simple GET to test API is live */
+/** Simple GET – health check */
 export async function GET() {
   return NextResponse.json({
     ok: true,
