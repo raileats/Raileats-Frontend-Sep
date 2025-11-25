@@ -4,35 +4,14 @@ import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { priceStr } from "../../lib/priceUtil";
 
-type Draft = {
-  id: string;
-  items: { id: number; name: string; price: number; qty: number }[];
-  count: number;
-  subtotal: number;
-  journey: {
-    pnr: string;
-    coach: string;
-    seat: string;
-    name: string;
-    mobile: string;
-  };
-  outlet: {
-    restroCode?: string | number;
-    restroName?: string;
-    stationCode?: string;
-    stationName?: string;
-  } | null;
-  createdAt: number;
-};
-
 export default function ReviewPage() {
   const router = useRouter();
-  const [draft, setDraft] = useState<Draft | null>(null);
+  const [draft, setDraft] = useState<any | null>(null);
 
-  const [platformCharge, setPlatformCharge] = useState<number>(20);
+  const [platformCharge, setPlatformCharge] = useState<number>(20); // default charge
   const gstPercent = 5;
   const [mode, setMode] = useState<"cod" | "online">("cod");
-  const [booking, setBooking] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -60,50 +39,61 @@ export default function ReviewPage() {
   const gst = +(subtotal * (gstPercent / 100));
   const final = +(subtotal + gst + Number(platformCharge || 0));
 
-  // ✅ COD order → Supabase API
+  // 🔴 COD order ko backend /api/orders per bhejna
   const placeCodOrder = async () => {
-    if (booking) return;
-    setBooking(true);
+    if (submitting) return;
+    setSubmitting(true);
     try {
-      const outlet = draft.outlet || {};
-      const restroCode = outlet.restroCode ?? outlet.restroCode ?? null;
-
-      if (!restroCode) {
-        alert("Restaurant info missing. Please go back and select again.");
-        setBooking(false);
+      if (typeof window === "undefined") {
+        alert("Browser storage unavailable.");
         return;
       }
+
+      // restro_code ko menu page ne sessionStorage me save kiya tha
+      const restroCode =
+        sessionStorage.getItem("raileats_current_restro_code") || "";
+
+      if (!restroCode) {
+        alert("Restaurant information missing. Please go back and select outlet again.");
+        return;
+      }
+
+      const journey = draft.journey || {};
+
+      // TrainNumber NOT NULL hai, isliye kam se kam PNR bhej rahe hain
+      const trainNo = journey.pnr || "UNKNOWN";
 
       const payload = {
         restro_code: restroCode,
         customer: {
-          full_name: draft.journey.name,
-          phone: draft.journey.mobile,
+          full_name: journey.name || "Customer",
+          phone: journey.mobile || "",
         },
         delivery: {
-          train_no: draft.journey.pnr, // filhaal PNR as train_no
-          coach: draft.journey.coach,
-          seat: draft.journey.seat,
-          // Delivery date/time backend me default ho jaayega
+          train_no: trainNo,
+          coach: journey.coach || "",
+          seat: journey.seat || "",
+          // abhi ke liye backend apne aap aaj ki date/time use karega
         },
         pricing: {
           subtotal,
           gst,
           platform_charge: platformCharge,
           total: final,
-          payment_mode: "COD",
+          payment_mode: "COD" as const,
         },
-        items: draft.items.map((it) => ({
-          item_id: it.id,
-          name: it.name,
-          qty: it.qty,
-          base_price: it.price,
-          line_total: it.price * it.qty,
-        })),
+        items: Array.isArray(draft.items)
+          ? draft.items.map((it: any) => ({
+              item_id: it.id,
+              name: it.name,
+              qty: it.qty,
+              base_price: it.price,
+              line_total: (it.price || 0) * (it.qty || 1),
+            }))
+          : [],
         meta: {
-          journey: draft.journey,
-          outlet,
-          draftId: draft.id,
+          journey,
+          ui_source: "web_raileats",
         },
       };
 
@@ -113,20 +103,20 @@ export default function ReviewPage() {
         body: JSON.stringify(payload),
       });
 
-      const json = await res.json().catch(() => null);
+      const json = await res.json().catch(() => ({} as any));
 
       if (!res.ok || !json?.ok) {
-        console.error("Order booking failed", json);
+        console.error("Order create failed", res.status, json);
         alert("Order booking failed. Please try again.");
-        setBooking(false);
         return;
       }
 
-      // Friendly summary ke liye
-      const order = {
-        id: json.order_id || draft.id,
+      const serverOrderId = json.order_id || ("ORD" + Date.now());
+
+      const orderForSummary = {
+        id: serverOrderId,
         items: draft.items,
-        journey: draft.journey,
+        journey,
         subtotal,
         gst,
         platformCharge,
@@ -135,22 +125,29 @@ export default function ReviewPage() {
         createdAt: Date.now(),
       };
 
-      if (typeof window !== "undefined") {
-        sessionStorage.setItem("raileats_last_order", JSON.stringify(order));
-        sessionStorage.removeItem("raileats_order_draft");
-      }
+      sessionStorage.setItem(
+        "raileats_last_order",
+        JSON.stringify(orderForSummary),
+      );
+      sessionStorage.removeItem("raileats_order_draft");
 
       router.push("/checkout/summary");
     } catch (e) {
       console.error("placeCodOrder error", e);
       alert("Order booking failed. Please try again.");
-      setBooking(false);
+    } finally {
+      setSubmitting(false);
     }
   };
 
   const gotoPayOnline = () => {
     const payload = { draft, platformCharge, gstPercent, gst, final };
-    sessionStorage.setItem("raileats_payment_payload", JSON.stringify(payload));
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem(
+        "raileats_payment_payload",
+        JSON.stringify(payload),
+      );
+    }
     router.push("/checkout/payment");
   };
 
@@ -234,14 +231,14 @@ export default function ReviewPage() {
             <button
               className="rounded px-4 py-2 bg-green-600 text-white"
               onClick={placeCodOrder}
-              disabled={booking}
+              disabled={submitting}
             >
-              {booking ? "Booking…" : "Book"}
+              {submitting ? "Booking…" : "Book"}
             </button>
             <button
               className="rounded border px-4 py-2"
               onClick={() => router.back()}
-              disabled={booking}
+              disabled={submitting}
             >
               Edit
             </button>
