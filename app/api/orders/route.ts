@@ -1,6 +1,6 @@
 // app/api/orders/route.ts
 import { NextResponse } from "next/server";
-import { serviceClient } from "@/lib/supabaseServer";
+import { serviceClient } from "../../lib/supabaseServer";
 
 /** ---------- Incoming types (loose) ---------- */
 
@@ -238,11 +238,9 @@ export async function POST(req: Request) {
       body.stationName ??
       "";
 
-    // agar stationName empty ho to कम से कम stationCode save karo
     const stationName =
       String(stationNameRaw || "").trim() || stationCode;
 
-    // journey – draft/journey से
     const journey: IncomingJourney =
       draft.journey ||
       draft.journeyDetails ||
@@ -325,16 +323,13 @@ export async function POST(req: Request) {
         body.Seat ??
         "") || null;
 
-    // ✅ PaymentMode ka bug fix – sirf "ONLINE" hone par hi ONLINE,
-    // baaki sab COD (to ensure COD sahi save ho)
     const rawPm = body.paymentMode ?? draft.paymentMode;
     const PaymentMode: "COD" | "ONLINE" =
       rawPm === "ONLINE" ? "ONLINE" : "COD";
 
-    /* ---- 3) Prepare & fetch item metadata from RestroMenuItems ---- */
+    /* ---- 3) Fetch RestroMenuItems meta ---- */
 
     const supa = serviceClient;
-
     const wantedCodes = normItems.map((it) => it.ItemCode);
 
     let menuMap = new Map<number, RestroMenuItemRow>();
@@ -356,9 +351,8 @@ export async function POST(req: Request) {
       }
     }
 
-    /* ---- 4) Build rows for Supabase ---- */
+    /* ---- 4) Build rows ---- */
 
-    // OrderId: RE-YYYYMMDDHHMMSS-rand
     const stamp = new Date()
       .toISOString()
       .replace(/[-:TZ.]/g, "")
@@ -385,11 +379,8 @@ export async function POST(req: Request) {
       PlatformCharge,
       TotalAmount,
       PaymentMode,
-      // ✅ Status ko lowercase "booked" rakha hai
       Status: "booked" as const,
       JourneyPayload: journey,
-      // CreatedAt / UpdatedAt DB ke default now() se aa jayega (UTC),
-      // admin panel me IST dikhana front-end ka kaam hai.
     };
 
     const itemRows = normItems.map((it) => {
@@ -417,7 +408,6 @@ export async function POST(req: Request) {
       NewStatus: "booked",
       Note: "Order created from website",
       ChangedBy: "system",
-      // ChangedAt default now() in DB
     };
 
     /* ---- 5) Insert into Supabase ---- */
@@ -436,7 +426,6 @@ export async function POST(req: Request) {
       .insert(itemRows);
     if (itemsErr) {
       console.error("OrderItems insert error", itemsErr);
-      // order create ho chuka hai, yahan se fail nahi kar rahe
     }
 
     const { error: histErr } = await supa
