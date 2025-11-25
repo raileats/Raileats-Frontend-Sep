@@ -19,7 +19,7 @@ type MenuItem = {
   base_price?: number | null;
   gst_percent?: number | null;
   selling_price?: number | null;
-  status?: "ON" | "OFF" | "DELETED" | null;
+  status?: string | null;     // backend se jo bhi aaye (On / OFF / etc.)
 };
 
 export const dynamic = "force-dynamic";
@@ -79,9 +79,11 @@ export async function generateMetadata({
 
 /* ------------ server fetchers ------------ */
 async function fetchOnMenu(restroCode: string | number): Promise<MenuItem[]> {
-  const url = `${ADMIN_BASE.replace(/\/$/, "")}/api/restros/${encodeURIComponent(
-    String(restroCode)
-  )}/menu?status=ON`;
+  // ❗ status query hata diya, saare items lao
+  const url = `${ADMIN_BASE.replace(
+    /\/$/,
+    "",
+  )}/api/restros/${encodeURIComponent(String(restroCode))}/menu`;
 
   const res = await fetch(url, { cache: "no-store" });
   if (!res.ok) return [];
