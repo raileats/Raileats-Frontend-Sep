@@ -1,119 +1,164 @@
 // app/api/orders/route.ts
 import { NextResponse } from "next/server";
+import { serviceClient } from "../../../lib/supabaseServer";
 
-type OrderItem = { id?: number; name: string; price: number; qty: number };
-type Order = {
-  id: string;
-  items: OrderItem[];
-  journey?: any;
+// TABLE TYPES (for Supabase strict mode)
+type OrderItemPayload = {
+  id?: number; // menu item id
+  name: string;
+  price: number;
+  qty: number;
+};
+
+type JourneyPayload = {
+  trainNo: string;
+  deliveryDate: string;
+  deliveryTime: string;
+  pnr?: string;
+  coach?: string;
+  seat?: string;
+  name?: string;
+  mobile: string;
+};
+
+type OutletMeta = {
+  restroCode: number;
+  restroName: string;
+  stationCode: string;
+  stationName: string;
+};
+
+type OrderPayload = {
+  id: string; // UI generated
+  items: OrderItemPayload[];
   subtotal: number;
   gst?: number;
   platformCharge?: number;
   total: number;
   paymentMode: "COD" | "ONLINE";
-  status?: string;
-  createdAt: string;
+  journey: JourneyPayload;
+  outlet: OutletMeta;
+  createdAt: number;
 };
 
-// In-memory store for demo (replace with DB in production)
-const ORDERS_STORE: Order[] = [
-  {
-    id: "RE-240915-001",
-    items: [
-      { name: "Veg Thali", qty: 1, price: 250 },
-      { name: "Water 1L", qty: 1, price: 30 },
-      { name: "Paneer Roll", qty: 1, price: 120 },
-    ],
-    journey: { station: "NDLS", coach: "B3", seat: "32", passenger: "A Kumar", mobile: "98xxxxxx12" },
-    subtotal: 400,
-    gst: 20,
-    platformCharge: 0,
-    total: 420,
-    paymentMode: "ONLINE",
-    status: "PAID",
-    createdAt: "2025-09-04T20:15:00.000Z",
-  },
-  {
-    id: "RE-240916-002",
-    items: [
-      { name: "Paneer Thali", qty: 1, price: 260 },
-      { name: "Tea", qty: 1, price: 50 },
-    ],
-    journey: { station: "CNB", coach: "S2", seat: "18", passenger: "S Sharma", mobile: "99xxxxxx45" },
-    subtotal: 310,
-    gst: 0,
-    platformCharge: 0,
-    total: 310,
-    paymentMode: "COD",
-    status: "BOOKED",
-    createdAt: "2025-09-05T09:10:00.000Z",
-  },
-];
-
-// GET -> return sample orders
-export async function GET() {
-  // For demo return the in-memory orders
-  return NextResponse.json(ORDERS_STORE);
+function fail(msg: string, code = 400) {
+  return NextResponse.json({ ok: false, error: msg }, { status: code });
 }
 
-// POST -> create order (used by review page)
-// Expected payload (JSON):
-// {
-//   items: [{name,price,qty}],
-//   journey: {...},
-//   subtotal: number,
-//   gst: number,
-//   platformCharge: number,
-//   total: number,
-//   paymentMode: "COD" | "ONLINE"
-// }
 export async function POST(req: Request) {
   try {
-    const body = await req.json();
+    const body = (await req.json()) as OrderPayload;
 
-    // basic validation
-    if (!body || !Array.isArray(body.items) || typeof body.total !== "number") {
-      return NextResponse.json({ error: "invalid_payload" }, { status: 400 });
+    // -------- BASIC VALIDATION ----------
+    if (!body?.items?.length) return fail("empty_items");
+    if (!body.journey) return fail("missing_journey");
+    if (!body.outlet) return fail("missing_outlet");
+
+    const {
+      journey,
+      outlet,
+      subtotal,
+      total,
+      gst,
+      platformCharge,
+      items,
+      paymentMode,
+    } = body;
+
+    if (!journey.trainNo) return fail("missing_train_no");
+    if (!journey.deliveryDate) return fail("missing_delivery_date");
+    if (!journey.deliveryTime) return fail("missing_delivery_time");
+    if (!journey.mobile) return fail("missing_mobile");
+    if (!outlet.restroCode) return fail("missing_restro_code");
+    if (!outlet.stationCode) return fail("missing_station_code");
+
+    const supa = serviceClient;
+
+    // -------- CREATE ORDER RECORD --------
+    const orderId = body.id || `RE-${Date.now()}`;
+
+    const { data: orderInsert, error: orderErr } = await supa
+      .from("Orders")
+      .insert([
+        {
+          OrderId: orderId,
+          RestroCode: outlet.restroCode,
+          RestroName: outlet.restroName,
+          StationCode: outlet.stationCode,
+          StationName: outlet.stationName,
+
+          DeliveryDate: journey.deliveryDate,
+          DeliveryTime: journey.deliveryTime,
+          TrainNumber: journey.trainNo,
+
+          Coach: journey.coach || null,
+          Seat: journey.seat || null,
+          CustomerName: journey.name || null,
+          CustomerMobile: journey.mobile,
+
+          SubTotal: subtotal,
+          GSTAmount: gst || 0,
+          PlatformCharge: platformCharge || 0,
+          TotalAmount: total,
+          PaymentMode: paymentMode,
+
+          JourneyPayload: journey, // full JSON
+        },
+      ])
+      .select("OrderId")
+      .single();
+
+    if (orderErr) {
+      console.error("SUPABASE Orders insert ERROR:", orderErr);
+      return fail("order_insert_failed", 500);
     }
 
-    // create an order id
-    const orderId = "RE-" + new Date().toISOString().replace(/[-:TZ.]/g, "").slice(2, 14); // e.g. RE-250106123456
-    const now = new Date().toISOString();
+    // --------- INSERT ITEMS ----------
+    const itemRows = items.map((x) => ({
+      OrderId: orderId,
+      RestroCode: outlet.restroCode,
 
-    const order: Order = {
-      id: orderId,
-      items: body.items,
-      journey: body.journey || null,
-      subtotal: Number(body.subtotal || 0),
-      gst: Number(body.gst || 0),
-      platformCharge: Number(body.platformCharge || 0),
-      total: Number(body.total),
-      paymentMode: body.paymentMode === "ONLINE" ? "ONLINE" : "COD",
-      status: body.paymentMode === "ONLINE" ? "PAYMENT_PENDING" : "BOOKED",
-      createdAt: now,
-    };
+      ItemCode: x.id || 0,
+      ItemName: x.name,
+      Quantity: x.qty,
 
-    // store (demo)
-    ORDERS_STORE.unshift(order);
+      BasePrice: x.price,
+      SellingPrice: x.price,
+      LineTotal: x.price * x.qty,
+    }));
 
-    // notify admin webhook if configured (non-blocking)
-    const adminWebhook = process.env.ADMIN_WEBHOOK_URL;
-    if (adminWebhook) {
-      // fire and forget
-      fetch(adminWebhook, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ event: "order_created", order }),
-      }).catch((err) => {
-        // don't fail order creation if notify fails
-        console.error("admin webhook notify failed:", err);
-      });
+    const { error: itemErr } = await supa.from("OrderItems").insert(itemRows);
+
+    if (itemErr) {
+      console.error("OrderItems insert ERROR:", itemErr);
+
+      // rollback (delete order)
+      await supa.from("Orders").delete().eq("OrderId", orderId);
+      return fail("order_items_failed", 500);
     }
 
-    // Response: order id and order data (lite)
-    return NextResponse.json({ ok: true, orderId, order });
+    // -------- STATUS HISTORY ----------
+    const { error: histErr } = await supa.from("OrderStatusHistory").insert([
+      {
+        OrderId: orderId,
+        OldStatus: null,
+        NewStatus: paymentMode === "ONLINE" ? "PAYMENT_PENDING" : "BOOKED",
+        Note: "Order Created",
+        ChangedBy: "SYSTEM",
+      },
+    ]);
+
+    if (histErr) {
+      console.error("StatusHistory insert ERROR:", histErr);
+      return fail("status_history_failed", 500);
+    }
+
+    return NextResponse.json({
+      ok: true,
+      orderId,
+    });
   } catch (err) {
-    console.error("orders.post", err);
-    return NextResponse.json({ error: "server_error" }, { status: 500 });
+    console.error("orders.api fatal", err);
+    return fail("server_error", 500);
   }
 }
