@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useCart } from "../../../lib/useCart"; // adjust path if needed
 
@@ -54,23 +54,62 @@ const isVegLike = (cat?: string | null) => {
   const c = String(cat || "").toLowerCase();
   return c === "veg" || c === "jain";
 };
-const isNonVeg = (cat?: string | null) => String(cat || "").toLowerCase() === "non-veg";
+const isNonVeg = (cat?: string | null) =>
+  String(cat || "").toLowerCase() === "non-veg";
 
 const dot = (cat?: string | null) => {
-  if (isVegLike(cat)) return <span className="inline-block w-3 h-3 rounded-full bg-green-600" title="Veg" />;
-  if (isNonVeg(cat)) return <span className="inline-block w-3 h-3 rounded-full bg-red-600" title="Non-Veg" />;
-  return <span className="inline-block w-3 h-3 rounded-full bg-gray-400" title="Unspecified" />;
+  if (isVegLike(cat))
+    return (
+      <span
+        className="inline-block w-3 h-3 rounded-full bg-green-600"
+        title="Veg"
+      />
+    );
+  if (isNonVeg(cat))
+    return (
+      <span
+        className="inline-block w-3 h-3 rounded-full bg-red-600"
+        title="Non-Veg"
+      />
+    );
+  return (
+    <span
+      className="inline-block w-3 h-3 rounded-full bg-gray-400"
+      title="Unspecified"
+    />
+  );
 };
 
 const t = (s?: string | null) => (s ? s.slice(0, 5) : "");
 const priceStr = (n?: number | null) =>
-  typeof n === "number" ? `₹${Number(n).toFixed(2).replace(/\.00$/, "")}` : "—";
+  typeof n === "number"
+    ? `₹${Number(n).toFixed(2).replace(/\.00$/, "")}`
+    : "—";
 
 export default function RestroMenuClient({ header, items, offer }: Props) {
   const [vegOnly, setVegOnly] = useState(false);
   const [showMobileCart, setShowMobileCart] = useState(false);
 
   const { lines, count, total, add, changeQty, remove, clearCart } = useCart();
+
+  // 🔹 IMPORTANT: cart meta (restro + station) ko sessionStorage me save karo
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const meta = {
+      restroCode: header.restroCode,
+      stationCode: header.stationCode,
+      outletName: header.outletName,
+      stationName: header.stationName ?? "",
+    };
+    try {
+      window.sessionStorage.setItem(
+        "raileats_cart_meta",
+        JSON.stringify(meta),
+      );
+    } catch (e) {
+      console.error("Failed to store raileats_cart_meta", e);
+    }
+  }, [header.restroCode, header.stationCode, header.outletName, header.stationName]);
 
   const visible = useMemo(() => {
     const arr = (items || []).filter((x) => x.status === "ON");
@@ -114,34 +153,92 @@ export default function RestroMenuClient({ header, items, offer }: Props) {
       {/* Scoped CSS tweaks for spacing + pill placement */}
       <style jsx>{`
         /* header row: tighten gap between navbar & header */
-        .header-row { margin-top: 6px; margin-bottom: 8px; display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
-        .title-block { min-width:0; }
-        .title { font-size: 1.5rem; line-height:1.05; margin:0; font-weight:700; }
-        .subtitle { margin-top:6px; color:#6b7280; font-size:0.95rem; }
+        .header-row {
+          margin-top: 6px;
+          margin-bottom: 8px;
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 12px;
+        }
+        .title-block {
+          min-width: 0;
+        }
+        .title {
+          font-size: 1.5rem;
+          line-height: 1.05;
+          margin: 0;
+          font-weight: 700;
+        }
+        .subtitle {
+          margin-top: 6px;
+          color: #6b7280;
+          font-size: 0.95rem;
+        }
 
         /* place veg toggle & cart pill inline on right */
-        .right-controls { display:flex; gap:10px; align-items:center; flex-shrink:0; }
+        .right-controls {
+          display: flex;
+          gap: 10px;
+          align-items: center;
+          flex-shrink: 0;
+        }
 
         /* mobile pill position: just below navbar, right */
-        .mobile-pill { position: absolute; right: 12px; top: 58px; z-index:40; }
+        .mobile-pill {
+          position: absolute;
+          right: 12px;
+          top: 58px;
+          z-index: 40;
+        }
 
         /* group/item spacing reduced */
-        .group { margin-bottom: 0.9rem; }
-        .item { margin-bottom: 0.5rem; }
+        .group {
+          margin-bottom: 0.9rem;
+        }
+        .item {
+          margin-bottom: 0.5rem;
+        }
 
         /* item top: name + time left, price right */
-        .item-top { display:flex; align-items:center; justify-content:space-between; gap:12px; }
-        .item-left { min-width:0; display:flex; gap:10px; align-items:center; }
-        .item-name { font-weight:600; white-space:normal; }
-        .item-time { color:#6b7280; font-size:0.86rem; flex-shrink:0; }
-        .item-price { font-weight:700; white-space:nowrap; }
+        .item-top {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+        }
+        .item-left {
+          min-width: 0;
+          display: flex;
+          gap: 10px;
+          align-items: center;
+        }
+        .item-name {
+          font-weight: 600;
+          white-space: normal;
+        }
+        .item-time {
+          color: #6b7280;
+          font-size: 0.86rem;
+          flex-shrink: 0;
+        }
+        .item-price {
+          font-weight: 700;
+          white-space: nowrap;
+        }
 
         @media (min-width: 1024px) {
-          .mobile-pill { display:none; } /* desktop uses sticky cart */
+          .mobile-pill {
+            display: none;
+          } /* desktop uses sticky cart */
         }
         @media (max-width: 640px) {
-          .title { font-size:1.4rem; } /* slightly smaller on small phones */
-          .subtitle { font-size:0.9rem; }
+          .title {
+            font-size: 1.4rem;
+          } /* slightly smaller on small phones */
+          .subtitle {
+            font-size: 0.9rem;
+          }
         }
       `}</style>
 
@@ -197,7 +294,9 @@ export default function RestroMenuClient({ header, items, offer }: Props) {
         {/* left menu column */}
         <div className="lg:col-span-2">
           {grouped.length === 0 ? (
-            <div className="p-3 bg-gray-50 rounded text-sm text-gray-700">No items available.</div>
+            <div className="p-3 bg-gray-50 rounded text-sm text-gray-700">
+              No items available.
+            </div>
           ) : (
             grouped.map((g) => (
               <section key={g.type} className="group">
@@ -215,14 +314,22 @@ export default function RestroMenuClient({ header, items, offer }: Props) {
                             <div className="item-top">
                               <div className="item-left min-w-0">
                                 <div className="item-name">{it.item_name}</div>
-                                <div className="item-time ml-2">{t(it.start_time)}{it.start_time ? "-" : ""}{t(it.end_time)}</div>
+                                <div className="item-time ml-2">
+                                  {t(it.start_time)}
+                                  {it.start_time ? "-" : ""}
+                                  {t(it.end_time)}
+                                </div>
                               </div>
 
-                              <div className="item-price">{priceStr(it.base_price)}</div>
+                              <div className="item-price">
+                                {priceStr(it.base_price)}
+                              </div>
                             </div>
 
                             {it.item_description && (
-                              <p className="mt-1 text-xs text-gray-600">{it.item_description}</p>
+                              <p className="mt-1 text-xs text-gray-600">
+                                {it.item_description}
+                              </p>
                             )}
 
                             <div className="mt-2">
@@ -236,10 +343,30 @@ export default function RestroMenuClient({ header, items, offer }: Props) {
                                 </button>
                               ) : (
                                 <div className="inline-flex items-center border rounded overflow-hidden">
-                                  <button type="button" className="px-3 py-1.5" onClick={() => changeQty(it.id, qty - 1)}>−</button>
-                                  <span className="w-10 text-center border-l border-r py-1.5">{qty}</span>
-                                  <button type="button" className="px-3 py-1.5" onClick={() => changeQty(it.id, qty + 1)}>+</button>
-                                  <button type="button" className="ml-2 text-rose-600 text-sm px-2" onClick={() => remove(it.id)}>Remove</button>
+                                  <button
+                                    type="button"
+                                    className="px-3 py-1.5"
+                                    onClick={() => changeQty(it.id, qty - 1)}
+                                  >
+                                    −
+                                  </button>
+                                  <span className="w-10 text-center border-l border-r py-1.5">
+                                    {qty}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    className="px-3 py-1.5"
+                                    onClick={() => changeQty(it.id, qty + 1)}
+                                  >
+                                    +
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="ml-2 text-rose-600 text-sm px-2"
+                                    onClick={() => remove(it.id)}
+                                  >
+                                    Remove
+                                  </button>
                                 </div>
                               )}
                             </div>
@@ -260,7 +387,10 @@ export default function RestroMenuClient({ header, items, offer }: Props) {
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-base font-semibold">Your Cart</h3>
               {count > 0 && (
-                <button className="text-sm px-2 py-1 rounded border" onClick={clearCart}>
+                <button
+                  className="text-sm px-2 py-1 rounded border"
+                  onClick={clearCart}
+                >
                   Clear
                 </button>
               )}
@@ -271,18 +401,44 @@ export default function RestroMenuClient({ header, items, offer }: Props) {
             ) : (
               <div className="space-y-3">
                 {lines.map((line) => (
-                  <div key={line.id} className="flex items-center justify-between">
+                  <div
+                    key={line.id}
+                    className="flex items-center justify-between"
+                  >
                     <div className="min-w-0">
                       <div className="font-medium truncate">{line.name}</div>
-                      <div className="text-xs text-gray-500">{priceStr(line.price)} × {line.qty}</div>
+                      <div className="text-xs text-gray-500">
+                        {priceStr(line.price)} × {line.qty}
+                      </div>
                     </div>
                     <div className="flex items-center gap-2">
                       <div className="inline-flex items-center border rounded overflow-hidden">
-                        <button className="px-2 py-1" onClick={() => changeQty(line.id, line.qty - 1)}>−</button>
-                        <span className="px-3 py-1 border-l border-r">{line.qty}</span>
-                        <button className="px-2 py-1" onClick={() => changeQty(line.id, line.qty + 1)}>+</button>
+                        <button
+                          className="px-2 py-1"
+                          onClick={() =>
+                            changeQty(line.id, line.qty - 1)
+                          }
+                        >
+                          −
+                        </button>
+                        <span className="px-3 py-1 border-l border-r">
+                          {line.qty}
+                        </span>
+                        <button
+                          className="px-2 py-1"
+                          onClick={() =>
+                            changeQty(line.id, line.qty + 1)
+                          }
+                        >
+                          +
+                        </button>
                       </div>
-                      <button className="text-rose-600 text-sm ml-1" onClick={() => remove(line.id)}>Remove</button>
+                      <button
+                        className="text-rose-600 text-sm ml-1"
+                        onClick={() => remove(line.id)}
+                      >
+                        Remove
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -292,7 +448,10 @@ export default function RestroMenuClient({ header, items, offer }: Props) {
                   <div className="font-semibold">{priceStr(total)}</div>
                 </div>
 
-                <Link href="/checkout" className="block w-full mt-1 rounded bg-green-600 text-white py-2 text-center">
+                <Link
+                  href="/checkout"
+                  className="block w-full mt-1 rounded bg-green-600 text-white py-2 text-center"
+                >
                   Proceed to Checkout
                 </Link>
               </div>
@@ -304,32 +463,79 @@ export default function RestroMenuClient({ header, items, offer }: Props) {
       {/* Mobile cart overlay (unchanged) */}
       {showMobileCart && (
         <div className="lg:hidden fixed inset-0 z-[1000]">
-          <button className="absolute inset-0 bg-black/40" onClick={() => setShowMobileCart(false)} aria-label="Close cart" />
+          <button
+            className="absolute inset-0 bg-black/40"
+            onClick={() => setShowMobileCart(false)}
+            aria-label="Close cart"
+          />
           <div className="absolute left-1/2 -translate-x-1/2 top-[5vh] h-[90vh] w-[92vw] rounded-2xl bg-white shadow-2xl p-4 flex flex-col">
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-base font-semibold">Your Cart</h3>
               <div className="flex items-center gap-2">
-                {count > 0 && <button className="text-sm px-2 py-1 rounded border" onClick={clearCart}>Clear</button>}
-                <button className="rounded border px-2 py-1" onClick={() => setShowMobileCart(false)} aria-label="Close">✕</button>
+                {count > 0 && (
+                  <button
+                    className="text-sm px-2 py-1 rounded border"
+                    onClick={clearCart}
+                  >
+                    Clear
+                  </button>
+                )}
+                <button
+                  className="rounded border px-2 py-1"
+                  onClick={() => setShowMobileCart(false)}
+                  aria-label="Close"
+                >
+                  ✕
+                </button>
               </div>
             </div>
 
             <div className="flex-1 overflow-auto">
-              {count === 0 ? (<p className="text-sm text-gray-600">Cart is empty.</p>) : (
+              {count === 0 ? (
+                <p className="text-sm text-gray-600">Cart is empty.</p>
+              ) : (
                 <div className="space-y-3">
                   {lines.map((line) => (
-                    <div key={line.id} className="flex items-center justify-between">
+                    <div
+                      key={line.id}
+                      className="flex items-center justify-between"
+                    >
                       <div className="min-w-0">
-                        <div className="font-medium truncate">{line.name}</div>
-                        <div className="text-xs text-gray-500">{priceStr(line.price)} × {line.qty}</div>
+                        <div className="font-medium truncate">
+                          {line.name}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          {priceStr(line.price)} × {line.qty}
+                        </div>
                       </div>
                       <div className="flex items-center gap-2">
                         <div className="inline-flex items-center border rounded overflow-hidden">
-                          <button className="px-2 py-1" onClick={() => changeQty(line.id, line.qty - 1)}>−</button>
-                          <span className="px-3 py-1 border-l border-r">{line.qty}</span>
-                          <button className="px-2 py-1" onClick={() => changeQty(line.id, line.qty + 1)}>+</button>
+                          <button
+                            className="px-2 py-1"
+                            onClick={() =>
+                              changeQty(line.id, line.qty - 1)
+                            }
+                          >
+                            −
+                          </button>
+                          <span className="px-3 py-1 border-l border-r">
+                            {line.qty}
+                          </span>
+                          <button
+                            className="px-2 py-1"
+                            onClick={() =>
+                              changeQty(line.id, line.qty + 1)
+                            }
+                          >
+                            +
+                          </button>
                         </div>
-                        <button className="text-rose-600 text-sm ml-1" onClick={() => remove(line.id)}>Remove</button>
+                        <button
+                          className="text-rose-600 text-sm ml-1"
+                          onClick={() => remove(line.id)}
+                        >
+                          Remove
+                        </button>
                       </div>
                     </div>
                   ))}
@@ -344,8 +550,20 @@ export default function RestroMenuClient({ header, items, offer }: Props) {
               </div>
 
               <div className="grid grid-cols-2 gap-3">
-                <button type="button" onClick={() => setShowMobileCart(false)} className="rounded border py-2">Add More Items</button>
-                <Link href="/checkout" className="rounded bg-green-600 text-white py-2 text-center" onClick={() => setShowMobileCart(false)}>Checkout</Link>
+                <button
+                  type="button"
+                  onClick={() => setShowMobileCart(false)}
+                  className="rounded border py-2"
+                >
+                  Add More Items
+                </button>
+                <Link
+                  href="/checkout"
+                  className="rounded bg-green-600 text-white py-2 text-center"
+                  onClick={() => setShowMobileCart(false)}
+                >
+                  Checkout
+                </Link>
               </div>
             </div>
           </div>
