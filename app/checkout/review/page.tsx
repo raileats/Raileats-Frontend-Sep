@@ -1,17 +1,42 @@
+// app/checkout/review/page.tsx
 "use client";
 
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { priceStr } from "../../lib/priceUtil";
 
+type Draft = {
+  id: string;
+  items: { id: number; name: string; price: number; qty: number }[];
+  count: number;
+  subtotal: number;
+  journey: {
+    trainNo: string;
+    deliveryDate: string;
+    deliveryTime: string;
+    pnr: string;
+    coach: string;
+    seat: string;
+    name: string;
+    mobile: string;
+  };
+  outlet: {
+    stationCode: string;
+    stationName?: string;
+    restroCode: string | number;
+    outletName?: string;
+  } | null;
+  createdAt: number;
+};
+
 export default function ReviewPage() {
   const router = useRouter();
-  const [draft, setDraft] = useState<any | null>(null);
+  const [draft, setDraft] = useState<Draft | null>(null);
 
-  const [platformCharge, setPlatformCharge] = useState<number>(20); // default charge
+  const [platformCharge, setPlatformCharge] = useState<number>(20);
   const gstPercent = 5;
   const [mode, setMode] = useState<"cod" | "online">("cod");
-  const [submitting, setSubmitting] = useState(false);
+  const [booking, setBooking] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -21,7 +46,8 @@ export default function ReviewPage() {
       return;
     }
     try {
-      setDraft(JSON.parse(raw));
+      const d = JSON.parse(raw) as Draft;
+      setDraft(d);
     } catch (e) {
       console.error("Invalid draft in sessionStorage", e);
       router.replace("/checkout");
@@ -39,84 +65,43 @@ export default function ReviewPage() {
   const gst = +(subtotal * (gstPercent / 100));
   const final = +(subtotal + gst + Number(platformCharge || 0));
 
-  // 🔴 COD order ko backend /api/orders per bhejna
   const placeCodOrder = async () => {
-    if (submitting) return;
-    setSubmitting(true);
+    if (booking) return;
+    setBooking(true);
     try {
-      if (typeof window === "undefined") {
-        alert("Browser storage unavailable.");
-        return;
-      }
-
-      // restro_code ko menu page ne sessionStorage me save kiya tha
-      const restroCode =
-        sessionStorage.getItem("raileats_current_restro_code") || "";
-
-      if (!restroCode) {
-        alert("Restaurant information missing. Please go back and select outlet again.");
-        return;
-      }
-
-      const journey = draft.journey || {};
-
-      // TrainNumber NOT NULL hai, isliye kam se kam PNR bhej rahe hain
-      const trainNo = journey.pnr || "UNKNOWN";
-
-      const payload = {
-        restro_code: restroCode,
-        customer: {
-          full_name: journey.name || "Customer",
-          phone: journey.mobile || "",
-        },
-        delivery: {
-          train_no: trainNo,
-          coach: journey.coach || "",
-          seat: journey.seat || "",
-          // abhi ke liye backend apne aap aaj ki date/time use karega
-        },
-        pricing: {
-          subtotal,
-          gst,
-          platform_charge: platformCharge,
-          total: final,
-          payment_mode: "COD" as const,
-        },
-        items: Array.isArray(draft.items)
-          ? draft.items.map((it: any) => ({
-              item_id: it.id,
-              name: it.name,
-              qty: it.qty,
-              base_price: it.price,
-              line_total: (it.price || 0) * (it.qty || 1),
-            }))
-          : [],
-        meta: {
-          journey,
-          ui_source: "web_raileats",
-        },
-      };
-
       const res = await fetch("/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          paymentMode: "COD",
+          draft,
+          pricing: {
+            subtotal,
+            gst,
+            platformCharge,
+            total: final,
+          },
+        }),
       });
 
-      const json = await res.json().catch(() => ({} as any));
+      const json = await res.json().catch(() => null as any);
 
       if (!res.ok || !json?.ok) {
-        console.error("Order create failed", res.status, json);
+        console.error("Order create failed", json);
         alert("Order booking failed. Please try again.");
         return;
       }
 
-      const serverOrderId = json.order_id || ("ORD" + Date.now());
+      const orderId: string =
+        json.orderId ||
+        json.order?.OrderId ||
+        `ORD${Date.now()}`;
 
+      // summary page ke liye light object
       const orderForSummary = {
-        id: serverOrderId,
+        id: orderId,
         items: draft.items,
-        journey,
+        journey: draft.journey,
         subtotal,
         gst,
         platformCharge,
@@ -125,18 +110,20 @@ export default function ReviewPage() {
         createdAt: Date.now(),
       };
 
-      sessionStorage.setItem(
-        "raileats_last_order",
-        JSON.stringify(orderForSummary),
-      );
-      sessionStorage.removeItem("raileats_order_draft");
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem(
+          "raileats_last_order",
+          JSON.stringify(orderForSummary),
+        );
+        sessionStorage.removeItem("raileats_order_draft");
+      }
 
       router.push("/checkout/summary");
     } catch (e) {
       console.error("placeCodOrder error", e);
       alert("Order booking failed. Please try again.");
     } finally {
-      setSubmitting(false);
+      setBooking(false);
     }
   };
 
@@ -190,9 +177,7 @@ export default function ReviewPage() {
               <input
                 type="number"
                 value={platformCharge}
-                onChange={(e) =>
-                  setPlatformCharge(Number(e.target.value || 0))
-                }
+                onChange={(e) => setPlatformCharge(Number(e.target.value || 0))}
                 className="input"
                 style={{ width: 110 }}
               />
@@ -231,14 +216,13 @@ export default function ReviewPage() {
             <button
               className="rounded px-4 py-2 bg-green-600 text-white"
               onClick={placeCodOrder}
-              disabled={submitting}
+              disabled={booking}
             >
-              {submitting ? "Booking…" : "Book"}
+              {booking ? "Booking…" : "Book"}
             </button>
             <button
               className="rounded border px-4 py-2"
               onClick={() => router.back()}
-              disabled={submitting}
             >
               Edit
             </button>
