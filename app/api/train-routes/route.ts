@@ -1,7 +1,7 @@
 // app/api/train-routes/route.ts
 import { NextResponse } from "next/server";
-// ⛳ Yahi sabse important line – root/lib ke liye relative path
-import { serviceClient } from "../../../lib/supabaseServer";
+// ⛳ yaha sahi path: app/api/train-routes -> app/lib/supabaseServer
+import { serviceClient } from "../../lib/supabaseServer";
 
 type TrainRouteRow = {
   trainId: number;
