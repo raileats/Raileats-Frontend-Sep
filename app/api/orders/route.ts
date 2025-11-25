@@ -76,21 +76,30 @@ export async function POST(req: Request) {
       );
     }
 
+    // draft + pricing (जो review page से आ रहा है)
+    const draft: any = body.draft || {};
+    const pricing: any = body.pricing || {};
+
     /* ---- 1) ITEMS (cart lines) ---- */
 
     let rawItems: IncomingItem[] = [];
 
+    // direct body.items (future compat)
     if (Array.isArray(body.items)) rawItems = body.items;
+    // main case: draft.items
+    else if (Array.isArray(draft.items)) rawItems = draft.items;
+    // कुछ और नाम हों तो
+    else if (Array.isArray(draft.lines)) rawItems = draft.lines;
     else if (Array.isArray(body.lines)) rawItems = body.lines;
     else if (Array.isArray(body.cartLines)) rawItems = body.cartLines;
 
     if (!Array.isArray(rawItems) || rawItems.length === 0) {
-      // यहाँ हमने debugKeys भी भेज दिए ताकि आगे कुछ और mismatch हो तो तुरंत दिख जाये
       return NextResponse.json(
         {
           ok: false,
           error: "empty_items",
           debugKeys: Object.keys(body),
+          draftKeys: Object.keys(draft || {}),
         },
         { status: 400 },
       );
@@ -145,24 +154,38 @@ export async function POST(req: Request) {
       0,
     );
 
-    const SubTotal = toNumber(body.subtotal, subtotalFromItems);
-    const GSTAmount = toNumber(body.gst ?? body.gstAmount, 0);
-    const PlatformCharge = toNumber(body.platformCharge, 0);
+    const SubTotal = toNumber(
+      pricing.subtotal ?? draft.subtotal ?? body.subtotal,
+      subtotalFromItems,
+    );
+    const GSTAmount = toNumber(
+      pricing.gst ?? pricing.gstAmount ?? body.gst ?? body.gstAmount,
+      0,
+    );
+    const PlatformCharge = toNumber(
+      pricing.platformCharge ?? body.platformCharge,
+      0,
+    );
     const TotalAmount = toNumber(
-      body.total,
+      pricing.total ?? body.total,
       SubTotal + GSTAmount + PlatformCharge,
     );
 
     /* ---- 2) OUTLET + JOURNEY ---- */
 
-    // outlet – पहले nested, फिर root level fallbacks
+    // outlet – पहले draft, फिर body
     const outlet: IncomingOutlet =
-      body.outlet || body.outletMeta || {};
+      draft.outlet ||
+      draft.outletMeta ||
+      body.outlet ||
+      body.outletMeta ||
+      {};
 
     const restroCode = toNumber(
       outlet.restroCode ??
         outlet.RestroCode ??
         outlet.restro_id ??
+        draft.restroCode ??
         body.restroCode ??
         body.RestroCode,
       NaN,
@@ -170,6 +193,7 @@ export async function POST(req: Request) {
     const stationCode = String(
       outlet.stationCode ??
         outlet.StationCode ??
+        draft.stationCode ??
         body.stationCode ??
         body.StationCode ??
         "",
@@ -189,6 +213,8 @@ export async function POST(req: Request) {
     const restroName =
       outlet.RestroName ??
       outlet.outletName ??
+      draft.RestroName ??
+      draft.outletName ??
       body.RestroName ??
       body.outletName ??
       `Restro ${restroCode}`;
@@ -196,12 +222,16 @@ export async function POST(req: Request) {
     const stationName =
       outlet.StationName ??
       outlet.stationName ??
+      draft.StationName ??
+      draft.stationName ??
       body.StationName ??
       body.stationName ??
       stationCode;
 
-    // journey – nested + root fallbacks
+    // journey – पहले draft, फिर body
     const journey: IncomingJourney =
+      draft.journey ||
+      draft.journeyDetails ||
       body.journey ||
       body.journeyDetails || {
         trainNo: body.trainNo ?? body.TrainNumber,
@@ -215,25 +245,33 @@ export async function POST(req: Request) {
       };
 
     const trainNumber = String(
-      journey.trainNo ?? body.trainNo ?? body.TrainNumber ?? "",
+      journey.trainNo ??
+        draft.trainNo ??
+        body.trainNo ??
+        body.TrainNumber ??
+        "",
     ).trim();
 
     const customerMobile = String(
-      journey.mobile ?? body.mobile ?? body.CustomerMobile ?? "",
+      journey.mobile ??
+        draft.mobile ??
+        body.mobile ??
+        body.CustomerMobile ??
+        "",
     ).trim();
 
     if (!trainNumber || !customerMobile) {
-      // यह वही error है जो अभी दिख रहा था, लेकिन अब हम multi-fallback के बाद ही दे रहे हैं
       return NextResponse.json(
         {
           ok: false,
           error: "missing_journey",
           debug: {
-            hasJourney: !!body.journey,
-            hasJourneyDetails: !!body.journeyDetails,
+            hasDraftJourney: !!draft.journey,
+            hasBodyJourney: !!body.journey,
             trainNumber,
             customerMobile,
             bodyKeys: Object.keys(body),
+            draftKeys: Object.keys(draft || {}),
           },
         },
         { status: 400 },
@@ -242,27 +280,42 @@ export async function POST(req: Request) {
 
     const DeliveryDate = (
       journey.deliveryDate ??
+      draft.deliveryDate ??
       body.deliveryDate ??
       todayYMD()
     ).slice(0, 10);
 
     const DeliveryTime = normTimeHHMMSS(
-      journey.deliveryTime ?? body.deliveryTime,
+      journey.deliveryTime ??
+        draft.deliveryTime ??
+        body.deliveryTime,
     );
 
     const CustomerName =
       (journey.name ??
+        draft.name ??
         body.name ??
         body.customerName ??
         "") || null;
 
     const Coach =
-      (journey.coach ?? body.coach ?? body.Coach ?? "") || null;
+      (journey.coach ??
+        draft.coach ??
+        body.coach ??
+        body.Coach ??
+        "") || null;
     const Seat =
-      (journey.seat ?? body.seat ?? body.Seat ?? "") || null;
+      (journey.seat ??
+        draft.seat ??
+        body.seat ??
+        body.Seat ??
+        "") || null;
 
     const PaymentMode: "COD" | "ONLINE" =
-      body.paymentMode === "ONLINE" ? "ONLINE" : "COD";
+      body.paymentMode ??
+      draft.paymentMode === "ONLINE"
+        ? "ONLINE"
+        : "COD";
 
     /* ---- 3) Build rows for Supabase ---- */
 
@@ -339,7 +392,7 @@ export async function POST(req: Request) {
       .insert(itemRows);
     if (itemsErr) {
       console.error("OrderItems insert error", itemsErr);
-      // order create ho chuka hai, isliye yahan se fail nahi kar रहे
+      // order create ho chuka hai, yahan se fail nahi कर रहे
     }
 
     const { error: histErr } = await supa
