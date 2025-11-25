@@ -1,107 +1,191 @@
-// app/api/train-routes/route.ts
+// app/api/orders/route.ts
 import { NextResponse } from "next/server";
-// ⛳ yaha sahi path: app/api/train-routes -> app/lib/supabaseServer
-import { serviceClient } from "../../lib/supabaseServer";
+import { serviceClient } from "../../../lib/supabaseServer";
 
-type TrainRouteRow = {
-  trainId: number;
-  trainNumber: number | null;
-  trainName: string | null;
-  stationFrom: string | null;
-  stationTo: string | null;
-  runningDays: string | null;
-  StnNumber: number | null;
-  StationCode: string | null;
-  StationName: string | null;
-  Arrives: string | null;
-  Departs: string | null;
-  Stoptime: string | null;
-  Distance: string | null;
-  Platform: string | null;
-  Route: number | null;
-  Day: number | null;
+type DraftItem = {
+  id: number;
+  name: string;
+  price: number;
+  qty: number;
 };
 
-function todayYMD() {
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = String(now.getMonth() + 1).padStart(2, "0");
-  const d = String(now.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-}
+type DraftJourney = {
+  trainNo: string;
+  deliveryDate: string;   // "YYYY-MM-DD"
+  deliveryTime: string;   // "HH:MM"
+  pnr: string;
+  coach: string;
+  seat: string;
+  name: string;
+  mobile: string;
+};
 
-// runningDays text ko filhaal sirf "DAILY" / "MON,TUE" type basic check se handle kar rahe hain
-function matchesRunningDay(runningDays: string | null, dateStr: string) {
-  if (!runningDays) return true; // agar data nahi hai to allow kar do
+type DraftOutlet = {
+  stationCode: string;
+  stationName?: string;
+  restroCode: string | number;
+  outletName?: string;
+};
 
-  const dayIndex = new Date(dateStr).getDay(); // 0=Sun..6=Sat
-  const map = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
-  const code = map[dayIndex];
+type DraftOrder = {
+  id: string;
+  items: DraftItem[];
+  count: number;
+  subtotal: number;
+  journey: DraftJourney;
+  outlet: DraftOutlet | null;
+  createdAt: number;
+};
 
-  const s = runningDays.toUpperCase().trim();
+type Pricing = {
+  subtotal: number;
+  gst: number;
+  platformCharge: number;
+  total: number;
+};
 
-  if (s === "DAILY" || s === "ALL") return true;
+type OrderPayload = {
+  paymentMode: string; // "COD" or "ONLINE"
+  draft: DraftOrder;
+  pricing: Pricing;
+};
 
-  // e.g. "MON,TUE,WED" etc
-  return s.split(/[ ,/]+/).includes(code);
-}
-
-export async function GET(req: Request) {
+export async function POST(req: Request) {
   try {
-    const url = new URL(req.url);
-    const trainParam = (url.searchParams.get("train") || "").trim();
-    const stationParam = (url.searchParams.get("station") || "").trim();
-    const dateParam = (url.searchParams.get("date") || "").trim() || todayYMD();
-
-    if (!trainParam || !stationParam) {
+    const body = (await req.json().catch(() => null)) as OrderPayload | null;
+    if (!body) {
       return NextResponse.json(
-        { ok: false, error: "missing_params" },
+        { ok: false, error: "invalid_json" },
         { status: 400 },
       );
     }
 
-    const stationCode = stationParam.toUpperCase();
+    const { paymentMode, draft, pricing } = body;
+
+    if (!draft?.outlet) {
+      return NextResponse.json(
+        { ok: false, error: "missing_outlet" },
+        { status: 400 },
+      );
+    }
+
+    const outlet = draft.outlet;
+    const j = draft.journey;
+    const p = pricing;
+
+    if (!j?.trainNo || !j.deliveryDate || !j.deliveryTime) {
+      return NextResponse.json(
+        { ok: false, error: "missing_journey" },
+        { status: 400 },
+      );
+    }
+
+    if (!j.mobile) {
+      return NextResponse.json(
+        { ok: false, error: "missing_mobile" },
+        { status: 400 },
+      );
+    }
+
+    const restroCodeNum = Number(outlet.restroCode);
+    if (!Number.isFinite(restroCodeNum)) {
+      return NextResponse.json(
+        { ok: false, error: "bad_restro_code" },
+        { status: 400 },
+      );
+    }
+
+    const orderId = `ORD${Date.now()}`;
+
     const supa = serviceClient;
 
-    // column ka exact naam "trainNumber" hai, "TrainNumber" nahi
-    const trainNumAsNumber = Number(trainParam);
-    const trainFilterValue = Number.isFinite(trainNumAsNumber)
-      ? trainNumAsNumber
-      : trainParam;
+    // 1) Orders table insert
+    const { error: orderErr } = await supa.from("Orders").insert({
+      OrderId: orderId,
+      RestroCode: restroCodeNum,
+      RestroName: outlet.outletName ?? "",
+      StationCode: outlet.stationCode,
+      StationName: outlet.stationName ?? "",
+      DeliveryDate: j.deliveryDate,          // "YYYY-MM-DD"
+      DeliveryTime: j.deliveryTime,          // "HH:MM"
+      TrainNumber: String(j.trainNo),
+      Coach: j.coach || null,
+      Seat: j.seat || null,
+      CustomerName: j.name || null,
+      CustomerMobile: j.mobile,
+      SubTotal: p.subtotal,
+      GSTAmount: p.gst,
+      PlatformCharge: p.platformCharge,
+      TotalAmount: p.total,
+      PaymentMode: paymentMode,
+      Status: "Booked",
+      JourneyPayload: {
+        pnr: j.pnr,
+        coach: j.coach,
+        seat: j.seat,
+        name: j.name,
+        mobile: j.mobile,
+        trainNo: j.trainNo,
+        deliveryDate: j.deliveryDate,
+        deliveryTime: j.deliveryTime,
+      },
+    });
 
-    const { data, error } = await supa
-      .from("TrainRoute")
-      .select(
-        "trainId, trainNumber, trainName, stationFrom, stationTo, runningDays, StnNumber, StationCode, StationName, Arrives, Departs, Stoptime, Distance, Platform, Route, Day",
-      )
-      .eq("trainNumber", trainFilterValue)
-      .eq("StationCode", stationCode)
-      .order("Day", { ascending: true });
-
-    if (error) {
-      console.error("train-routes GET supabase error", error);
+    if (orderErr) {
+      console.error("Orders insert failed", orderErr);
       return NextResponse.json(
-        { ok: false, error: "db_error" },
+        { ok: false, error: "orders_insert_failed" },
         { status: 500 },
       );
     }
 
-    const rows: TrainRouteRow[] = (data || []).filter((r: any) =>
-      matchesRunningDay(r.runningDays, dateParam),
-    );
+    // 2) OrderItems insert (agar items hain)
+    if (Array.isArray(draft.items) && draft.items.length > 0) {
+      const itemsPayload = draft.items.map((it) => ({
+        OrderId: orderId,
+        RestroCode: restroCodeNum,
+        ItemCode: it.id, // abhi id ko hi ItemCode rakh rahe
+        ItemName: it.name,
+        ItemDescription: null,
+        ItemCategory: null,
+        Cuisine: null,
+        MenuType: null,
+        BasePrice: it.price,
+        GSTPercent: 5, // aapka abhi flat 5% GST
+        SellingPrice: it.price,
+        Quantity: it.qty,
+        LineTotal: it.price * it.qty,
+      }));
+
+      const { error: itemsErr } = await supa
+        .from("OrderItems")
+        .insert(itemsPayload);
+
+      if (itemsErr) {
+        console.error("OrderItems insert failed", itemsErr);
+        // order already created, isko sirf log kar rahe hain
+      }
+    }
+
+    // 3) Status history
+    const { error: statusErr } = await supa.from("OrderStatusHistory").insert({
+      OrderId: orderId,
+      OldStatus: null,
+      NewStatus: "Booked",
+      Note: "Order created via website",
+      ChangedBy: "system",
+    });
+
+    if (statusErr) {
+      console.error("OrderStatusHistory insert failed", statusErr);
+    }
 
     return NextResponse.json({
       ok: true,
-      rows,
-      meta: {
-        stationCode,
-        train: trainParam,
-        date: dateParam,
-        count: rows.length,
-      },
+      orderId,
     });
   } catch (e) {
-    console.error("train-routes GET server_error", e);
+    console.error("orders POST server_error", e);
     return NextResponse.json(
       { ok: false, error: "server_error" },
       { status: 500 },
