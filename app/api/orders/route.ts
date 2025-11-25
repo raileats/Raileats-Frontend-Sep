@@ -332,10 +332,10 @@ export async function POST(req: Request) {
     const supa = serviceClient;
     const wantedCodes = normItems.map((it) => it.ItemCode);
 
-    let menuMap = new Map<number, RestroMenuItemRow>();
+    const menuMap = new Map<number, RestroMenuItemRow>();
     if (wantedCodes.length) {
       const { data: menuData, error: menuErr } = await supa
-        .from<RestroMenuItemRow>("RestroMenuItems")
+        .from("RestroMenuItems")
         .select(
           "id, item_description, item_category, item_cuisine, menu_type, gst_percent, selling_price",
         )
@@ -345,7 +345,7 @@ export async function POST(req: Request) {
       if (menuErr) {
         console.error("RestroMenuItems fetch error", menuErr);
       } else if (menuData) {
-        for (const row of menuData) {
+        for (const row of menuData as RestroMenuItemRow[]) {
           menuMap.set(row.id, row);
         }
       }
