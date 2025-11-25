@@ -26,16 +26,16 @@ export default function CheckoutPage() {
 
   const items = useMemo(() => lines || [], [lines]);
 
-  // ➜ Next dabane par draft + meta ko sessionStorage me store karo
   function goToReview() {
     if (!canProceed) {
       alert("कृपया PNR, Coach, Seat, Name और 10-digit Mobile सही भरें।");
       return;
     }
 
+    // 🔹 cart meta (restroCode + stationCode) read karo
     let meta: any = null;
     if (typeof window !== "undefined") {
-      const rawMeta = sessionStorage.getItem("raileats_cart_meta");
+      const rawMeta = window.sessionStorage.getItem("raileats_cart_meta");
       if (rawMeta) {
         try {
           meta = JSON.parse(rawMeta);
@@ -62,12 +62,15 @@ export default function CheckoutPage() {
         name: name.trim(),
         mobile: mobile.trim(),
       },
-      meta, // ← yahan restroCode etc. aa sakta hai
+      meta, // 🔹 yahi meta aage API ko bhejenge
       createdAt: Date.now(),
     };
 
     if (typeof window !== "undefined") {
-      sessionStorage.setItem("raileats_order_draft", JSON.stringify(draft));
+      window.sessionStorage.setItem(
+        "raileats_order_draft",
+        JSON.stringify(draft),
+      );
     }
 
     router.push("/checkout/review");
@@ -75,7 +78,10 @@ export default function CheckoutPage() {
 
   return (
     <main className="site-container page-safe-bottom">
-      <div className="checkout-header-actions" style={{ marginBottom: ".6rem" }}>
+      <div
+        className="checkout-header-actions"
+        style={{ marginBottom: ".6rem" }}
+      >
         <div>
           <h1 className="text-2xl font-bold">Checkout</h1>
           <p className="text-sm text-gray-600 mt-1">
