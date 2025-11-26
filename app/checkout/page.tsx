@@ -48,7 +48,13 @@ export default function CheckoutPage() {
   const [trainNo, setTrainNo] = useState("");
   const [deliveryDate, setDeliveryDate] = useState(todayYMD());
   const [deliveryTime, setDeliveryTime] = useState<string>("");
+
   const [trainOptions, setTrainOptions] = useState<TrainRouteRow[]>([]);
+  const [selectedTrain, setSelectedTrain] = useState<TrainRouteRow | null>(
+    null,
+  );
+  const [selectedTrainIndex, setSelectedTrainIndex] = useState<number>(0);
+
   const [trainLoading, setTrainLoading] = useState(false);
   const [trainMsg, setTrainMsg] = useState<string>("");
 
@@ -118,10 +124,11 @@ export default function CheckoutPage() {
       setTrainLoading(true);
       setTrainMsg("");
       setTrainOptions([]);
+      setSelectedTrain(null);
 
       const params = new URLSearchParams();
       params.set("train", t);
-      params.set("station", outlet.stationCode); // server sirf meta ke liye use karega
+      params.set("station", outlet.stationCode);
       params.set("date", deliveryDate);
 
       const res = await fetch(`/api/train-routes?${params.toString()}`, {
@@ -131,47 +138,38 @@ export default function CheckoutPage() {
 
       if (!res.ok || !json?.ok) {
         console.error("train search failed", json);
-        if (json?.error === "train_not_found") {
-          setTrainMsg(`Train ${t} not found.`);
-        } else {
-          setTrainMsg("Train search failed. Please try again.");
-        }
+        setTrainMsg("Train search failed. Please try again.");
         return;
       }
 
       const rows: TrainRouteRow[] = json.rows || [];
       if (!rows.length) {
-        setTrainMsg(`Train ${t} not found.`);
+        // 👉 yahi message station-not-belongs-to-train ke jaisa hai
+        setTrainMsg(
+          `Selected station (${outlet.stationCode}) does not belong to this train or schedule not found.`,
+        );
         return;
       }
 
-      // 👉 yahan check kar rahe hain ki yeh station is train ke route me hai ya nahi
-      const wantedStation = outlet.stationCode.trim().toUpperCase();
-      const stationRows = rows.filter(
-        (r) =>
-          (r.StationCode || "").trim().toUpperCase() === wantedStation,
-      );
+      setTrainOptions(rows);
 
-      if (!stationRows.length) {
-        // train to mil gayi, lekin yeh station us route me nahi hai
-        setTrainOptions([]);
-        setTrainMsg("Selected station not belongs to this train.");
-        return;
-      }
+      // first matching row select as default
+      const first = rows[0];
+      setSelectedTrain(first);
+      setSelectedTrainIndex(0);
 
-      // agar station match mil gaya to ab arrival time set karo
-      setTrainOptions(stationRows);
+      const arrTime = (first.Arrives || first.Departs || "").slice(0, 5);
+      setDeliveryTime(arrTime);
 
-      const first = stationRows[0];
-      const arr = (first.Arrives || first.Departs || "").slice(0, 5);
-      setDeliveryTime(arr);
-
-      const tn = first.trainNumber ?? t;
-      const name = first.trainName?.trim() || "";
-      const stationName = first.StationName || wantedStation;
+      // input me bhi actual train number set kar do
+      setTrainNo(String(first.trainNumber ?? t));
 
       setTrainMsg(
-        `${tn} ${name} at ${stationName} — Arrival ~ ${arr || "time not set"}.`,
+        `Found ${
+          rows.length
+        } schedule(s). Arrival at ${outlet.stationCode}: ${
+          arrTime || "time not set"
+        }.`,
       );
     } catch (e) {
       console.error("train search error", e);
@@ -179,6 +177,21 @@ export default function CheckoutPage() {
     } finally {
       setTrainLoading(false);
     }
+  }
+
+  // user agar dropdown se koi aur schedule choose kare
+  function handleTrainSelect(e: React.ChangeEvent<HTMLSelectElement>) {
+    const idx = Number(e.target.value);
+    if (!Number.isFinite(idx)) return;
+    setSelectedTrainIndex(idx);
+
+    const tr = trainOptions[idx];
+    if (!tr) return;
+
+    setSelectedTrain(tr);
+    const arrTime = (tr.Arrives || tr.Departs || "").slice(0, 5);
+    setDeliveryTime(arrTime || deliveryTime);
+    setTrainNo(String(tr.trainNumber ?? trainNo));
   }
 
   /* ------------ Proceed to review ------------ */
@@ -200,6 +213,9 @@ export default function CheckoutPage() {
       subtotal: total,
       journey: {
         trainNo: trainNo.trim(),
+        trainName: selectedTrain?.trainName || null, // ✅ name bhi save
+        stationCode: outlet?.stationCode || null,
+        stationName: outlet?.stationName || null,
         deliveryDate,
         deliveryTime,
         pnr: pnr.trim(),
@@ -208,7 +224,7 @@ export default function CheckoutPage() {
         name: name.trim(),
         mobile: mobile.trim(),
       },
-      outlet, // ✅ yahan se outlet + station meta jayega
+      outlet, // ✅ outlet + station meta
       createdAt: Date.now(),
     };
 
@@ -219,7 +235,7 @@ export default function CheckoutPage() {
     router.push("/checkout/review");
   }
 
-  /* ------------ UI (cart part aapka purana hi hai) ------------ */
+  /* ------------ UI (cart part same as pehle) ------------ */
 
   return (
     <main className="site-container page-safe-bottom">
@@ -366,7 +382,49 @@ export default function CheckoutPage() {
                 </button>
               </div>
 
-              <div className="flex gap-3">
+              {/* 👉 Train name + details */}
+              {selectedTrain && (
+                <p className="text-xs text-green-700 mt-1">
+                  Selected:{" "}
+                  <strong>
+                    {selectedTrain.trainNumber} –{" "}
+                    {selectedTrain.trainName || "Train"}
+                  </strong>{" "}
+                  at{" "}
+                  {selectedTrain.StationCode || outlet?.stationCode || ""} (
+                  {(selectedTrain.Arrives || selectedTrain.Departs || "")
+                    .slice(0, 5)
+                    .trim() || "--"}
+                  )
+                </p>
+              )}
+
+              {/* Agar multiple schedule rows aaye to simple dropdown */}
+              {trainOptions.length > 1 && (
+                <div className="mt-2">
+                  <label className="text-xs block mb-1">
+                    Select schedule (if multiple)
+                  </label>
+                  <select
+                    className="input"
+                    value={String(selectedTrainIndex)}
+                    onChange={handleTrainSelect}
+                  >
+                    {trainOptions.map((tr, idx) => {
+                      const tno = tr.trainNumber ?? "-";
+                      const nm = tr.trainName || "Train";
+                      const arr = (tr.Arrives || tr.Departs || "").slice(0, 5);
+                      return (
+                        <option key={`${tr.trainId}-${idx}`} value={idx}>
+                          {tno} – {nm} • {tr.StationCode} {arr}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </div>
+              )}
+
+              <div className="flex gap-3 mt-2">
                 <div className="flex-1">
                   <label className="text-sm block mb-1">Delivery date</label>
                   <input
@@ -392,7 +450,7 @@ export default function CheckoutPage() {
               )}
             </div>
 
-            {/* PNR + passenger details (same as pehle) */}
+            {/* PNR + passenger details */}
             <div className="space-y-3">
               <div>
                 <label className="text-sm block mb-1">PNR</label>
