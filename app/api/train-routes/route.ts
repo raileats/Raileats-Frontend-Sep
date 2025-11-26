@@ -1,4 +1,3 @@
-// app/api/train-routes/route.ts
 import { NextResponse } from "next/server";
 import { serviceClient } from "../../lib/supabaseServer";
 
@@ -56,6 +55,48 @@ function timeToMinutes(t?: string | null): number | null {
   return h * 60 + m;
 }
 
+// RestroMaster me actual column names detect karo
+function sniffRestroTimes(row: any): { open: string | null; close: string | null } {
+  if (!row || typeof row !== "object") return { open: null, close: null };
+
+  let openKey: string | null = null;
+  let closeKey: string | null = null;
+
+  for (const key of Object.keys(row)) {
+    const lk = key.toLowerCase();
+    if (!openKey && lk.includes("open") && lk.includes("time")) {
+      openKey = key;
+    }
+    if (
+      !closeKey &&
+      (lk.includes("close") || lk.includes("closed")) &&
+      lk.includes("time")
+    ) {
+      closeKey = key;
+    }
+  }
+
+  const open =
+    (openKey ? row[openKey] : null) ??
+    row.OpenTime ??
+    row.open_time ??
+    row.Open_Time ??
+    null;
+
+  const close =
+    (closeKey ? row[closeKey] : null) ??
+    row.CloseTime ??
+    row.ClosedTime ??
+    row.close_time ??
+    row.Close_Time ??
+    null;
+
+  return {
+    open: open ? String(open) : null,
+    close: close ? String(close) : null,
+  };
+}
+
 export async function GET(req: Request) {
   try {
     const url = new URL(req.url);
@@ -106,8 +147,10 @@ export async function GET(req: Request) {
       );
     }
 
-    // sirf selected station ke rows
-    const rowsAtStation = (allRows as TrainRouteRow[]).filter(
+    const allTyped = allRows as TrainRouteRow[];
+
+    // sirf selected station ke rows + runningDays filter
+    const rowsAtStation = allTyped.filter(
       (r) =>
         (r.StationCode || "").toUpperCase() === stationCode &&
         matchesRunningDay(r.runningDays, dateParam),
@@ -115,8 +158,7 @@ export async function GET(req: Request) {
 
     if (!rowsAtStation.length) {
       // train hai, lekin station route me nahi / is date pe nahi aa rahi
-      // pehle check: kya station route me kabhi aata hai?
-      const stationInRoute = (allRows as TrainRouteRow[]).some(
+      const stationInRoute = allTyped.some(
         (r) => (r.StationCode || "").toUpperCase() === stationCode,
       );
       if (!stationInRoute) {
@@ -125,7 +167,6 @@ export async function GET(req: Request) {
           { status: 400 },
         );
       }
-      // station route me hai, par is date ke runningDays me nahi
       return NextResponse.json(
         { ok: false, error: "not_running_on_date" },
         { status: 400 },
@@ -151,29 +192,15 @@ export async function GET(req: Request) {
       if (restroErr) {
         console.error("RestroMaster fetch error", restroErr);
       } else if (restroRow) {
-        // yahan hum different possible column names try kar rahe hain
-        const r: any = restroRow;
-        restroOpen =
-          r.OpenTime ||
-          r.open_time ||
-          r.Open_Time ||
-          r.openTime ||
-          r.open_time_at_station ||
-          null;
-        restroClose =
-          r.CloseTime ||
-          r.ClosedTime ||
-          r.close_time ||
-          r.Close_Time ||
-          r.closeTime ||
-          r.close_time_at_station ||
-          null;
+        const times = sniffRestroTimes(restroRow as any);
+        restroOpen = times.open;
+        restroClose = times.close;
 
         const arrRow = rowsAtStation[0];
         const arrTime =
-          arrRow.Arrives && arrRow.Arrives.trim()
-            ? arrRow.Arrives
-            : arrRow.Departs;
+          (arrRow.Arrives && arrRow.Arrives.trim()) ||
+          (arrRow.Departs && arrRow.Departs.trim()) ||
+          null;
 
         const arrMin = timeToMinutes(arrTime);
         const openMin = timeToMinutes(restroOpen);
@@ -184,20 +211,20 @@ export async function GET(req: Request) {
           openMin !== null &&
           closeMin !== null
         ) {
+          let arrivalMinutes = arrMin;
           let o = openMin;
           let c = closeMin;
 
-          // agar outlet raat bhar khula (close < open) hai to close ko +24h kar do
+          // Overnight window (e.g. 22:00–03:00)
           if (c <= o) {
             c += 24 * 60;
-            if (arrMin < o) {
-              // arrival bhi next-day window me ho sakta hai
-              // simple case: agar bahut chhota hai to +24h kar do
-              arrMin + 24 * 60;
+            if (arrivalMinutes < o) {
+              arrivalMinutes += 24 * 60;
             }
           }
 
-          const inWindow = arrMin >= o && arrMin <= c;
+          const inWindow =
+            arrivalMinutes >= o && arrivalMinutes <= c;
 
           if (!inWindow) {
             // outlet time se bahar => error
