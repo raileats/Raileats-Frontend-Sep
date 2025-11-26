@@ -190,8 +190,7 @@ export default function CheckoutPage() {
         }
 
         if (err === "weekly_off") {
-          const dayName =
-            meta.dayName || meta.dayCode || "this day";
+          const dayName = meta.dayName || meta.dayCode || "this day";
           alert(`This Restaurant Closed on ${dayName}.`);
           setDeliveryTime("");
           setTrainOptions([]);
@@ -209,7 +208,7 @@ export default function CheckoutPage() {
           return;
         }
 
-        // 🔴 yahi naya combined case hai
+        // 🔴 cutoff: purana "restro_cutoff" + naya "cutoff_exceeded" dono handle
         if (err === "restro_cutoff" || err === "cutoff_exceeded") {
           alert("Selected Restro Booking closed for this train.");
           setDeliveryTime("");
@@ -280,9 +279,6 @@ export default function CheckoutPage() {
       const arr = (first.Arrives || first.Departs || "").slice(0, 5);
       setDeliveryTime(arr);
 
-      const trainLabel = `${String(
-        first.trainNumber || t,
-      )} – ${first.trainName || ""}`.trim();
       const stationLabel =
         (first.StationCode || outlet.stationCode || "") +
         (first.StationName ? ` • ${first.StationName}` : "");
