@@ -29,64 +29,38 @@ function todayYMD() {
   return `${y}-${m}-${d}`;
 }
 
-// runningDays text ko "DAILY" / "MON,TUE" style se check
+// runningDays text ko filhaal sirf "DAILY" / "MON,TUE" type basic check se handle kar rahe hain
 function matchesRunningDay(runningDays: string | null, dateStr: string) {
-  if (!runningDays) return true;
+  if (!runningDays) return true; // agar data nahi hai to allow kar do
 
   const dayIndex = new Date(dateStr).getDay(); // 0=Sun..6=Sat
   const map = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
   const code = map[dayIndex];
 
   const s = runningDays.toUpperCase().trim();
+
   if (s === "DAILY" || s === "ALL") return true;
 
+  // e.g. "MON,TUE,WED" etc
   return s.split(/[ ,/]+/).includes(code);
 }
 
-// "08:45" → minutes since midnight (525)
-function hhmmToMinutes(t?: string | null): number | null {
-  if (!t) return null;
-  const parts = String(t).slice(0, 5).split(":");
-  if (parts.length < 2) return null;
-  const h = Number(parts[0]);
-  const m = Number(parts[1]);
-  if (!Number.isFinite(h) || !Number.isFinite(m)) return null;
-  return h * 60 + m;
+// "08:45:00" / "08:45" -> "08:45"
+function toHHMM(v: any): string {
+  if (!v) return "";
+  const s = String(v).trim();
+  if (!s) return "";
+  return s.slice(0, 5);
 }
 
-// check if arrival window ke andar hai (overnight window bhi)
-function isWithinWindow(
-  arrivalMin: number,
-  openMin: number,
-  closeMin: number,
-): boolean {
-  // normal: open <= close (eg 10:00–23:30)
-  if (closeMin >= openMin) {
-    return arrivalMin >= openMin && arrivalMin <= closeMin;
-  }
-  // overnight: open > close (eg 20:00–06:00)
-  return arrivalMin >= openMin || arrivalMin <= closeMin;
-}
-
-// row me open / close fields alag naam se ho sakte hain
-function getOpenCloseFromRow(row: any): { open?: string | null; close?: string | null } {
-  const open =
-    row.OpenTime ??
-    row.openTime ??
-    row.open_time ??
-    row.Open_time ??
-    row.Open ??
-    null;
-
-  const close =
-    row.ClosedTime ??
-    row.closeTime ??
-    row.close_time ??
-    row.Closed_time ??
-    row.Close ??
-    null;
-
-  return { open, close };
+// "08:45" -> minutes number, invalid par null
+function hhmmToMinutes(s: string): number | null {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(s);
+  if (!m) return null;
+  const h = Number(m[1]);
+  const mi = Number(m[2]);
+  if (!Number.isFinite(h) || !Number.isFinite(mi)) return null;
+  return h * 60 + mi;
 }
 
 export async function GET(req: Request) {
@@ -94,9 +68,9 @@ export async function GET(req: Request) {
     const url = new URL(req.url);
     const trainParam = (url.searchParams.get("train") || "").trim();
     const stationParam = (url.searchParams.get("station") || "").trim();
-    const restroParam = (url.searchParams.get("restro") || "").trim();
     const dateParam =
       (url.searchParams.get("date") || "").trim() || todayYMD();
+    const restroParam = (url.searchParams.get("restro") || "").trim();
 
     if (!trainParam || !stationParam) {
       return NextResponse.json(
@@ -108,18 +82,20 @@ export async function GET(req: Request) {
     const stationCode = stationParam.toUpperCase();
     const supa = serviceClient;
 
-    // ---------- 1) Train route fetch ----------
+    // column ka naam "trainNumber" hai
     const trainNumAsNumber = Number(trainParam);
     const trainFilterValue = Number.isFinite(trainNumAsNumber)
       ? trainNumAsNumber
       : trainParam;
 
-    const { data, error } = await supa
+    // ---- 1) Pehle given station ke rows nikaalo ----
+    const { data: atStation, error } = await supa
       .from("TrainRoute")
       .select(
         "trainId, trainNumber, trainName, stationFrom, stationTo, runningDays, StnNumber, StationCode, StationName, Arrives, Departs, Stoptime, Distance, Platform, Route, Day",
       )
       .eq("trainNumber", trainFilterValue)
+      .eq("StationCode", stationCode)
       .order("Day", { ascending: true });
 
     if (error) {
@@ -130,124 +106,125 @@ export async function GET(req: Request) {
       );
     }
 
-    const allRows = (data || []) as TrainRouteRow[];
-    if (!allRows.length) {
-      return NextResponse.json(
-        { ok: false, error: "train_not_found" },
-        { status: 404 },
-      );
-    }
+    let rows: TrainRouteRow[] = (atStation || []) as TrainRouteRow[];
 
-    // ---------- 2) Station match ----------
-    const rowsForStation = allRows.filter(
-      (r) =>
-        (r.StationCode || "").toUpperCase() === stationCode.toUpperCase(),
-    );
+    // ---- 2) Train / station existence check ----
+    if (!rows.length) {
+      // check: train exists but station nahi?
+      const { data: anyStation, error: anyErr } = await supa
+        .from("TrainRoute")
+        .select("trainId")
+        .eq("trainNumber", trainFilterValue)
+        .limit(1);
 
-    if (!rowsForStation.length) {
+      if (anyErr) {
+        console.error("train-routes check-any-station error", anyErr);
+        return NextResponse.json(
+          { ok: false, error: "db_error" },
+          { status: 500 },
+        );
+      }
+
+      if (!anyStation || anyStation.length === 0) {
+        return NextResponse.json(
+          { ok: false, error: "train_not_found" },
+          { status: 404 },
+        );
+      }
+
+      // train hai, par yeh station nahi
       return NextResponse.json(
         { ok: false, error: "station_not_on_route" },
         { status: 400 },
       );
     }
 
-    // ---------- 3) Running day filter ----------
-    const rowsForDate = rowsForStation.filter((r) =>
-      matchesRunningDay(r.runningDays, dateParam),
-    );
+    // day filter (runningDays)
+    rows = rows.filter((r) => matchesRunningDay(r.runningDays, dateParam));
 
-    if (!rowsForDate.length) {
+    if (!rows.length) {
       return NextResponse.json(
         { ok: false, error: "not_running_on_date" },
         { status: 400 },
       );
     }
 
-    const first = rowsForDate[0];
-    const arrivalText = first.Arrives || first.Departs || "";
-    const arrivalMinutes = hhmmToMinutes(arrivalText);
+    // yeh row hum arrival ke liye use kar rahe
+    const mainRow = rows[0];
+    const arrivalHHMM = toHHMM(mainRow.Arrives || mainRow.Departs);
 
-    // ---------- 4) Optional: Restro open/close validation ----------
-    if (restroParam && arrivalMinutes != null) {
+    // ---- 3) Restro time window check (agar restro param mila ho) ----
+    if (restroParam) {
       const restroCodeNum = Number(restroParam);
-
       if (Number.isFinite(restroCodeNum)) {
-        let openStr: string | null | undefined = null;
-        let closeStr: string | null | undefined = null;
-
-        // 4a) Try RestroMaster
-        const { data: rmRows, error: rmErr } = await supa
+        const { data: restroRows, error: restroErr } = await supa
           .from("RestroMaster")
-          .select("RestroCode, StationCode, OpenTime, ClosedTime, open_time, close_time")
+          .select(
+            "RestroCode, StationCode, OpenTime, CloseTime, ClosedTime, open_time, close_time",
+          )
           .eq("RestroCode", restroCodeNum)
           .limit(1);
 
-        if (rmErr) {
-          console.error("restro fetch (RestroMaster) error", rmErr);
-        } else if (rmRows && rmRows.length > 0) {
-          const { open, close } = getOpenCloseFromRow(rmRows[0]);
-          openStr = open;
-          closeStr = close;
-        }
+        if (restroErr) {
+          console.error("restro meta fetch error", restroErr);
+        } else if (restroRows && restroRows.length) {
+          const rest = restroRows[0] as any;
 
-        // 4b) Fallback – agar abhi bhi time nahi mila, ek aur table try karo
-        if ((!openStr || !closeStr)) {
-          const { data: rsRows, error: rsErr } = await supa
-            .from("RestroStations")
-            .select("RestroCode, StationCode, OpenTime, ClosedTime, open_time, close_time")
-            .eq("RestroCode", restroCodeNum)
-            .eq("StationCode", stationCode)
-            .limit(1);
+          // different column name possibilities handle kar liye
+          const openRaw =
+            rest.OpenTime ?? rest.open_time ?? rest.openTime ?? "";
+          const closeRaw =
+            rest.CloseTime ??
+            rest.ClosedTime ??
+            rest.close_time ??
+            rest.closeTime ??
+            "";
 
-          if (rsErr) {
-            console.error("restro fetch (RestroStations) error", rsErr);
-          } else if (rsRows && rsRows.length > 0) {
-            const { open, close } = getOpenCloseFromRow(rsRows[0]);
-            openStr = openStr || open;
-            closeStr = closeStr || close;
-          }
-        }
+          const restroOpenHHMM = toHHMM(openRaw);
+          const restroCloseHHMM = toHHMM(closeRaw);
 
-        const openMin =
-          openStr != null ? hhmmToMinutes(openStr) : null;
-        const closeMin =
-          closeStr != null ? hhmmToMinutes(closeStr) : null;
+          const arrMin = hhmmToMinutes(arrivalHHMM);
+          const openMin = hhmmToMinutes(restroOpenHHMM);
+          const closeMin = hhmmToMinutes(restroCloseHHMM);
 
-        if (
-          openMin != null &&
-          closeMin != null &&
-          !isWithinWindow(arrivalMinutes, openMin, closeMin)
-        ) {
-          // yahan se clearly outlet time mismatch error
-          return NextResponse.json(
-            {
-              ok: false,
-              error: "restro_time_mismatch",
-              meta: {
-                arrival: arrivalText.slice(0, 5),
-                restroOpen: openStr,
-                restroClose: closeStr,
-                stationCode,
-                train: trainParam,
+          if (
+            arrMin !== null &&
+            openMin !== null &&
+            closeMin !== null &&
+            (arrMin < openMin || arrMin > closeMin)
+          ) {
+            // 👉 yahan fail return kar rahe hain
+            return NextResponse.json(
+              {
+                ok: false,
+                error: "restro_time_mismatch",
+                meta: {
+                  arrival: arrivalHHMM,
+                  restroOpen: restroOpenHHMM,
+                  restroClose: restroCloseHHMM,
+                  stationCode,
+                  restroCode: restroCodeNum,
+                },
               },
-            },
-            { status: 400 },
-          );
+              { status: 400 },
+            );
+          }
         }
       }
     }
 
-    // ---------- 5) Success response ----------
+    // ---- 4) Success response ----
     return NextResponse.json({
       ok: true,
-      rows: rowsForDate,
+      rows,
       meta: {
         stationCode,
-        stationName: first.StationName,
+        stationName: mainRow.StationName,
         train: trainParam,
+        trainName: mainRow.trainName,
         date: dateParam,
-        count: rowsForDate.length,
-        arrival: arrivalText.slice(0, 5),
+        arrival: arrivalHHMM,
+        count: rows.length,
       },
     });
   } catch (e) {
