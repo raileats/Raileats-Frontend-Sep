@@ -121,7 +121,7 @@ export default function CheckoutPage() {
 
       const params = new URLSearchParams();
       params.set("train", t);
-      params.set("station", outlet.stationCode);
+      params.set("station", outlet.stationCode); // server sirf meta ke liye use karega
       params.set("date", deliveryDate);
 
       const res = await fetch(`/api/train-routes?${params.toString()}`, {
@@ -131,26 +131,47 @@ export default function CheckoutPage() {
 
       if (!res.ok || !json?.ok) {
         console.error("train search failed", json);
-        setTrainMsg("Train search failed. Please try again.");
+        if (json?.error === "train_not_found") {
+          setTrainMsg(`Train ${t} not found.`);
+        } else {
+          setTrainMsg("Train search failed. Please try again.");
+        }
         return;
       }
 
       const rows: TrainRouteRow[] = json.rows || [];
       if (!rows.length) {
-        setTrainMsg(
-          `No matching schedule found for ${t} at ${outlet.stationCode}.`,
-        );
+        setTrainMsg(`Train ${t} not found.`);
         return;
       }
 
-      setTrainOptions(rows);
+      // 👉 yahan check kar rahe hain ki yeh station is train ke route me hai ya nahi
+      const wantedStation = outlet.stationCode.trim().toUpperCase();
+      const stationRows = rows.filter(
+        (r) =>
+          (r.StationCode || "").trim().toUpperCase() === wantedStation,
+      );
 
-      // first matching row ka arrival time le lo
-      const first = rows[0];
+      if (!stationRows.length) {
+        // train to mil gayi, lekin yeh station us route me nahi hai
+        setTrainOptions([]);
+        setTrainMsg("Selected station not belongs to this train.");
+        return;
+      }
+
+      // agar station match mil gaya to ab arrival time set karo
+      setTrainOptions(stationRows);
+
+      const first = stationRows[0];
       const arr = (first.Arrives || first.Departs || "").slice(0, 5);
       setDeliveryTime(arr);
+
+      const tn = first.trainNumber ?? t;
+      const name = first.trainName?.trim() || "";
+      const stationName = first.StationName || wantedStation;
+
       setTrainMsg(
-        `Found ${rows.length} result(s). Arrival ~ ${arr || "time not set"}.`,
+        `${tn} ${name} at ${stationName} — Arrival ~ ${arr || "time not set"}.`,
       );
     } catch (e) {
       console.error("train search error", e);
