@@ -100,7 +100,7 @@ export default function CheckoutPage() {
     coach.trim().length >= 1 &&
     seat.trim().length >= 1 &&
     name.trim().length >= 2 &&
-    /^\d{10}$/.test(mobile.trim());
+    /^[6789]\d{9}$/.test(mobile.trim());
 
   /* ------------ TRAIN SEARCH ------------ */
   async function searchTrain() {
