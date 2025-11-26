@@ -209,7 +209,8 @@ export default function CheckoutPage() {
           return;
         }
 
-        if (err === "cutoff_exceeded") {
+        // 🔴 yahi naya combined case hai
+        if (err === "restro_cutoff" || err === "cutoff_exceeded") {
           alert("Selected Restro Booking closed for this train.");
           setDeliveryTime("");
           setTrainOptions([]);
