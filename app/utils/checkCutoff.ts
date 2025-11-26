@@ -2,7 +2,7 @@
 
 export function canPlaceOrder(
   deliveryDate: string,   // "27-11-2025" ya "2025-11-27"
-  deliveryTime: string,   // "00:35"
+  deliveryTime: string,   // "01:05"
   cutoffMinutes: number   // RestroMaster.CutOffTime (minutes)
 ): { ok: boolean; message?: string } {
   if (!deliveryDate || !deliveryTime) {
@@ -19,10 +19,10 @@ export function canPlaceOrder(
   let dd: number, mm: number, yyyy: number;
 
   if (parts[0].length === 4) {
-    // yyyy-MM-dd (HTML <input type="date"> ka actual value)
+    // yyyy-MM-dd  (HTML <input type="date">)
     [yyyy, mm, dd] = parts.map(Number);
   } else {
-    // dd-MM-yyyy (agar kabhi string aise aaye)
+    // dd-MM-yyyy
     [dd, mm, yyyy] = parts.map(Number);
   }
 
@@ -32,13 +32,12 @@ export function canPlaceOrder(
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const deliveryDateOnly = new Date(yyyy, mm - 1, dd);
 
-  // 1) agar delivery date aaj se different hai -> cutoff mat lagao (allowed)
+  // 👉 Sirf jab booking date == delivery date tab cutoff apply karo
   if (deliveryDateOnly.getTime() !== today.getTime()) {
     return { ok: true };
   }
 
-  // 2) yahan aaye matlab delivery date == aaj
-  // ab time parse karo
+  // Delivery time parse
   const [HH, MM] = deliveryTime.split(":").map(Number);
   const deliveryDateTime = new Date(yyyy, mm - 1, dd, HH, MM, 0, 0);
 
@@ -46,19 +45,18 @@ export function canPlaceOrder(
     return { ok: false, message: "Invalid journey date or time." };
   }
 
-  // cutoff time = delivery time - CutOffTime (minutes)
-  const cutoffTime = new Date(
-    deliveryDateTime.getTime() - cutoffMinutes * 60 * 1000
-  );
+  // --- Tumhara rule: (delivery - now) > cutoffMinutes hona chahiye ---
+  const diffMs = deliveryDateTime.getTime() - now.getTime();
+  const diffMinutes = diffMs / 60000;
 
-  // agar current time > cutoff time -> error
-  if (now > cutoffTime) {
+  // Agar bacha hua time CutOffTime se kam ya barabar hai → error
+  // (matlab 1 min bhi extra nahi bacha)
+  if (diffMinutes <= cutoffMinutes) {
     return {
       ok: false,
-      message: `Booking closed. Today’s orders must be placed at least ${cutoffMinutes} minutes before delivery time.`,
+      message: `Booking closed. Today’s orders must be placed more than ${cutoffMinutes} minutes before delivery time.`,
     };
   }
 
-  // otherwise allowed
   return { ok: true };
 }
