@@ -1,4 +1,3 @@
-// app/checkout/page.tsx
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
@@ -12,6 +11,10 @@ type OutletMeta = {
   stationName?: string;
   restroCode: string | number;
   outletName?: string;
+
+  // 👇 new fields – HH:MM format
+  restroOpenTime?: string;
+  restroCloseTime?: string;
 };
 
 type TrainRouteRow = {
@@ -31,6 +34,17 @@ function todayYMD() {
   const m = String(now.getMonth() + 1).padStart(2, "0");
   const d = String(now.getDate()).padStart(2, "0");
   return `${y}-${m}-${d}`;
+}
+
+function timeToMinutes(t?: string | null): number | null {
+  if (!t) return null;
+  const s = String(t).trim();
+  if (!s) return null;
+  const [hh, mm] = s.split(":");
+  const h = Number(hh);
+  const m = Number(mm);
+  if (!Number.isFinite(h) || !Number.isFinite(m)) return null;
+  return h * 60 + m;
 }
 
 export default function CheckoutPage() {
@@ -173,12 +187,12 @@ export default function CheckoutPage() {
         if (err === "restro_time_mismatch") {
           const meta = json?.meta || {};
           const arr = meta.arrival || "";
-          const o = meta.restroOpen || "";
-          const c = meta.restroClose || "";
+          const o = meta.restroOpen || outlet?.restroOpenTime || "";
+          const c = meta.restroClose || outlet?.restroCloseTime || "";
           alert(
-            `Selected outlet service time not matched with train time.\n\nTrain arrival: ${arr}\nOutlet time: ${o} - ${c}`,
+            `Restaurant service time not matched with train.\n\nTrain arrival: ${arr}\nOutlet time: ${o} - ${c}`,
           );
-          // train number toh same rahega, bas time clear kar dete hain
+          // train number same rahega, bas time clear
           setDeliveryTime("");
           setTrainOptions([]);
           setTrainMsg("");
@@ -201,19 +215,50 @@ export default function CheckoutPage() {
 
       setTrainOptions(rows);
 
+      // first matching row se arrival nikal lo
       const first = rows[0];
       const arr = (first.Arrives || first.Departs || "").slice(0, 5);
+
+      // ---------- LOCAL OUTLET TIME CHECK ----------
+      const openStr = outlet.restroOpenTime;
+      const closeStr = outlet.restroCloseTime;
+
+      const arrMin = timeToMinutes(arr);
+      const openMin = timeToMinutes(openStr || "");
+      const closeMin = timeToMinutes(closeStr || "");
+
+      if (
+        arrMin !== null &&
+        openMin !== null &&
+        closeMin !== null &&
+        (arrMin < openMin || arrMin > closeMin)
+      ) {
+        // ❌  train 11077 @ 08:45 but outlet 10:00–23:30  => yaha aa jayega
+        alert(
+          `Restaurant service time not matched with train.\n\nTrain arrival at ${
+            outlet.stationCode
+          }: ${arr}\nOutlet time: ${openStr || "N/A"} - ${
+            closeStr || "N/A"
+          }`,
+        );
+        setDeliveryTime("");
+        setTrainOptions([]);
+        setTrainMsg("");
+        setTrainMsgType("error");
+        return;
+      }
+
+      // ---------- SUCCESS UI ----------
       setDeliveryTime(arr);
 
-      const trainLabel = `${String(
-        first.trainNumber || t,
-      )} – ${first.trainName || ""}`.trim();
       const stationLabel =
         (first.StationCode || outlet.stationCode || "") +
         (first.StationName ? ` • ${first.StationName}` : "");
 
       setTrainMsg(
-        `Train & station matched successfully. Arrival at ${stationLabel}: ${arr || "time not set"}.`,
+        `Train & station matched successfully. Arrival at ${stationLabel}: ${
+          arr || "time not set"
+        }.`,
       );
       setTrainMsgType("ok");
     } catch (e) {
@@ -252,7 +297,7 @@ export default function CheckoutPage() {
         name: name.trim(),
         mobile: mobile.trim(),
       },
-      outlet, // ✅ yahan se outlet + station meta jayega
+      outlet, // ✅ outlet + station meta
       createdAt: Date.now(),
     };
 
@@ -290,7 +335,7 @@ export default function CheckoutPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* ITEMS (unchanged) */}
+          {/* ITEMS */}
           <section
             className="md:col-span-2 card-safe"
             aria-label="Cart items"
