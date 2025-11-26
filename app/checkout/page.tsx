@@ -14,6 +14,11 @@ type OutletMeta = {
   restroCode?: string | number;
   RestroCode?: string | number; // sessionStorage me kabhi-kabhi aise aa sakta hai
   outletName?: string;
+
+  // 👇 cutoff related fields (RestroMaster se aa sakte hain)
+  CutOffTime?: number;
+  cutOffTime?: number;
+  cutoffMinutes?: number;
 };
 
 type TrainRouteRow = {
@@ -91,6 +96,19 @@ export default function CheckoutPage() {
       setOutlet(null);
     }
   }, []);
+
+  // 🔹 Restro cutoff minutes (RestroMaster.CutOffTime se aaya hua, outlet meta me)
+  const restroCutoffMinutes = useMemo(() => {
+    if (!outlet) return 0;
+    const anyOutlet = outlet as any;
+    const raw =
+      anyOutlet.CutOffTime ??
+      anyOutlet.cutOffTime ??
+      anyOutlet.cutoffMinutes ??
+      0;
+    const num = Number(raw);
+    return Number.isFinite(num) && num > 0 ? num : 0;
+  }, [outlet]);
 
   const canProceed =
     count > 0 &&
@@ -302,6 +320,19 @@ export default function CheckoutPage() {
     if (!canProceed) {
       alert("Please fill all details correctly before proceeding.");
       return;
+    }
+
+    // 🔹 yahin cutoff check lagao (same-date + Restro CutOffTime)
+    const cutoff = restroCutoffMinutes; // e.g. 32 for RestroCode 1004
+    const { ok, message } = canPlaceOrder(
+      deliveryDate,
+      deliveryTime,
+      cutoff,
+    );
+
+    if (!ok) {
+      alert(message || "Booking closed for this delivery time.");
+      return; // ❌ aage draft/save mat karo
     }
 
     const draft = {
