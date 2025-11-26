@@ -21,15 +21,6 @@ type TrainRouteRow = {
   Day: number | null;
 };
 
-// RestroMaster se jo fields chahiye
-type RestroMasterRow = {
-  RestroCode: number;
-  StationCode: string | null;
-  OpenTime: string | null;      // "10:00" ya "10:00:00"
-  CloseTime: string | null;     // "23:30" etc
-  CutOffTimeMins?: number | null;
-};
-
 function todayYMD() {
   const now = new Date();
   const y = now.getFullYear();
@@ -38,31 +29,44 @@ function todayYMD() {
   return `${y}-${m}-${d}`;
 }
 
-// runningDays text ko filhaal sirf "DAILY" / "MON,TUE" type basic check se handle kar rahe hain
+// runningDays text ko "DAILY" / "MON,TUE" style se check
 function matchesRunningDay(runningDays: string | null, dateStr: string) {
-  if (!runningDays) return true; // agar data nahi hai to allow kar do
+  if (!runningDays) return true;
 
   const dayIndex = new Date(dateStr).getDay(); // 0=Sun..6=Sat
   const map = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
   const code = map[dayIndex];
 
   const s = runningDays.toUpperCase().trim();
-
   if (s === "DAILY" || s === "ALL") return true;
 
-  // e.g. "MON,TUE,WED" etc
   return s.split(/[ ,/]+/).includes(code);
 }
 
-function timeToMinutes(t: string | null | undefined): number | null {
+// "08:45" → minutes since midnight (525)
+function hhmmToMinutes(t?: string | null): number | null {
   if (!t) return null;
-  const s = String(t).trim();
-  if (!s) return null;
-  const [hh = "00", mm = "00"] = s.split(":");
-  const h = Number(hh);
-  const m = Number(mm);
+  const parts = String(t).slice(0, 5).split(":");
+  if (parts.length < 2) return null;
+  const h = Number(parts[0]);
+  const m = Number(parts[1]);
   if (!Number.isFinite(h) || !Number.isFinite(m)) return null;
   return h * 60 + m;
+}
+
+// check if arrival window ke andar hai (handle overnight windows bhi)
+function isWithinWindow(
+  arrivalMin: number,
+  openMin: number,
+  closeMin: number,
+): boolean {
+  // normal: open <= close   (eg 10:00-23:30)
+  if (closeMin >= openMin) {
+    return arrivalMin >= openMin && arrivalMin <= closeMin;
+  }
+  // overnight: open > close (eg 20:00-06:00)
+  // do 2 segments: [open, 1440) OR [0, close]
+  return arrivalMin >= openMin || arrivalMin <= closeMin;
 }
 
 export async function GET(req: Request) {
@@ -70,9 +74,9 @@ export async function GET(req: Request) {
     const url = new URL(req.url);
     const trainParam = (url.searchParams.get("train") || "").trim();
     const stationParam = (url.searchParams.get("station") || "").trim();
+    const restroParam = (url.searchParams.get("restro") || "").trim();
     const dateParam =
       (url.searchParams.get("date") || "").trim() || todayYMD();
-    const restroParam = (url.searchParams.get("restro") || "").trim();
 
     if (!trainParam || !stationParam) {
       return NextResponse.json(
@@ -84,7 +88,7 @@ export async function GET(req: Request) {
     const stationCode = stationParam.toUpperCase();
     const supa = serviceClient;
 
-    // ---- 1) Train ka poora route nikaalo (sirf train number se) ----
+    // ---- 1) Train route fetch (pure train ke saare stations) ----
     const trainNumAsNumber = Number(trainParam);
     const trainFilterValue = Number.isFinite(trainNumAsNumber)
       ? trainNumAsNumber
@@ -107,118 +111,82 @@ export async function GET(req: Request) {
     }
 
     const allRows = (data || []) as TrainRouteRow[];
-
-    // train hi nahi mila
     if (!allRows.length) {
       return NextResponse.json(
-        {
-          ok: false,
-          error: "train_not_found",
-          meta: { train: trainParam, stationCode, date: dateParam },
-        },
+        { ok: false, error: "train_not_found" },
         { status: 404 },
       );
     }
 
-    // date ke hisaab se filter
-    const dayFiltered = allRows.filter((r) =>
+    // ---- 2) Station match ----
+    const rowsForStation = allRows.filter(
+      (r) =>
+        (r.StationCode || "").toUpperCase() === stationCode.toUpperCase(),
+    );
+
+    if (!rowsForStation.length) {
+      return NextResponse.json(
+        { ok: false, error: "station_not_on_route" },
+        { status: 400 },
+      );
+    }
+
+    // ---- 3) Running day filter ----
+    const rowsForDate = rowsForStation.filter((r) =>
       matchesRunningDay(r.runningDays, dateParam),
     );
 
-    // iss date pe koi run nahi kar rahi
-    if (!dayFiltered.length) {
+    if (!rowsForDate.length) {
       return NextResponse.json(
-        {
-          ok: false,
-          error: "not_running_on_date",
-          meta: { train: trainParam, stationCode, date: dateParam },
-        },
-        { status: 404 },
+        { ok: false, error: "not_running_on_date" },
+        { status: 400 },
       );
     }
 
-    // ab stationCode ke hisaab se rows
-    const atStation = dayFiltered.filter(
-      (r) => (r.StationCode || "").toUpperCase() === stationCode,
-    );
+    const first = rowsForDate[0];
+    const arrivalText = first.Arrives || first.Departs || "";
+    const arrivalMinutes = hhmmToMinutes(arrivalText);
 
-    const firstRouteRow = dayFiltered[0];
-    const trainName = firstRouteRow.trainName || null;
-
-    if (!atStation.length) {
-      // Train hai lekin iss station par nahi aati
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "station_not_on_route",
-          trainName,
-          meta: {
-            train: trainParam,
-            stationCode,
-            date: dateParam,
-          },
-        },
-        { status: 404 },
-      );
-    }
-
-    // iss station par jis row ko use karenge
-    const stationRow = atStation[0];
-    const rawArrival = stationRow.Arrives || stationRow.Departs || "00:00";
-    const arrivalHHMM = rawArrival.slice(0, 5);
-    const arrivalMinutes = timeToMinutes(rawArrival);
-
-    // ---- 2) Restro open / close time validate ----
-    let restroOpen: string | null = null;
-    let restroClose: string | null = null;
-    let restroCutoffMins: number | null = null;
-
-    if (restroParam) {
+    // ---- 4) Optional: Restro open/close validation ----
+    if (restroParam && arrivalMinutes != null) {
       const restroCodeNum = Number(restroParam);
       if (Number.isFinite(restroCodeNum)) {
         const { data: restroRows, error: restroErr } = await supa
           .from("RestroMaster")
-          .select(
-            "RestroCode, StationCode, OpenTime, CloseTime, CutOffTimeMins",
-          )
+          .select("RestroCode, StationCode, OpenTime, ClosedTime")
           .eq("RestroCode", restroCodeNum)
-          .eq("StationCode", stationCode)
           .limit(1);
 
         if (restroErr) {
           console.error("train-routes restro fetch error", restroErr);
-        }
+        } else if (restroRows && restroRows.length > 0) {
+          const restro = restroRows[0] as any;
+          const openStr: string | null =
+            (restro.OpenTime as string | null) ?? null;
+          const closeStr: string | null =
+            (restro.ClosedTime as string | null) ?? null;
 
-        const restro = (restroRows || [])[0] as RestroMasterRow | undefined;
-        if (restro) {
-          restroOpen = restro.OpenTime;
-          restroClose = restro.CloseTime;
-          if (typeof restro.CutOffTimeMins === "number") {
-            restroCutoffMins = restro.CutOffTimeMins;
-          }
-
-          const openMins = timeToMinutes(restroOpen);
-          const closeMins = timeToMinutes(restroClose);
+          const openMin =
+            openStr != null ? hhmmToMinutes(openStr) : null;
+          const closeMin =
+            closeStr != null ? hhmmToMinutes(closeStr) : null;
 
           if (
-            arrivalMinutes != null &&
-            openMins != null &&
-            closeMins != null &&
-            (arrivalMinutes < openMins || arrivalMinutes > closeMins)
+            openMin != null &&
+            closeMin != null &&
+            !isWithinWindow(arrivalMinutes, openMin, closeMin)
           ) {
-            // train time restro ke service window se bahar hai
+            // yahan se error bhejna hai: restro time mismatch
             return NextResponse.json(
               {
                 ok: false,
                 error: "restro_time_mismatch",
-                trainName,
                 meta: {
-                  train: trainParam,
+                  arrival: arrivalText.slice(0, 5),
+                  restroOpen: openStr,
+                  restroClose: closeStr,
                   stationCode,
-                  date: dateParam,
-                  arrival: arrivalHHMM,
-                  restroOpen: restroOpen?.slice(0, 5) || null,
-                  restroClose: restroClose?.slice(0, 5) || null,
+                  train: trainParam,
                 },
               },
               { status: 400 },
@@ -228,19 +196,17 @@ export async function GET(req: Request) {
       }
     }
 
-    // sab OK
+    // ---- 5) Success response ----
     return NextResponse.json({
       ok: true,
-      rows: atStation,
+      rows: rowsForDate,
       meta: {
         stationCode,
+        stationName: first.StationName,
         train: trainParam,
         date: dateParam,
-        trainName,
-        arrival: arrivalHHMM,
-        restroOpen: restroOpen ? restroOpen.slice(0, 5) : null,
-        restroClose: restroClose ? restroClose.slice(0, 5) : null,
-        restroCutoffMins,
+        count: rowsForDate.length,
+        arrival: arrivalText.slice(0, 5),
       },
     });
   } catch (e) {
