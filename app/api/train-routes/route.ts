@@ -73,7 +73,7 @@ export async function GET(req: Request) {
     // ⚠️ ab yahan StationCode par filter nahi kar rahe,
     // poore train ke route ke rows aa jayenge
     const { data, error } = await supa
-      .from<TrainRouteRow>("TrainRoute")
+      .from("TrainRoute")
       .select(
         "trainId, trainNumber, trainName, stationFrom, stationTo, runningDays, StnNumber, StationCode, StationName, Arrives, Departs, Stoptime, Distance, Platform, Route, Day",
       )
@@ -88,7 +88,7 @@ export async function GET(req: Request) {
       );
     }
 
-    const rows = (data || []).filter((r) =>
+    const rows = ((data || []) as TrainRouteRow[]).filter((r) =>
       matchesRunningDay(r.runningDays, dateParam),
     );
 
