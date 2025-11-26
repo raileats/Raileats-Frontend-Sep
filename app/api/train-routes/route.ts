@@ -1,3 +1,4 @@
+// app/api/train-routes/route.ts
 import { NextResponse } from "next/server";
 import { serviceClient } from "../../lib/supabaseServer";
 
@@ -163,6 +164,7 @@ export async function GET(req: Request) {
       const { data: restroRows, error: restroErr } = await supa
         .from("RestroMaster")
         .select(
+          // dhyaan rahe: "0penTime" me zero hai, O nahi
           'RestroCode, StationCode, StationName, "0penTime", "ClosedTime"',
         )
         .eq("RestroCode", restroFilter)
@@ -185,27 +187,36 @@ export async function GET(req: Request) {
         const openMins = toMinutes(openRaw);
         const closeMins = toMinutes(closeRaw);
 
-        // arrival / open / close sab valid ho to hi compare
-        if (
-          arrivalMinutes >= 0 &&
-          openMins >= 0 &&
-          closeMins >= 0 &&
-          (arrivalMinutes < openMins || arrivalMinutes > closeMins)
-        ) {
-          return NextResponse.json(
-            {
-              ok: false,
-              error: "restro_time_mismatch",
-              meta: {
-                restroCode: r.RestroCode,
-                arrival: arrivalHHMM,
-                restroOpen: fmtHHMM(openRaw),
-                restroClose: fmtHHMM(closeRaw),
-                stationCode,
+        if (arrivalMinutes >= 0 && openMins >= 0 && closeMins >= 0) {
+          let within = false;
+
+          if (closeMins >= openMins) {
+            // normal same-day window: e.g. 10:00 → 23:30
+            within =
+              arrivalMinutes >= openMins && arrivalMinutes <= closeMins;
+          } else {
+            // overnight window: e.g. 22:22 → 11:59 (next day)
+            // allowed: [open..24:00) ∪ [00:00..close]
+            within =
+              arrivalMinutes >= openMins || arrivalMinutes <= closeMins;
+          }
+
+          if (!within) {
+            return NextResponse.json(
+              {
+                ok: false,
+                error: "restro_time_mismatch",
+                meta: {
+                  restroCode: r.RestroCode,
+                  arrival: arrivalHHMM,
+                  restroOpen: fmtHHMM(openRaw),
+                  restroClose: fmtHHMM(closeRaw),
+                  stationCode,
+                },
               },
-            },
-            { status: 400 },
-          );
+              { status: 400 },
+            );
+          }
         }
       }
     }
