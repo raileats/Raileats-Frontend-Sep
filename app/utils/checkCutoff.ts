@@ -3,7 +3,7 @@
 export function canPlaceOrder(
   deliveryDate: string,   // "27-11-2025" ya "2025-11-27"
   deliveryTime: string,   // "00:35"
-  cutoffMinutes: number   // yahi RestroMaster.CutOffTime se aayega
+  cutoffMinutes: number   // RestroMaster.CutOffTime (minutes)
 ): { ok: boolean; message?: string } {
   if (!deliveryDate || !deliveryTime) {
     return { ok: false, message: "Please select delivery date and time." };
@@ -19,10 +19,10 @@ export function canPlaceOrder(
   let dd: number, mm: number, yyyy: number;
 
   if (parts[0].length === 4) {
-    // yyyy-MM-dd
+    // yyyy-MM-dd (HTML <input type="date"> ka actual value)
     [yyyy, mm, dd] = parts.map(Number);
   } else {
-    // dd-MM-yyyy
+    // dd-MM-yyyy (agar kabhi string aise aaye)
     [dd, mm, yyyy] = parts.map(Number);
   }
 
