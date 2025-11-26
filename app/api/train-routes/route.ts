@@ -55,12 +55,13 @@ export async function GET(req: Request) {
 
     if (!trainParam) {
       return NextResponse.json(
-        { ok: false, error: "missing_train" },
+        { ok: false, error: "missing_train_param" },
         { status: 400 },
       );
     }
 
-    const stationCode = stationParam.toUpperCase();
+    const stationCode =
+      stationParam.trim().toUpperCase() || null;
     const supa = serviceClient;
 
     // column ka naam "trainNumber" hai
@@ -69,11 +70,10 @@ export async function GET(req: Request) {
       ? trainNumAsNumber
       : trainParam;
 
-    // ⚠️ Yahan ab SIRF trainNumber par filter kar rahe hain,
-    // stationCode client side par check karenge (taaki
-    // "selected station not belongs to this train" detect ho sake)
+    // ⚠️ ab yahan StationCode par filter nahi kar rahe,
+    // poore train ke route ke rows aa jayenge
     const { data, error } = await supa
-      .from("TrainRoute")
+      .from<TrainRouteRow>("TrainRoute")
       .select(
         "trainId, trainNumber, trainName, stationFrom, stationTo, runningDays, StnNumber, StationCode, StationName, Arrives, Departs, Stoptime, Distance, Platform, Route, Day",
       )
@@ -88,16 +88,7 @@ export async function GET(req: Request) {
       );
     }
 
-    const rowsAll = (data || []) as TrainRouteRow[];
-
-    if (!rowsAll.length) {
-      return NextResponse.json(
-        { ok: false, error: "train_not_found" },
-        { status: 404 },
-      );
-    }
-
-    const rows = rowsAll.filter((r) =>
+    const rows = (data || []).filter((r) =>
       matchesRunningDay(r.runningDays, dateParam),
     );
 
