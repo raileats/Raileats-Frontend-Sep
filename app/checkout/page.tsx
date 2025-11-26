@@ -11,7 +11,7 @@ type OutletMeta = {
   stationCode: string;
   stationName?: string;
   restroCode?: string | number;
-  RestroCode?: string | number; // 👈 extra, kyunki sessionStorage me aisa ho sakta hai
+  RestroCode?: string | number; // sessionStorage me kabhi-kabhi aise aa sakta hai
   outletName?: string;
 };
 
@@ -122,12 +122,15 @@ export default function CheckoutPage() {
       setTrainMsgType("");
       setTrainOptions([]);
 
+      // cart se item names (RestroMenuItems ke item_name se match karne ke liye)
+      const itemNames = items.map((l) => l.name).filter(Boolean);
+
       const params = new URLSearchParams();
       params.set("train", t);
       params.set("station", outlet.stationCode);
       params.set("date", deliveryDate);
 
-      // 🔴 IMPORTANT: RestroCode ko har possible key se nikaalo
+      // RestroCode ko har possible key se nikaalo
       const restroCodeForApi =
         outlet.restroCode ??
         outlet.RestroCode ??
@@ -138,12 +141,16 @@ export default function CheckoutPage() {
         params.set("restro", String(restroCodeForApi));
       }
 
+      if (itemNames.length) {
+        params.set("items", JSON.stringify(itemNames));
+      }
+
       const res = await fetch(`/api/train-routes?${params.toString()}`, {
         cache: "no-store",
       });
       const json = await res.json().catch(() => ({} as any));
 
-      // ---- error handling (train / station / restro time) ----
+      // ---- error handling (train / station / date / outlet / item times) ----
       if (!json?.ok) {
         const err = json?.error as string | undefined;
 
@@ -186,6 +193,25 @@ export default function CheckoutPage() {
           const c = meta.restroClose || "";
           alert(
             `Selected outlet service time not matched with train time.\n\nTrain arrival: ${arr}\nOutlet time: ${o} - ${c}`,
+          );
+          setDeliveryTime("");
+          setTrainOptions([]);
+          setTrainMsg("");
+          setTrainMsgType("error");
+          return;
+        }
+
+        if (err === "item_time_mismatch") {
+          const meta = json?.meta || {};
+          const arr = meta.arrival || "";
+          const badItems: any[] = meta.items || [];
+          const lines = badItems.map(
+            (it) => `• ${it.name} (${it.start} - ${it.end})`,
+          );
+          alert(
+            `Selected item time not matched with train time.\n\nTrain arrival: ${arr}\n\nItems:\n${lines.join(
+              "\n",
+            )}`,
           );
           setDeliveryTime("");
           setTrainOptions([]);
@@ -396,7 +422,7 @@ export default function CheckoutPage() {
 
             {/* Train number + search */}
             <div className="space-y-3 mb-3">
-              <div className="flex gap-2 items	end">
+              <div className="flex gap-2 items-end">
                 <div className="flex-1">
                   <label className="text-sm block mb-1">
                     Train number (at station)
