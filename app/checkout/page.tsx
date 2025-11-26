@@ -15,7 +15,7 @@ type OutletMeta = {
   RestroCode?: string | number; // sessionStorage me kabhi-kabhi aise aa sakta hai
   outletName?: string;
 
-  // 👇 cutoff related fields (RestroMaster se aa sakte hain)
+  // cutoff info (RestroMaster se sessionStorage me aa sakta hai)
   CutOffTime?: number;
   cutOffTime?: number;
   cutoffMinutes?: number;
@@ -96,19 +96,6 @@ export default function CheckoutPage() {
       setOutlet(null);
     }
   }, []);
-
-  // 🔹 Restro cutoff minutes (RestroMaster.CutOffTime se aaya hua, outlet meta me)
-  const restroCutoffMinutes = useMemo(() => {
-    if (!outlet) return 0;
-    const anyOutlet = outlet as any;
-    const raw =
-      anyOutlet.CutOffTime ??
-      anyOutlet.cutOffTime ??
-      anyOutlet.cutoffMinutes ??
-      0;
-    const num = Number(raw);
-    return Number.isFinite(num) && num > 0 ? num : 0;
-  }, [outlet]);
 
   const canProceed =
     count > 0 &&
@@ -322,11 +309,19 @@ export default function CheckoutPage() {
       return;
     }
 
-    // 🔹 yahin cutoff check lagao (same-date + Restro CutOffTime)
-    const cutoff = restroCutoffMinutes; // e.g. 32 for RestroCode 1004
+    // 🔹 Restro CutOffTime (minutes) outlet meta se nikaalo
+    const anyOutlet = outlet as any;
+    const cutoffRaw =
+      anyOutlet?.CutOffTime ??
+      anyOutlet?.cutOffTime ??
+      anyOutlet?.cutoffMinutes ??
+      0;
+    const cutoff = Number(cutoffRaw) || 0;
+
+    // 🔹 Cutoff validation (sirf same-date par)
     const { ok, message } = canPlaceOrder(
-      deliveryDate,
-      deliveryTime,
+      deliveryDate,   // e.g. "2025-11-27"
+      deliveryTime,   // e.g. "01:05"
       cutoff,
     );
 
@@ -335,6 +330,7 @@ export default function CheckoutPage() {
       return; // ❌ aage draft/save mat karo
     }
 
+    // ✅ yahan aaya matlab cutoff pass ho gaya
     const draft = {
       id: "DRAFT_" + Date.now(),
       items: items.map((l) => ({
