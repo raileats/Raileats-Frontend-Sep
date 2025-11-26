@@ -67,6 +67,22 @@ export async function GET(req: Request) {
       (url.searchParams.get("date") || "").trim() || todayYMD();
     const restroParam = (url.searchParams.get("restro") || "").trim();
 
+    // items: JSON array of item names (optional)
+    let itemNames: string[] = [];
+    const itemsParam = url.searchParams.get("items");
+    if (itemsParam) {
+      try {
+        const parsed = JSON.parse(itemsParam);
+        if (Array.isArray(parsed)) {
+          itemNames = parsed
+            .map((x) => String(x || "").trim())
+            .filter((x) => x.length > 0);
+        }
+      } catch {
+        // ignore parse error
+      }
+    }
+
     if (!trainParam || !stationParam) {
       return NextResponse.json(
         { ok: false, error: "missing_params" },
@@ -154,13 +170,14 @@ export async function GET(req: Request) {
     const arrivalMinutes = toMinutes(rawArr);
     const arrivalHHMM = fmtHHMM(rawArr);
 
-    // ---- Restro open/close check (agar restro param diya hai) ----
+    // ---- Restro + Menu time checks (agar restro param diya hai) ----
     if (restroParam) {
       const restroCodeNum = Number(restroParam);
       const restroFilter = Number.isFinite(restroCodeNum)
         ? restroCodeNum
         : restroParam;
 
+      // 1) Outlet open/close window
       const { data: restroRows, error: restroErr } = await supa
         .from("RestroMaster")
         .select(
@@ -178,7 +195,6 @@ export async function GET(req: Request) {
       if (restroRows && restroRows.length) {
         const r = restroRows[0] as any;
 
-        // Column actually named "0penTime" with zero
         const openRaw: string | null =
           (r["0penTime"] as string | null) ?? null;
         const closeRaw: string | null =
@@ -212,6 +228,72 @@ export async function GET(req: Request) {
                   restroOpen: fmtHHMM(openRaw),
                   restroClose: fmtHHMM(closeRaw),
                   stationCode,
+                },
+              },
+              { status: 400 },
+            );
+          }
+        }
+      }
+
+      // 2) ITEM-WISE menu time window (RestroMenuItems)
+      if (itemNames.length && arrivalMinutes >= 0) {
+        const { data: menuRows, error: menuErr } = await supa
+          .from("RestroMenuItems")
+          .select("item_name, start_time, end_time")
+          .eq("restro_code", restroFilter)
+          .in("item_name", itemNames);
+
+        if (menuErr) {
+          console.error("menu time fetch error", menuErr);
+        } else if (menuRows && menuRows.length) {
+          const badItems: {
+            name: string;
+            start: string;
+            end: string;
+          }[] = [];
+
+          for (const row of menuRows as any[]) {
+            const name: string = row.item_name || "";
+            const startRaw: string | null = row.start_time ?? null;
+            const endRaw: string | null = row.end_time ?? null;
+
+            const startMins = toMinutes(startRaw);
+            const endMins = toMinutes(endRaw);
+
+            // agar times hi nahi diye gaye, to item always-available treat karo
+            if (startMins < 0 || endMins < 0) continue;
+
+            let within = false;
+            if (endMins >= startMins) {
+              // normal window
+              within =
+                arrivalMinutes >= startMins &&
+                arrivalMinutes <= endMins;
+            } else {
+              // overnight window
+              within =
+                arrivalMinutes >= startMins ||
+                arrivalMinutes <= endMins;
+            }
+
+            if (!within) {
+              badItems.push({
+                name,
+                start: fmtHHMM(startRaw),
+                end: fmtHHMM(endRaw),
+              });
+            }
+          }
+
+          if (badItems.length) {
+            return NextResponse.json(
+              {
+                ok: false,
+                error: "item_time_mismatch",
+                meta: {
+                  arrival: arrivalHHMM,
+                  items: badItems,
                 },
               },
               { status: 400 },
