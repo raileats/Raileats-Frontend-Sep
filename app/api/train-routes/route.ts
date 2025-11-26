@@ -1,6 +1,6 @@
 // app/api/train-routes/route.ts
 import { NextResponse } from "next/server";
-import { serviceClient } from "../../lib/supabaseServer"; // 👈 yahi important change
+import { serviceClient } from "../../lib/supabaseServer";
 
 type TrainRouteRow = {
   trainId: number;
@@ -53,9 +53,9 @@ export async function GET(req: Request) {
     const dateParam =
       (url.searchParams.get("date") || "").trim() || todayYMD();
 
-    if (!trainParam || !stationParam) {
+    if (!trainParam) {
       return NextResponse.json(
-        { ok: false, error: "missing_params" },
+        { ok: false, error: "missing_train" },
         { status: 400 },
       );
     }
@@ -69,14 +69,16 @@ export async function GET(req: Request) {
       ? trainNumAsNumber
       : trainParam;
 
+    // ⚠️ Yahan ab SIRF trainNumber par filter kar rahe hain,
+    // stationCode client side par check karenge (taaki
+    // "selected station not belongs to this train" detect ho sake)
     const { data, error } = await supa
       .from("TrainRoute")
       .select(
         "trainId, trainNumber, trainName, stationFrom, stationTo, runningDays, StnNumber, StationCode, StationName, Arrives, Departs, Stoptime, Distance, Platform, Route, Day",
       )
       .eq("trainNumber", trainFilterValue)
-      .eq("StationCode", stationCode)
-      .order("Day", { ascending: true });
+      .order("StnNumber", { ascending: true });
 
     if (error) {
       console.error("train-routes GET supabase error", error);
@@ -86,7 +88,16 @@ export async function GET(req: Request) {
       );
     }
 
-    const rows = (data || []).filter((r: any) =>
+    const rowsAll = (data || []) as TrainRouteRow[];
+
+    if (!rowsAll.length) {
+      return NextResponse.json(
+        { ok: false, error: "train_not_found" },
+        { status: 404 },
+      );
+    }
+
+    const rows = rowsAll.filter((r) =>
       matchesRunningDay(r.runningDays, dateParam),
     );
 
