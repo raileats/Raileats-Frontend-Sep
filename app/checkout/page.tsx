@@ -57,6 +57,9 @@ export default function CheckoutPage() {
 
   const [trainLoading, setTrainLoading] = useState(false);
   const [trainMsg, setTrainMsg] = useState<string>("");
+  const [trainMsgType, setTrainMsgType] = useState<"" | "success" | "error">(
+    "",
+  );
 
   // journey details
   const [pnr, setPnr] = useState("");
@@ -106,6 +109,16 @@ export default function CheckoutPage() {
     name.trim().length >= 2 &&
     /^\d{10}$/.test(mobile.trim());
 
+  function resetTrainState() {
+    setTrainOptions([]);
+    setSelectedTrain(null);
+    setSelectedTrainIndex(0);
+    setDeliveryTime("");
+    setTrainMsg("");
+    setTrainMsgType("");
+    setTrainNo("");
+  }
+
   /* ------------ TRAIN SEARCH ------------ */
   async function searchTrain() {
     if (!outlet?.stationCode) {
@@ -123,12 +136,13 @@ export default function CheckoutPage() {
     try {
       setTrainLoading(true);
       setTrainMsg("");
+      setTrainMsgType("");
       setTrainOptions([]);
       setSelectedTrain(null);
 
       const params = new URLSearchParams();
       params.set("train", t);
-      params.set("station", outlet.stationCode);
+      params.set("station", outlet.stationCode); // server ko info ke liye
       params.set("date", deliveryDate);
 
       const res = await fetch(`/api/train-routes?${params.toString()}`, {
@@ -138,42 +152,59 @@ export default function CheckoutPage() {
 
       if (!res.ok || !json?.ok) {
         console.error("train search failed", json);
-        setTrainMsg("Train search failed. Please try again.");
+        alert("Train search failed. Please try again.");
+        resetTrainState();
         return;
       }
 
       const rows: TrainRouteRow[] = json.rows || [];
+
+      // 1) agar train hi nahi mila (database me nahi hai)
       if (!rows.length) {
-        // 👉 yahi message station-not-belongs-to-train ke jaisa hai
-        setTrainMsg(
-          `Selected station (${outlet.stationCode}) does not belong to this train or schedule not found.`,
-        );
+        alert("Train not found in system. Please check train number.");
+        resetTrainState();
         return;
       }
 
-      setTrainOptions(rows);
+      // 2) station match check – sirf wahi rows jo selected station pe hain
+      const stationCode = outlet.stationCode.toUpperCase();
+      const rowsAtStation = rows.filter(
+        (r) => (r.StationCode || "").toUpperCase() === stationCode,
+      );
 
-      // first matching row select as default
-      const first = rows[0];
+      if (!rowsAtStation.length) {
+        // ❌ selected station not belongs to this train
+        const stationLabel = `${outlet.stationCode} ${
+          outlet.stationName ? `(${outlet.stationName})` : ""
+        }`;
+        alert(
+          `Selected train does not belong to station ${stationLabel}.`,
+        );
+        resetTrainState();
+        return;
+      }
+
+      // ✅ success: train + station matched
+      setTrainOptions(rowsAtStation);
+
+      const first = rowsAtStation[0];
       setSelectedTrain(first);
       setSelectedTrainIndex(0);
 
-      const arrTime = (first.Arrives || first.Departs || "").slice(0, 5);
-      setDeliveryTime(arrTime);
-
-      // input me bhi actual train number set kar do
+      const arr = (first.Arrives || first.Departs || "").slice(0, 5);
+      setDeliveryTime(arr);
       setTrainNo(String(first.trainNumber ?? t));
 
       setTrainMsg(
-        `Found ${
-          rows.length
-        } schedule(s). Arrival at ${outlet.stationCode}: ${
-          arrTime || "time not set"
+        `Train & station matched successfully. Arrival at ${outlet.stationCode}: ${
+          arr || "time not set"
         }.`,
       );
+      setTrainMsgType("success");
     } catch (e) {
       console.error("train search error", e);
-      setTrainMsg("Train search error. Please try again.");
+      alert("Train search error. Please try again.");
+      resetTrainState();
     } finally {
       setTrainLoading(false);
     }
@@ -189,8 +220,8 @@ export default function CheckoutPage() {
     if (!tr) return;
 
     setSelectedTrain(tr);
-    const arrTime = (tr.Arrives || tr.Departs || "").slice(0, 5);
-    setDeliveryTime(arrTime || deliveryTime);
+    const arr = (tr.Arrives || tr.Departs || "").slice(0, 5);
+    if (arr) setDeliveryTime(arr);
     setTrainNo(String(tr.trainNumber ?? trainNo));
   }
 
@@ -213,7 +244,7 @@ export default function CheckoutPage() {
       subtotal: total,
       journey: {
         trainNo: trainNo.trim(),
-        trainName: selectedTrain?.trainName || null, // ✅ name bhi save
+        trainName: selectedTrain?.trainName || null,
         stationCode: outlet?.stationCode || null,
         stationName: outlet?.stationName || null,
         deliveryDate,
@@ -224,7 +255,7 @@ export default function CheckoutPage() {
         name: name.trim(),
         mobile: mobile.trim(),
       },
-      outlet, // ✅ outlet + station meta
+      outlet,
       createdAt: Date.now(),
     };
 
@@ -235,7 +266,7 @@ export default function CheckoutPage() {
     router.push("/checkout/review");
   }
 
-  /* ------------ UI (cart part same as pehle) ------------ */
+  /* ------------ UI (cart same as pehle) ------------ */
 
   return (
     <main className="site-container page-safe-bottom">
@@ -382,7 +413,7 @@ export default function CheckoutPage() {
                 </button>
               </div>
 
-              {/* 👉 Train name + details */}
+              {/* Selected train info */}
               {selectedTrain && (
                 <p className="text-xs text-green-700 mt-1">
                   Selected:{" "}
@@ -391,7 +422,10 @@ export default function CheckoutPage() {
                     {selectedTrain.trainName || "Train"}
                   </strong>{" "}
                   at{" "}
-                  {selectedTrain.StationCode || outlet?.stationCode || ""} (
+                  {selectedTrain.StationCode ||
+                    outlet?.stationCode ||
+                    ""}{" "}
+                  (
                   {(selectedTrain.Arrives || selectedTrain.Departs || "")
                     .slice(0, 5)
                     .trim() || "--"}
@@ -446,7 +480,15 @@ export default function CheckoutPage() {
               </div>
 
               {trainMsg && (
-                <p className="text-xs text-gray-600 mt-1">{trainMsg}</p>
+                <p
+                  className={`text-xs mt-1 ${
+                    trainMsgType === "error"
+                      ? "text-red-600"
+                      : "text-green-700"
+                  }`}
+                >
+                  {trainMsg}
+                </p>
               )}
             </div>
 
