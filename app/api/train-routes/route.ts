@@ -66,20 +66,23 @@ export async function GET(req: Request) {
     const dateParam =
       (url.searchParams.get("date") || "").trim() || todayYMD();
     const restroParam = (url.searchParams.get("restro") || "").trim();
+    const subtotalParam = Number(
+      (url.searchParams.get("subtotal") || "0").trim(),
+    );
 
-    // items: JSON array of item names (optional)
-    let itemNames: string[] = [];
-    const itemsParam = url.searchParams.get("items");
-    if (itemsParam) {
+    // cart item names (RestroMenuItems se match ke liye)
+    let cartItemNames: string[] = [];
+    const itemsRaw = url.searchParams.get("items");
+    if (itemsRaw) {
       try {
-        const parsed = JSON.parse(itemsParam);
+        const parsed = JSON.parse(itemsRaw);
         if (Array.isArray(parsed)) {
-          itemNames = parsed
-            .map((x) => String(x || "").trim())
-            .filter((x) => x.length > 0);
+          cartItemNames = parsed
+            .map((v) => String(v || "").trim())
+            .filter(Boolean);
         }
       } catch {
-        // ignore parse error
+        cartItemNames = [];
       }
     }
 
@@ -160,7 +163,6 @@ export async function GET(req: Request) {
       );
     }
 
-    // yahi rows UI ko bhejenge
     const rows = stationRows;
 
     // arrival time (Arrives → HH:MM)
@@ -170,19 +172,25 @@ export async function GET(req: Request) {
     const arrivalMinutes = toMinutes(rawArr);
     const arrivalHHMM = fmtHHMM(rawArr);
 
-    // ---- Restro + Menu time checks (agar restro param diya hai) ----
+    // arrival ka exact Date (delivery date + time)
+    let arrivalDateObj: Date | null = null;
+    if (rawArr) {
+      // local time treat kar rahe – server timezone se chalega
+      arrivalDateObj = new Date(`${dateParam}T${arrivalHHMM}:00`);
+    }
+
+    /* ---------- Restro side checks (WeeklyOff, Holiday, CutOff, MinOrder, Item Timings) ---------- */
+
     if (restroParam) {
       const restroCodeNum = Number(restroParam);
       const restroFilter = Number.isFinite(restroCodeNum)
         ? restroCodeNum
         : restroParam;
 
-      // 1) Outlet open/close window
       const { data: restroRows, error: restroErr } = await supa
         .from("RestroMaster")
         .select(
-          // dhyaan rahe: "0penTime" me zero hai, O nahi
-          'RestroCode, StationCode, StationName, "0penTime", "ClosedTime"',
+          'RestroCode, StationCode, StationName, "0penTime", "ClosedTime", WeeklyOff, MinimumOrdermValue, CutOffTime, HolidayStartDateTime, HolidayEndDateTime',
         )
         .eq("RestroCode", restroFilter)
         .eq("StationCode", stationCode)
@@ -195,6 +203,73 @@ export async function GET(req: Request) {
       if (restroRows && restroRows.length) {
         const r = restroRows[0] as any;
 
+        // -------- Weekly Off check --------
+        if (r.WeeklyOff) {
+          const weeklyOffRaw = String(r.WeeklyOff).trim().toUpperCase(); // e.g. SUN
+          const d = new Date(dateParam);
+          const dayIdx = d.getDay(); // 0..6
+          const map = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
+          const dowCode = map[dayIdx];
+
+          if (weeklyOffRaw === dowCode) {
+            const dayNameFull = [
+              "Sunday",
+              "Monday",
+              "Tuesday",
+              "Wednesday",
+              "Thursday",
+              "Friday",
+              "Saturday",
+            ][dayIdx];
+
+            return NextResponse.json(
+              {
+                ok: false,
+                error: "weekly_off",
+                meta: {
+                  restroCode: r.RestroCode,
+                  dayCode: weeklyOffRaw,
+                  dayName: dayNameFull,
+                },
+              },
+              { status: 400 },
+            );
+          }
+        }
+
+        // -------- Holiday check --------
+        if (arrivalDateObj && (r.HolidayStartDateTime || r.HolidayEndDateTime)) {
+          const start =
+            r.HolidayStartDateTime && new Date(r.HolidayStartDateTime);
+          const end =
+            r.HolidayEndDateTime && new Date(r.HolidayEndDateTime);
+
+          if (
+            start instanceof Date &&
+            !isNaN(start.getTime()) &&
+            end instanceof Date &&
+            !isNaN(end.getTime())
+          ) {
+            const arrTs = arrivalDateObj.getTime();
+            if (arrTs >= start.getTime() && arrTs <= end.getTime()) {
+              return NextResponse.json(
+                {
+                  ok: false,
+                  error: "holiday_closed",
+                  meta: {
+                    restroCode: r.RestroCode,
+                    arrival: arrivalHHMM,
+                    holidayStart: start.toISOString(),
+                    holidayEnd: end.toISOString(),
+                  },
+                },
+                { status: 400 },
+              );
+            }
+          }
+        }
+
+        // Column actually named "0penTime" with zero
         const openRaw: string | null =
           (r["0penTime"] as string | null) ?? null;
         const closeRaw: string | null =
@@ -203,101 +278,135 @@ export async function GET(req: Request) {
         const openMins = toMinutes(openRaw);
         const closeMins = toMinutes(closeRaw);
 
-        if (arrivalMinutes >= 0 && openMins >= 0 && closeMins >= 0) {
-          let within = false;
+        // -------- Outlet open/close time vs train arrival --------
+        if (
+          arrivalMinutes >= 0 &&
+          openMins >= 0 &&
+          closeMins >= 0 &&
+          (arrivalMinutes < openMins || arrivalMinutes > closeMins)
+        ) {
+          return NextResponse.json(
+            {
+              ok: false,
+              error: "restro_time_mismatch",
+              meta: {
+                restroCode: r.RestroCode,
+                arrival: arrivalHHMM,
+                restroOpen: fmtHHMM(openRaw),
+                restroClose: fmtHHMM(closeRaw),
+                stationCode,
+              },
+            },
+            { status: 400 },
+          );
+        }
 
-          if (closeMins >= openMins) {
-            // normal same-day window: e.g. 10:00 → 23:30
-            within =
-              arrivalMinutes >= openMins && arrivalMinutes <= closeMins;
-          } else {
-            // overnight window: e.g. 22:22 → 11:59 (next day)
-            // allowed: [open..24:00) ∪ [00:00..close]
-            within =
-              arrivalMinutes >= openMins || arrivalMinutes <= closeMins;
-          }
+        // -------- CutOffTime check (sirf same-date booking) --------
+        const cutOffMinutes = Number(r.CutOffTime ?? 0); // minutes
+        if (
+          cutOffMinutes > 0 &&
+          arrivalDateObj &&
+          dateParam === todayYMD()
+        ) {
+          const now = new Date();
+          const diffMs = arrivalDateObj.getTime() - now.getTime();
+          const diffMinutes = Math.floor(diffMs / (60 * 1000)); // train aane tak kitna time bacha
 
-          if (!within) {
+          if (diffMinutes < cutOffMinutes) {
             return NextResponse.json(
               {
                 ok: false,
-                error: "restro_time_mismatch",
+                error: "cutoff_exceeded",
                 meta: {
                   restroCode: r.RestroCode,
                   arrival: arrivalHHMM,
-                  restroOpen: fmtHHMM(openRaw),
-                  restroClose: fmtHHMM(closeRaw),
-                  stationCode,
+                  cutOffMinutes,
+                  minutesLeft: diffMinutes,
                 },
               },
               { status: 400 },
             );
           }
         }
-      }
 
-      // 2) ITEM-WISE menu time window (RestroMenuItems)
-      if (itemNames.length && arrivalMinutes >= 0) {
-        const { data: menuRows, error: menuErr } = await supa
-          .from("RestroMenuItems")
-          .select("item_name, start_time, end_time")
-          .eq("restro_code", restroFilter)
-          .in("item_name", itemNames);
-
-        if (menuErr) {
-          console.error("menu time fetch error", menuErr);
-        } else if (menuRows && menuRows.length) {
-          const badItems: {
-            name: string;
-            start: string;
-            end: string;
-          }[] = [];
-
-          for (const row of menuRows as any[]) {
-            const name: string = row.item_name || "";
-            const startRaw: string | null = row.start_time ?? null;
-            const endRaw: string | null = row.end_time ?? null;
-
-            const startMins = toMinutes(startRaw);
-            const endMins = toMinutes(endRaw);
-
-            // agar times hi nahi diye gaye, to item always-available treat karo
-            if (startMins < 0 || endMins < 0) continue;
-
-            let within = false;
-            if (endMins >= startMins) {
-              // normal window
-              within =
-                arrivalMinutes >= startMins &&
-                arrivalMinutes <= endMins;
-            } else {
-              // overnight window
-              within =
-                arrivalMinutes >= startMins ||
-                arrivalMinutes <= endMins;
-            }
-
-            if (!within) {
-              badItems.push({
-                name,
-                start: fmtHHMM(startRaw),
-                end: fmtHHMM(endRaw),
-              });
-            }
-          }
-
-          if (badItems.length) {
-            return NextResponse.json(
-              {
-                ok: false,
-                error: "item_time_mismatch",
-                meta: {
-                  arrival: arrivalHHMM,
-                  items: badItems,
-                },
+        // -------- Minimum order check --------
+        const minOrder = Number(r.MinimumOrdermValue ?? 0);
+        if (
+          minOrder > 0 &&
+          subtotalParam > 0 &&
+          subtotalParam < minOrder
+        ) {
+          return NextResponse.json(
+            {
+              ok: false,
+              error: "min_order_not_met",
+              meta: {
+                restroCode: r.RestroCode,
+                minOrder,
+                subtotal: subtotalParam,
               },
-              { status: 400 },
-            );
+            },
+            { status: 400 },
+          );
+        }
+
+        // -------- Menu item time window check --------
+        if (
+          arrivalMinutes >= 0 &&
+          cartItemNames.length &&
+          restroFilter
+        ) {
+          const { data: menuData, error: menuErr } = await supa
+            .from("RestroMenuItems")
+            .select("item_name, start_time, end_time")
+            .eq("restro_code", restroFilter)
+            .in("item_name", cartItemNames);
+
+          if (menuErr) {
+            console.error("menu item fetch error", menuErr);
+          } else if (menuData && menuData.length) {
+            const badItems: {
+              name: string;
+              start: string;
+              end: string;
+            }[] = [];
+
+            for (const row of menuData as any[]) {
+              const name = String(row.item_name || "").trim();
+              const startRaw: string | null =
+                (row.start_time as string | null) ?? null;
+              const endRaw: string | null =
+                (row.end_time as string | null) ?? null;
+
+              const sM = toMinutes(startRaw);
+              const eM = toMinutes(endRaw);
+
+              if (
+                sM >= 0 &&
+                eM >= 0 &&
+                (arrivalMinutes < sM || arrivalMinutes > eM)
+              ) {
+                badItems.push({
+                  name,
+                  start: fmtHHMM(startRaw),
+                  end: fmtHHMM(endRaw),
+                });
+              }
+            }
+
+            if (badItems.length) {
+              return NextResponse.json(
+                {
+                  ok: false,
+                  error: "item_time_mismatch",
+                  meta: {
+                    arrival: arrivalHHMM,
+                    items: badItems,
+                  },
+                },
+                { status: 400 },
+              );
+            }
           }
         }
       }
