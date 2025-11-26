@@ -122,13 +122,19 @@ export default function CheckoutPage() {
       setTrainMsgType("");
       setTrainOptions([]);
 
-      // cart se item names (RestroMenuItems ke item_name se match karne ke liye)
-      const itemNames = items.map((l) => l.name).filter(Boolean);
-
       const params = new URLSearchParams();
       params.set("train", t);
       params.set("station", outlet.stationCode);
       params.set("date", deliveryDate);
+
+      // cart item names (item timing check ke liye)
+      const itemNames = items.map((l) => l.name).filter(Boolean);
+      if (itemNames.length) {
+        params.set("items", JSON.stringify(itemNames));
+      }
+
+      // subtotal (MinimumOrdermValue check ke liye)
+      params.set("subtotal", String(total || 0));
 
       // RestroCode ko har possible key se nikaalo
       const restroCodeForApi =
@@ -141,18 +147,15 @@ export default function CheckoutPage() {
         params.set("restro", String(restroCodeForApi));
       }
 
-      if (itemNames.length) {
-        params.set("items", JSON.stringify(itemNames));
-      }
-
       const res = await fetch(`/api/train-routes?${params.toString()}`, {
         cache: "no-store",
       });
       const json = await res.json().catch(() => ({} as any));
 
-      // ---- error handling (train / station / date / outlet / item times) ----
+      // ---- error handling ----
       if (!json?.ok) {
         const err = json?.error as string | undefined;
+        const meta = json?.meta || {};
 
         if (err === "train_not_found") {
           alert("Train not found. Please check train number.");
@@ -186,8 +189,36 @@ export default function CheckoutPage() {
           return;
         }
 
+        if (err === "weekly_off") {
+          const dayName =
+            meta.dayName || meta.dayCode || "this day";
+          alert(`This Restaurant Closed on ${dayName}.`);
+          setDeliveryTime("");
+          setTrainOptions([]);
+          setTrainMsg("");
+          setTrainMsgType("error");
+          return;
+        }
+
+        if (err === "holiday_closed") {
+          alert("Restro Marked Holiday At Arriving Train Time.");
+          setDeliveryTime("");
+          setTrainOptions([]);
+          setTrainMsg("");
+          setTrainMsgType("error");
+          return;
+        }
+
+        if (err === "cutoff_exceeded") {
+          alert("Selected Restro Booking closed for this train.");
+          setDeliveryTime("");
+          setTrainOptions([]);
+          setTrainMsg("");
+          setTrainMsgType("error");
+          return;
+        }
+
         if (err === "restro_time_mismatch") {
-          const meta = json?.meta || {};
           const arr = meta.arrival || "";
           const o = meta.restroOpen || "";
           const c = meta.restroClose || "";
@@ -202,7 +233,6 @@ export default function CheckoutPage() {
         }
 
         if (err === "item_time_mismatch") {
-          const meta = json?.meta || {};
           const arr = meta.arrival || "";
           const badItems: any[] = meta.items || [];
           const lines = badItems.map(
@@ -217,6 +247,16 @@ export default function CheckoutPage() {
           setTrainOptions([]);
           setTrainMsg("");
           setTrainMsgType("error");
+          return;
+        }
+
+        if (err === "min_order_not_met") {
+          const minOrder = meta.minOrder;
+          setTrainMsgType("error");
+          setTrainMsg(
+            `MinimumOrdermValue is ₹${minOrder}. Kindly add more item to complete your order.`,
+          );
+          // popup nahi, sirf upar red message
           return;
         }
 
