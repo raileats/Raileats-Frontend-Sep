@@ -45,12 +45,11 @@ export function canPlaceOrder(
     return { ok: false, message: "Invalid journey date or time." };
   }
 
-  // --- Tumhara rule: (delivery - now) > cutoffMinutes hona chahiye ---
+  // --- Rule: (delivery - now) > cutoffMinutes hona chahiye ---
   const diffMs = deliveryDateTime.getTime() - now.getTime();
   const diffMinutes = diffMs / 60000;
 
-  // Agar bacha hua time CutOffTime se kam ya barabar hai → error
-  // (matlab 1 min bhi extra nahi bacha)
+  // Agar bacha hua time CutOffTime se kam YA barabar hai → error
   if (diffMinutes <= cutoffMinutes) {
     return {
       ok: false,
