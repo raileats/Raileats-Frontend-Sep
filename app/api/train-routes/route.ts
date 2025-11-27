@@ -301,33 +301,30 @@ export async function GET(req: Request) {
           );
         }
 
-        // -------- CutOffTime check (sirf same-date booking) --------
-        const cutOffMinutes = Number(r.CutOffTime ?? 0); // minutes
-        if (
-          cutOffMinutes > 0 &&
-          arrivalDateObj &&
-          dateParam === todayYMD()
-        ) {
-          const now = new Date();
-          const diffMs = arrivalDateObj.getTime() - now.getTime();
-          const diffMinutes = Math.floor(diffMs / (60 * 1000)); // train aane tak kitna time bacha
+        const cutOffMinutes = Number(restroRow.CutOffTime || 0);
 
-          if (diffMinutes < cutOffMinutes) {
-            return NextResponse.json(
-              {
-                ok: false,
-                error: "cutoff_exceeded",
-                meta: {
-                  restroCode: r.RestroCode,
-                  arrival: arrivalHHMM,
-                  cutOffMinutes,
-                  minutesLeft: diffMinutes,
-                },
-              },
-              { status: 400 },
-            );
-          }
-        }
+if (cutOffMinutes > 0 && arrivalHHMM) {
+  const { allowed, remainingMinutes } = checkCutoffSameDay(
+    dateParam,      // delivery date jo query se aa raha hai
+    arrivalHHMM,    // "23:10" jaisa train arrival
+    cutOffMinutes,  // Restro ka CutOffTime (minutes)
+  );
+
+  if (!allowed) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: "cutoff_exceeded",
+        meta: {
+          arrival: arrivalHHMM,
+          cutOffMinutes,
+          remainingMinutes,
+        },
+      },
+      { status: 400 },
+    );
+  }
+}
 
         // -------- Minimum order check --------
         const minOrder = Number(r.MinimumOrdermValue ?? 0);
