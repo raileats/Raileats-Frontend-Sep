@@ -288,34 +288,48 @@ export async function GET(req: Request) {
           }
         }
 
-        // -------- Holiday check --------
-        if (arrivalDateObj && (r.HolidayStartDateTime || r.HolidayEndDateTime)) {
-          const start =
-            r.HolidayStartDateTime && new Date(r.HolidayStartDateTime);
-          const end =
-            r.HolidayEndDateTime && new Date(r.HolidayEndDateTime);
+       // -------- Holiday check (ONLY RestroHolidays table) --------
+        if (arrivalDateObj) {
+          const { data: holidayRows, error: holidayErr } = await supa
+            .from("RestroHolidays")
+            .select("HolidayStartDateTime, HolidayEndDateTime, HolidayComment")
+            .eq("RestroCode", restroFilter);
 
-          if (
-            start instanceof Date &&
-            !isNaN(start.getTime()) &&
-            end instanceof Date &&
-            !isNaN(end.getTime())
-          ) {
+          if (holidayErr) {
+            console.error("RestroHolidays fetch error", holidayErr);
+          } else if (holidayRows && holidayRows.length) {
             const arrTs = arrivalDateObj.getTime();
-            if (arrTs >= start.getTime() && arrTs <= end.getTime()) {
-              return NextResponse.json(
-                {
-                  ok: false,
-                  error: "holiday_closed",
-                  meta: {
-                    restroCode: r.RestroCode,
-                    arrival: arrivalHHMM,
-                    holidayStart: start.toISOString(),
-                    holidayEnd: end.toISOString(),
+
+            for (const h of holidayRows as any[]) {
+              const hsRaw = h.HolidayStartDateTime;
+              const heRaw = h.HolidayEndDateTime;
+              if (!hsRaw || !heRaw) continue;
+
+              const hs = new Date(hsRaw);
+              const he = new Date(heRaw);
+              if (
+                !(hs instanceof Date && !isNaN(hs.getTime())) ||
+                !(he instanceof Date && !isNaN(he.getTime()))
+              ) {
+                continue;
+              }
+
+              if (arrTs >= hs.getTime() && arrTs <= he.getTime()) {
+                return NextResponse.json(
+                  {
+                    ok: false,
+                    error: "holiday_closed",
+                    meta: {
+                      restroCode: r.RestroCode,
+                      arrival: arrivalHHMM,
+                      holidayStart: hs.toISOString(),
+                      holidayEnd: he.toISOString(),
+                      comment: h.HolidayComment || null,
+                    },
                   },
-                },
-                { status: 400 },
-              );
+                  { status: 400 },
+                );
+              }
             }
           }
         }
