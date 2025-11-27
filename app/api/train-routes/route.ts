@@ -58,6 +58,57 @@ function fmtHHMM(hhmm: string | null | undefined) {
   return `${hh.padStart(2, "0")}:${mm.padStart(2, "0")}`;
 }
 
+// YYYY-MM-DD helper
+function ymd(d: Date) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+/**
+ * SAME-DAY Cutoff logic (IST based)
+ *
+ * - Sirf tab apply hoga jab deliveryDate = aaj ki date (IST)
+ * - remainingMinutes = arrival - currentTime
+ * - allowed = remainingMinutes >= cutOffMinutes
+ */
+function checkCutoffSameDay(
+  deliveryDateStr: string,
+  deliveryTimeHHMM: string | null | undefined,
+  cutOffMinutes: number,
+): { allowed: boolean; remainingMinutes: number } {
+  if (!deliveryTimeHHMM || !cutOffMinutes) {
+    return { allowed: true, remainingMinutes: Infinity };
+  }
+
+  // Server UTC pe ho sakta hai, isliye IST me convert
+  const nowUtc = new Date();
+  const istOffsetMs = 5.5 * 60 * 60 * 1000; // +05:30
+  const nowIst = new Date(nowUtc.getTime() + istOffsetMs);
+
+  const todayStr = ymd(nowIst);
+
+  // Agar delivery date aaj nahi hai => cutoff apply nahi
+  if (deliveryDateStr !== todayStr) {
+    return { allowed: true, remainingMinutes: Infinity };
+  }
+
+  const arrivalMinutes = toMinutes(deliveryTimeHHMM);
+  if (arrivalMinutes < 0) {
+    return { allowed: true, remainingMinutes: Infinity };
+  }
+
+  const nowMinutes = nowIst.getHours() * 60 + nowIst.getMinutes();
+  const remainingMinutes = arrivalMinutes - nowMinutes;
+
+  // Aapka rule:
+  // remainingMinutes < cutOff => booking band
+  const allowed = remainingMinutes >= cutOffMinutes;
+
+  return { allowed, remainingMinutes };
+}
+
 export async function GET(req: Request) {
   try {
     const url = new URL(req.url);
@@ -301,30 +352,31 @@ export async function GET(req: Request) {
           );
         }
 
-        const cutOffMinutes = Number(restroRow.CutOffTime || 0);
+        // -------- SAME-DAY CutOffTime check --------
+        const cutOffMinutes = Number(r.CutOffTime ?? 0);
+        if (cutOffMinutes > 0 && arrivalHHMM) {
+          const { allowed, remainingMinutes } = checkCutoffSameDay(
+            dateParam, // delivery date
+            arrivalHHMM,
+            cutOffMinutes,
+          );
 
-if (cutOffMinutes > 0 && arrivalHHMM) {
-  const { allowed, remainingMinutes } = checkCutoffSameDay(
-    dateParam,      // delivery date jo query se aa raha hai
-    arrivalHHMM,    // "23:10" jaisa train arrival
-    cutOffMinutes,  // Restro ka CutOffTime (minutes)
-  );
-
-  if (!allowed) {
-    return NextResponse.json(
-      {
-        ok: false,
-        error: "cutoff_exceeded",
-        meta: {
-          arrival: arrivalHHMM,
-          cutOffMinutes,
-          remainingMinutes,
-        },
-      },
-      { status: 400 },
-    );
-  }
-}
+          if (!allowed) {
+            return NextResponse.json(
+              {
+                ok: false,
+                error: "cutoff_exceeded",
+                meta: {
+                  restroCode: r.RestroCode,
+                  arrival: arrivalHHMM,
+                  cutOffMinutes,
+                  remainingMinutes,
+                },
+              },
+              { status: 400 },
+            );
+          }
+        }
 
         // -------- Minimum order check --------
         const minOrder = Number(r.MinimumOrdermValue ?? 0);
