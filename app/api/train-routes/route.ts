@@ -288,51 +288,53 @@ export async function GET(req: Request) {
           }
         }
 
-       // -------- Holiday check (ONLY RestroHolidays table) --------
-        if (arrivalDateObj) {
-          const { data: holidayRows, error: holidayErr } = await supa
-            .from("RestroHolidays")
-            .select("HolidayStartDateTime, HolidayEndDateTime, HolidayComment")
-            .eq("RestroCode", restroFilter);
+       // -------- Holiday check (ONLY RestroHoliday table) --------
+if (arrivalDateObj) {
+  const { data: holidayRows, error: holidayErr } = await supa
+    .from("RestroHoliday") // 👈 yaha correct table name
+    .select("HolidayStartDateTime, HolidayEndDateTime, HolidayComment")
+    .eq("RestroCode", restroFilter);
 
-          if (holidayErr) {
-            console.error("RestroHolidays fetch error", holidayErr);
-          } else if (holidayRows && holidayRows.length) {
-            const arrTs = arrivalDateObj.getTime();
+  if (holidayErr) {
+    console.error("RestroHoliday fetch error", holidayErr);
+  } else if (holidayRows && holidayRows.length) {
+    const arrTs = arrivalDateObj.getTime();
 
-            for (const h of holidayRows as any[]) {
-              const hsRaw = h.HolidayStartDateTime;
-              const heRaw = h.HolidayEndDateTime;
-              if (!hsRaw || !heRaw) continue;
+    for (const h of holidayRows as any[]) {
+      const hsRaw = h.HolidayStartDateTime;
+      const heRaw = h.HolidayEndDateTime;
+      if (!hsRaw || !heRaw) continue;
 
-              const hs = new Date(hsRaw);
-              const he = new Date(heRaw);
-              if (
-                !(hs instanceof Date && !isNaN(hs.getTime())) ||
-                !(he instanceof Date && !isNaN(he.getTime()))
-              ) {
-                continue;
-              }
+      const hs = new Date(hsRaw);
+      const he = new Date(heRaw);
+      if (
+        !(hs instanceof Date && !isNaN(hs.getTime())) ||
+        !(he instanceof Date && !isNaN(he.getTime()))
+      ) {
+        continue;
+      }
 
-              if (arrTs >= hs.getTime() && arrTs <= he.getTime()) {
-                return NextResponse.json(
-                  {
-                    ok: false,
-                    error: "holiday_closed",
-                    meta: {
-                      restroCode: r.RestroCode,
-                      arrival: arrivalHHMM,
-                      holidayStart: hs.toISOString(),
-                      holidayEnd: he.toISOString(),
-                      comment: h.HolidayComment || null,
-                    },
-                  },
-                  { status: 400 },
-                );
-              }
-            }
-          }
-        }
+      // agar arrival holiday window ke beech hai to error
+      if (arrTs >= hs.getTime() && arrTs <= he.getTime()) {
+        return NextResponse.json(
+          {
+            ok: false,
+            error: "holiday_closed",
+            meta: {
+              restroCode: r.RestroCode,
+              arrival: arrivalHHMM,
+              holidayStart: hs.toISOString(),
+              holidayEnd: he.toISOString(),
+              comment: h.HolidayComment || null,
+            },
+          },
+          { status: 400 },
+        );
+      }
+    }
+  }
+}
+
 
         // Column actually named "0penTime" with zero
         const openRaw: string | null =
