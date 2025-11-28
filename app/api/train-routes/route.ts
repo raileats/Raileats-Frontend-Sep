@@ -58,53 +58,30 @@ function fmtHHMM(hhmm: string | null | undefined) {
   return `${hh.padStart(2, "0")}:${mm.padStart(2, "0")}`;
 }
 
-// YYYY-MM-DD helper
-function ymd(d: Date) {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
-
-/**
- * SAME-DAY Cutoff logic (IST based)
- *
- * - Sirf tab apply hoga jab deliveryDate = aaj ki date (IST)
- * - remainingMinutes = arrival - currentTime
- * - allowed = remainingMinutes >= cutOffMinutes
- */
+// ✅ cutoff ka helper: sirf same-day booking par apply
 function checkCutoffSameDay(
-  deliveryDateStr: string,
-  deliveryTimeHHMM: string | null | undefined,
+  deliveryYMD: string,
+  arrivalHHMM: string,
   cutOffMinutes: number,
-): { allowed: boolean; remainingMinutes: number } {
-  if (!deliveryTimeHHMM || !cutOffMinutes) {
+) {
+  const today = todayYMD();
+  if (deliveryYMD !== today) {
+    // different date → cutoff ignore
     return { allowed: true, remainingMinutes: Infinity };
   }
 
-  // Server UTC pe ho sakta hai, isliye IST me convert
-  const nowUtc = new Date();
-  const istOffsetMs = 5.5 * 60 * 60 * 1000; // +05:30
-  const nowIst = new Date(nowUtc.getTime() + istOffsetMs);
+  const now = new Date();
+  const [ah, am] = arrivalHHMM.split(":").map((v) => Number(v) || 0);
 
-  const todayStr = ymd(nowIst);
+  const arrival = new Date();
+  arrival.setHours(ah, am, 0, 0);
 
-  // Agar delivery date aaj nahi hai => cutoff apply nahi
-  if (deliveryDateStr !== todayStr) {
-    return { allowed: true, remainingMinutes: Infinity };
-  }
+  const diffMs = arrival.getTime() - now.getTime();
+  const diffMin = Math.floor(diffMs / 60000); // arrival - now
 
-  const arrivalMinutes = toMinutes(deliveryTimeHHMM);
-  if (arrivalMinutes < 0) {
-    return { allowed: true, remainingMinutes: Infinity };
-  }
-
-  const nowMinutes = nowIst.getHours() * 60 + nowIst.getMinutes();
-  const remainingMinutes = arrivalMinutes - nowMinutes;
-
-  // Aapka rule:
-  // remainingMinutes < cutOff => booking band
-  const allowed = remainingMinutes >= cutOffMinutes;
+  // agar arrival tak bache hue minute cutoff se kam hain → booking closed
+  const allowed = diffMin >= cutOffMinutes;
+  const remainingMinutes = diffMin - cutOffMinutes; // debugging/info ke liye
 
   return { allowed, remainingMinutes };
 }
@@ -225,12 +202,11 @@ export async function GET(req: Request) {
 
     // arrival ka exact Date (delivery date + time)
     let arrivalDateObj: Date | null = null;
-    if (rawArr) {
-      // local time treat kar rahe – server timezone se chalega
+    if (arrivalHHMM) {
       arrivalDateObj = new Date(`${dateParam}T${arrivalHHMM}:00`);
     }
 
-    /* ---------- Restro side checks (WeeklyOff, Holiday, CutOff, MinOrder, Item Timings) ---------- */
+    /* ---------- Restro side checks (WeeklyOff, CutOff, MinOrder, Item Timings) ---------- */
 
     if (restroParam) {
       const restroCodeNum = Number(restroParam);
@@ -241,7 +217,7 @@ export async function GET(req: Request) {
       const { data: restroRows, error: restroErr } = await supa
         .from("RestroMaster")
         .select(
-          'RestroCode, StationCode, StationName, "0penTime", "ClosedTime", WeeklyOff, MinimumOrdermValue, CutOffTime, HolidayStartDateTime, HolidayEndDateTime',
+          'RestroCode, StationCode, StationName, "0penTime", "ClosedTime", WeeklyOff, MinimumOrdermValue, CutOffTime',
         )
         .eq("RestroCode", restroFilter)
         .eq("StationCode", stationCode)
@@ -288,51 +264,46 @@ export async function GET(req: Request) {
           }
         }
 
-      // -------- Holiday check (ONLY RestroHoliday table) --------
-if (arrivalDateObj) {
-  const { data: holidayRows, error: holidayErr } = await supa
-    .from("RestroHoliday")
-    .select("restro_code, start_at, end_at, comment")
-    .eq("restro_code", restroFilter);
+        // -------- Holiday check (ONLY RestroHoliday table) --------
+        if (arrivalDateObj) {
+          const { data: holidayRows, error: holidayErr } = await supa
+            .from("RestroHoliday") // agar table plural ho to yahan naam change karna
+            .select("restro_code, start_at, end_at, comment")
+            .eq("restro_code", restroFilter);
 
-  if (holidayErr) {
-    console.error("RestroHoliday fetch error", holidayErr);
-  } else if (holidayRows && holidayRows.length) {
-    const arrTs = arrivalDateObj.getTime();
+          if (holidayErr) {
+            console.error("RestroHoliday fetch error", holidayErr);
+          } else if (holidayRows && holidayRows.length) {
+            const arrTs = arrivalDateObj.getTime();
 
-    for (const h of holidayRows as any[]) {
-      const hsRaw = h.start_at;
-      const heRaw = h.end_at;
-      if (!hsRaw || !heRaw) continue;
+            for (const h of holidayRows as any[]) {
+              const hsRaw = h.start_at;
+              const heRaw = h.end_at;
+              if (!hsRaw || !heRaw) continue;
 
-      const hs = new Date(hsRaw);
-      const he = new Date(heRaw);
+              const hs = new Date(hsRaw);
+              const he = new Date(heRaw);
+              if (isNaN(hs.getTime()) || isNaN(he.getTime())) continue;
 
-      // invalid date skip
-      if (isNaN(hs.getTime()) || isNaN(he.getTime())) continue;
-
-      // arrival inside holiday interval
-      if (arrTs >= hs.getTime() && arrTs <= he.getTime()) {
-        return NextResponse.json(
-          {
-            ok: false,
-            error: "holiday_closed",
-            meta: {
-              restroCode: restroFilter,
-              arrival: arrivalHHMM,
-              holidayStart: hs.toISOString(),
-              holidayEnd: he.toISOString(),
-              comment: h.comment || null,
-            },
-          },
-          { status: 400 },
-        );
-      }
-    }
-  }
-}
-
-
+              if (arrTs >= hs.getTime() && arrTs <= he.getTime()) {
+                return NextResponse.json(
+                  {
+                    ok: false,
+                    error: "holiday_closed",
+                    meta: {
+                      restroCode: r.RestroCode,
+                      arrival: arrivalHHMM,
+                      holidayStart: hs.toISOString(),
+                      holidayEnd: he.toISOString(),
+                      comment: h.comment || null,
+                    },
+                  },
+                  { status: 400 },
+                );
+              }
+            }
+          }
+        }
 
         // Column actually named "0penTime" with zero
         const openRaw: string | null =
@@ -366,11 +337,11 @@ if (arrivalDateObj) {
           );
         }
 
-        // -------- SAME-DAY CutOffTime check --------
-        const cutOffMinutes = Number(r.CutOffTime ?? 0);
+        // -------- CutOff Time (same-day only) --------
+        const cutOffMinutes = Number(r.CutOffTime || 0);
         if (cutOffMinutes > 0 && arrivalHHMM) {
           const { allowed, remainingMinutes } = checkCutoffSameDay(
-            dateParam, // delivery date
+            dateParam,
             arrivalHHMM,
             cutOffMinutes,
           );
@@ -381,7 +352,6 @@ if (arrivalDateObj) {
                 ok: false,
                 error: "cutoff_exceeded",
                 meta: {
-                  restroCode: r.RestroCode,
                   arrival: arrivalHHMM,
                   cutOffMinutes,
                   remainingMinutes,
