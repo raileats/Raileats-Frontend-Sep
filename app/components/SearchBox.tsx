@@ -4,8 +4,23 @@ import { useState } from "react";
 import StationSearchBox, { Station } from "./StationSearchBox";
 import { makeStationSlug } from "../lib/stationSlug";
 
+// ✅ Train slug helper: only number + SEO words
+function makeTrainSlug(trainNoRaw: string) {
+  const clean = String(trainNoRaw || "").trim();
+  if (!clean) return "";
+
+  // sirf digits nikaal lo, agar user beech me space / text daal de
+  const digitsOnly = clean.replace(/\D+/g, "") || clean;
+  const base = digitsOnly;
+
+  // final slug → 11016-train-food-delivery-in-train
+  return `${base}-train-food-delivery-in-train`;
+}
+
 export default function SearchBox() {
-  const [searchType, setSearchType] = useState<"pnr" | "train" | "station">("pnr");
+  const [searchType, setSearchType] = useState<"pnr" | "train" | "station">(
+    "pnr",
+  );
   const [inputValue, setInputValue] = useState("");
   const [selectedStation, setSelectedStation] = useState<Station | null>(null);
   const [loading, setLoading] = useState(false);
@@ -30,8 +45,10 @@ export default function SearchBox() {
     // start spinner ONLY on search click
     setLoading(true);
 
+    /* =============== STATION SEARCH =============== */
     if (searchType === "station") {
-      const rawCode = selectedStation?.StationCode ?? extractStationCode(inputValue);
+      const rawCode =
+        selectedStation?.StationCode ?? extractStationCode(inputValue);
       if (!rawCode) {
         alert("Please enter a valid station code");
         setLoading(false);
@@ -44,7 +61,7 @@ export default function SearchBox() {
       if (selectedStation?.StationCode && selectedStation?.StationName) {
         slug = makeStationSlug(
           String(selectedStation.StationCode),
-          selectedStation.StationName
+          selectedStation.StationName,
         );
       } else {
         // fallback: sirf code se slug (BPL-bpl-food-delivery-in-train)
@@ -62,18 +79,38 @@ export default function SearchBox() {
       return;
     }
 
+    /* =============== PNR SEARCH =============== */
     if (searchType === "pnr") {
       setTimeout(
-        () => (window.location.href = `/pnr/${encodeURIComponent(inputValue.trim())}`),
-        50
+        () =>
+          (window.location.href = `/pnr/${encodeURIComponent(
+            inputValue.trim(),
+          )}`),
+        50,
       );
       return;
     }
 
-    setTimeout(
-      () => (window.location.href = `/trains/${encodeURIComponent(inputValue.trim())}`),
-      50
-    );
+    /* =============== TRAIN SEARCH (SEO SLUG) =============== */
+    if (searchType === "train") {
+      const raw = inputValue.trim();
+
+      // basic validation – at least 3 digits
+      const digits = raw.replace(/\D+/g, "");
+      if (!digits || digits.length < 3) {
+        alert("Please enter a valid train number");
+        setLoading(false);
+        return;
+      }
+
+      const slug = makeTrainSlug(digits);
+      const target = `/trains/${encodeURIComponent(slug)}`;
+
+      setTimeout(() => {
+        window.location.href = target;
+      }, 50);
+      return;
+    }
   };
 
   return (
@@ -108,7 +145,9 @@ export default function SearchBox() {
                   onSelect={(s) => {
                     const val = s ? (s.StationCode ?? s.StationName ?? "") : "";
                     const display = s
-                      ? `${s.StationName}${s.StationCode ? ` (${s.StationCode})` : ""}`
+                      ? `${s.StationName}${
+                          s.StationCode ? ` (${s.StationCode})` : ""
+                        }`
                       : "";
                     setInputValue(display || val);
                     setSelectedStation(s || null);
@@ -139,14 +178,13 @@ export default function SearchBox() {
                     Search
                   </button>
 
-                  {/* ========== updated spinner: outer rotating ring, logo fixed center ========== */}
+                  {/* spinner */}
                   {loading && (
                     <div
                       aria-hidden
                       className="absolute -right-12 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full flex items-center justify-center"
                       style={{ pointerEvents: "none" }}
                     >
-                      {/* rotating ring (outer) */}
                       <div
                         className="absolute inset-0 rounded-full"
                         style={{
@@ -157,7 +195,6 @@ export default function SearchBox() {
                         }}
                       />
 
-                      {/* center fixed logo (does NOT rotate) */}
                       <div
                         className="relative w-8 h-8 rounded-full flex items-center justify-center bg-white"
                         style={{ overflow: "hidden", borderRadius: "50%" }}
@@ -166,8 +203,8 @@ export default function SearchBox() {
                           src="/raileats-logo.png"
                           alt="RailEats"
                           onError={(e) => {
-                            // hide broken image; fallback dot will be visible
-                            (e.target as HTMLImageElement).style.display = "none";
+                            (e.target as HTMLImageElement).style.display =
+                              "none";
                           }}
                           style={{
                             width: 28,
@@ -176,8 +213,6 @@ export default function SearchBox() {
                             transform: "translateZ(0)",
                           }}
                         />
-
-                        {/* fallback small dot if logo missing */}
                         <div
                           className="fallback-dot"
                           style={{
@@ -190,7 +225,6 @@ export default function SearchBox() {
                         />
                       </div>
 
-                      {/* keyframes style inj (scoped) */}
                       <style>{`
                         @keyframes re-loader-spin {
                           from { transform: rotate(0deg); }
