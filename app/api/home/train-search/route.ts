@@ -1,45 +1,51 @@
 // app/api/home/train-search/route.ts
-export const dynamic = "force-dynamic";
-export const runtime = "nodejs";
+// Train number se: route + us route par jo stations par RestroMaster entries milti hain
+// (sirf basic open/close time check ke sath)
 
 import { NextResponse } from "next/server";
+import { serviceClient } from "../../../lib/supabaseServer";
 
-/* ---------- ENV + CORS UTILITIES (same style as search-stations) ---------- */
-
-const getEnv = () => {
-  return {
-    PROJECT_URL:
-      process.env.SUPABASE_URL ??
-      process.env.NEXT_PUBLIC_SUPABASE_URL ??
-      process.env.SUPABASE_PROJECT_URL,
-    SERVICE_KEY:
-      process.env.SUPABASE_SERVICE_ROLE ??
-      process.env.SUPABASE_SERVICE_ROLE_KEY ??
-      process.env.SUPABASE_SERVICE_KEY,
-    FRONTEND_ORIGIN:
-      process.env.NEXT_PUBLIC_APP_URL ??
-      process.env.NEXT_PUBLIC_FRONTEND_URL ??
-      "*",
-  };
+type TrainRouteRow = {
+  trainId: number;
+  trainNumber: number | null;
+  trainName: string | null;
+  runningDays: string | null;
+  StnNumber: number | null;
+  StationCode: string | null;
+  StationName: string | null;
+  Arrives: string | null;
+  Departs: string | null;
 };
 
-const corsHeaders = (origin: string | null = "*") => ({
-  "Access-Control-Allow-Origin": origin ?? "*",
-  "Access-Control-Allow-Methods": "GET,OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization",
-  "Access-Control-Max-Age": "600",
-  "Content-Type": "application/json; charset=utf-8",
-});
+type RestroRow = {
+  RestroCode: number;
+  RestroName?: string | null;
+  StationCode: string | null;
+  StationName: string | null;
+  MinimumOrdermValue?: number | null;
+  // time columns (note: "0penTime" me 0 hai)
+  ["0penTime"]?: string | null;
+  ClosedTime?: string | null;
+};
 
-export async function OPTIONS() {
-  const { FRONTEND_ORIGIN } = getEnv();
-  return new NextResponse(null, {
-    status: 204,
-    headers: corsHeaders(FRONTEND_ORIGIN),
-  });
+function todayYMD() {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  const d = String(now.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
 }
 
-/* ----------------- small helpers for HH:MM ----------------- */
+// runningDays "Mon,Tue,Wed..." type field ko given date se match kare
+function matchesRunningDay(runningDays: string | null, dateStr: string) {
+  if (!runningDays) return true;
+  const dayIndex = new Date(dateStr).getDay(); // 0=Sun..6=Sat
+  const map = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
+  const code = map[dayIndex];
+  const s = runningDays.toUpperCase().trim();
+  if (s === "DAILY" || s === "ALL") return true;
+  return s.split(/[ ,/]+/).includes(code);
+}
 
 function toMinutes(hhmm: string | null | undefined): number {
   if (!hhmm) return -1;
@@ -52,272 +58,176 @@ function toMinutes(hhmm: string | null | undefined): number {
 
 function fmtHHMM(hhmm: string | null | undefined) {
   if (!hhmm) return "";
-  const [hh = "00", mm = "00"] = String(hhmm).trim().slice(0, 5).split(":");
+  const [hh = "00", mm = "00"] = String(hhmm).slice(0, 5).split(":");
   return `${hh.padStart(2, "0")}:${mm.padStart(2, "0")}`;
 }
 
-/* -------------------------- GET HANDLER -------------------------- */
-
-export async function GET(request: Request) {
-  const { PROJECT_URL, SERVICE_KEY, FRONTEND_ORIGIN } = getEnv();
-  const headers = corsHeaders(FRONTEND_ORIGIN ?? "*");
+export async function GET(req: Request) {
+  const supa = serviceClient;
 
   try {
-    if (!PROJECT_URL || !SERVICE_KEY) {
+    const url = new URL(req.url);
+    const trainParam = (url.searchParams.get("train") || "").trim();
+    const dateParam =
+      (url.searchParams.get("date") || "").trim() || todayYMD();
+
+    if (!trainParam) {
       return NextResponse.json(
-        { status: 500, error: "Supabase configuration missing" },
-        { status: 500, headers },
+        { ok: false, error: "missing_train_param" },
+        { status: 400 },
       );
     }
 
-    const url = new URL(request.url);
-    const trainRaw = (url.searchParams.get("train") || "").trim();
+    const trainNumAsNumber = Number(trainParam);
+    const trainFilterValue = Number.isFinite(trainNumAsNumber)
+      ? trainNumAsNumber
+      : trainParam;
 
-    // agar train number nahi diya → empty result
-    if (!trainRaw) {
+    // 1) TrainRoute se poora route laao
+    const { data: routeData, error: routeErr } = await supa
+      .from("TrainRoute")
+      .select(
+        "trainId, trainNumber, trainName, runningDays, StnNumber, StationCode, StationName, Arrives, Departs",
+      )
+      .eq("trainNumber", trainFilterValue)
+      .order("StnNumber", { ascending: true });
+
+    if (routeErr) {
+      console.error("home/train-search route error", routeErr);
       return NextResponse.json(
-        { status: 200, train: null, stations: [] },
-        { status: 200, headers },
+        { ok: false, error: "train_route_db_error" },
+        { status: 500 },
       );
     }
 
-    const base = PROJECT_URL.replace(/\/$/, "");
+    const allRows: TrainRouteRow[] = (routeData || []) as any[];
+    if (!allRows.length) {
+      return NextResponse.json(
+        { ok: false, error: "train_not_found" },
+        { status: 404 },
+      );
+    }
 
-    /* ---------------- 1) TrainRoute se pura route ---------------- */
-
-    const selectRoute = encodeURIComponent(
-      "trainNumber,trainName,StationCode,StationName,Arrives,Departs,StnNumber",
+    // running day filter
+    const dayRows = allRows.filter((r) =>
+      matchesRunningDay(r.runningDays, dateParam),
     );
-
-    // trainNumber numeric bhi ho sakta hai ya text; REST API me eq. lag jayega
-    const routeUrl =
-      `${base}/rest/v1/TrainRoute` +
-      `?select=${selectRoute}` +
-      `&trainNumber=eq.${encodeURIComponent(trainRaw)}` +
-      `&order=StnNumber.asc`;
-
-    const routeResp = await fetch(routeUrl, {
-      headers: {
-        apikey: SERVICE_KEY,
-        Authorization: `Bearer ${SERVICE_KEY}`,
-        Accept: "application/json",
-      },
-      cache: "no-store",
-    });
-
-    const routeText = await routeResp.text().catch(() => "");
-    if (!routeResp.ok) {
+    if (!dayRows.length) {
       return NextResponse.json(
-        {
-          status: 502,
-          error: "Supabase TrainRoute request failed",
-          details: routeText,
-        },
-        { status: 502, headers },
+        { ok: false, error: "not_running_on_date" },
+        { status: 400 },
       );
     }
 
-    let routeRows: any[] = [];
-    try {
-      routeRows = JSON.parse(routeText);
-    } catch {
-      routeRows = [];
-    }
+    const first = dayRows[0];
+    const trainName = first.trainName ?? "";
+    const trainNumber = first.trainNumber ?? trainFilterValue;
 
-    if (!Array.isArray(routeRows) || routeRows.length === 0) {
-      return NextResponse.json(
-        { status: 404, error: "train_not_found" },
-        { status: 404, headers },
-      );
-    }
-
-    const first = routeRows[0] || {};
-    const trainInfo = {
-      trainNumber: first.trainNumber ?? trainRaw,
-      trainName: first.trainName ?? null,
-    };
-
-    const stationCodes: string[] = Array.from(
+    // 2) unique station codes list
+    const stationCodes = Array.from(
       new Set(
-        routeRows
-          .map((r) => String(r.StationCode || "").toUpperCase())
+        dayRows
+          .map((r) => (r.StationCode || "").toUpperCase())
           .filter(Boolean),
       ),
     );
 
     if (!stationCodes.length) {
-      return NextResponse.json(
-        { status: 200, train: trainInfo, stations: [] },
-        { status: 200, headers },
-      );
-    }
-
-    /* ---------------- 2) RestroMaster (all stations) ---------------- */
-
-    const inList = `(${stationCodes.join(",")})`; // codes like BPL,NDLS (no quotes needed)
-    const selectRestro = encodeURIComponent(
-      'RestroCode,StationCode,StationName,"0penTime","ClosedTime",MinimumOrdermValue,status',
-    );
-
-    const restroUrl =
-      `${base}/rest/v1/RestroMaster` +
-      `?select=${selectRestro}` +
-      `&StationCode=in.${encodeURIComponent(inList)}`;
-
-    const restroResp = await fetch(restroUrl, {
-      headers: {
-        apikey: SERVICE_KEY,
-        Authorization: `Bearer ${SERVICE_KEY}`,
-        Accept: "application/json",
-      },
-      cache: "no-store",
-    });
-
-    const restroText = await restroResp.text().catch(() => "");
-    if (!restroResp.ok) {
-      return NextResponse.json(
-        {
-          status: 502,
-          error: "Supabase RestroMaster request failed",
-          details: restroText,
-        },
-        { status: 502, headers },
-      );
-    }
-
-    let restroRows: any[] = [];
-    try {
-      restroRows = JSON.parse(restroText);
-    } catch {
-      restroRows = [];
-    }
-
-    /* ---------------- 3) Stations table for State ---------------- */
-
-    const selectStations = encodeURIComponent(
-      "StationCode,StationName,State",
-    );
-
-    const stationUrl =
-      `${base}/rest/v1/Stations` +
-      `?select=${selectStations}` +
-      `&StationCode=in.${encodeURIComponent(inList)}`;
-
-    const stationResp = await fetch(stationUrl, {
-      headers: {
-        apikey: SERVICE_KEY,
-        Authorization: `Bearer ${SERVICE_KEY}`,
-        Accept: "application/json",
-      },
-      cache: "no-store",
-    });
-
-    const stationText = await stationResp.text().catch(() => "");
-    let stationsMeta: any[] = [];
-    if (stationResp.ok) {
-      try {
-        stationsMeta = JSON.parse(stationText);
-      } catch {
-        stationsMeta = [];
-      }
-    }
-
-    const stateByCode = new Map<string, { StationName: string; State: string }>();
-    for (const s of stationsMeta) {
-      const code = String(s.StationCode || "").toUpperCase();
-      if (!code) continue;
-      stateByCode.set(code, {
-        StationName: s.StationName ?? "",
-        State: s.State ?? "",
+      return NextResponse.json({
+        ok: true,
+        train: { trainNumber, trainName },
+        stations: [],
       });
     }
 
-    /* ---------------- 4) Group restros by station ---------------- */
+    // 3) RestroMaster se sabhi restro jo in stationCodes par hain
+    const { data: restroData, error: restroErr } = await supa
+      .from("RestroMaster")
+      .select(
+        'RestroCode, RestroName, StationCode, StationName, MinimumOrdermValue, "0penTime", ClosedTime',
+      )
+      .in("StationCode", stationCodes);
 
-    const restrosByStation = new Map<string, any[]>();
-    for (const r of restroRows) {
-      const code = String(r.StationCode || "").toUpperCase();
-      if (!code) continue;
-      const arr = restrosByStation.get(code) || [];
-      arr.push(r);
-      restrosByStation.set(code, arr);
+    if (restroErr) {
+      console.error("home/train-search RestroMaster error", restroErr);
+      return NextResponse.json(
+        { ok: false, error: "restro_master_db_error" },
+        { status: 500 },
+      );
     }
 
-    /* ---------------- 5) Build station summaries ---------------- */
+    const restros: RestroRow[] = (restroData || []) as any[];
 
-    const stationSummaries: any[] = [];
+    // 4) station-wise summary banao
+    const stationsSummary = dayRows.map((row) => {
+      const code = (row.StationCode || "").toUpperCase();
+      const name = row.StationName || code;
 
-    for (const row of routeRows) {
-      const stationCode = String(row.StationCode || "").toUpperCase();
-      if (!stationCode) continue;
+      const rawArr =
+        (row.Arrives || row.Departs || "").slice(0, 5) || null;
+      const arrivalHHMM = fmtHHMM(rawArr);
+      const arrivalMin = toMinutes(rawArr);
 
-      const arrivalRaw = row.Arrives || row.Departs;
-      const arrivalMins = toMinutes(arrivalRaw);
-      const arrivalHHMM = fmtHHMM(arrivalRaw);
+      // is station par jitne restro hain
+      const restrosHere = restros.filter(
+        (r) => (r.StationCode || "").toUpperCase() === code,
+      );
 
-      if (arrivalMins < 0) continue;
-
-      const restros = restrosByStation.get(stationCode) || [];
-      if (!restros.length) continue;
-
-      // filter ACTIVE + timing match
-      const activeAtTime: any[] = [];
-
-      for (const r of restros) {
-        // status check (if column missing / null → treat as ACTIVE)
-        const st = (r.status || "").toString().toUpperCase();
-        if (st && st !== "ACTIVE") continue;
-
-        const openMins = toMinutes(r["0penTime"]);
-        const closeMins = toMinutes(r["ClosedTime"]);
-
-        if (openMins >= 0 && closeMins >= 0) {
-          if (arrivalMins < openMins || arrivalMins > closeMins) {
-            continue;
-          }
-        }
-        activeAtTime.push(r);
+      if (!restrosHere.length || arrivalMin < 0) {
+        return null;
       }
 
-      if (!activeAtTime.length) continue;
+      // open/close time se filter (agar time null ho to allow kar do)
+      const openRestros = restrosHere.filter((r) => {
+        const oMin = toMinutes(r["0penTime"] || null);
+        const cMin = toMinutes(r.ClosedTime || null);
 
-      // min order
-      let minOrder: number | null = null;
-      for (const r of activeAtTime) {
-        const mo = Number(r.MinimumOrdermValue ?? 0);
-        if (!Number.isFinite(mo) || mo <= 0) continue;
-        if (minOrder === null || mo < minOrder) {
-          minOrder = mo;
-        }
-      }
-
-      const meta = stateByCode.get(stationCode);
-
-      stationSummaries.push({
-        StationCode: stationCode,
-        StationName:
-          (meta && meta.StationName) || row.StationName || "",
-        State: meta ? meta.State : "",
-        Arrival: arrivalHHMM,
-        RestroCount: activeAtTime.length,
-        MinOrder: minOrder,
-        // yahan future me Veg/Non-Veg category ka summary bhi add kar sakte ho
+        if (oMin < 0 || cMin < 0) return true; // time nahi diya → allow
+        return arrivalMin >= oMin && arrivalMin <= cMin;
       });
-    }
 
-    return NextResponse.json(
-      {
-        status: 200,
-        train: trainInfo,
-        stations: stationSummaries,
-      },
-      { status: 200, headers },
+      if (!openRestros.length) return null;
+
+      const minOrder = openRestros.reduce((min, r) => {
+        const v = Number(r.MinimumOrdermValue ?? 0);
+        if (!Number.isFinite(v) || v <= 0) return min;
+        if (min === null) return v;
+        return Math.min(min, v);
+      }, null as number | null);
+
+      return {
+        stationCode: code,
+        stationName: name,
+        arrivalTime: arrivalHHMM,
+        restroCount: openRestros.length,
+        minOrder: minOrder,
+        // future ke liye: yahan veg / non-veg summary add kar sakte hain
+        restros: openRestros.map((r) => ({
+          restroCode: r.RestroCode,
+          restroName: r.RestroName ?? "",
+          minimumOrder: r.MinimumOrdermValue ?? null,
+        })),
+      };
+    });
+
+    const filteredStations = stationsSummary.filter(
+      (s): s is NonNullable<typeof s> => !!s,
     );
-  } catch (err) {
-    console.error("home/train-search error:", err);
+
+    return NextResponse.json({
+      ok: true,
+      train: {
+        trainNumber,
+        trainName,
+        date: dateParam,
+      },
+      stations: filteredStations,
+    });
+  } catch (e) {
+    console.error("home/train-search server_error", e);
     return NextResponse.json(
-      { status: 500, error: String(err) },
-      { status: 500, headers },
+      { ok: false, error: "server_error" },
+      { status: 500 },
     );
   }
 }
