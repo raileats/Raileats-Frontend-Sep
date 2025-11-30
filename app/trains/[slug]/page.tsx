@@ -1,4 +1,3 @@
-// app/trains/[slug]/page.tsx
 "use client";
 
 import React, { useEffect, useState } from "react";
@@ -10,7 +9,7 @@ type TrainStationRestro = {
   restroName: string;
   minimumOrder: number | null;
 
-  // optional – agar API se aayega to image bhi dikhayenge
+  // optional fields (agar API se aaye to)
   restroImageUrl?: string | null;
   cuisines?: string | null;
 };
@@ -94,7 +93,7 @@ export default function TrainFoodPage() {
 
   const stations = data?.stations ?? [];
 
-  // restroCount use karo
+  // sirf wahi stations jinke paas restaurants hain
   const stationsWithRestros = stations.filter(
     (s) => (s.restroCount ?? 0) > 0,
   );
@@ -147,78 +146,26 @@ export default function TrainFoodPage() {
 
         {!loading && !error && stationsWithRestros.length > 0 && (
           <div className="space-y-4 mt-4">
-            {stationsWithRestros.map((st) => (
-              <section
-                key={st.stationCode}
-                className="bg-white rounded-lg shadow-sm border"
-              >
-                {/* Station header – image + name + state + summary */}
-                <div className="px-4 py-3 border-b flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-3">
-                    {/* Station image */}
-                    <div className="h-14 w-14 rounded overflow-hidden bg-gray-200 flex-shrink-0">
-                      {st.stationImageUrl ? (
-                        <img
-                          src={st.stationImageUrl}
-                          alt={st.stationName}
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        <div className="h-full w-full flex items-center justify-center text-[10px] text-gray-500">
-                          No image
-                        </div>
-                      )}
-                    </div>
+            {stationsWithRestros.map((st) => {
+              // station slug same jaisa Stations page me hota hai
+              const stationSlug = `/Stations/${st.stationCode}-${st.stationName
+                .toLowerCase()
+                .replace(/\s+/g, "-")}-food-delivery-in-train`;
 
-                    <div>
-                      <div className="text-base md:text-lg font-semibold flex items-baseline gap-1">
-                        <span>{st.stationName}</span>
-                        <span className="text-xs md:text-sm text-gray-500">
-                          ({st.stationCode})
-                        </span>
-                      </div>
-                      {st.stateName && (
-                        <div className="text-xs md:text-sm text-gray-700">
-                          {st.stateName}
-                        </div>
-                      )}
-                      <div className="text-xs text-gray-500 mt-1">
-                        Arrival: {st.arrivalTime ? st.arrivalTime : "-"}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="text-right text-xs text-gray-600">
-                    <div>
-                      Active restaurants:{" "}
-                      <span className="font-semibold">
-                        {st.restroCount}
-                      </span>
-                    </div>
-                    {st.minOrder != null && st.minOrder > 0 && (
-                      <div className="mt-1">
-                        Min. order from{" "}
-                        <span className="font-semibold">
-                          ₹{st.minOrder}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Restros list – image + min order + Order Now */}
-                <div className="p-4 space-y-3">
-                  {st.restros.map((r) => (
-                    <div
-                      key={r.restroCode}
-                      className="flex items-center gap-3 border rounded-lg px-3 py-2 hover:bg-gray-50"
-                    >
-                      {/* Restro image */}
-                      <div className="h-16 w-16 rounded overflow-hidden bg-gray-200 flex-shrink-0">
-                        {r.restroImageUrl ? (
+              return (
+                <section
+                  key={st.stationCode}
+                  className="bg-white rounded-lg shadow-sm border"
+                >
+                  {/* Station header – image + name + state + summary */}
+                  <div className="px-4 py-3 border-b flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      {/* Station image */}
+                      <div className="h-14 w-14 rounded overflow-hidden bg-gray-200 flex-shrink-0">
+                        {st.stationImageUrl ? (
                           <img
-                            src={r.restroImageUrl}
-                            alt={r.restroName}
+                            src={st.stationImageUrl}
+                            alt={st.stationName}
                             className="h-full w-full object-cover"
                           />
                         ) : (
@@ -228,43 +175,114 @@ export default function TrainFoodPage() {
                         )}
                       </div>
 
-                      {/* Restro info */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="min-w-0">
-                            <div className="text-sm font-medium truncate">
-                              {r.restroName}
-                            </div>
-                            <div className="text-xs text-gray-500 mt-1 truncate">
-                              Train food delivery at {st.stationName},{" "}
-                              {st.stationCode}
-                            </div>
-                            {r.cuisines && (
-                              <div className="text-[11px] text-gray-500 mt-0.5">
-                                {r.cuisines}
-                              </div>
-                            )}
+                      <div>
+                        <div className="text-base md:text-lg font-semibold flex items-baseline gap-1">
+                          <span>{st.stationName}</span>
+                          <span className="text-xs md:text-sm text-gray-500">
+                            ({st.stationCode})
+                          </span>
+                        </div>
+                        {st.stateName && (
+                          <div className="text-xs md:text-sm text-gray-700">
+                            {st.stateName}
                           </div>
+                        )}
+                        <div className="text-xs text-gray-500 mt-1">
+                          Arrival: {st.arrivalTime ? st.arrivalTime : "-"}
+                        </div>
+                      </div>
+                    </div>
 
-                          {/* Min order + Order Now */}
-                          <div className="flex flex-col items-end gap-1 text-right text-xs text-gray-600 flex-shrink-0">
-                            {r.minimumOrder != null && r.minimumOrder > 0 ? (
-                              <div>
-                                Min order{" "}
-                                <span className="font-semibold">
-                                  ₹{r.minimumOrder}
-                                </span>
+                    <div className="text-right text-xs text-gray-600">
+                      <div>
+                        Active restaurants:{" "}
+                        <span className="font-semibold">
+                          {st.restroCount}
+                        </span>
+                      </div>
+                      {st.minOrder != null && st.minOrder > 0 && (
+                        <div className="mt-1">
+                          Min. order from{" "}
+                          <span className="font-semibold">
+                            ₹{st.minOrder}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Restros list – image + min order + Order Now */}
+                  <div className="p-4 space-y-3">
+                    {st.restros.map((r) => (
+                      <div
+                        key={r.restroCode}
+                        className="flex items-center gap-3 border rounded-lg px-3 py-2 hover:bg-gray-50"
+                      >
+                        {/* Restro image */}
+                        <div className="h-16 w-16 rounded overflow-hidden bg-gray-200 flex-shrink-0">
+                          {r.restroImageUrl ? (
+                            <img
+                              src={r.restroImageUrl}
+                              alt={r.restroName}
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            <div className="h-full w-full flex items-center justify-center text-[10px] text-gray-500">
+                              No image
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Restro info */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="min-w-0">
+                              <div className="text-sm font-medium truncate">
+                                {r.restroName}
                               </div>
-                            ) : (
-                              <div>Min order –</div>
-                            )}
+                              <div className="text-xs text-gray-500 mt-1 truncate">
+                                Train food delivery at {st.stationName},{" "}
+                                {st.stationCode}
+                              </div>
+                              {r.cuisines && (
+                                <div className="text-[11px] text-gray-500 mt-0.5">
+                                  {r.cuisines}
+                                </div>
+                              )}
+                            </div>
 
-                           <Link
-  href={`/Stations/${st.stationCode}-${st.stationName
-    .toLowerCase()
-    .replace(/\s+/g, "-")}-food-delivery-in-train`}
->
-  <button className="px-3 py-1 rounded bg-green-600 text-white text-xs">
-    Order Now
-  </button>
-</Link>
+                            {/* Min order + Order Now */}
+                            <div className="flex flex-col items-end gap-1 text-right text-xs text-gray-600 flex-shrink-0">
+                              {r.minimumOrder != null &&
+                              r.minimumOrder > 0 ? (
+                                <div>
+                                  Min order{" "}
+                                  <span className="font-semibold">
+                                    ₹{r.minimumOrder}
+                                  </span>
+                                </div>
+                              ) : (
+                                <div>Min order –</div>
+                              )}
+
+                              {/* yahan se flow EXACT station page jaisa hoga */}
+                              <Link href={stationSlug}>
+                                <button className="px-3 py-1 rounded bg-green-600 text-white text-xs">
+                                  Order Now
+                                </button>
+                              </Link>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              );
+            })}
+          </div>
+        )}
+      </main>
+    </div>
+  );
+}
