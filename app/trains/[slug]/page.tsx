@@ -259,22 +259,12 @@ export default function TrainFoodPage() {
                               <div>Min order –</div>
                             )}
 
-                            <Link href={`/Stations/${st.stationCode}`}>
-                              <button className="px-3 py-1 rounded bg-green-600 text-white text-xs">
-                                Order Now
-                              </button>
-                            </Link>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            ))}
-          </div>
-        )}
-      </main>
-    </div>
-  );
-}
+                           <Link
+  href={`/Stations/${st.stationCode}-${st.stationName
+    .toLowerCase()
+    .replace(/\s+/g, "-")}-food-delivery-in-train`}
+>
+  <button className="px-3 py-1 rounded bg-green-600 text-white text-xs">
+    Order Now
+  </button>
+</Link>
