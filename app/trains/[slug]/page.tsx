@@ -1,4 +1,4 @@
-// app/trains/[trainSlug]/page.tsx
+// app/trains/[slug]/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -37,7 +37,7 @@ type ApiResponse = {
 
 export default function TrainFoodPage() {
   const params = useParams();
-  const slug = (params?.trainSlug as string) || "";
+  const slug = (params?.slug as string) || "";
 
   // slug se sirf train number nikaalo (pehla part, 11016-… → 11016)
   const trainNumberFromSlug = (() => {
@@ -88,14 +88,15 @@ export default function TrainFoodPage() {
     fetchData();
   }, [trainNumberFromSlug]);
 
+  // ❗ yahan parens add kiye gaye hain (build error fix)
   const trainTitleNumber =
-    data?.train?.trainNumber ?? trainNumberFromSlug || "Train";
+    (data?.train?.trainNumber ?? trainNumberFromSlug) || "Train";
 
   const trainTitleName = data?.train?.trainName
     ? ` – ${data.train.trainName}`
     : "";
 
-  // stations jahan kam se kam 1 active restro hai
+  // sirf wahi stations jahan active restros > 0
   const stationsWithRestros: ApiStation[] =
     data?.stations?.filter((s) => (s.activeRestrosCount || 0) > 0) ?? [];
 
@@ -225,7 +226,8 @@ export default function TrainFoodPage() {
                       <div className="ml-4 text-right">
                         {r.minOrder != null && r.minOrder > 0 && (
                           <div className="text-xs text-gray-700 mb-1">
-                            Min order <span className="font-semibold">₹{r.minOrder}</span>
+                            Min order{" "}
+                            <span className="font-semibold">₹{r.minOrder}</span>
                           </div>
                         )}
 
