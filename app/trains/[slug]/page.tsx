@@ -1,81 +1,83 @@
+// app/trains/[slug]/page.tsx
 "use client";
 
-import React, { useEffect, useState } from "react";
-import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
 import { makeStationSlug } from "../../lib/stationSlug";
 
-type TrainInfo = {
-  trainNumber: string | number;
-  trainName: string | null;
-  date?: string | null;
-};
-
-type TrainRestro = {
+type ApiRestro = {
   restroCode: number | string;
   restroName: string;
   minimumOrder: number | null;
 };
 
-type TrainStationInfo = {
+type ApiStation = {
   stationCode: string;
   stationName: string;
   arrivalTime: string | null;
   restroCount: number;
   minOrder: number | null;
-  restros: TrainRestro[];
+  restros: ApiRestro[];
 };
 
-type ApiResponse = {
+type ApiTrainSearchResponse = {
   ok: boolean;
-  train?: TrainInfo;
-  stations?: TrainStationInfo[];
+  train?: {
+    trainNumber: number | string | null;
+    trainName: string | null;
+    date?: string | null;
+  };
+  stations?: ApiStation[];
   error?: string;
 };
 
-function formatCurrency(v: number | null | undefined) {
-  if (v == null || isNaN(Number(v))) return "-";
-  return `₹${Number(v).toFixed(0)}`;
-}
-
 export default function TrainFoodPage() {
-  const params = useParams<{ slug: string }>();
-  const slug = params?.slug || "";
+  const params = useParams();
+  const router = useRouter();
+  const slug = (params?.slug as string) || "";
 
-  // slug example: "11016-train-food-delivery-in-train"
-  const slugFirstPart = slug.split(/[^\d]+/)[0] || slug.split("-")[0] || slug;
-  const trainNumberFromSlug = slugFirstPart || slug;
+  // slug format: 11016-train-food-delivery-in-train
+  const trainNumberFromSlug = slug.split("-")[0];
 
-  const [data, setData] = useState<ApiResponse | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [data, setData] = useState<ApiTrainSearchResponse | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    async function load() {
+    if (!trainNumberFromSlug) {
+      setError("Invalid train number in URL.");
+      setLoading(false);
+      return;
+    }
+
+    const load = async () => {
       try {
         setLoading(true);
         setError(null);
 
-        const url = `/api/home/train-search?train=${encodeURIComponent(
-          String(trainNumberFromSlug),
-        )}`;
+        const res = await fetch(
+          `/api/home/train-search?train=${encodeURIComponent(
+            trainNumberFromSlug,
+          )}`,
+          { cache: "no-store" },
+        );
 
-        const res = await fetch(url, { cache: "no-store" });
-        const json = (await res.json()) as ApiResponse;
+        const json = (await res.json()) as ApiTrainSearchResponse;
 
-        if (!json.ok) {
-          setError(json.error || "Failed to load data.");
-          setData(json);
+        if (!res.ok || !json.ok) {
+          setError(json.error || "Failed to load train details.");
+          setData(null);
         } else {
           setData(json);
         }
       } catch (e) {
         console.error("train page fetch error", e);
-        setError("Failed to load data.");
+        setError("Failed to load train details.");
+        setData(null);
       } finally {
         setLoading(false);
       }
-    }
+    };
 
     load();
   }, [trainNumberFromSlug]);
@@ -89,69 +91,68 @@ export default function TrainFoodPage() {
 
   const stations = data?.stations ?? [];
 
+  const handleBack = () => {
+    router.push("/");
+  };
+
+  const formatCurrency = (val: number | null | undefined) => {
+    if (val == null || Number.isNaN(Number(val))) return "-";
+    return `₹${Number(val).toFixed(0)}`;
+  };
+
+  const makeRestroSlug = (code: string | number, name: string) => {
+    const cleanName = name
+      .trim()
+      .replace(/[^a-zA-Z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .toLowerCase();
+    return `${code}-${encodeURIComponent(cleanName)}`;
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-black text-white">
-        <div className="max-w-5xl mx-auto flex items-center justify-between px-4 py-3">
-          <Link href="/" className="flex items-center gap-2">
-            <img
-              src="/raileats-logo.png"
-              alt="RailEats"
-              className="w-8 h-8 rounded-full object-contain bg-white"
-            />
-            <span className="font-semibold text-lg">RailEats</span>
-          </Link>
+    <div className="min-h-screen bg-gray-50 pb-10">
+      {/* top black bar spacing already from layout header */}
 
-          <Link
-            href="/vendor/login"
-            className="px-4 py-1.5 bg-white text-black rounded-full text-sm font-medium"
-          >
-            Login
-          </Link>
-        </div>
-      </header>
-
-      <main className="max-w-5xl mx-auto px-4 py-6">
-        <Link
-          href="/"
-          className="text-sm text-blue-600 hover:underline inline-flex items-center gap-1 mb-4"
+      <main className="max-w-5xl mx-auto px-4 py-8">
+        {/* Back link */}
+        <button
+          type="button"
+          onClick={handleBack}
+          className="text-sm text-blue-600 hover:underline mb-4"
         >
           ← Back to Home
-        </Link>
+        </button>
 
-        <h1 className="text-2xl font-semibold mb-1">
+        {/* Train heading */}
+        <h1 className="text-2xl md:text-3xl font-semibold mb-1">
           Train {trainTitleNumber}
           {trainTitleName}
         </h1>
 
-        <p className="text-sm text-gray-600 mb-4">
+        <p className="text-sm text-gray-600 mb-6">
           Food delivery stations &amp; restaurants available on this train.
         </p>
 
+        {/* Loading / error / empty states */}
         {loading && (
-          <p className="text-sm text-gray-500 mb-4">Loading stations…</p>
-        )}
-        {error && (
-          <p className="text-sm text-red-600 mb-4">
-            {error === "train_not_found"
-              ? "Train not found."
-              : error || "Something went wrong."}
-          </p>
+          <p className="text-sm text-gray-500">Loading train details…</p>
         )}
 
-        {/* ==== STATIONS & RESTAURANTS LIST ==== */}
-        {(!loading && stations.length === 0) && (
-          <p className="text-sm text-gray-600">
+        {!loading && error && (
+          <p className="text-sm text-red-600">{error}</p>
+        )}
+
+        {!loading && !error && stations.length === 0 && (
+          <p className="text-sm text-gray-500">
             No active restaurants found on this train yet.
           </p>
         )}
 
-        <div className="space-y-6">
-          {stations.map((st) => {
-            if (!st.restroCount || st.restroCount <= 0 || st.restros.length === 0) {
-              return null;
-            }
-
+        {/* Stations with restaurants */}
+        {!loading &&
+          !error &&
+          stations.map((st) => {
+            const hasRestros = (st.restros || []).length > 0;
             const stationSlug = makeStationSlug(
               st.stationCode,
               st.stationName,
@@ -160,28 +161,30 @@ export default function TrainFoodPage() {
             return (
               <section
                 key={`${st.stationCode}-${st.arrivalTime}`}
-                className="bg-white rounded-lg shadow-sm border"
+                className="mt-6 bg-white rounded-lg shadow-sm border"
               >
-                {/* Station header row (similar to BPL page header, but compact) */}
-                <div className="flex flex-col md:flex-row md:items-center md:justify-between border-b px-4 py-3">
+                {/* Station header row (like BPL header, compact) */}
+                <div className="flex flex-col md:flex-row md:items-center justify-between px-4 py-3 border-b bg-gray-50">
                   <div>
-                    <div className="font-semibold text-base">
+                    <div className="text-sm font-semibold">
                       {st.stationName}{" "}
                       <span className="text-xs text-gray-500">
                         ({st.stationCode})
                       </span>
                     </div>
-                    <div className="text-xs text-gray-500 mt-0.5">
+                    <div className="text-xs text-gray-500 mt-1">
                       Arrival: {st.arrivalTime || "-"}
                     </div>
                   </div>
 
-                  <div className="mt-2 md:mt-0 text-right text-xs text-gray-600">
+                  <div className="mt-2 md:mt-0 text-xs text-right text-gray-600">
                     <div>
                       Active restaurants:{" "}
-                      <span className="font-semibold">{st.restroCount}</span>
+                      <span className="font-semibold">
+                        {st.restroCount ?? st.restros.length}
+                      </span>
                     </div>
-                    <div>
+                    <div className="mt-1">
                       Min. order from{" "}
                       <span className="font-semibold">
                         {formatCurrency(st.minOrder)}
@@ -190,66 +193,63 @@ export default function TrainFoodPage() {
                   </div>
                 </div>
 
-                {/* Restaurants list – styled similar to station page cards */}
-                <div className="p-3 md:p-4 space-y-3">
-                  {st.restros.map((r) => (
-                    <Link
-                      key={r.restroCode}
-                      href={`/Stations/${stationSlug}`}
-                      className="flex flex-col md:flex-row gap-3 items-stretch md:items-center border rounded-lg px-3 py-3 hover:shadow-sm transition-shadow bg-white"
-                    >
-                      {/* image placeholder – you can change src to match station page component */}
-                      <div className="w-full md:w-32 h-24 md:h-20 rounded-md bg-gray-100 overflow-hidden flex-shrink-0">
-                        <img
-                          src={`/images/stations/${st.stationCode}.jpg`}
-                          alt={st.stationName}
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            // fallback: simple grey block if image missing
-                            (e.currentTarget as HTMLImageElement).style.display =
-                              "none";
-                          }}
-                        />
-                      </div>
+                {/* Restaurant cards (similar style to station page) */}
+                <div className="px-4 py-3">
+                  {!hasRestros && (
+                    <p className="text-xs text-gray-500">
+                      No active restaurants at this station for the selected
+                      train/date.
+                    </p>
+                  )}
 
-                      <div className="flex-1 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
-                        <div>
-                          <div className="font-semibold text-sm md:text-base">
-                            {r.restroName}
-                          </div>
-                          <div className="text-xs text-gray-500 mt-0.5">
-                            Train food delivery at {st.stationName},{" "}
-                            {st.stationCode}
-                          </div>
-                        </div>
+                  {hasRestros && (
+                    <div className="space-y-3">
+                      {st.restros.map((r) => {
+                        const restroSlug = makeRestroSlug(
+                          r.restroCode,
+                          r.restroName,
+                        );
+                        const targetHref = `/Stations/${stationSlug}/${restroSlug}`;
 
-                        <div className="flex items-center justify-between md:justify-end gap-4">
-                          <div className="text-xs text-gray-600 text-right">
-                            <div>
-                              Min order{" "}
-                              <span className="font-semibold">
-                                {formatCurrency(r.minimumOrder)}
-                              </span>
-                            </div>
-                            {/* extra tags like Veg / Non-Veg, cuisines, timing
-                                can be added here later if you include them in the API */}
-                          </div>
-
-                          <button
-                            type="button"
-                            className="px-3 py-1.5 text-xs md:text-sm bg-green-600 text-white rounded-md font-medium hover:bg-green-700"
+                        return (
+                          <div
+                            key={restroSlug}
+                            className="flex items-center justify-between border rounded-md px-3 py-3 hover:shadow-sm transition-shadow"
                           >
-                            Order Now
-                          </button>
-                        </div>
-                      </div>
-                    </Link>
-                  ))}
+                            <div>
+                              <div className="text-sm font-semibold">
+                                {r.restroName}
+                              </div>
+                              <div className="text-xs text-gray-500 mt-1">
+                                Train food delivery at {st.stationName},{" "}
+                                {st.stationCode}
+                              </div>
+                              <div className="text-xs text-gray-500 mt-1">
+                                Min order{" "}
+                                <span className="font-semibold">
+                                  {formatCurrency(r.minimumOrder ?? st.minOrder)}
+                                </span>
+                              </div>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                window.location.href = targetHref;
+                              }}
+                              className="text-xs md:text-sm px-4 py-2 rounded bg-green-600 text-white hover:bg-green-700"
+                            >
+                              Order Now
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               </section>
             );
           })}
-        </div>
       </main>
     </div>
   );
