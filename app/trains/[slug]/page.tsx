@@ -8,7 +8,7 @@ import { makeStationSlug } from "../../lib/stationSlug";
 type ApiRestro = {
   restroCode: number | string;
   restroName: string;
-  minimumOrder: number | null;
+  minimumOrder?: number | null;
   openTime?: string | null;
   closeTime?: string | null;
   category?: "veg" | "non-veg" | "both" | string;
@@ -39,7 +39,7 @@ type ApiTrainSearchResponse = {
     trainName: string | null;
     date?: string | null;
   };
-  rows?: ApiStation[];
+  rows?: any[]; // raw rows from server
   meta?: any;
   error?: string;
 };
@@ -84,6 +84,7 @@ export default function TrainFoodPage() {
   });
 
   const [boardingDayValue, setBoardingDayValue] = useState<number | null>(null);
+  const [lastResponseMeta, setLastResponseMeta] = useState<any>(null); // store server meta for debugging
 
   useEffect(() => {
     if (!trainNumberFromSlug) {
@@ -96,40 +97,53 @@ export default function TrainFoodPage() {
       try {
         setLoading(true);
         setError(null);
+        setLastResponseMeta(null);
 
+        // fetch train route (server side implements Day->arrivalDate logic)
         const url = `/api/train-routes?train=${encodeURIComponent(trainNumberFromSlug)}&date=${encodeURIComponent(
           selectedDate,
         )}${selectedBoardingCode ? `&boarding=${encodeURIComponent(selectedBoardingCode)}` : ""}`;
 
         const res = await fetch(url, { cache: "no-store" });
-        const json = (await res.json()) as ApiTrainSearchResponse;
+        const json = (await res.json().catch(() => ({}))) as ApiTrainSearchResponse;
+
+        // save meta for diagnostics
+        setLastResponseMeta(json?.meta ?? null);
 
         if (!res.ok || !json.ok) {
-          setError(json.error || "Failed to load train details.");
+          setError(json.error || `Failed to load train details (status ${res.status}).`);
           setData(null);
         } else {
-          const rows = (json.rows || []) as any[];
+          const rows = (json.rows || json.stations || []) as any[];
 
-          // normalize
+          // normalize row structure so frontend fields are consistent
           const stations: ApiStation[] = rows.map((r: any, i: number) => {
-            const arrivalTime = (r.Arrives || r.Departs || "")?.slice(0, 5) || r.arrivalTime || null;
+            const arrivalTime = (r.Arrives || r.Departs || r.arrivalTime || "")?.slice(0, 5) || null;
+            // blockedReasons may come from server (e.g. weekly_off, holiday_closed, vendor_mapping_missing etc.)
+            const blockedReasons: string[] = [];
+            if (r?.blockedReasons && Array.isArray(r.blockedReasons)) {
+              for (const b of r.blockedReasons) blockedReasons.push(String(b));
+            }
+            // also propagate meta info per station if present
+            if (r?.meta && typeof r.meta === "string") blockedReasons.push(r.meta);
+
             return {
-              StnNumber: r.StnNumber ?? null,
-              StationCode: (r.StationCode || "").toUpperCase(),
-              StationName: r.StationName || "",
-              Day: typeof r.Day === "number" ? Number(r.Day) : null,
+              StnNumber: typeof r.StnNumber === "number" ? r.StnNumber : r.StnNumber ?? null,
+              StationCode: String(r.StationCode || "").toUpperCase(),
+              StationName: r.StationName ?? (r.stationName ?? "") ,
+              Day: typeof r.Day === "number" ? Number(r.Day) : (r.Day ? Number(r.Day) : null),
               Arrives: r.Arrives ?? null,
               Departs: r.Departs ?? null,
               arrivalTime,
-              restroCount: r.restroCount ?? (r.restros ? r.restros.length : 0),
+              restroCount: r.restroCount ?? (Array.isArray(r.restros) ? r.restros.length : 0),
               restros: r.restros ?? [],
               index: i,
               arrivalDate: r.arrivalDate ?? null,
-              blockedReasons: r.blockedReasons ?? [],
+              blockedReasons,
             } as ApiStation;
           });
 
-          setData({ ...json, rows: stations, train: json.train || json.train });
+          setData({ ...json, rows: stations, train: json.train ?? json.train });
         }
       } catch (e) {
         console.error("train page fetch error", e);
@@ -227,7 +241,7 @@ export default function TrainFoodPage() {
     url.searchParams.set("date", selectedDate);
     url.searchParams.set("boarding", selectedBoardingCode);
     window.history.replaceState({}, "", url.toString());
-    // trigger re-fetch (selectedBoardingCode is dependency of effect)
+    // selectedBoardingCode and selectedDate are in deps for fetch effect -> will re-fetch
   };
 
   const handleOrderNow = (restro: ApiRestro, station: ApiStation) => {
@@ -338,15 +352,19 @@ export default function TrainFoodPage() {
         {!error && !firstActiveStation && !loading && (
           <div className="p-4 bg-gray-50 rounded text-sm text-gray-700">
             <p>No active restaurants found for the selected boarding station / date.</p>
+
             <ul className="mt-2 text-xs text-gray-600 space-y-1">
-              <li>• No vendor mapped at station (server-side).</li>
+              <li>• Reason examples (from server): {lastResponseMeta ? <code className="text-xs">{JSON.stringify(lastResponseMeta)}</code> : "no server meta"}</li>
+              <li>• No vendor mapped at station (server-side mapping missing).</li>
               <li>• Vendor is closed / Weekly off on selected date.</li>
               <li>• Vendor on holiday or temporarily disabled.</li>
               <li>• Menu/outlet disabled by admin.</li>
-              <li>• Server failed to fetch admin data (internal error).</li>
+              <li>• Cutoff/time mismatch for delivery at station arrival time.</li>
+              <li>• Server fetch error / CORS or network issue — check DevTools Network → filter `train-routes`.</li>
             </ul>
+
             <div className="mt-2 text-xs text-gray-500">
-              Tip: open browser devtools → Network → filter `train-routes` to see server response & possible blockedReasons.
+              Tip: open browser devtools → Network → filter `train-routes` to see the API response. If you see CORS or 500, server-side needs fix.
             </div>
           </div>
         )}
