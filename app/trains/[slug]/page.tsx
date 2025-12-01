@@ -202,17 +202,17 @@ export default function TrainFoodPage() {
   }, [data?.rows, selectedBoardingCode]);
 
   // Only stations with active restaurants — kept same logic as before but resilient if restros missing
-  const stationsWithActiveRestros = useMemo(() => {
-    return filteredStations
-      .map((s) => ({
-        ...s,
-        restros: (s as any).restros || [],
-        restroCount: (s as any).restroCount ?? ((s as any).restros ? (s as any).restros.length : 0),
-      }))
-      .filter((s) => (s.restros || []).length > 0);
-  }, [filteredStations]);
+  // TEMP: show all filtered stations (do not filter out stations with empty restros).
+// This helps debug arrival/day logic and ensures UI doesn't show "no active restaurants" while we fix the restro join.
+const stationsToShow = useMemo(() => {
+  return (filteredStations || []).map((s) => ({
+    ...s,
+    restros: (s as any).restros || [], // may be empty for now
+    restroCount: (s as any).restroCount ?? ((s as any).restros ? (s as any).restros.length : 0),
+  }));
+}, [filteredStations]);
 
-  const firstActiveStation = stationsWithActiveRestros.length > 0 ? stationsWithActiveRestros[0] : null;
+const firstActiveStation = stationsToShow.length > 0 ? stationsToShow[0] : null;
 
   const trainTitleNumber = (data?.train?.trainNumber ?? trainNumberFromSlug) || "Train";
   const trainTitleName = data?.train?.trainName ? ` – ${data.train.trainName}` : "";
