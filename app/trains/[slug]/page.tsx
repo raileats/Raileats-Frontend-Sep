@@ -14,6 +14,10 @@ type ApiRestro = {
   category?: "veg" | "non-veg" | "both" | string;
   rating?: number | null;
   isActive?: boolean;
+  // backend might send different keys, normalize in mapping
+  MinimumOrdermValue?: number | null;
+  "0penTime"?: string | null;
+  ClosedTime?: string | null;
 };
 
 type ApiStation = {
@@ -24,7 +28,7 @@ type ApiStation = {
   arrivalTime?: string | null;
   Arrives?: string | null;
   Departs?: string | null;
-  restroCount?: number;
+  restroCount?: number | null;
   minOrder?: number | null;
   restros?: ApiRestro[];
   index?: number;
@@ -35,12 +39,13 @@ type ApiStation = {
 type ApiTrainSearchResponse = {
   ok: boolean;
   train?: {
-    trainNumber: number | string | null;
-    trainName: string | null;
+    trainNumber?: number | string | null;
+    trainName?: string | null;
     date?: string | null;
   };
-  rows?: any[]; // raw rows from server (preferred)
-  stations?: any[]; // legacy/alternate payload name
+  // server historically returned either `rows` or `stations`
+  rows?: any[];
+  stations?: any[];
   meta?: any;
   error?: string;
 };
@@ -64,7 +69,7 @@ export default function TrainFoodPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const slug = (params?.slug as string) || "";
-  const trainNumberFromSlug = slug.split("-")[0];
+  const trainNumberFromSlug = slug.split("-")[0] || "";
 
   const queryDate = searchParams?.get("date") || "";
   const queryBoarding = searchParams?.get("boarding") || "";
@@ -85,7 +90,6 @@ export default function TrainFoodPage() {
   });
 
   const [boardingDayValue, setBoardingDayValue] = useState<number | null>(null);
-  const [lastResponseMeta, setLastResponseMeta] = useState<any>(null);
 
   useEffect(() => {
     if (!trainNumberFromSlug) {
@@ -98,52 +102,67 @@ export default function TrainFoodPage() {
       try {
         setLoading(true);
         setError(null);
-        setLastResponseMeta(null);
 
-        const url = `/api/train-routes?train=${encodeURIComponent(trainNumberFromSlug)}&date=${encodeURIComponent(
-          selectedDate,
-        )}${selectedBoardingCode ? `&boarding=${encodeURIComponent(selectedBoardingCode)}` : ""}`;
+        const url =
+          `/api/train-routes?train=${encodeURIComponent(trainNumberFromSlug)}` +
+          `&date=${encodeURIComponent(selectedDate)}` +
+          (selectedBoardingCode ? `&station=${encodeURIComponent(selectedBoardingCode)}` : "");
 
         const res = await fetch(url, { cache: "no-store" });
-        const json = (await res.json().catch(() => ({}))) as ApiTrainSearchResponse;
-
-        setLastResponseMeta(json?.meta ?? null);
+        const json = (await res.json()) as ApiTrainSearchResponse;
 
         if (!res.ok || !json.ok) {
-          setError(json.error || `Failed to load train details (status ${res.status}).`);
+          setError(json.error || "Failed to load train details.");
           setData(null);
-        } else {
-          // accept either json.rows or json.stations (legacy)
-          const rows = (json.rows ?? json.stations ?? []) as any[];
-
-          const stations: ApiStation[] = rows.map((r: any, i: number) => {
-            const arrivalTime = (r.Arrives || r.Departs || r.arrivalTime || "")?.slice(0, 5) || null;
-            const blockedReasons: string[] = [];
-
-            if (Array.isArray(r?.blockedReasons)) {
-              for (const b of r.blockedReasons) blockedReasons.push(String(b));
-            }
-            // also accept meta string on each row
-            if (r?.meta && typeof r.meta === "string") blockedReasons.push(r.meta);
-
-            return {
-              StnNumber: typeof r.StnNumber === "number" ? r.StnNumber : r.StnNumber ?? null,
-              StationCode: String(r.StationCode || "").toUpperCase(),
-              StationName: r.StationName ?? r.stationName ?? "",
-              Day: typeof r.Day === "number" ? Number(r.Day) : (r.Day ? Number(r.Day) : null),
-              Arrives: r.Arrives ?? null,
-              Departs: r.Departs ?? null,
-              arrivalTime,
-              restroCount: r.restroCount ?? (Array.isArray(r.restros) ? r.restros.length : 0),
-              restros: r.restros ?? [],
-              index: i,
-              arrivalDate: r.arrivalDate ?? null,
-              blockedReasons,
-            } as ApiStation;
-          });
-
-          setData({ ...json, rows: stations, train: json.train ?? json.train });
+          setLoading(false);
+          return;
         }
+
+        // server might return rows or stations; be defensive
+        const rows = (json.rows || json.stations || []) as any[];
+
+        // normalize rows -> ApiStation
+        const stations: ApiStation[] = rows.map((r: any, i: number) => {
+          // prefer Arrives then Departs, then any provided arrivalTime
+          const arrivalTime = (r.Arrives || r.Departs || r.arrivalTime || "")?.slice?.(0, 5) || null;
+
+          const restrosRaw: any[] = r.restros || r.restaurants || r.outlets || [];
+
+          const restros: ApiRestro[] = restrosRaw.map((rr: any) => ({
+            restroCode: rr.RestroCode ?? rr.restro_code ?? rr.restroCode ?? rr.code,
+            restroName: rr.RestroName ?? rr.restroName ?? rr.name ?? rr.restro_name ?? "",
+            minimumOrder: rr.MinimumOrdermValue ?? rr.minimumOrder ?? rr.minOrder ?? null,
+            openTime: rr["0penTime"] ?? rr.OpenTime ?? rr.openTime ?? null,
+            closeTime: rr.ClosedTime ?? rr.ClosedTime ?? rr.closeTime ?? rr.ClosedTime ?? null,
+            category: rr.category ?? rr.food_type ?? null,
+            rating: rr.RestroRating ?? rr.rating ?? null,
+            isActive: typeof rr.isActive !== "undefined" ? rr.isActive : rr.active ?? true,
+          }));
+
+          const blockedReasons: string[] = Array.isArray(r.blockedReasons)
+            ? r.blockedReasons
+            : r.blockedReasons
+            ? [String(r.blockedReasons)]
+            : [];
+
+          return {
+            StnNumber: r.StnNumber ?? r.stn_number ?? null,
+            StationCode: String((r.StationCode ?? r.station_code ?? r.code ?? "")).toUpperCase(),
+            StationName: String(r.StationName ?? r.station_name ?? r.name ?? ""),
+            Day: typeof r.Day === "number" ? Number(r.Day) : typeof r.day === "number" ? Number(r.day) : null,
+            Arrives: r.Arrives ?? r.arrival ?? null,
+            Departs: r.Departs ?? r.departure ?? null,
+            arrivalTime,
+            restroCount: r.restroCount ?? r.restaurants?.length ?? restros.length ?? 0,
+            minOrder: r.minOrder ?? r.MinimumOrdermValue ?? null,
+            restros,
+            index: i,
+            arrivalDate: r.arrivalDate ?? null,
+            blockedReasons,
+          } as ApiStation;
+        });
+
+        setData({ ...json, rows: stations });
       } catch (e) {
         console.error("train page fetch error", e);
         setError("Failed to load train details.");
@@ -156,6 +175,7 @@ export default function TrainFoodPage() {
     load();
   }, [trainNumberFromSlug, selectedDate, selectedBoardingCode]);
 
+  // set boardingDayValue from fetched rows if boarding selected
   useEffect(() => {
     if (!data?.rows || !data.rows.length) return;
     if (!selectedBoardingCode) {
@@ -170,6 +190,7 @@ export default function TrainFoodPage() {
     }
   }, [data, selectedBoardingCode]);
 
+  // when modal open, preselect first station if not set
   useEffect(() => {
     if (!showModal && selectedBoardingCode) return;
     if (!data?.rows || data.rows.length === 0) return;
@@ -201,6 +222,7 @@ export default function TrainFoodPage() {
     return data.rows.slice(idx).map((s, i) => ({ ...s, index: idx + i }));
   }, [data?.rows, selectedBoardingCode]);
 
+  // stations that *have* restros server-side
   const stationsWithActiveRestros = useMemo(() => {
     return filteredStations
       .map((s) => ({
@@ -236,6 +258,7 @@ export default function TrainFoodPage() {
     url.searchParams.set("date", selectedDate);
     url.searchParams.set("boarding", selectedBoardingCode);
     window.history.replaceState({}, "", url.toString());
+    // fetch effect depends on selectedBoardingCode
   };
 
   const handleOrderNow = (restro: ApiRestro, station: ApiStation) => {
@@ -244,16 +267,15 @@ export default function TrainFoodPage() {
     const qs = new URLSearchParams({
       station: station.StationCode,
       stationName: station.StationName || "",
-      restro: String(restro.restroCode),
-      restroName: String(restro.restroName || ""),
+      restro: String((restro as any).restroCode ?? (restro as any).RestroCode ?? ""),
+      restroName: String((restro as any).restroName ?? (restro as any).RestroName ?? ""),
       train: String(trainTitleNumber),
       date: arrivalDate,
       arrivalTime,
     }).toString();
 
     const stationSlug = makeStationSlug(station.StationCode, station.StationName || "");
-    const restroSlug = makeRestroSlug(restro.restroCode, restro.restroName);
-
+    const restroSlug = makeRestroSlug((restro as any).restroCode ?? (restro as any).RestroCode ?? "", (restro as any).restroName ?? (restro as any).RestroName ?? "");
     router.push(`/Stations/${stationSlug}/${restroSlug}?${qs}`);
   };
 
@@ -346,19 +368,15 @@ export default function TrainFoodPage() {
         {!error && !firstActiveStation && !loading && (
           <div className="p-4 bg-gray-50 rounded text-sm text-gray-700">
             <p>No active restaurants found for the selected boarding station / date.</p>
-
             <ul className="mt-2 text-xs text-gray-600 space-y-1">
-              <li>• Reason examples (from server): {lastResponseMeta ? <code className="text-xs">{JSON.stringify(lastResponseMeta)}</code> : "no server meta"}</li>
-              <li>• No vendor mapped at station (server-side mapping missing).</li>
+              <li>• No vendor mapped at station (server-side).</li>
               <li>• Vendor is closed / Weekly off on selected date.</li>
               <li>• Vendor on holiday or temporarily disabled.</li>
               <li>• Menu/outlet disabled by admin.</li>
-              <li>• Cutoff/time mismatch for delivery at station arrival time.</li>
-              <li>• Server fetch error / CORS or network issue — check DevTools Network → filter `train-routes`.</li>
+              <li>• Server failed to fetch admin data (internal error).</li>
             </ul>
-
             <div className="mt-2 text-xs text-gray-500">
-              Tip: open browser devtools → Network → filter `train-routes` to see the API response. If you see CORS or 500, server-side needs fix.
+              Tip: open browser devtools → Network → filter `train-routes` to see server response & possible blockedReasons.
             </div>
           </div>
         )}
@@ -431,13 +449,13 @@ export default function TrainFoodPage() {
                   {hasRestros && (
                     <div className="space-y-3">
                       {st.restros!.map((r: any) => {
-                        const restroSlug = makeRestroSlug(r.restroCode, r.restroName);
+                        const restroSlug = makeRestroSlug(r.restroCode ?? (r as any).RestroCode, r.restroName ?? r.RestroName);
                         return (
                           <div key={restroSlug} className="flex items-center justify-between border rounded-md px-3 py-3 hover:shadow-sm transition-shadow">
                             <div>
-                              <div className="text-sm font-semibold">{r.restroName}</div>
+                              <div className="text-sm font-semibold">{r.restroName ?? r.RestroName}</div>
                               <div className="text-xs text-gray-500 mt-1">
-                                Open: {r.openTime ?? "—"} — {r.closeTime ?? "—"} • Min {formatCurrency(r.minimumOrder ?? st.minOrder)}
+                                Open: {r.openTime ?? r["0penTime"] ?? "—"} — {r.closeTime ?? r.ClosedTime ?? "—"} • Min {formatCurrency(r.minimumOrder ?? r.MinimumOrdermValue ?? st.minOrder)}
                               </div>
                               <div className="text-xs text-gray-500 mt-1">
                                 Delivery when train arrives: {st.arrivalTime ?? "-"} on {arrivalDateForThisStation}
