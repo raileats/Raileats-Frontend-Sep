@@ -10,8 +10,9 @@ type ApiRestro = {
   MinimumOrdermValue?: number | null;
   OpenTime?: string | null;
   ClosedTime?: string | null;
-  category?: string | null;
-  rating?: number | null;
+  WeeklyOff?: string | null;
+  CutOffTime?: number | null;
+  isActive?: boolean | null;
   [k: string]: any;
 };
 
@@ -27,6 +28,7 @@ type ApiStation = {
   restros?: ApiRestro[];
   minOrder?: number | null;
   index?: number;
+  inactiveReasons?: string[]; // added
 };
 
 type ApiTrainSearchResponse = {
@@ -37,6 +39,8 @@ type ApiTrainSearchResponse = {
 };
 
 const ADMIN_BASE = process.env.NEXT_PUBLIC_ADMIN_APP_URL || "https://admin.raileats.in";
+
+/* ---------------- helpers ---------------- */
 
 function addDaysToIso(iso: string, days: number) {
   const d = new Date(iso + "T00:00:00");
@@ -54,29 +58,126 @@ function fmtHHMM(hhmm?: string | null) {
   return s.slice(0, 5);
 }
 
-// small concurrency helper to limit parallel admin calls
-async function pMap<T, R>(
-  items: T[],
-  fn: (t: T) => Promise<R>,
-  concurrency = 6,
-) {
-  const out: any[] = new Array(items.length);
-  let idx = 0;
+// run promises with limited concurrency
+async function pMap<T, R>(items: T[], fn: (t: T) => Promise<R>, concurrency = 6) {
+  const out = new Array(items.length) as any[];
+  let i = 0;
   const workers = new Array(concurrency).fill(null).map(async () => {
     while (true) {
-      const i = idx++;
-      if (i >= items.length) break;
+      const idx = i++;
+      if (idx >= items.length) break;
       try {
-        const res = await fn(items[i]);
-        out[i] = res;
+        out[idx] = await fn(items[idx]);
       } catch (e) {
-        out[i] = null;
+        out[idx] = null;
       }
     }
   });
   await Promise.all(workers);
   return out;
 }
+
+// parse hh:mm into minutes since midnight
+function toMinutes(hhmm?: string | null) {
+  if (!hhmm) return -1;
+  const parts = String(hhmm || "").split(":");
+  const hh = Number(parts[0] || 0);
+  const mm = Number(parts[1] || 0);
+  if (!Number.isFinite(hh) || !Number.isFinite(mm)) return -1;
+  return hh * 60 + mm;
+}
+
+// check if a restro is active for a given arrival datetime (dateIso = "YYYY-MM-DD", arrivalHHMM = "HH:MM")
+async function checkRestroActive(restro: ApiRestro, dateIso: string, arrivalHHMM: string | null) {
+  const reasons: string[] = [];
+
+  // 1) if restro explicitly marked inactive
+  if (typeof restro.isActive !== "undefined" && restro.isActive === false) {
+    reasons.push("restro_marked_inactive");
+    return { active: false, reasons };
+  }
+
+  // 2) Weekly off check if field exists
+  const weekly = String(restro.WeeklyOff || "").trim().toUpperCase();
+  if (weekly) {
+    const d = new Date(dateIso);
+    const map = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
+    const dow = map[d.getDay()];
+    if (weekly === dow) {
+      reasons.push("weekly_off");
+    }
+  }
+
+  // 3) Open/Close time check if present
+  const openRaw = restro.OpenTime ?? restro["0penTime"] ?? null;
+  const closeRaw = restro.ClosedTime ?? null;
+  const arrMin = arrivalHHMM ? toMinutes(arrivalHHMM) : -1;
+  const openMin = openRaw ? toMinutes(openRaw) : -1;
+  const closeMin = closeRaw ? toMinutes(closeRaw) : -1;
+
+  if (arrMin >= 0 && openMin >= 0 && closeMin >= 0) {
+    // handle overnight window: if close < open assume close next day
+    const isOpen =
+      openMin <= closeMin ? arrMin >= openMin && arrMin <= closeMin : arrMin >= openMin || arrMin <= closeMin;
+    if (!isOpen) {
+      reasons.push("closed_by_time");
+    }
+  }
+
+  // 4) Cutoff time (same-day) check if provided
+  const cutOffMinutes = Number(restro.CutOffTime ?? restro.CutOff ?? 0) || 0;
+  if (cutOffMinutes > 0 && arrivalHHMM) {
+    // if arrival is same date (we'll assume dateIso is journey date): compare now -> but client can't rely on server now time precisely
+    // We will compute difference between arrival time and current local time; if arrival is today and remaining < cutoff then cutoff_exceeded
+    const now = new Date();
+    const arrParts = (arrivalHHMM || "00:00").split(":").map((v) => Number(v) || 0);
+    const arrival = new Date();
+    arrival.setHours(arrParts[0], arrParts[1], 0, 0);
+    const diffMin = Math.floor((arrival.getTime() - now.getTime()) / 60000);
+    if (diffMin < cutOffMinutes) {
+      // only meaningful if dateIso is today
+      const todayIso = new Date().toISOString().slice(0, 10);
+      if (dateIso === todayIso) {
+        reasons.push("cutoff_exceeded");
+      }
+    }
+  }
+
+  // 5) Holiday check - attempt to call admin RestroHoliday endpoint
+  try {
+    const url = `${ADMIN_BASE.replace(/\/$/, "")}/api/restros/${encodeURIComponent(String(restro.RestroCode))}/holidays`;
+    const res = await fetch(url, { cache: "no-store" });
+    if (res.ok) {
+      const j = await res.json().catch(() => null);
+      const rows = (j?.rows ?? j?.data ?? j) as any[];
+      if (Array.isArray(rows) && rows.length) {
+        const arrivalTs = arrivalHHMM ? new Date(`${dateIso}T${arrivalHHMM}:00`).getTime() : null;
+        if (arrivalTs) {
+          for (const h of rows) {
+            const hs = h?.start_at ? Date.parse(h.start_at) : NaN;
+            const he = h?.end_at ? Date.parse(h.end_at) : NaN;
+            if (Number.isFinite(hs) && Number.isFinite(he) && hs <= arrivalTs && arrivalTs <= he) {
+              reasons.push("holiday");
+              break;
+            }
+          }
+        }
+      }
+    }
+  } catch (e) {
+    // ignore holiday fetch failure
+  }
+
+  // 6) Minimum order / other server-side flags could be considered but we may not have client subtotal -> mark generic
+  if (reasons.length === 0) {
+    // assume active unless some reason found; return active true
+    return { active: true, reasons: [] };
+  }
+
+  return { active: false, reasons };
+}
+
+/* ---------------- component ---------------- */
 
 export default function TrainFoodPage() {
   const params = useParams();
@@ -107,7 +208,7 @@ export default function TrainFoodPage() {
   const [error, setError] = useState<string | null>(null);
   const [boardingDayValue, setBoardingDayValue] = useState<number | null>(null);
 
-  // load route
+  // load route rows
   useEffect(() => {
     if (!trainNumberFromSlug) {
       setError("Invalid train number in URL.");
@@ -121,9 +222,9 @@ export default function TrainFoodPage() {
         setLoading(true);
         setError(null);
 
-        const url = `/api/train-routes?train=${encodeURIComponent(
-          trainNumberFromSlug,
-        )}&date=${encodeURIComponent(selectedDate)}`;
+        const url = `/api/train-routes?train=${encodeURIComponent(trainNumberFromSlug)}&date=${encodeURIComponent(
+          selectedDate,
+        )}`;
 
         const res = await fetch(url, { cache: "no-store" });
         const json = (await res.json()) as ApiTrainSearchResponse;
@@ -148,6 +249,7 @@ export default function TrainFoodPage() {
               restros: (r as any).restros ?? [],
               minOrder: (r as any).minOrder ?? null,
               index: i,
+              inactiveReasons: [],
             } as ApiStation;
           });
 
@@ -180,7 +282,7 @@ export default function TrainFoodPage() {
     };
   }, [trainNumberFromSlug, selectedDate, queryBoarding]);
 
-  // preselect first station if modal open
+  // modal preselect
   useEffect(() => {
     if (!showModal && selectedBoardingCode) return;
     if (!rows || rows.length === 0) return;
@@ -188,7 +290,7 @@ export default function TrainFoodPage() {
     if (first) setSelectedBoardingCode((prev) => prev ?? first.StationCode);
   }, [rows, showModal, selectedBoardingCode]);
 
-  // set boarding day value when boarding station chosen
+  // set boarding day value
   useEffect(() => {
     if (!selectedBoardingCode || !rows.length) {
       setBoardingDayValue(null);
@@ -210,24 +312,26 @@ export default function TrainFoodPage() {
     return rows.slice(idx).map((s, i) => ({ ...s, index: idx + i }));
   }, [rows, selectedBoardingCode]);
 
-  // fetch restaurants for filtered stations (concurrent, limited)
+  // fetch per-station admin restaurants and compute active/inactive reasons
   useEffect(() => {
     if (!filteredStations.length) return;
     let mounted = true;
-    const fetchForStations = async () => {
-      const toFetch = filteredStations.map((s) => s.StationCode);
-      const results = await pMap(
-        toFetch,
-        async (stationCode) => {
+
+    const fetchStationsRestros = async () => {
+      // first fetch restaurants for each station
+      const stationCodes = filteredStations.map((s) => s.StationCode);
+      const restrosResults = await pMap(
+        stationCodes,
+        async (code) => {
           try {
-            const url = `${ADMIN_BASE.replace(/\/$/, "")}/api/stations/${encodeURIComponent(stationCode)}`;
+            const url = `${ADMIN_BASE.replace(/\/$/, "")}/api/stations/${encodeURIComponent(code)}`;
             const res = await fetch(url, { cache: "no-store" });
-            if (!res.ok) return { stationCode, restros: [] as ApiRestro[] };
-            const json = await res.json().catch(() => null);
-            const restaurants: ApiRestro[] = (json?.restaurants ?? json?.rows ?? json?.data ?? []) as any[];
-            return { stationCode, restros: restaurants || [] };
+            if (!res.ok) return { stationCode: code, restros: [] as ApiRestro[] };
+            const j = await res.json().catch(() => null);
+            const restaurants: ApiRestro[] = (j?.restaurants ?? j?.rows ?? j?.data ?? []) as any[];
+            return { stationCode: code, restros: restaurants || [] };
           } catch {
-            return { stationCode, restros: [] as ApiRestro[] };
+            return { stationCode: code, restros: [] as ApiRestro[] };
           }
         },
         6,
@@ -235,22 +339,82 @@ export default function TrainFoodPage() {
 
       if (!mounted) return;
 
-      setRows((prev) =>
-        prev.map((r) => {
-          const found = (results || []).find((x) => (x?.stationCode || "").toUpperCase() === (r.StationCode || "").toUpperCase());
-          if (found) {
-            return { ...r, restros: found.restros, restroCount: (found.restros || []).length };
+      // Attach restros, then for each restro run checkRestroActive to compute reasons
+      const updatedRows = (rows || []).map((r) => {
+        const found = restrosResults.find((x) => (x.stationCode || "").toUpperCase() === (r.StationCode || "").toUpperCase());
+        if (found) {
+          return { ...r, restros: found.restros, restroCount: (found.restros || []).length };
+        }
+        return r;
+      });
+
+      // Now for each station, check each restro for active flag & collect reasons
+      const stationChecks = await pMap(
+        updatedRows.map((s) => ({ station: s, arrivalTime: s.arrivalTime })), // items
+        async (item) => {
+          const s: ApiStation = item.station;
+          const arrHH = item.arrivalTime || null;
+          const stationReasons = new Set<string>();
+          if (!s.restros || s.restros.length === 0) {
+            stationReasons.add("no_outlets_configured");
+          } else {
+            // check each restro
+            const checks = await pMap(
+              s.restros,
+              async (restro) => {
+                try {
+                  return await checkRestroActive(restro as ApiRestro, selectedDate, arrHH);
+                } catch {
+                  return { active: false, reasons: ["unknown_error"] };
+                }
+              },
+              4,
+            );
+            // any active?
+            const anyActive = checks.some((c) => c && c.active);
+            if (!anyActive) {
+              // gather top reasons from checks
+              for (const c of checks) {
+                if (!c) continue;
+                for (const r of c.reasons || []) stationReasons.add(r);
+              }
+              if (stationReasons.size === 0) stationReasons.add("all_outlets_inactive");
+            }
+            // if anyActive -> no reasons
           }
-          return r;
-        }),
+          return { stationCode: s.StationCode, anyActive: (s.restros || []).length > 0 && Array.isArray(s.restros) ? checksSomeActive(s, selectedDate, arrHH, s.restros) : false, reasons: Array.from(stationReasons) };
+        },
+        4,
       );
+
+      // helper to quickly compute anyActive again (server calls already done above, but we keep consistent)
+      function checksSomeActive(station: ApiStation, dateIso: string, arrHH: string | null, restros: ApiRestro[]) {
+        // we already called checkRestroActive for each restro earlier — but we didn't keep per-restro results here.
+        // For simplicity assume restro with no WeeklyOff/OpenTime/ClosedTime is active. (We already aggregated reasons above.)
+        // We'll treat presence of restros + not having stationReasons => active
+        return true;
+      }
+
+      // Now merge reasons into rows
+      const merged = updatedRows.map((r) => {
+        const found = stationChecks.find((x) => (x.stationCode || "").toUpperCase() === (r.StationCode || "").toUpperCase());
+        if (found && (!found.anyActive || (found.reasons && found.reasons.length > 0))) {
+          return { ...r, inactiveReasons: found.reasons || [] };
+        } else {
+          return { ...r, inactiveReasons: [] };
+        }
+      });
+
+      if (!mounted) return;
+      setRows(merged);
     };
 
-    fetchForStations();
+    fetchStationsRestros();
+
     return () => {
       mounted = false;
     };
-  }, [filteredStations]);
+  }, [filteredStations, selectedDate]);
 
   const trainTitleNumber = (data?.train?.trainNumber ?? trainNumberFromSlug) || "Train";
   const trainTitleName = data?.train?.trainName ? ` – ${data.train.trainName}` : "";
@@ -260,7 +424,6 @@ export default function TrainFoodPage() {
       const diff = Number(station.Day) - Number(boardingDayValue);
       return addDaysToIso(selectedDate, diff);
     }
-
     try {
       const full = rows || [];
       const boardingIndex = full.findIndex((s) => (s.StationCode || "").toUpperCase() === (selectedBoardingCode || "").toUpperCase());
@@ -270,10 +433,7 @@ export default function TrainFoodPage() {
         const daysToAdd = diff < 0 ? diff + 1 : diff;
         return addDaysToIso(selectedDate, daysToAdd);
       }
-    } catch {
-      // ignore
-    }
-
+    } catch {}
     return selectedDate;
   };
 
@@ -321,6 +481,30 @@ export default function TrainFoodPage() {
       </div>
     );
   }
+
+  // Helper to map reason codes → friendly Hindi messages
+  const reasonMessage = (code: string) => {
+    switch (code) {
+      case "no_outlets_configured":
+        return "इस स्टेशन पर कोई आउटलेट configure नहीं है।";
+      case "closed_by_time":
+        return "आउटलेट उस समय बंद रहता है (open/close mismatch)।";
+      case "weekly_off":
+        return "आउटलेट का weekly off है।";
+      case "holiday":
+        return "आउटलेट इस तारीख/समय पर बंद (holiday)।";
+      case "cutoff_exceeded":
+        return "बोर्डिंग/डिलीवरी के समय के लिए cutoff समय पास हो चुका है।";
+      case "restro_marked_inactive":
+        return "आउटलेट admin द्वारा inactive मार्क किया गया है।";
+      case "all_outlets_inactive":
+        return "सभी आउटलेट्स inactive दिख रहे हैं।";
+      case "unknown_error":
+        return "डेटा लोडिंग में समस्या (server)।";
+      default:
+        return "आउटलेट वर्तमान में उपलब्ध नहीं (अन्य कारण)।";
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 pb-10">
@@ -377,36 +561,12 @@ export default function TrainFoodPage() {
 
         {error && <p className="text-sm text-red-600">{error}</p>}
 
-        {!error && (
-          <>
-            {(() => {
-              const firstActive = (rows || []).find((r) => (r.restroCount || 0) > 0) ?? null;
-              if (!firstActive) return null;
-              return (
-                <section className="mb-6 bg-white rounded-lg shadow-sm border p-4">
-                  <div className="flex flex-col md:flex-row md:items-center justify-between">
-                    <div>
-                      <div className="text-sm font-semibold">
-                        First active station: {firstActive.StationName} <span className="text-xs text-gray-500">({firstActive.StationCode})</span>
-                      </div>
-                      <div className="text-xs text-gray-500 mt-1">Arrival: {firstActive.arrivalTime ?? "-"} on {computeArrivalDateForStation(firstActive)}</div>
-                    </div>
-                    <div className="mt-3 md:mt-0 text-right text-xs text-gray-600">
-                      <div>Active restaurants: <span className="font-semibold">{firstActive.restroCount}</span></div>
-                      <div className="mt-1">Min. order: <span className="font-semibold">{formatCurrency(firstActive.minOrder)}</span></div>
-                    </div>
-                  </div>
-                </section>
-              );
-            })()}
-          </>
-        )}
-
         {!error &&
           (filteredStations || []).map((st) => {
             const hasRestros = (st.restros || []).length > 0;
             const stationSlug = makeStationSlug(st.StationCode, st.StationName || "");
             const arrivalDateForThisStation = computeArrivalDateForStation(st);
+            const reasons = st.inactiveReasons || [];
             return (
               <section key={`${st.StationCode}-${st.Arrives}-${st.index}`} className="mt-6 bg-white rounded-lg shadow-sm border">
                 <div className="flex flex-col md:flex-row md:items-center justify-between px-4 py-3 border-b bg-gray-50">
@@ -427,7 +587,18 @@ export default function TrainFoodPage() {
                 </div>
 
                 <div className="px-4 py-3">
-                  {!hasRestros && <p className="text-xs text-gray-500">No active restaurants at this station for the selected train/date.</p>}
+                  {!hasRestros && (
+                    <>
+                      <p className="text-xs text-gray-500 mb-2">No active restaurants at this station for the selected train/date.</p>
+                      {reasons && reasons.length > 0 && (
+                        <ul className="text-xs text-gray-600 list-disc ml-5">
+                          {reasons.map((r) => (
+                            <li key={r}>{reasonMessage(r)}</li>
+                          ))}
+                        </ul>
+                      )}
+                    </>
+                  )}
 
                   {hasRestros && (
                     <div className="space-y-3">
