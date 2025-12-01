@@ -1,20 +1,22 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import StationSearchBox, { Station } from "./StationSearchBox";
 import { makeStationSlug } from "../lib/stationSlug";
 
-// ✅ Train slug helper: only number + SEO words
+type TrainStation = {
+  stationCode: string;
+  stationName: string;
+  state?: string | null;
+  arrivalTime?: string | null;
+  restroCount?: number; // number of active restaurants (if API returns)
+};
+
 function makeTrainSlug(trainNoRaw: string) {
   const clean = String(trainNoRaw || "").trim();
   if (!clean) return "";
-
-  // sirf digits nikaal lo, agar user beech me space / text daal de
   const digitsOnly = clean.replace(/\D+/g, "") || clean;
-  const base = digitsOnly;
-
-  // final slug → 11016-train-food-delivery-in-train
-  return `${base}-train-food-delivery-in-train`;
+  return `${digitsOnly}-train-food-delivery-in-train`;
 }
 
 export default function SearchBox() {
@@ -24,6 +26,15 @@ export default function SearchBox() {
   const [inputValue, setInputValue] = useState("");
   const [selectedStation, setSelectedStation] = useState<Station | null>(null);
   const [loading, setLoading] = useState(false);
+
+  // train modal state
+  const [showTrainModal, setShowTrainModal] = useState(false);
+  const [modalTrainNo, setModalTrainNo] = useState("");
+  const [modalStations, setModalStations] = useState<TrainStation[]>([]);
+  const [modalLoading, setModalLoading] = useState(false);
+  const [modalError, setModalError] = useState<string | null>(null);
+  const [modalDate, setModalDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [modalBoarding, setModalBoarding] = useState<string>("");
 
   const extractStationCode = (val: string) => {
     const m = val.match(/\(([^)]+)\)$/);
@@ -36,16 +47,15 @@ export default function SearchBox() {
     return val.trim();
   };
 
-  const handleSearch = () => {
+  /* ---------------- handleSearch ---------------- */
+  const handleSearch = async () => {
     if (!inputValue || inputValue.trim() === "") {
       alert("Please enter value");
       return;
     }
-
-    // start spinner ONLY on search click
     setLoading(true);
 
-    /* =============== STATION SEARCH =============== */
+    /* Station search */
     if (searchType === "station") {
       const rawCode =
         selectedStation?.StationCode ?? extractStationCode(inputValue);
@@ -54,48 +64,27 @@ export default function SearchBox() {
         setLoading(false);
         return;
       }
-
       let slug: string;
-
-      // ✅ agar user ne dropdown se station select kiya hai
       if (selectedStation?.StationCode && selectedStation?.StationName) {
-        slug = makeStationSlug(
-          String(selectedStation.StationCode),
-          selectedStation.StationName,
-        );
+        slug = makeStationSlug(String(selectedStation.StationCode), selectedStation.StationName);
       } else {
-        // fallback: sirf code se slug (BPL-bpl-food-delivery-in-train)
         const upper = String(rawCode).toUpperCase();
         const lower = upper.toLowerCase();
         slug = `${upper}-${lower}-food-delivery-in-train`;
       }
-
-      const target = `/Stations/${slug}`;
-
-      // small timeout so spinner gets a render before navigation
-      setTimeout(() => {
-        window.location.href = target;
-      }, 50);
+      setTimeout(() => (window.location.href = `/Stations/${slug}`), 50);
       return;
     }
 
-    /* =============== PNR SEARCH =============== */
+    /* PNR search */
     if (searchType === "pnr") {
-      setTimeout(
-        () =>
-          (window.location.href = `/pnr/${encodeURIComponent(
-            inputValue.trim(),
-          )}`),
-        50,
-      );
+      setTimeout(() => (window.location.href = `/pnr/${encodeURIComponent(inputValue.trim())}`), 50);
       return;
     }
 
-    /* =============== TRAIN SEARCH (SEO SLUG) =============== */
+    /* TRAIN search - show modal on same page */
     if (searchType === "train") {
       const raw = inputValue.trim();
-
-      // basic validation – at least 3 digits
       const digits = raw.replace(/\D+/g, "");
       if (!digits || digits.length < 3) {
         alert("Please enter a valid train number");
@@ -103,24 +92,69 @@ export default function SearchBox() {
         return;
       }
 
-      const slug = makeTrainSlug(digits);
-      const target = `/trains/${encodeURIComponent(slug)}`;
+      // show modal and load train route
+      setModalTrainNo(digits);
+      setModalStations([]);
+      setModalError(null);
+      setModalLoading(true);
+      setShowTrainModal(true);
 
-      // Persist last search so checkout can auto-fill
       try {
-        if (typeof window !== "undefined") {
-          window.localStorage.setItem("re_lastSearchType", "train");
-          window.localStorage.setItem("re_lastTrainNumber", digits);
+        const res = await fetch(`/api/home/train-search?train=${encodeURIComponent(digits)}`, { cache: "no-store" });
+        const j = await res.json().catch(() => null);
+        if (!res.ok || !j?.ok) {
+          setModalError(j?.error || "Train not found");
+          setModalStations([]);
+        } else {
+          const stationsRaw = Array.isArray(j.stations) ? j.stations : [];
+          // map to TrainStation and ensure fields
+          const stations: TrainStation[] = stationsRaw.map((s: any) => ({
+            stationCode: s.stationCode || s.StationCode || "",
+            stationName: s.stationName || s.StationName || "",
+            state: s.state || s.State || null,
+            arrivalTime: s.arrivalTime || s.Arrives || s.Arrival || null,
+            restroCount: typeof s.restroCount === "number" ? s.restroCount : (Array.isArray(s.restros) ? s.restros.length : 0),
+          }));
+          setModalStations(stations);
+          // default boarding to first station if exists
+          if (stations.length) setModalBoarding((prev) => prev || stations[0].stationCode);
         }
-      } catch (e) {
-        console.warn("Could not persist train search", e);
+      } catch (err) {
+        console.error("train search error", err);
+        setModalError("Failed to search train. Try again.");
+        setModalStations([]);
+      } finally {
+        setModalLoading(false);
+        setLoading(false);
       }
-
-      setTimeout(() => {
-        window.location.href = target;
-      }, 50);
       return;
     }
+  };
+
+  /* ---------------- onModalSearchSubmit ----------------
+     - When user picks boarding + date and clicks "Search & Open"
+     - Set session/local storage and navigate to /trains/:slug
+  */
+  const onModalSearchSubmit = () => {
+    if (!modalTrainNo) return alert("Train missing");
+    if (!modalBoarding) return alert("Please pick boarding station");
+    // persist last search
+    try {
+      localStorage.setItem("re_lastSearchType", "train");
+      localStorage.setItem("re_lastTrainNumber", modalTrainNo);
+    } catch { /* ignore */ }
+
+    // build slug and navigate with query params so trains page & menu can read
+    const slug = makeTrainSlug(modalTrainNo);
+    const qs = new URLSearchParams({
+      date: modalDate,
+      boarding: modalBoarding,
+    }).toString();
+
+    setShowTrainModal(false);
+    setTimeout(() => {
+      window.location.href = `/trains/${encodeURIComponent(slug)}?${qs}`;
+    }, 50);
   };
 
   return (
@@ -145,7 +179,6 @@ export default function SearchBox() {
       </div>
 
       <div className="px-3">
-        {/* removed overflow-hidden to avoid clipping dropdown */}
         <div className="w-full rounded-md border p-3">
           {searchType === "station" ? (
             <div className="flex items-center gap-3">
@@ -154,11 +187,7 @@ export default function SearchBox() {
                   initialValue={inputValue}
                   onSelect={(s) => {
                     const val = s ? (s.StationCode ?? s.StationName ?? "") : "";
-                    const display = s
-                      ? `${s.StationName}${
-                          s.StationCode ? ` (${s.StationCode})` : ""
-                        }`
-                      : "";
+                    const display = s ? `${s.StationName}${s.StationCode ? ` (${s.StationCode})` : ""}` : "";
                     setInputValue(display || val);
                     setSelectedStation(s || null);
                   }}
@@ -167,10 +196,7 @@ export default function SearchBox() {
 
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => {
-                    setInputValue("");
-                    setSelectedStation(null);
-                  }}
+                  onClick={() => { setInputValue(""); setSelectedStation(null); }}
                   disabled={loading}
                   className="px-3 py-2 border rounded bg-white hover:bg-gray-50 text-sm"
                 >
@@ -181,67 +207,10 @@ export default function SearchBox() {
                   <button
                     onClick={handleSearch}
                     disabled={loading}
-                    className={`px-4 py-2 bg-black text-white rounded text-sm ${
-                      loading ? "opacity-70 cursor-wait" : ""
-                    }`}
+                    className={`px-4 py-2 bg-black text-white rounded text-sm ${loading ? "opacity-70 cursor-wait" : ""}`}
                   >
                     Search
                   </button>
-
-                  {/* spinner */}
-                  {loading && (
-                    <div
-                      aria-hidden
-                      className="absolute -right-12 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full flex items-center justify-center"
-                      style={{ pointerEvents: "none" }}
-                    >
-                      <div
-                        className="absolute inset-0 rounded-full"
-                        style={{
-                          border: "3px solid rgba(0,0,0,0.08)",
-                          borderTopColor: "#111",
-                          boxSizing: "border-box",
-                          animation: "re-loader-spin 900ms linear infinite",
-                        }}
-                      />
-
-                      <div
-                        className="relative w-8 h-8 rounded-full flex items-center justify-center bg-white"
-                        style={{ overflow: "hidden", borderRadius: "50%" }}
-                      >
-                        <img
-                          src="/raileats-logo.png"
-                          alt="RailEats"
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).style.display = "none";
-                          }}
-                          style={{
-                            width: 28,
-                            height: 28,
-                            objectFit: "contain",
-                            transform: "translateZ(0)",
-                          }}
-                        />
-                        <div
-                          className="fallback-dot"
-                          style={{
-                            width: 10,
-                            height: 10,
-                            borderRadius: "50%",
-                            background: "#111",
-                            display: "none",
-                          }}
-                        />
-                      </div>
-
-                      <style>{`
-                        @keyframes re-loader-spin {
-                          from { transform: rotate(0deg); }
-                          to { transform: rotate(360deg); }
-                        }
-                      `}</style>
-                    </div>
-                  )}
                 </div>
               </div>
             </div>
@@ -273,6 +242,14 @@ export default function SearchBox() {
           )}
         </div>
       </div>
-    </div>
-  );
-}
+
+      {/* TRAIN MODAL (shown on Home when searching train) */}
+      {showTrainModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-2xl bg-white rounded-lg shadow p-5">
+            <div className="flex items-start justify-between">
+              <div>
+                <div className="text-sm text-gray-600">Train</div>
+                <div className="text-lg font-semibold">{modalTrainNo}</div>
+              </div>
+              <button onClick={() => setShowTrainModal(false)} clas
