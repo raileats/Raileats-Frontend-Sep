@@ -1,4 +1,3 @@
-// app/trains/[slug]/page.tsx
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
@@ -54,7 +53,6 @@ export default function TrainFoodPage() {
   const [showModal, setShowModal] = useState<boolean>(true);
   const [selectedDate, setSelectedDate] = useState<string>(() => {
     const d = new Date();
-    // default today's date in yyyy-mm-dd
     return d.toISOString().slice(0, 10);
   });
   const [selectedBoardingCode, setSelectedBoardingCode] = useState<string | null>(null);
@@ -98,18 +96,14 @@ export default function TrainFoodPage() {
     load();
   }, [trainNumberFromSlug]);
 
-  // When data arrives, if modal still open and there is only one logical boarding station, preselect it
+  // When data arrives, prefill boarding station if not set
   useEffect(() => {
-    if (!showModal && selectedBoardingCode) return;
     if (!data?.stations || data.stations.length === 0) return;
-
-    // if user already searched before (you mentioned), try to auto select first station
     const first = data.stations[0];
-    if (first) {
-      // do not auto close modal, but prefill select
-      setSelectedBoardingCode((prev) => prev ?? first.stationCode);
+    if (first && !selectedBoardingCode) {
+      setSelectedBoardingCode(first.stationCode);
     }
-  }, [data, showModal]);
+  }, [data?.stations]);
 
   const formatCurrency = (val: number | null | undefined) => {
     if (val == null || Number.isNaN(Number(val))) return "-";
@@ -141,7 +135,7 @@ export default function TrainFoodPage() {
     return filteredStations
       .map((s) => ({
         ...s,
-        restros: (s.restros || []).filter((r) => r.isActive !== false), // consider active unless explicitly false
+        restros: (s.restros || []).filter((r) => r.isActive !== false),
         restroCount: (s.restros || []).filter((r) => r.isActive !== false).length,
       }))
       .filter((s) => (s.restros || []).length > 0);
@@ -159,14 +153,51 @@ export default function TrainFoodPage() {
       alert("Please select boarding station.");
       return;
     }
+
+    // find boarding station details
+    const boardingStation = (data?.stations || []).find((s) => s.stationCode === selectedBoardingCode) || null;
+    const arrivalTime = boardingStation?.arrivalTime ?? "";
+
+    // Build outlet meta object compatible with station flow (checkout reads this)
+    const outletMeta: any = {
+      stationCode: selectedBoardingCode,
+      stationName: boardingStation?.stationName ?? "",
+      state: boardingStation?.state ?? "",
+      // restro placeholders — menu page will update these when user opens a restaurant
+      restroCode: null,
+      RestroCode: null,
+      outletName: "",
+      // train specific fields:
+      trainNumber: String(trainTitleNumber),
+      trainName: data?.train?.trainName ?? "",
+      journeyDate: selectedDate, // yyyy-mm-dd
+      arrivalTime, // "HH:MM"
+      // mark source so checkout can detect
+      source: "train",
+    };
+
+    try {
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem("raileats_current_outlet", JSON.stringify(outletMeta));
+        localStorage.setItem("re_lastSearchType", "train");
+        localStorage.setItem("re_lastTrainNumber", String(trainTitleNumber));
+      }
+    } catch (err) {
+      console.warn("sessionStorage/localStorage write failed", err);
+    }
+
     // close modal & keep selections for page rendering
     setShowModal(false);
 
-    // Optionally update URL with query params (so user can share)
-    const url = new URL(window.location.href);
-    url.searchParams.set("date", selectedDate);
-    url.searchParams.set("boarding", selectedBoardingCode);
-    window.history.replaceState({}, "", url.toString());
+    // update URL query so page is shareable
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set("date", selectedDate);
+      url.searchParams.set("boarding", selectedBoardingCode);
+      window.history.replaceState({}, "", url.toString());
+    } catch {
+      // ignore
+    }
   };
 
   const handleOrderNow = (restro: ApiRestro, station: ApiStation) => {
@@ -182,18 +213,11 @@ export default function TrainFoodPage() {
       arrivalTime,
     }).toString();
 
-    // menu page route: /stations/[stationSlug]/[restroSlug]?...
+    // menu page route: /Stations/[stationSlug]/[restroSlug]?...
     const stationSlug = makeStationSlug(station.stationCode, station.stationName);
     const restroSlug = makeRestroSlug(restro.restroCode, restro.restroName);
 
     router.push(`/Stations/${stationSlug}/${restroSlug}?${qs}`);
-  };
-
-  // utility: nicely format arrival time + date for display
-  const formatArrivalWithDate = (arrival: string | null, dateIso: string) => {
-    if (!arrival) return "-";
-    // arrival is like "HH:MM"
-    return `${arrival} on ${dateIso}`;
   };
 
   // Loading / error states
