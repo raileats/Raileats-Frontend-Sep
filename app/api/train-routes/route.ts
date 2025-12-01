@@ -29,27 +29,23 @@ function todayYMD() {
   return `${y}-${m}-${d}`;
 }
 
-// runningDays text ko filhaal sirf "DAILY" / "MON,TUE" type basic check se handle kar rahe hain
 function matchesRunningDay(runningDays: string | null, dateStr: string) {
-  if (!runningDays) return true; // agar data nahi hai to allow kar do
-
+  if (!runningDays) return true;
   const dayIndex = new Date(dateStr).getDay(); // 0=Sun..6=Sat
   const map = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
   const code = map[dayIndex];
-
   const s = runningDays.toUpperCase().trim();
   if (s === "DAILY" || s === "ALL") return true;
-
-  return s.split(/[ ,/]+/).includes(code); // e.g. "MON,TUE,WED"
+  return s.split(/[ ,/]+/).includes(code);
 }
 
 function toMinutes(hhmm: string | null | undefined): number {
   if (!hhmm) return -1;
-  const [hh, mm] = String(hhmm).trim().split(":");
-  const h = Number(hh);
-  const m = Number(mm);
-  if (!Number.isFinite(h) || !Number.isFinite(m)) return -1;
-  return h * 60 + m;
+  const parts = String(hhmm).trim().split(":");
+  const hh = Number(parts[0] || 0);
+  const mm = Number(parts[1] || 0);
+  if (!Number.isFinite(hh) || !Number.isFinite(mm)) return -1;
+  return hh * 60 + mm;
 }
 
 function fmtHHMM(hhmm: string | null | undefined) {
@@ -58,31 +54,18 @@ function fmtHHMM(hhmm: string | null | undefined) {
   return `${hh.padStart(2, "0")}:${mm.padStart(2, "0")}`;
 }
 
-// ✅ cutoff ka helper: sirf same-day booking par apply
-function checkCutoffSameDay(
-  deliveryYMD: string,
-  arrivalHHMM: string,
-  cutOffMinutes: number,
-) {
+// cutoff helper (same-day)
+function checkCutoffSameDay(deliveryYMD: string, arrivalHHMM: string, cutOffMinutes: number) {
   const today = todayYMD();
-  if (deliveryYMD !== today) {
-    // different date → cutoff ignore
-    return { allowed: true, remainingMinutes: Infinity };
-  }
-
+  if (deliveryYMD !== today) return { allowed: true, remainingMinutes: Infinity };
   const now = new Date();
   const [ah, am] = arrivalHHMM.split(":").map((v) => Number(v) || 0);
-
   const arrival = new Date();
   arrival.setHours(ah, am, 0, 0);
-
   const diffMs = arrival.getTime() - now.getTime();
-  const diffMin = Math.floor(diffMs / 60000); // arrival - now
-
-  // agar arrival tak bache hue minute cutoff se kam hain → booking closed
+  const diffMin = Math.floor(diffMs / 60000);
   const allowed = diffMin >= cutOffMinutes;
-  const remainingMinutes = diffMin - cutOffMinutes; // debugging/info ke liye
-
+  const remainingMinutes = diffMin - cutOffMinutes;
   return { allowed, remainingMinutes };
 }
 
@@ -91,47 +74,32 @@ export async function GET(req: Request) {
     const url = new URL(req.url);
     const trainParam = (url.searchParams.get("train") || "").trim();
     const stationParam = (url.searchParams.get("station") || "").trim();
-    const dateParam =
-      (url.searchParams.get("date") || "").trim() || todayYMD();
+    const dateParam = (url.searchParams.get("date") || "").trim() || todayYMD();
     const restroParam = (url.searchParams.get("restro") || "").trim();
-    const subtotalParam = Number(
-      (url.searchParams.get("subtotal") || "0").trim(),
-    );
+    const subtotalParam = Number((url.searchParams.get("subtotal") || "0").trim());
 
-    // cart item names (RestroMenuItems se match ke liye)
+    // items (cart) optional
     let cartItemNames: string[] = [];
     const itemsRaw = url.searchParams.get("items");
     if (itemsRaw) {
       try {
         const parsed = JSON.parse(itemsRaw);
-        if (Array.isArray(parsed)) {
-          cartItemNames = parsed
-            .map((v) => String(v || "").trim())
-            .filter(Boolean);
-        }
+        if (Array.isArray(parsed)) cartItemNames = parsed.map((v) => String(v || "").trim()).filter(Boolean);
       } catch {
         cartItemNames = [];
       }
     }
 
-    if (!trainParam || !stationParam) {
-      return NextResponse.json(
-        { ok: false, error: "missing_params" },
-        { status: 400 },
-      );
+    if (!trainParam) {
+      return NextResponse.json({ ok: false, error: "missing_train" }, { status: 400 });
     }
 
-    const stationCode = stationParam.toUpperCase();
     const supa = serviceClient;
-
-    // column ka naam "trainNumber" hai
     const trainNumAsNumber = Number(trainParam);
-    const trainFilterValue = Number.isFinite(trainNumAsNumber)
-      ? trainNumAsNumber
-      : trainParam;
+    const trainFilterValue = Number.isFinite(trainNumAsNumber) ? trainNumAsNumber : trainParam;
 
-    // 1) Poore train ka route laao (sab stations)
-    const { data, error } = await supa
+    // Fetch entire route for the train (ordered)
+    const { data: routeData, error: routeErr } = await supa
       .from("TrainRoute")
       .select(
         "trainId, trainNumber, trainName, stationFrom, stationTo, runningDays, StnNumber, StationCode, StationName, Arrives, Departs, Stoptime, Distance, Platform, Route, Day",
@@ -139,86 +107,74 @@ export async function GET(req: Request) {
       .eq("trainNumber", trainFilterValue)
       .order("StnNumber", { ascending: true });
 
-    if (error) {
-      console.error("train-routes GET supabase error", error);
-      return NextResponse.json(
-        { ok: false, error: "db_error" },
-        { status: 500 },
-      );
+    if (routeErr) {
+      console.error("train-routes supabase error", routeErr);
+      return NextResponse.json({ ok: false, error: "db_error" }, { status: 500 });
     }
 
-    const allRows: TrainRouteRow[] = (data || []) as any[];
+    const allRows: TrainRouteRow[] = (routeData || []) as any[];
 
-    // ---- Train hi nahi mila ----
     if (!allRows.length) {
-      return NextResponse.json(
-        { ok: false, error: "train_not_found" },
-        { status: 404 },
-      );
+      return NextResponse.json({ ok: false, error: "train_not_found" }, { status: 404 });
     }
 
-    // ---- Running-day filter ----
-    const dayRows = allRows.filter((r) =>
-      matchesRunningDay(r.runningDays, dateParam),
-    );
+    // If caller only asked for train route (no station param) -> return full route (optionally can filter by runningDays)
+    if (!stationParam) {
+      // Optionally filter route by running day (only those rows where train runs on dateParam)
+      const rowsForDate = allRows.filter((r) => matchesRunningDay(r.runningDays, dateParam));
+      const rowsToReturn = rowsForDate.length ? rowsForDate : allRows;
+
+      // normalize rows for frontend (only necessary fields)
+      const mapped = rowsToReturn.map((r) => ({
+        StnNumber: r.StnNumber,
+        StationCode: String(r.StationCode ?? "").toUpperCase(),
+        StationName: r.StationName,
+        Arrives: r.Arrives,
+        Departs: r.Departs,
+        Platform: r.Platform,
+        Distance: r.Distance,
+        runningDays: r.runningDays,
+        raw: r,
+      }));
+
+      const trainName = allRows[0].trainName ?? null;
+
+      return NextResponse.json({ ok: true, train: { trainNumber: trainParam, trainName }, rows: mapped }, { status: 200 });
+    }
+
+    // ---------- station-specific flow (backwards compatible) ----------
+    const stationCode = stationParam.toUpperCase();
+
+    // Apply running-day filter to route
+    const dayRows = allRows.filter((r) => matchesRunningDay(r.runningDays, dateParam));
     if (!dayRows.length) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "not_running_on_date",
-          meta: { train: trainParam, date: dateParam },
-        },
-        { status: 400 },
-      );
+      return NextResponse.json({ ok: false, error: "not_running_on_date", meta: { train: trainParam, date: dateParam } }, { status: 400 });
     }
 
-    // ---- Station check (kya iss route me hai?) ----
-    const stationRows = dayRows.filter(
-      (r) => (r.StationCode || "").toUpperCase() === stationCode,
-    );
-
+    // Find rows that match the boarding station (there may be multiple rows if table contains duplicates)
+    const stationRows = dayRows.filter((r) => (r.StationCode || "").toUpperCase() === stationCode);
     if (!stationRows.length) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "station_not_on_route",
-          meta: {
-            train: trainParam,
-            stationCode,
-          },
-        },
-        { status: 400 },
-      );
+      return NextResponse.json({ ok: false, error: "station_not_on_route", meta: { train: trainParam, stationCode } }, { status: 400 });
     }
 
-    const rows = stationRows;
-
-    // arrival time (Arrives → HH:MM)
+    const rows = stationRows; // these are used for checks below
     const first = rows[0];
-    const rawArr =
-      (first.Arrives || first.Departs || "").slice(0, 5) || null;
+    const rawArr = ((first.Arrives || first.Departs || "") as string).slice(0, 5) || null;
     const arrivalMinutes = toMinutes(rawArr);
     const arrivalHHMM = fmtHHMM(rawArr);
 
-    // arrival ka exact Date (delivery date + time)
+    // arrival date-time object (if possible)
     let arrivalDateObj: Date | null = null;
-    if (arrivalHHMM) {
-      arrivalDateObj = new Date(`${dateParam}T${arrivalHHMM}:00`);
-    }
+    if (arrivalHHMM) arrivalDateObj = new Date(`${dateParam}T${arrivalHHMM}:00`);
 
-    /* ---------- Restro side checks (WeeklyOff, CutOff, MinOrder, Item Timings) ---------- */
-
+    // If restro param present, run checks using RestroMaster etc.
     if (restroParam) {
       const restroCodeNum = Number(restroParam);
-      const restroFilter = Number.isFinite(restroCodeNum)
-        ? restroCodeNum
-        : restroParam;
+      const restroFilter = Number.isFinite(restroCodeNum) ? restroCodeNum : restroParam;
 
       const { data: restroRows, error: restroErr } = await supa
         .from("RestroMaster")
-        .select(
-          'RestroCode, StationCode, StationName, "0penTime", "ClosedTime", WeeklyOff, MinimumOrdermValue, CutOffTime',
-        )
+        .select('RestroCode, StationCode, StationName, "0penTime", "ClosedTime", WeeklyOff, MinimumOrdermValue, CutOffTime')
         .eq("RestroCode", restroFilter)
         .eq("StationCode", stationCode)
         .limit(1);
@@ -230,44 +186,23 @@ export async function GET(req: Request) {
       if (restroRows && restroRows.length) {
         const r = restroRows[0] as any;
 
-        // -------- Weekly Off check --------
+        // Weekly off check
         if (r.WeeklyOff) {
-          const weeklyOffRaw = String(r.WeeklyOff).trim().toUpperCase(); // e.g. SUN
+          const weeklyOffRaw = String(r.WeeklyOff).trim().toUpperCase();
           const d = new Date(dateParam);
-          const dayIdx = d.getDay(); // 0..6
+          const dayIdx = d.getDay();
           const map = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
           const dowCode = map[dayIdx];
-
           if (weeklyOffRaw === dowCode) {
-            const dayNameFull = [
-              "Sunday",
-              "Monday",
-              "Tuesday",
-              "Wednesday",
-              "Thursday",
-              "Friday",
-              "Saturday",
-            ][dayIdx];
-
-            return NextResponse.json(
-              {
-                ok: false,
-                error: "weekly_off",
-                meta: {
-                  restroCode: r.RestroCode,
-                  dayCode: weeklyOffRaw,
-                  dayName: dayNameFull,
-                },
-              },
-              { status: 400 },
-            );
+            const dayNameFull = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][dayIdx];
+            return NextResponse.json({ ok: false, error: "weekly_off", meta: { restroCode: r.RestroCode, dayCode: weeklyOffRaw, dayName: dayNameFull } }, { status: 400 });
           }
         }
 
-        // -------- Holiday check (ONLY RestroHoliday table) --------
+        // Holiday check (RestroHoliday)
         if (arrivalDateObj) {
           const { data: holidayRows, error: holidayErr } = await supa
-            .from("RestroHoliday") // agar table plural ho to yahan naam change karna
+            .from("RestroHoliday")
             .select("restro_code, start_at, end_at, comment")
             .eq("restro_code", restroFilter);
 
@@ -275,120 +210,47 @@ export async function GET(req: Request) {
             console.error("RestroHoliday fetch error", holidayErr);
           } else if (holidayRows && holidayRows.length) {
             const arrTs = arrivalDateObj.getTime();
-
             for (const h of holidayRows as any[]) {
               const hsRaw = h.start_at;
               const heRaw = h.end_at;
               if (!hsRaw || !heRaw) continue;
-
               const hs = new Date(hsRaw);
               const he = new Date(heRaw);
               if (isNaN(hs.getTime()) || isNaN(he.getTime())) continue;
-
               if (arrTs >= hs.getTime() && arrTs <= he.getTime()) {
-                return NextResponse.json(
-                  {
-                    ok: false,
-                    error: "holiday_closed",
-                    meta: {
-                      restroCode: r.RestroCode,
-                      arrival: arrivalHHMM,
-                      holidayStart: hs.toISOString(),
-                      holidayEnd: he.toISOString(),
-                      comment: h.comment || null,
-                    },
-                  },
-                  { status: 400 },
-                );
+                return NextResponse.json({ ok: false, error: "holiday_closed", meta: { restroCode: r.RestroCode, arrival: arrivalHHMM, holidayStart: hs.toISOString(), holidayEnd: he.toISOString(), comment: h.comment || null } }, { status: 400 });
               }
             }
           }
         }
 
-        // Column actually named "0penTime" with zero
-        const openRaw: string | null =
-          (r["0penTime"] as string | null) ?? null;
-        const closeRaw: string | null =
-          (r["ClosedTime"] as string | null) ?? null;
-
+        // open/close times (column "0penTime" exists)
+        const openRaw: string | null = (r["0penTime"] as string | null) ?? null;
+        const closeRaw: string | null = (r["ClosedTime"] as string | null) ?? null;
         const openMins = toMinutes(openRaw);
         const closeMins = toMinutes(closeRaw);
 
-        // -------- Outlet open/close time vs train arrival --------
-        if (
-          arrivalMinutes >= 0 &&
-          openMins >= 0 &&
-          closeMins >= 0 &&
-          (arrivalMinutes < openMins || arrivalMinutes > closeMins)
-        ) {
-          return NextResponse.json(
-            {
-              ok: false,
-              error: "restro_time_mismatch",
-              meta: {
-                restroCode: r.RestroCode,
-                arrival: arrivalHHMM,
-                restroOpen: fmtHHMM(openRaw),
-                restroClose: fmtHHMM(closeRaw),
-                stationCode,
-              },
-            },
-            { status: 400 },
-          );
+        if (arrivalMinutes >= 0 && openMins >= 0 && closeMins >= 0 && (arrivalMinutes < openMins || arrivalMinutes > closeMins)) {
+          return NextResponse.json({ ok: false, error: "restro_time_mismatch", meta: { restroCode: r.RestroCode, arrival: arrivalHHMM, restroOpen: fmtHHMM(openRaw), restroClose: fmtHHMM(closeRaw), stationCode } }, { status: 400 });
         }
 
-        // -------- CutOff Time (same-day only) --------
+        // Cutoff check (same-day only)
         const cutOffMinutes = Number(r.CutOffTime || 0);
         if (cutOffMinutes > 0 && arrivalHHMM) {
-          const { allowed, remainingMinutes } = checkCutoffSameDay(
-            dateParam,
-            arrivalHHMM,
-            cutOffMinutes,
-          );
-
+          const { allowed, remainingMinutes } = checkCutoffSameDay(dateParam, arrivalHHMM, cutOffMinutes);
           if (!allowed) {
-            return NextResponse.json(
-              {
-                ok: false,
-                error: "cutoff_exceeded",
-                meta: {
-                  arrival: arrivalHHMM,
-                  cutOffMinutes,
-                  remainingMinutes,
-                },
-              },
-              { status: 400 },
-            );
+            return NextResponse.json({ ok: false, error: "cutoff_exceeded", meta: { arrival: arrivalHHMM, cutOffMinutes, remainingMinutes } }, { status: 400 });
           }
         }
 
-        // -------- Minimum order check --------
+        // Min order check
         const minOrder = Number(r.MinimumOrdermValue ?? 0);
-        if (
-          minOrder > 0 &&
-          subtotalParam > 0 &&
-          subtotalParam < minOrder
-        ) {
-          return NextResponse.json(
-            {
-              ok: false,
-              error: "min_order_not_met",
-              meta: {
-                restroCode: r.RestroCode,
-                minOrder,
-                subtotal: subtotalParam,
-              },
-            },
-            { status: 400 },
-          );
+        if (minOrder > 0 && subtotalParam > 0 && subtotalParam < minOrder) {
+          return NextResponse.json({ ok: false, error: "min_order_not_met", meta: { restroCode: r.RestroCode, minOrder, subtotal: subtotalParam } }, { status: 400 });
         }
 
-        // -------- Menu item time window check --------
-        if (
-          arrivalMinutes >= 0 &&
-          cartItemNames.length &&
-          restroFilter
-        ) {
+        // Menu items time validation (if cart provided)
+        if (arrivalMinutes >= 0 && cartItemNames.length && restroFilter) {
           const { data: menuData, error: menuErr } = await supa
             .from("RestroMenuItems")
             .select("item_name, start_time, end_time")
@@ -398,54 +260,24 @@ export async function GET(req: Request) {
           if (menuErr) {
             console.error("menu item fetch error", menuErr);
           } else if (menuData && menuData.length) {
-            const badItems: {
-              name: string;
-              start: string;
-              end: string;
-            }[] = [];
-
+            const badItems: { name: string; start: string; end: string }[] = [];
             for (const row of menuData as any[]) {
               const name = String(row.item_name || "").trim();
-              const startRaw: string | null =
-                (row.start_time as string | null) ?? null;
-              const endRaw: string | null =
-                (row.end_time as string | null) ?? null;
-
-              const sM = toMinutes(startRaw);
-              const eM = toMinutes(endRaw);
-
-              if (
-                sM >= 0 &&
-                eM >= 0 &&
-                (arrivalMinutes < sM || arrivalMinutes > eM)
-              ) {
-                badItems.push({
-                  name,
-                  start: fmtHHMM(startRaw),
-                  end: fmtHHMM(endRaw),
-                });
+              const sM = toMinutes(row.start_time);
+              const eM = toMinutes(row.end_time);
+              if (sM >= 0 && eM >= 0 && (arrivalMinutes < sM || arrivalMinutes > eM)) {
+                badItems.push({ name, start: fmtHHMM(row.start_time), end: fmtHHMM(row.end_time) });
               }
             }
-
             if (badItems.length) {
-              return NextResponse.json(
-                {
-                  ok: false,
-                  error: "item_time_mismatch",
-                  meta: {
-                    arrival: arrivalHHMM,
-                    items: badItems,
-                  },
-                },
-                { status: 400 },
-              );
+              return NextResponse.json({ ok: false, error: "item_time_mismatch", meta: { arrival: arrivalHHMM, items: badItems } }, { status: 400 });
             }
           }
         }
       }
     }
 
-    // ---- Success response ----
+    // success: respond with the station-specific rows and meta
     return NextResponse.json({
       ok: true,
       rows,
@@ -460,9 +292,6 @@ export async function GET(req: Request) {
     });
   } catch (e) {
     console.error("train-routes GET server_error", e);
-    return NextResponse.json(
-      { ok: false, error: "server_error" },
-      { status: 500 },
-    );
+    return NextResponse.json({ ok: false, error: "server_error" }, { status: 500 });
   }
 }
