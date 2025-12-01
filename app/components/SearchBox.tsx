@@ -106,6 +106,16 @@ export default function SearchBox() {
       const slug = makeTrainSlug(digits);
       const target = `/trains/${encodeURIComponent(slug)}`;
 
+      // Persist last search so checkout can auto-fill
+      try {
+        if (typeof window !== "undefined") {
+          window.localStorage.setItem("re_lastSearchType", "train");
+          window.localStorage.setItem("re_lastTrainNumber", digits);
+        }
+      } catch (e) {
+        console.warn("Could not persist train search", e);
+      }
+
       setTimeout(() => {
         window.location.href = target;
       }, 50);
@@ -203,8 +213,7 @@ export default function SearchBox() {
                           src="/raileats-logo.png"
                           alt="RailEats"
                           onError={(e) => {
-                            (e.target as HTMLImageElement).style.display =
-                              "none";
+                            (e.target as HTMLImageElement).style.display = "none";
                           }}
                           style={{
                             width: 28,
