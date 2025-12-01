@@ -39,7 +39,8 @@ type ApiTrainSearchResponse = {
     trainName: string | null;
     date?: string | null;
   };
-  rows?: any[]; // raw rows from server
+  rows?: any[]; // raw rows from server (preferred)
+  stations?: any[]; // legacy/alternate payload name
   meta?: any;
   error?: string;
 };
@@ -84,7 +85,7 @@ export default function TrainFoodPage() {
   });
 
   const [boardingDayValue, setBoardingDayValue] = useState<number | null>(null);
-  const [lastResponseMeta, setLastResponseMeta] = useState<any>(null); // store server meta for debugging
+  const [lastResponseMeta, setLastResponseMeta] = useState<any>(null);
 
   useEffect(() => {
     if (!trainNumberFromSlug) {
@@ -99,7 +100,6 @@ export default function TrainFoodPage() {
         setError(null);
         setLastResponseMeta(null);
 
-        // fetch train route (server side implements Day->arrivalDate logic)
         const url = `/api/train-routes?train=${encodeURIComponent(trainNumberFromSlug)}&date=${encodeURIComponent(
           selectedDate,
         )}${selectedBoardingCode ? `&boarding=${encodeURIComponent(selectedBoardingCode)}` : ""}`;
@@ -107,30 +107,29 @@ export default function TrainFoodPage() {
         const res = await fetch(url, { cache: "no-store" });
         const json = (await res.json().catch(() => ({}))) as ApiTrainSearchResponse;
 
-        // save meta for diagnostics
         setLastResponseMeta(json?.meta ?? null);
 
         if (!res.ok || !json.ok) {
           setError(json.error || `Failed to load train details (status ${res.status}).`);
           setData(null);
         } else {
-          const rows = (json.rows || json.stations || []) as any[];
+          // accept either json.rows or json.stations (legacy)
+          const rows = (json.rows ?? json.stations ?? []) as any[];
 
-          // normalize row structure so frontend fields are consistent
           const stations: ApiStation[] = rows.map((r: any, i: number) => {
             const arrivalTime = (r.Arrives || r.Departs || r.arrivalTime || "")?.slice(0, 5) || null;
-            // blockedReasons may come from server (e.g. weekly_off, holiday_closed, vendor_mapping_missing etc.)
             const blockedReasons: string[] = [];
-            if (r?.blockedReasons && Array.isArray(r.blockedReasons)) {
+
+            if (Array.isArray(r?.blockedReasons)) {
               for (const b of r.blockedReasons) blockedReasons.push(String(b));
             }
-            // also propagate meta info per station if present
+            // also accept meta string on each row
             if (r?.meta && typeof r.meta === "string") blockedReasons.push(r.meta);
 
             return {
               StnNumber: typeof r.StnNumber === "number" ? r.StnNumber : r.StnNumber ?? null,
               StationCode: String(r.StationCode || "").toUpperCase(),
-              StationName: r.StationName ?? (r.stationName ?? "") ,
+              StationName: r.StationName ?? r.stationName ?? "",
               Day: typeof r.Day === "number" ? Number(r.Day) : (r.Day ? Number(r.Day) : null),
               Arrives: r.Arrives ?? null,
               Departs: r.Departs ?? null,
@@ -157,7 +156,6 @@ export default function TrainFoodPage() {
     load();
   }, [trainNumberFromSlug, selectedDate, selectedBoardingCode]);
 
-  // set boardingDayValue from fetched rows if boarding selected
   useEffect(() => {
     if (!data?.rows || !data.rows.length) return;
     if (!selectedBoardingCode) {
@@ -172,7 +170,6 @@ export default function TrainFoodPage() {
     }
   }, [data, selectedBoardingCode]);
 
-  // when modal open, preselect first station if not set
   useEffect(() => {
     if (!showModal && selectedBoardingCode) return;
     if (!data?.rows || data.rows.length === 0) return;
@@ -204,7 +201,6 @@ export default function TrainFoodPage() {
     return data.rows.slice(idx).map((s, i) => ({ ...s, index: idx + i }));
   }, [data?.rows, selectedBoardingCode]);
 
-  // stations that *have* restros server-side
   const stationsWithActiveRestros = useMemo(() => {
     return filteredStations
       .map((s) => ({
@@ -222,7 +218,6 @@ export default function TrainFoodPage() {
 
   const computeArrivalDateForStation = (station: ApiStation) => {
     if (station.arrivalDate) return station.arrivalDate;
-    // fallback: if server didn't include arrivalDate, compute by Day offsets
     if (typeof station.Day === "number" && boardingDayValue != null) {
       const diff = Number(station.Day) - Number(boardingDayValue);
       return addDaysToIso(selectedDate, diff);
@@ -241,7 +236,6 @@ export default function TrainFoodPage() {
     url.searchParams.set("date", selectedDate);
     url.searchParams.set("boarding", selectedBoardingCode);
     window.history.replaceState({}, "", url.toString());
-    // selectedBoardingCode and selectedDate are in deps for fetch effect -> will re-fetch
   };
 
   const handleOrderNow = (restro: ApiRestro, station: ApiStation) => {
