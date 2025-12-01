@@ -8,7 +8,10 @@ type ApiRestro = {
   RestroCode?: number | string;
   RestroName?: string;
   MinimumOrdermValue?: number | null;
-  // admin API may have more fields; keep flexible
+  OpenTime?: string | null;
+  ClosedTime?: string | null;
+  category?: string | null;
+  rating?: number | null;
   [k: string]: any;
 };
 
@@ -29,7 +32,7 @@ type ApiStation = {
 type ApiTrainSearchResponse = {
   ok: boolean;
   train?: { trainNumber?: number | string; trainName?: string | null };
-  rows?: any[]; // backend rows
+  rows?: any[];
   error?: string | null;
 };
 
@@ -57,17 +60,17 @@ async function pMap<T, R>(
   fn: (t: T) => Promise<R>,
   concurrency = 6,
 ) {
-  const out: R[] = [];
+  const out: any[] = new Array(items.length);
   let idx = 0;
   const workers = new Array(concurrency).fill(null).map(async () => {
-    while (idx < items.length) {
+    while (true) {
       const i = idx++;
+      if (i >= items.length) break;
       try {
-        // eslint-disable-next-line no-await-in-loop
         const res = await fn(items[i]);
         out[i] = res;
       } catch (e) {
-        out[i] = null as any;
+        out[i] = null;
       }
     }
   });
@@ -102,11 +105,9 @@ export default function TrainFoodPage() {
   const [rows, setRows] = useState<ApiStation[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-
-  // boarding day value (if route has Day field)
   const [boardingDayValue, setBoardingDayValue] = useState<number | null>(null);
 
-  // load train route (full) when slug or date changes
+  // load route
   useEffect(() => {
     if (!trainNumberFromSlug) {
       setError("Invalid train number in URL.");
@@ -132,9 +133,7 @@ export default function TrainFoodPage() {
           setData(null);
           setRows([]);
         } else {
-          // backend returns json.rows (full route rows)
           const routeRows = (json.rows || []) as any[];
-
           const stations = routeRows.map((r: any, i: number) => {
             const arrivalTime = (r.Arrives || r.Departs || "")?.slice(0, 5) || null;
             return {
@@ -147,6 +146,7 @@ export default function TrainFoodPage() {
               arrivalTime,
               restroCount: (r as any).restroCount ?? 0,
               restros: (r as any).restros ?? [],
+              minOrder: (r as any).minOrder ?? null,
               index: i,
             } as ApiStation;
           });
@@ -155,7 +155,6 @@ export default function TrainFoodPage() {
           setData(json);
           setRows(stations);
 
-          // if query had boarding, prefill boardingDayValue
           if (queryBoarding) {
             const found = stations.find((s) => (s.StationCode || "").toUpperCase() === (queryBoarding || "").toUpperCase());
             if (found && typeof found.Day === "number" && found.Day != null) {
@@ -181,7 +180,7 @@ export default function TrainFoodPage() {
     };
   }, [trainNumberFromSlug, selectedDate, queryBoarding]);
 
-  // when route rows change, if modal open preselect first station
+  // preselect first station if modal open
   useEffect(() => {
     if (!showModal && selectedBoardingCode) return;
     if (!rows || rows.length === 0) return;
@@ -189,7 +188,7 @@ export default function TrainFoodPage() {
     if (first) setSelectedBoardingCode((prev) => prev ?? first.StationCode);
   }, [rows, showModal, selectedBoardingCode]);
 
-  // when selectedBoardingCode changes, update boardingDayValue
+  // set boarding day value when boarding station chosen
   useEffect(() => {
     if (!selectedBoardingCode || !rows.length) {
       setBoardingDayValue(null);
@@ -203,7 +202,6 @@ export default function TrainFoodPage() {
     }
   }, [selectedBoardingCode, rows]);
 
-  // compute filtered (stations from boarding onwards)
   const filteredStations = useMemo(() => {
     if (!rows || !rows.length) return [];
     if (!selectedBoardingCode) return rows;
@@ -212,38 +210,34 @@ export default function TrainFoodPage() {
     return rows.slice(idx).map((s, i) => ({ ...s, index: idx + i }));
   }, [rows, selectedBoardingCode]);
 
-  // fetch restaurants for visible stations (small batches) and update restroCount/restros
+  // fetch restaurants for filtered stations (concurrent, limited)
   useEffect(() => {
     if (!filteredStations.length) return;
     let mounted = true;
     const fetchForStations = async () => {
-      // pick only the station codes we need to check
       const toFetch = filteredStations.map((s) => s.StationCode);
-      // use pMap to limit concurrency
       const results = await pMap(
         toFetch,
         async (stationCode) => {
           try {
-            // call admin API for station restaurants (same endpoint used on station page)
             const url = `${ADMIN_BASE.replace(/\/$/, "")}/api/stations/${encodeURIComponent(stationCode)}`;
             const res = await fetch(url, { cache: "no-store" });
             if (!res.ok) return { stationCode, restros: [] as ApiRestro[] };
             const json = await res.json().catch(() => null);
             const restaurants: ApiRestro[] = (json?.restaurants ?? json?.rows ?? json?.data ?? []) as any[];
             return { stationCode, restros: restaurants || [] };
-          } catch (e) {
+          } catch {
             return { stationCode, restros: [] as ApiRestro[] };
           }
         },
-        6, // concurrency
+        6,
       );
 
       if (!mounted) return;
 
-      // merge counts into rows
       setRows((prev) =>
         prev.map((r) => {
-          const found = (results || []).find((x) => (x.stationCode || "").toUpperCase() === (r.StationCode || "").toUpperCase());
+          const found = (results || []).find((x) => (x?.stationCode || "").toUpperCase() === (r.StationCode || "").toUpperCase());
           if (found) {
             return { ...r, restros: found.restros, restroCount: (found.restros || []).length };
           }
@@ -261,22 +255,19 @@ export default function TrainFoodPage() {
   const trainTitleNumber = (data?.train?.trainNumber ?? trainNumberFromSlug) || "Train";
   const trainTitleName = data?.train?.trainName ? ` – ${data.train.trainName}` : "";
 
-  // compute arrival date for a station based on boardingDayValue or indices
   const computeArrivalDateForStation = (station: ApiStation) => {
-    // if Day fields present and boardingDayValue known:
     if (typeof station.Day === "number" && boardingDayValue != null && !isNaN(Number(station.Day))) {
       const diff = Number(station.Day) - Number(boardingDayValue);
       return addDaysToIso(selectedDate, diff);
     }
 
-    // fallback: use index difference
     try {
       const full = rows || [];
       const boardingIndex = full.findIndex((s) => (s.StationCode || "").toUpperCase() === (selectedBoardingCode || "").toUpperCase());
       const stIndex = full.findIndex((s) => (s.StationCode || "").toUpperCase() === (station.StationCode || "").toUpperCase());
       if (boardingIndex !== -1 && stIndex !== -1) {
         const diff = stIndex - boardingIndex;
-        const daysToAdd = diff < 0 ? diff + 1 : diff; // handle wrap to next day
+        const daysToAdd = diff < 0 ? diff + 1 : diff;
         return addDaysToIso(selectedDate, daysToAdd);
       }
     } catch {
@@ -318,7 +309,7 @@ export default function TrainFoodPage() {
     }).toString();
 
     const stationSlug = makeStationSlug(station.StationCode, station.StationName || "");
-    const restroSlug = `${restro?.RestroCode || restro?.restroCode || ""}-${encodeURIComponent(String(restro?.RestroName || restro?.restro_name || "restaurant"))}`;
+    const restroSlug = `${restro?.RestroCode || ""}-${encodeURIComponent(String(restro?.RestroName || restro?.restro_name || "restaurant"))}`;
 
     router.push(`/Stations/${stationSlug}/${encodeURIComponent(restroSlug)}?${qs}`);
   };
@@ -342,7 +333,6 @@ export default function TrainFoodPage() {
           Food delivery stations & restaurants available on this train. Choose journey date and boarding station first.
         </p>
 
-        {/* Modal (hidden when query present) */}
         {showModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
             <form onSubmit={handleModalSubmit} className="w-full max-w-2xl bg-white rounded-lg shadow-lg p-6">
@@ -387,9 +377,6 @@ export default function TrainFoodPage() {
 
         {error && <p className="text-sm text-red-600">{error}</p>}
 
-        {!error && (!rows || rows.length === 0) && <p className="text-sm text-gray-500">No route data available for this train.</p>}
-
-        {/* Find first active station (based on restroCount if available) */}
         {!error && (
           <>
             {(() => {
@@ -415,7 +402,6 @@ export default function TrainFoodPage() {
           </>
         )}
 
-        {/* station list (from boarding onwards) */}
         {!error &&
           (filteredStations || []).map((st) => {
             const hasRestros = (st.restros || []).length > 0;
