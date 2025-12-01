@@ -67,7 +67,7 @@ export default function CheckoutPage() {
   const [name, setName] = useState("");
   const [mobile, setMobile] = useState("");
 
-  // ✅ outlet meta load
+  // ✅ outlet meta load (station + restro)
   useEffect(() => {
     if (typeof window === "undefined") return;
     try {
@@ -96,6 +96,24 @@ export default function CheckoutPage() {
       setOutlet(null);
     }
   }, []);
+
+  // ✅ last train search se auto-fill (sirf jab user Train search se aaya ho)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const lastType = window.localStorage.getItem("re_lastSearchType");
+      const lastTrain = window.localStorage.getItem("re_lastTrainNumber");
+      // sirf tab set karo jab:
+      // 1) last search "train" tha
+      // 2) koi stored train number hai
+      // 3) current trainNo empty hai (station-flow ko override na kare)
+      if (lastType === "train" && lastTrain && !trainNo) {
+        setTrainNo(lastTrain);
+      }
+    } catch (e) {
+      console.warn("Failed to read stored train number", e);
+    }
+  }, [trainNo]);
 
   const canProceed =
     count > 0 &&
@@ -320,8 +338,8 @@ export default function CheckoutPage() {
 
     // 🔹 Cutoff validation (sirf same-date par)
     const { ok, message } = canPlaceOrder(
-      deliveryDate,   // e.g. "2025-11-27"
-      deliveryTime,   // e.g. "01:05"
+      deliveryDate, // e.g. "2025-11-27"
+      deliveryTime, // e.g. "01:05"
       cutoff,
     );
 
