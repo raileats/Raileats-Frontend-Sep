@@ -30,6 +30,7 @@ export default function SearchBox() {
   // train modal state
   const [showTrainModal, setShowTrainModal] = useState(false);
   const [modalTrainNo, setModalTrainNo] = useState("");
+  const [modalTrainName, setModalTrainName] = useState<string | null>(null);
   const [modalStations, setModalStations] = useState<TrainStation[]>([]);
   const [modalLoading, setModalLoading] = useState(false);
   const [modalError, setModalError] = useState<string | null>(null);
@@ -88,27 +89,64 @@ export default function SearchBox() {
         return;
       }
 
-      // show modal and load train route
+      // show modal and load train route — USE /api/train-routes endpoint that returns all route rows
       setModalTrainNo(digits);
+      setModalTrainName(null);
       setModalStations([]);
       setModalError(null);
       setModalLoading(true);
       setShowTrainModal(true);
 
       try {
-        const res = await fetch(`/api/home/train-search?train=${encodeURIComponent(digits)}`, { cache: "no-store" });
+        // Prefer backend endpoint that returns TrainRoute rows for the train number.
+        // Expected response shape (example):
+        // { ok: true, trainName: "Kushinagar Exp", rows: [{ StationCode: "GKP", StationName: "Gorakhpur Jn", Arrives: "19:00:00", ... }, ...] }
+        const res = await fetch(`/api/train-routes?train=${encodeURIComponent(digits)}`, { cache: "no-store" });
         const j = await res.json().catch(() => null);
+
         if (!res.ok || !j?.ok) {
-          setModalError(j?.error || "Train not found");
-          setModalStations([]);
+          // fallback: try older endpoint (/api/home/train-search) to get stations
+          console.warn("train-routes failed, try /api/home/train-search fallback");
+          const r2 = await fetch(`/api/home/train-search?train=${encodeURIComponent(digits)}`, { cache: "no-store" });
+          const j2 = await r2.json().catch(() => null);
+          if (!r2.ok || !j2?.ok) {
+            setModalError(j?.error || j2?.error || "Train not found");
+            setModalStations([]);
+          } else {
+            // map fallback shape
+            const stationsRaw = Array.isArray(j2.stations) ? j2.stations : [];
+            const stations: TrainStation[] = stationsRaw.map((s: any) => ({
+              stationCode: s.stationCode || s.StationCode || "",
+              stationName: s.stationName || s.StationName || "",
+              state: s.state || s.State || null,
+              arrivalTime: s.arrivalTime || s.Arrives || s.Arrival || null,
+            }));
+            setModalStations(stations);
+            setModalTrainName((j2.train && (j2.train.trainName || j2.trainName)) ?? null);
+            if (stations.length) setModalBoarding((prev) => prev || stations[0].stationCode);
+          }
         } else {
-          const stationsRaw = Array.isArray(j.stations) ? j.stations : [];
-          const stations: TrainStation[] = stationsRaw.map((s: any) => ({
-            stationCode: s.stationCode || s.StationCode || "",
-            stationName: s.stationName || s.StationName || "",
-            state: s.state || s.State || null,
-            arrivalTime: s.arrivalTime || s.Arrives || s.Arrival || null,
-          }));
+          // expected primary shape
+          // Try multiple possible keys for trainName and rows
+          const trainName =
+            j.trainName || j.train?.trainName || j.train?.name || j.trainNameRaw || null;
+          const rows = Array.isArray(j.rows) ? j.rows : Array.isArray(j.data) ? j.data : j.stations || [];
+
+          const stations: TrainStation[] = rows.map((r: any) => {
+            // prefer standard column names but fall back to others (CSV screenshot shows StationCode in H, StationName in I)
+            const stationCode = r.StationCode ?? r.stationCode ?? r.station_code ?? r.STATIONCODE ?? "";
+            const stationName = r.StationName ?? r.stationName ?? r.station_name ?? r.STATIONNAME ?? "";
+            const arrival = r.Arrives ?? r.Arrival ?? r.arrivalTime ?? r.arrivesAt ?? null;
+            const state = r.State ?? r.state ?? null;
+            return {
+              stationCode: String(stationCode || "").toUpperCase(),
+              stationName: String(stationName || ""),
+              state,
+              arrivalTime: arrival ? String(arrival).slice(0,5) : null,
+            };
+          });
+
+          setModalTrainName(trainName ?? null);
           setModalStations(stations);
           if (stations.length) setModalBoarding((prev) => prev || stations[0].stationCode);
         }
@@ -133,7 +171,7 @@ export default function SearchBox() {
       localStorage.setItem("re_lastTrainNumber", modalTrainNo);
     } catch {}
 
-    // new: session flag so trains page knows we came from modal selection
+    // session flag so trains page knows we came from modal selection
     try {
       const payload = { train: modalTrainNo, date: modalDate, boarding: modalBoarding };
       sessionStorage.setItem("raileats_train_search", JSON.stringify(payload));
@@ -244,7 +282,9 @@ export default function SearchBox() {
             <div className="flex items-start justify-between">
               <div>
                 <div className="text-sm text-gray-600">Train</div>
-                <div className="text-lg font-semibold">{modalTrainNo}</div>
+                <div className="text-lg font-semibold">
+                  {modalTrainNo}{modalTrainName ? ` — ${modalTrainName}` : ""}
+                </div>
               </div>
               <button onClick={() => setShowTrainModal(false)} className="text-sm px-2 py-1 border rounded">✕</button>
             </div>
@@ -276,7 +316,7 @@ export default function SearchBox() {
                 </select>
 
                 <div className="text-xs text-gray-500 mt-2">
-                  Dropdown lists full route. Pick the station from where you'll board.
+                  Dropdown shows full route from TrainRoute. Pick the station from where you'll board.
                 </div>
               </div>
             </div>
