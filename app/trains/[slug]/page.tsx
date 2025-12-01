@@ -1,14 +1,15 @@
+// app/trains/[slug]/page.tsx
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { makeStationSlug } from "../../lib/stationSlug";
 
 type ApiRestro = {
   restroCode: number | string;
   restroName: string;
   minimumOrder: number | null;
-  openTime?: string | null; // "HH:MM" or null
+  openTime?: string | null;
   closeTime?: string | null;
   category?: "veg" | "non-veg" | "both" | string;
   rating?: number | null;
@@ -19,11 +20,11 @@ type ApiStation = {
   stationCode: string;
   stationName: string;
   state?: string | null;
-  arrivalTime: string | null; // "HH:MM" or null
+  arrivalTime: string | null;
   restroCount: number;
   minOrder: number | null;
   restros: ApiRestro[];
-  index?: number; // position in route
+  index?: number;
 };
 
 type ApiTrainSearchResponse = {
@@ -40,22 +41,56 @@ type ApiTrainSearchResponse = {
 export default function TrainFoodPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const slug = (params?.slug as string) || "";
 
-  // slug format: 11016-train-food-delivery-in-train
   const trainNumberFromSlug = slug.split("-")[0];
 
   const [data, setData] = useState<ApiTrainSearchResponse | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Modal / selection state
-  const [showModal, setShowModal] = useState<boolean>(true);
+  const dateParam = searchParams?.get("date") ?? "";
+  const boardingParam = searchParams?.get("boarding") ?? "";
+
+  // default modal decision: show only when date+boarding aren't present
+  const [showModal, setShowModal] = useState<boolean>(() => {
+    return !(Boolean(dateParam) && Boolean(boardingParam));
+  });
+
   const [selectedDate, setSelectedDate] = useState<string>(() => {
+    if (dateParam) return dateParam;
     const d = new Date();
     return d.toISOString().slice(0, 10);
   });
-  const [selectedBoardingCode, setSelectedBoardingCode] = useState<string | null>(null);
+  const [selectedBoardingCode, setSelectedBoardingCode] = useState<string | null>(() => {
+    return boardingParam || null;
+  });
+
+  // check session flag — if set & matches current train+date+boarding then suppress modal
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem("raileats_train_search");
+      if (!raw) return;
+      const obj = JSON.parse(raw || "{}");
+      // If this session flag matches the current params (train, date, boarding),
+      // then suppress modal and remove flag.
+      if (
+        String(obj.train || "") === String(trainNumberFromSlug || "") &&
+        String(obj.date || "") === String(dateParam || selectedDate || "") &&
+        String(obj.boarding || "") === String(boardingParam || selectedBoardingCode || "")
+      ) {
+        // ensure selected state matches
+        if (obj.date) setSelectedDate(obj.date);
+        if (obj.boarding) setSelectedBoardingCode(obj.boarding);
+        setShowModal(false);
+        sessionStorage.removeItem("raileats_train_search");
+      }
+    } catch (e) {
+      // ignore parse errors
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trainNumberFromSlug, dateParam, boardingParam]);
 
   useEffect(() => {
     if (!trainNumberFromSlug) {
@@ -80,7 +115,6 @@ export default function TrainFoodPage() {
           setError(json.error || "Failed to load train details.");
           setData(null);
         } else {
-          // ensure stations have index
           const stations = (json.stations || []).map((s, i) => ({ ...s, index: i }));
           setData({ ...json, stations });
         }
@@ -96,14 +130,15 @@ export default function TrainFoodPage() {
     load();
   }, [trainNumberFromSlug]);
 
-  // When data arrives, prefill boarding station if not set
   useEffect(() => {
+    if (!showModal && selectedBoardingCode) return;
     if (!data?.stations || data.stations.length === 0) return;
+
     const first = data.stations[0];
-    if (first && !selectedBoardingCode) {
-      setSelectedBoardingCode(first.stationCode);
+    if (first) {
+      setSelectedBoardingCode((prev) => prev ?? first.stationCode);
     }
-  }, [data?.stations]);
+  }, [data, showModal, selectedBoardingCode]);
 
   const formatCurrency = (val: number | null | undefined) => {
     if (val == null || Number.isNaN(Number(val))) return "-";
@@ -119,18 +154,15 @@ export default function TrainFoodPage() {
     return `${code}-${encodeURIComponent(cleanName)}`;
   };
 
-  // Filter stations: only include stations at or after selected boarding station
   const filteredStations = useMemo(() => {
     if (!data?.stations) return [];
     if (!selectedBoardingCode) return data.stations;
 
     const idx = data.stations.findIndex((s) => s.stationCode === selectedBoardingCode);
     if (idx === -1) return data.stations;
-    // only stations from idx to end
     return data.stations.slice(idx).map((s, i) => ({ ...s, index: idx + i }));
   }, [data?.stations, selectedBoardingCode]);
 
-  // From filteredStations, pick only stations that have active restaurants
   const stationsWithActiveRestros = useMemo(() => {
     return filteredStations
       .map((s) => ({
@@ -141,7 +173,6 @@ export default function TrainFoodPage() {
       .filter((s) => (s.restros || []).length > 0);
   }, [filteredStations]);
 
-  // first active station (for header summary)
   const firstActiveStation = stationsWithActiveRestros.length > 0 ? stationsWithActiveRestros[0] : null;
 
   const trainTitleNumber = (data?.train?.trainNumber ?? trainNumberFromSlug) || "Train";
@@ -153,55 +184,14 @@ export default function TrainFoodPage() {
       alert("Please select boarding station.");
       return;
     }
-
-    // find boarding station details
-    const boardingStation = (data?.stations || []).find((s) => s.stationCode === selectedBoardingCode) || null;
-    const arrivalTime = boardingStation?.arrivalTime ?? "";
-
-    // Build outlet meta object compatible with station flow (checkout reads this)
-    const outletMeta: any = {
-      stationCode: selectedBoardingCode,
-      stationName: boardingStation?.stationName ?? "",
-      state: boardingStation?.state ?? "",
-      // restro placeholders — menu page will update these when user opens a restaurant
-      restroCode: null,
-      RestroCode: null,
-      outletName: "",
-      // train specific fields:
-      trainNumber: String(trainTitleNumber),
-      trainName: data?.train?.trainName ?? "",
-      journeyDate: selectedDate, // yyyy-mm-dd
-      arrivalTime, // "HH:MM"
-      // mark source so checkout can detect
-      source: "train",
-    };
-
-    try {
-      if (typeof window !== "undefined") {
-        sessionStorage.setItem("raileats_current_outlet", JSON.stringify(outletMeta));
-        localStorage.setItem("re_lastSearchType", "train");
-        localStorage.setItem("re_lastTrainNumber", String(trainTitleNumber));
-      }
-    } catch (err) {
-      console.warn("sessionStorage/localStorage write failed", err);
-    }
-
-    // close modal & keep selections for page rendering
     setShowModal(false);
-
-    // update URL query so page is shareable
-    try {
-      const url = new URL(window.location.href);
-      url.searchParams.set("date", selectedDate);
-      url.searchParams.set("boarding", selectedBoardingCode);
-      window.history.replaceState({}, "", url.toString());
-    } catch {
-      // ignore
-    }
+    const url = new URL(window.location.href);
+    url.searchParams.set("date", selectedDate);
+    url.searchParams.set("boarding", selectedBoardingCode);
+    window.history.replaceState({}, "", url.toString());
   };
 
   const handleOrderNow = (restro: ApiRestro, station: ApiStation) => {
-    // Pass enough context to menu page so it can filter items by arrivalTime and date
     const arrivalTime = station.arrivalTime ?? "";
     const qs = new URLSearchParams({
       station: station.stationCode,
@@ -213,14 +203,12 @@ export default function TrainFoodPage() {
       arrivalTime,
     }).toString();
 
-    // menu page route: /Stations/[stationSlug]/[restroSlug]?...
     const stationSlug = makeStationSlug(station.stationCode, station.stationName);
     const restroSlug = makeRestroSlug(restro.restroCode, restro.restroName);
 
     router.push(`/Stations/${stationSlug}/${restroSlug}?${qs}`);
   };
 
-  // Loading / error states
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -232,7 +220,6 @@ export default function TrainFoodPage() {
   return (
     <div className="min-h-screen bg-gray-50 pb-10">
       <main className="max-w-5xl mx-auto px-4 py-8">
-        {/* Train heading */}
         <h1 className="text-2xl md:text-3xl font-semibold mb-1">
           Train {trainTitleNumber}
           {trainTitleName}
@@ -241,84 +228,51 @@ export default function TrainFoodPage() {
           Food delivery stations & restaurants available on this train. Choose journey date and boarding station first.
         </p>
 
-        {/* If modal is open, block interaction with page (modal overlays) */}
         {showModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-            <form
-              onSubmit={handleModalSubmit}
-              className="w-full max-w-2xl bg-white rounded-lg shadow-lg p-6"
-            >
+            <form onSubmit={handleModalSubmit} className="w-full max-w-2xl bg-white rounded-lg shadow-lg p-6">
               <div className="mb-4">
                 <div className="text-sm text-gray-500">Train</div>
-                <div className="text-lg font-semibold">
-                  {trainTitleNumber}
-                  {trainTitleName}
-                </div>
+                <div className="text-lg font-semibold">{trainTitleNumber}{trainTitleName}</div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                 <div>
                   <label className="block text-xs text-gray-600 mb-1">Journey date</label>
-                  <input
-                    type="date"
-                    value={selectedDate}
-                    onChange={(e) => setSelectedDate(e.target.value)}
-                    className="w-full border rounded px-3 py-2"
-                    required
-                  />
+                  <input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className="w-full border rounded px-3 py-2" required />
                 </div>
 
                 <div className="md:col-span-2">
                   <label className="block text-xs text-gray-600 mb-1">Boarding station</label>
-                  <select
-                    value={selectedBoardingCode ?? ""}
-                    onChange={(e) => setSelectedBoardingCode(e.target.value)}
-                    className="w-full border rounded px-3 py-2"
-                    required
-                  >
-                    <option value="" disabled>
-                      Select boarding station
-                    </option>
+                  <select value={selectedBoardingCode ?? ""} onChange={(e) => setSelectedBoardingCode(e.target.value)} className="w-full border rounded px-3 py-2" required>
+                    <option value="" disabled>Select boarding station</option>
                     {(data?.stations || []).map((s) => (
                       <option key={s.stationCode} value={s.stationCode}>
-                        {s.stationName} ({s.stationCode}) {s.state ? `- ${s.state}` : ""}
+                        {s.stationName} ({s.stationCode}){s.state ? ` - ${s.state}` : ""}
                       </option>
                     ))}
                   </select>
 
                   <div className="text-xs text-gray-500 mt-2">
-                    Tip: pick the station from where you'll board. After submit you'll see only active restaurants from this station and subsequent stations where the train stops.
+                    Pick the station from where you'll board. After submit you'll see only active restaurants from this station and subsequent stations.
                   </div>
                 </div>
               </div>
 
               <div className="flex justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    // allow user to go back to home instead of selecting
-                    window.location.href = "/";
-                  }}
-                  className="px-4 py-2 rounded border"
-                >
-                  Cancel
-                </button>
-                <button type="submit" className="px-4 py-2 rounded bg-green-600 text-white">
-                  Search & Open
-                </button>
+                <button type="button" onClick={() => { window.location.href = "/"; }} className="px-4 py-2 rounded border">Cancel</button>
+                <button type="submit" className="px-4 py-2 rounded bg-green-600 text-white">Search & Open</button>
               </div>
             </form>
           </div>
         )}
 
-        {/* Error or no-stations */}
         {error && <p className="text-sm text-red-600">{error}</p>}
 
         {!error && !firstActiveStation && !loading && (
           <p className="text-sm text-gray-500">No active restaurants found for the selected boarding station / date.</p>
         )}
 
-        {/* If we have a first active station, show summary block */}
         {!error && firstActiveStation && (
           <section className="mb-6 bg-white rounded-lg shadow-sm border p-4">
             <div className="flex flex-col md:flex-row md:items-center justify-between">
@@ -326,9 +280,7 @@ export default function TrainFoodPage() {
                 <div className="text-sm font-semibold">
                   First active station: {firstActiveStation.stationName}{" "}
                   <span className="text-xs text-gray-500">({firstActiveStation.stationCode})</span>
-                  {firstActiveStation.state ? (
-                    <span className="text-xs text-gray-500"> — {firstActiveStation.state}</span>
-                  ) : null}
+                  {firstActiveStation.state ? <span className="text-xs text-gray-500"> — {firstActiveStation.state}</span> : null}
                 </div>
                 <div className="text-xs text-gray-500 mt-1">
                   Arrival: {firstActiveStation.arrivalTime ?? "-"} on {selectedDate}
@@ -347,23 +299,17 @@ export default function TrainFoodPage() {
           </section>
         )}
 
-        {/* List stations with restaurants */}
         {!error &&
           stationsWithActiveRestros.map((st) => {
             const hasRestros = (st.restros || []).length > 0;
             const stationSlug = makeStationSlug(st.stationCode, st.stationName);
 
             return (
-              <section
-                key={`${st.stationCode}-${st.arrivalTime}-${st.index}`}
-                className="mt-6 bg-white rounded-lg shadow-sm border"
-              >
-                {/* Station header row */}
+              <section key={`${st.stationCode}-${st.arrivalTime}-${st.index}`} className="mt-6 bg-white rounded-lg shadow-sm border">
                 <div className="flex flex-col md:flex-row md:items-center justify-between px-4 py-3 border-b bg-gray-50">
                   <div>
                     <div className="text-sm font-semibold">
-                      {st.stationName}{" "}
-                      <span className="text-xs text-gray-500">({st.stationCode})</span>
+                      {st.stationName} <span className="text-xs text-gray-500">({st.stationCode})</span>
                       {st.state ? <span className="text-xs text-gray-500"> — {st.state}</span> : null}
                     </div>
                     <div className="text-xs text-gray-500 mt-1">
@@ -376,15 +322,11 @@ export default function TrainFoodPage() {
                       Active restaurants: <span className="font-semibold">{st.restroCount ?? st.restros.length}</span>
                     </div>
                     <div className="mt-1">
-                      Min. order from{" "}
-                      <span className="font-semibold">
-                        {formatCurrency(st.minOrder ?? (st.restros?.[0]?.minimumOrder ?? null))}
-                      </span>
+                      Min. order from <span className="font-semibold">{formatCurrency(st.minOrder ?? (st.restros?.[0]?.minimumOrder ?? null))}</span>
                     </div>
                   </div>
                 </div>
 
-                {/* Restaurant cards */}
                 <div className="px-4 py-3">
                   {!hasRestros && (
                     <p className="text-xs text-gray-500">No active restaurants at this station for the selected train/date.</p>
@@ -395,10 +337,7 @@ export default function TrainFoodPage() {
                       {st.restros.map((r) => {
                         const restroSlug = makeRestroSlug(r.restroCode, r.restroName);
                         return (
-                          <div
-                            key={restroSlug}
-                            className="flex items-center justify-between border rounded-md px-3 py-3 hover:shadow-sm transition-shadow"
-                          >
+                          <div key={restroSlug} className="flex items-center justify-between border rounded-md px-3 py-3 hover:shadow-sm transition-shadow">
                             <div>
                               <div className="text-sm font-semibold">{r.restroName}</div>
                               <div className="text-xs text-gray-500 mt-1">
