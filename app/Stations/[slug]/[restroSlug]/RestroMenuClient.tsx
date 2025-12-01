@@ -97,28 +97,42 @@ export default function RestroMenuClient({ header, items }: Props) {
   useEffect(() => {
     if (typeof window === "undefined") return;
     try {
-      const outletMeta = {
+      // parse possible train query params (if menu was opened from train flow)
+      const u = new URL(window.location.href);
+      const train = u.searchParams.get("train") || null;
+      const date = u.searchParams.get("date") || null;
+      const arrivalTime = u.searchParams.get("arrivalTime") || u.searchParams.get("arrival") || null;
+
+      // existing session meta (preserve if present)
+      let existing: any = null;
+      try {
+        const raw = sessionStorage.getItem("raileats_current_outlet");
+        existing = raw ? JSON.parse(raw) : null;
+      } catch {
+        existing = null;
+      }
+
+      const outletMeta: any = {
+        // prefer existing keys if already present
+        stationCode: existing?.stationCode ?? header.stationCode ?? "",
+        stationName: existing?.stationName ?? header.stationName ?? "",
+        state: existing?.state ?? existing?.State ?? undefined,
         restroCode: String(header.restroCode),
-        stationCode: header.stationCode || "",
-        outletName: header.outletName || "",
-        stationName: header.stationName || "",
+        RestroCode: existing?.RestroCode ?? String(header.restroCode),
+        outletName: header.outletName || existing?.outletName || "",
+        // preserve train context if already in existing, otherwise use query params
+        trainNumber: existing?.trainNumber ?? train ?? undefined,
+        trainName: existing?.trainName ?? existing?.train_name ?? undefined,
+        journeyDate: existing?.journeyDate ?? date ?? undefined,
+        arrivalTime: existing?.arrivalTime ?? arrivalTime ?? undefined,
+        // mark source
+        source: existing?.source ?? (train ? "train" : "station"),
       };
 
-      // naya detailed object – checkout/train validation isse use karega
-      sessionStorage.setItem(
-        "raileats_current_outlet",
-        JSON.stringify(outletMeta),
-      );
-
-      // purane simple keys (agar kahin aur use ho rahe hon)
-      sessionStorage.setItem(
-        "raileats_current_restro_code",
-        String(header.restroCode),
-      );
-      sessionStorage.setItem(
-        "raileats_current_station_code",
-        header.stationCode || "",
-      );
+      // write back
+      sessionStorage.setItem("raileats_current_outlet", JSON.stringify(outletMeta));
+      sessionStorage.setItem("raileats_current_restro_code", String(header.restroCode));
+      sessionStorage.setItem("raileats_current_station_code", outletMeta.stationCode || "");
     } catch {
       // ignore storage error
     }
