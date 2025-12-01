@@ -114,8 +114,8 @@ export default function TrainFoodPage() {
           setError(json.error || "Failed to load train details.");
           setData(null);
         } else {
-          // The API returns rows (full route) in json.rows OR json.rows (mapped)
-          const rows = (json.rows || json.stations || json.rows || []) as any[];
+          // The API returns rows (full route) in json.rows OR json.stations
+          const rows = (json.rows || json.stations || []) as any[];
 
           // normalize station objects
           const stations: ApiStation[] = rows.map((r: any, i: number) => {
@@ -384,11 +384,11 @@ export default function TrainFoodPage() {
             <div className="flex flex-col md:flex-row md:items-center justify-between">
               <div>
                 <div className="text-sm font-semibold">
-                  First active station: {firstActiveStation.stationName}{" "}
-                  <span className="text-xs text-gray-500">({firstActiveStation.stationCode})</span>
-                  {firstActiveStation.state ? (
-                    <span className="text-xs text-gray-500"> — {firstActiveStation.state}</span>
-                  ) : null}
+                  First active station: {firstActiveStation.StationName}{" "}
+                  <span className="text-xs text-gray-500">({firstActiveStation.StationCode})</span>
+                  {/*
+                    Note: if you have state in the row, replace below with correct field name (e.g., firstActiveStation.state)
+                  */}
                 </div>
                 <div className="text-xs text-gray-500 mt-1">
                   Arrival: {firstActiveStation.arrivalTime ?? "-"} on {computeArrivalDateForStation(firstActiveStation)}
