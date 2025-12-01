@@ -5,14 +5,11 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { makeStationSlug } from "../../lib/stationSlug";
 
 type ApiRestro = {
-  restroCode: number | string;
-  restroName: string;
-  minimumOrder?: number | null;
-  openTime?: string | null;
-  closeTime?: string | null;
-  category?: string | null;
-  rating?: number | null;
-  isActive?: boolean;
+  RestroCode?: number | string;
+  RestroName?: string;
+  MinimumOrdermValue?: number | null;
+  // admin API may have more fields; keep flexible
+  [k: string]: any;
 };
 
 type ApiStation = {
@@ -22,23 +19,21 @@ type ApiStation = {
   Day?: number | null;
   Arrives?: string | null;
   Departs?: string | null;
-  arrivalTime?: string | null; // normalized HH:MM
+  arrivalTime?: string | null;
   restroCount?: number;
-  minOrder?: number | null;
   restros?: ApiRestro[];
+  minOrder?: number | null;
   index?: number;
 };
 
 type ApiTrainSearchResponse = {
   ok: boolean;
-  train?: {
-    trainNumber?: number | string | null;
-    trainName?: string | null;
-    date?: string | null;
-  };
-  rows?: any[]; // raw rows from API
+  train?: { trainNumber?: number | string; trainName?: string | null };
+  rows?: any[]; // backend rows
   error?: string | null;
 };
+
+const ADMIN_BASE = process.env.NEXT_PUBLIC_ADMIN_APP_URL || "https://admin.raileats.in";
 
 function addDaysToIso(iso: string, days: number) {
   const d = new Date(iso + "T00:00:00");
@@ -56,37 +51,62 @@ function fmtHHMM(hhmm?: string | null) {
   return s.slice(0, 5);
 }
 
+// small concurrency helper to limit parallel admin calls
+async function pMap<T, R>(
+  items: T[],
+  fn: (t: T) => Promise<R>,
+  concurrency = 6,
+) {
+  const out: R[] = [];
+  let idx = 0;
+  const workers = new Array(concurrency).fill(null).map(async () => {
+    while (idx < items.length) {
+      const i = idx++;
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        const res = await fn(items[i]);
+        out[i] = res;
+      } catch (e) {
+        out[i] = null as any;
+      }
+    }
+  });
+  await Promise.all(workers);
+  return out;
+}
+
 export default function TrainFoodPage() {
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
   const slug = (params?.slug as string) || "";
-
-  // slug format: 11016-train-food-delivery-in-train
   const trainNumberFromSlug = slug.split("-")[0];
 
   const queryDate = searchParams?.get("date") || "";
   const queryBoarding = searchParams?.get("boarding") || "";
 
-  const [data, setData] = useState<ApiTrainSearchResponse | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-
-  // Modal / selection state
   const shouldHideModal = Boolean(queryDate && queryBoarding);
   const [showModal, setShowModal] = useState<boolean>(() => !shouldHideModal);
+
   const [selectedDate, setSelectedDate] = useState<string>(() => {
     if (queryDate) return queryDate;
     const d = new Date();
     return d.toISOString().slice(0, 10);
   });
+
   const [selectedBoardingCode, setSelectedBoardingCode] = useState<string | null>(() => {
     return queryBoarding || null;
   });
 
-  // boardingDayValue resolved from route rows (if available)
+  const [data, setData] = useState<ApiTrainSearchResponse | null>(null);
+  const [rows, setRows] = useState<ApiStation[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // boarding day value (if route has Day field)
   const [boardingDayValue, setBoardingDayValue] = useState<number | null>(null);
 
+  // load train route (full) when slug or date changes
   useEffect(() => {
     if (!trainNumberFromSlug) {
       setError("Invalid train number in URL.");
@@ -94,15 +114,15 @@ export default function TrainFoodPage() {
       return;
     }
 
+    let mounted = true;
     const load = async () => {
       try {
         setLoading(true);
         setError(null);
 
-        // fetch full route (API returns rows when station param not provided)
-        const url = `/api/train-routes?train=${encodeURIComponent(trainNumberFromSlug)}&date=${encodeURIComponent(
-          selectedDate,
-        )}`;
+        const url = `/api/train-routes?train=${encodeURIComponent(
+          trainNumberFromSlug,
+        )}&date=${encodeURIComponent(selectedDate)}`;
 
         const res = await fetch(url, { cache: "no-store" });
         const json = (await res.json()) as ApiTrainSearchResponse;
@@ -110,132 +130,153 @@ export default function TrainFoodPage() {
         if (!res.ok || !json.ok) {
           setError(json.error || "Failed to load train details.");
           setData(null);
+          setRows([]);
         } else {
-          // normalise rows into ApiStation[]
-          const rawRows = (json.rows || json.rows || []) as any[];
-          const stations: ApiStation[] = rawRows.map((r: any, i: number) => {
-            const arrives = r.Arrives ?? r.arrival ?? null;
-            const departs = r.Departs ?? null;
-            const arrivalTime = fmtHHMM(arrives || departs || null) || null;
+          // backend returns json.rows (full route rows)
+          const routeRows = (json.rows || []) as any[];
+
+          const stations = routeRows.map((r: any, i: number) => {
+            const arrivalTime = (r.Arrives || r.Departs || "")?.slice(0, 5) || null;
             return {
-              StnNumber: r.StnNumber ?? null,
+              StnNumber: typeof r.StnNumber !== "undefined" ? Number(r.StnNumber) : undefined,
               StationCode: (r.StationCode || "").toUpperCase(),
-              StationName: r.StationName ?? r.stationName ?? "",
+              StationName: r.StationName || r.stationName || r.Station || r.station || "",
               Day: typeof r.Day !== "undefined" && r.Day !== null ? Number(r.Day) : null,
-              Arrives: arrives ?? null,
-              Departs: departs ?? null,
+              Arrives: r.Arrives ?? null,
+              Departs: r.Departs ?? null,
               arrivalTime,
-              restroCount: r.restroCount ?? 0,
-              minOrder: r.minOrder ?? null,
-              restros: r.restros ?? [],
+              restroCount: (r as any).restroCount ?? 0,
+              restros: (r as any).restros ?? [],
               index: i,
             } as ApiStation;
           });
 
-          setData({
-            ok: true,
-            train: json.train ?? { trainNumber: trainNumberFromSlug, trainName: rawRows[0]?.trainName ?? null },
-            rows: stations,
-          });
+          if (!mounted) return;
+          setData(json);
+          setRows(stations);
+
+          // if query had boarding, prefill boardingDayValue
+          if (queryBoarding) {
+            const found = stations.find((s) => (s.StationCode || "").toUpperCase() === (queryBoarding || "").toUpperCase());
+            if (found && typeof found.Day === "number" && found.Day != null) {
+              setBoardingDayValue(Number(found.Day));
+            } else {
+              setBoardingDayValue(null);
+            }
+          }
         }
       } catch (e) {
         console.error("train page fetch error", e);
         setError("Failed to load train details.");
         setData(null);
+        setRows([]);
       } finally {
-        setLoading(false);
+        if (mounted) setLoading(false);
       }
     };
 
     load();
-  }, [trainNumberFromSlug, selectedDate]);
+    return () => {
+      mounted = false;
+    };
+  }, [trainNumberFromSlug, selectedDate, queryBoarding]);
 
-  // when data arrives, set boardingDayValue if boarding station present
+  // when route rows change, if modal open preselect first station
   useEffect(() => {
-    if (!data?.rows || !data.rows.length) return;
-    if (!selectedBoardingCode) {
+    if (!showModal && selectedBoardingCode) return;
+    if (!rows || rows.length === 0) return;
+    const first = rows[0];
+    if (first) setSelectedBoardingCode((prev) => prev ?? first.StationCode);
+  }, [rows, showModal, selectedBoardingCode]);
+
+  // when selectedBoardingCode changes, update boardingDayValue
+  useEffect(() => {
+    if (!selectedBoardingCode || !rows.length) {
       setBoardingDayValue(null);
       return;
     }
-
-    const found = (data.rows as ApiStation[]).find(
-      (s) => (s.StationCode || "").toUpperCase() === (selectedBoardingCode || "").toUpperCase(),
-    );
-    if (found && typeof found.Day !== "undefined" && found.Day !== null) {
+    const found = rows.find((s) => (s.StationCode || "").toUpperCase() === selectedBoardingCode.toUpperCase());
+    if (found && typeof found.Day === "number" && found.Day != null) {
       setBoardingDayValue(Number(found.Day));
     } else {
       setBoardingDayValue(null);
     }
-  }, [data, selectedBoardingCode]);
+  }, [selectedBoardingCode, rows]);
 
-  // When modal open, prefill first station if none selected
-  useEffect(() => {
-    if (!showModal && selectedBoardingCode) return;
-    if (!data?.rows || data.rows.length === 0) return;
-
-    const first = (data.rows as ApiStation[])[0];
-    if (first) {
-      setSelectedBoardingCode((prev) => prev ?? first.StationCode);
-    }
-  }, [data, showModal]);
-
-  const formatCurrency = (val: number | null | undefined) => {
-    if (val == null || Number.isNaN(Number(val))) return "-";
-    return `₹${Number(val).toFixed(0)}`;
-  };
-
-  const makeRestroSlug = (code: string | number, name: string) => {
-    const cleanName = name
-      .trim()
-      .replace(/[^a-zA-Z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "")
-      .toLowerCase();
-    return `${code}-${encodeURIComponent(cleanName)}`;
-  };
-
-  // filteredStations: stations at or after boarding (but keep all if boarding not chosen)
+  // compute filtered (stations from boarding onwards)
   const filteredStations = useMemo(() => {
-    const rows = (data?.rows as ApiStation[]) || [];
+    if (!rows || !rows.length) return [];
     if (!selectedBoardingCode) return rows;
     const idx = rows.findIndex((s) => (s.StationCode || "").toUpperCase() === selectedBoardingCode.toUpperCase());
     if (idx === -1) return rows;
     return rows.slice(idx).map((s, i) => ({ ...s, index: idx + i }));
-  }, [data?.rows, selectedBoardingCode]);
+  }, [rows, selectedBoardingCode]);
 
-  // TEMP: show all filtered stations (do not filter by restros). This helps debug and prevents "no active" blank page.
-  const stationsToShow = useMemo(() => {
-    return (filteredStations || []).map((s) => ({
-      ...s,
-      restros: s.restros ?? [],
-      restroCount: s.restroCount ?? (s.restros ? s.restros.length : 0),
-    }));
+  // fetch restaurants for visible stations (small batches) and update restroCount/restros
+  useEffect(() => {
+    if (!filteredStations.length) return;
+    let mounted = true;
+    const fetchForStations = async () => {
+      // pick only the station codes we need to check
+      const toFetch = filteredStations.map((s) => s.StationCode);
+      // use pMap to limit concurrency
+      const results = await pMap(
+        toFetch,
+        async (stationCode) => {
+          try {
+            // call admin API for station restaurants (same endpoint used on station page)
+            const url = `${ADMIN_BASE.replace(/\/$/, "")}/api/stations/${encodeURIComponent(stationCode)}`;
+            const res = await fetch(url, { cache: "no-store" });
+            if (!res.ok) return { stationCode, restros: [] as ApiRestro[] };
+            const json = await res.json().catch(() => null);
+            const restaurants: ApiRestro[] = (json?.restaurants ?? json?.rows ?? json?.data ?? []) as any[];
+            return { stationCode, restros: restaurants || [] };
+          } catch (e) {
+            return { stationCode, restros: [] as ApiRestro[] };
+          }
+        },
+        6, // concurrency
+      );
+
+      if (!mounted) return;
+
+      // merge counts into rows
+      setRows((prev) =>
+        prev.map((r) => {
+          const found = (results || []).find((x) => (x.stationCode || "").toUpperCase() === (r.StationCode || "").toUpperCase());
+          if (found) {
+            return { ...r, restros: found.restros, restroCount: (found.restros || []).length };
+          }
+          return r;
+        }),
+      );
+    };
+
+    fetchForStations();
+    return () => {
+      mounted = false;
+    };
   }, [filteredStations]);
 
-  // find first station that actually has restros (for summary). If none, fallback to first station.
-  const firstActiveStation =
-    stationsToShow.find((s) => (s.restros || []).length > 0) ?? (stationsToShow.length ? stationsToShow[0] : null);
-
   const trainTitleNumber = (data?.train?.trainNumber ?? trainNumberFromSlug) || "Train";
-  const trainTitleName = data?.train?.trainName ? ` – ${data.train!.trainName}` : "";
+  const trainTitleName = data?.train?.trainName ? ` – ${data.train.trainName}` : "";
 
-  // helper: compute arrival date for a station using Day offsets
+  // compute arrival date for a station based on boardingDayValue or indices
   const computeArrivalDateForStation = (station: ApiStation) => {
-    if (!selectedDate) return selectedDate;
-
-    // If station.Day and boardingDayValue available -> use difference
-    if (typeof station.Day === "number" && boardingDayValue != null) {
+    // if Day fields present and boardingDayValue known:
+    if (typeof station.Day === "number" && boardingDayValue != null && !isNaN(Number(station.Day))) {
       const diff = Number(station.Day) - Number(boardingDayValue);
       return addDaysToIso(selectedDate, diff);
     }
 
-    // fallback: use index diff if possible
+    // fallback: use index difference
     try {
-      const full = (data?.rows as ApiStation[]) || [];
+      const full = rows || [];
       const boardingIndex = full.findIndex((s) => (s.StationCode || "").toUpperCase() === (selectedBoardingCode || "").toUpperCase());
       const stIndex = full.findIndex((s) => (s.StationCode || "").toUpperCase() === (station.StationCode || "").toUpperCase());
       if (boardingIndex !== -1 && stIndex !== -1) {
         const diff = stIndex - boardingIndex;
-        const daysToAdd = diff < 0 ? diff + 1 : diff;
+        const daysToAdd = diff < 0 ? diff + 1 : diff; // handle wrap to next day
         return addDaysToIso(selectedDate, daysToAdd);
       }
     } catch {
@@ -245,14 +286,17 @@ export default function TrainFoodPage() {
     return selectedDate;
   };
 
+  const formatCurrency = (val?: number | null) => {
+    if (val == null || Number.isNaN(Number(val))) return "-";
+    return `₹${Number(val).toFixed(0)}`;
+  };
+
   const handleModalSubmit = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!selectedBoardingCode) {
       alert("Please select boarding station.");
       return;
     }
-
-    // hide modal and update URL query params
     setShowModal(false);
     const url = new URL(window.location.href);
     url.searchParams.set("date", selectedDate);
@@ -266,17 +310,17 @@ export default function TrainFoodPage() {
     const qs = new URLSearchParams({
       station: station.StationCode,
       stationName: station.StationName || "",
-      restro: String(restro.restroCode),
-      restroName: String(restro.restroName || ""),
+      restro: String(restro?.RestroCode || restro?.restroCode || ""),
+      restroName: String(restro?.RestroName || restro?.restro_name || ""),
       train: String(trainTitleNumber),
       date: arrivalDate,
       arrivalTime,
     }).toString();
 
     const stationSlug = makeStationSlug(station.StationCode, station.StationName || "");
-    const restroSlug = makeRestroSlug(restro.restroCode, restro.restroName);
+    const restroSlug = `${restro?.RestroCode || restro?.restroCode || ""}-${encodeURIComponent(String(restro?.RestroName || restro?.restro_name || "restaurant"))}`;
 
-    router.push(`/Stations/${stationSlug}/${restroSlug}?${qs}`);
+    router.push(`/Stations/${stationSlug}/${encodeURIComponent(restroSlug)}?${qs}`);
   };
 
   if (loading) {
@@ -298,7 +342,7 @@ export default function TrainFoodPage() {
           Food delivery stations & restaurants available on this train. Choose journey date and boarding station first.
         </p>
 
-        {/* Modal */}
+        {/* Modal (hidden when query present) */}
         {showModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
             <form onSubmit={handleModalSubmit} className="w-full max-w-2xl bg-white rounded-lg shadow-lg p-6">
@@ -313,98 +357,70 @@ export default function TrainFoodPage() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                 <div>
                   <label className="block text-xs text-gray-600 mb-1">Journey date</label>
-                  <input
-                    type="date"
-                    value={selectedDate}
-                    onChange={(e) => setSelectedDate(e.target.value)}
-                    className="w-full border rounded px-3 py-2"
-                    required
-                  />
+                  <input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className="w-full border rounded px-3 py-2" required />
                 </div>
 
                 <div className="md:col-span-2">
                   <label className="block text-xs text-gray-600 mb-1">Boarding station</label>
-                  <select
-                    value={selectedBoardingCode ?? ""}
-                    onChange={(e) => setSelectedBoardingCode(e.target.value)}
-                    className="w-full border rounded px-3 py-2"
-                    required
-                  >
+                  <select value={selectedBoardingCode ?? ""} onChange={(e) => setSelectedBoardingCode(e.target.value)} className="w-full border rounded px-3 py-2" required>
                     <option value="" disabled>
                       Select boarding station
                     </option>
-                    {(data?.rows || []).map((s: ApiStation) => (
+                    {(rows || []).map((s) => (
                       <option key={s.StationCode} value={s.StationCode}>
-                        {s.StationName} ({s.StationCode}) {s.Day ? ` — day ${s.Day}` : ""}
+                        {s.StationName} ({s.StationCode}){s.Day ? ` — day ${s.Day}` : ""}
                       </option>
                     ))}
                   </select>
 
-                  <div className="text-xs text-gray-500 mt-2">
-                    Dropdown shows full route from TrainRoute. Pick the station from where you'll board.
-                  </div>
+                  <div className="text-xs text-gray-500 mt-2">Dropdown shows full route from TrainRoute. Pick the station from where you'll board.</div>
                 </div>
               </div>
 
               <div className="flex justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    window.location.href = "/";
-                  }}
-                  className="px-4 py-2 rounded border"
-                >
-                  Cancel
-                </button>
-                <button type="submit" className="px-4 py-2 rounded bg-green-600 text-white">
-                  Search & Open
-                </button>
+                <button type="button" onClick={() => (window.location.href = "/")} className="px-4 py-2 rounded border">Cancel</button>
+                <button type="submit" className="px-4 py-2 rounded bg-green-600 text-white">Search & Open</button>
               </div>
             </form>
           </div>
         )}
 
-        {/* Error */}
         {error && <p className="text-sm text-red-600">{error}</p>}
 
-        {/* No active restaurants message (if truly none) */}
-        {!error && !firstActiveStation && !loading && (
-          <p className="text-sm text-gray-500">No active restaurants found for the selected boarding station / date.</p>
+        {!error && (!rows || rows.length === 0) && <p className="text-sm text-gray-500">No route data available for this train.</p>}
+
+        {/* Find first active station (based on restroCount if available) */}
+        {!error && (
+          <>
+            {(() => {
+              const firstActive = (rows || []).find((r) => (r.restroCount || 0) > 0) ?? null;
+              if (!firstActive) return null;
+              return (
+                <section className="mb-6 bg-white rounded-lg shadow-sm border p-4">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between">
+                    <div>
+                      <div className="text-sm font-semibold">
+                        First active station: {firstActive.StationName} <span className="text-xs text-gray-500">({firstActive.StationCode})</span>
+                      </div>
+                      <div className="text-xs text-gray-500 mt-1">Arrival: {firstActive.arrivalTime ?? "-"} on {computeArrivalDateForStation(firstActive)}</div>
+                    </div>
+                    <div className="mt-3 md:mt-0 text-right text-xs text-gray-600">
+                      <div>Active restaurants: <span className="font-semibold">{firstActive.restroCount}</span></div>
+                      <div className="mt-1">Min. order: <span className="font-semibold">{formatCurrency(firstActive.minOrder)}</span></div>
+                    </div>
+                  </div>
+                </section>
+              );
+            })()}
+          </>
         )}
 
-        {/* Summary block */}
-        {!error && firstActiveStation && (
-          <section className="mb-6 bg-white rounded-lg shadow-sm border p-4">
-            <div className="flex flex-col md:flex-row md:items-center justify-between">
-              <div>
-                <div className="text-sm font-semibold">
-                  First active station: {firstActiveStation.StationName}{" "}
-                  <span className="text-xs text-gray-500">({firstActiveStation.StationCode})</span>
-                </div>
-                <div className="text-xs text-gray-500 mt-1">
-                  Arrival: {firstActiveStation.arrivalTime ?? "-"} on {computeArrivalDateForStation(firstActiveStation)}
-                </div>
-              </div>
-
-              <div className="mt-3 md:mt-0 text-right text-xs text-gray-600">
-                <div>
-                  Active restaurants: <span className="font-semibold">{firstActiveStation.restroCount}</span>
-                </div>
-                <div className="mt-1">
-                  Min. order: <span className="font-semibold">{formatCurrency(firstActiveStation.minOrder)}</span>
-                </div>
-              </div>
-            </div>
-          </section>
-        )}
-
-        {/* Stations list (temporary: show all filtered stations) */}
+        {/* station list (from boarding onwards) */}
         {!error &&
-          stationsToShow.map((st) => {
+          (filteredStations || []).map((st) => {
             const hasRestros = (st.restros || []).length > 0;
             const stationSlug = makeStationSlug(st.StationCode, st.StationName || "");
             const arrivalDateForThisStation = computeArrivalDateForStation(st);
-
             return (
               <section key={`${st.StationCode}-${st.Arrives}-${st.index}`} className="mt-6 bg-white rounded-lg shadow-sm border">
                 <div className="flex flex-col md:flex-row md:items-center justify-between px-4 py-3 border-b bg-gray-50">
@@ -413,17 +429,13 @@ export default function TrainFoodPage() {
                       {st.StationName} <span className="text-xs text-gray-500">({st.StationCode})</span>
                       {st.Day ? <span className="text-xs text-gray-500"> — Day {st.Day}</span> : null}
                     </div>
-                    <div className="text-xs text-gray-500 mt-1">
-                      Arrival: {st.arrivalTime ?? "-"} on {arrivalDateForThisStation}
-                    </div>
+                    <div className="text-xs text-gray-500 mt-1">Arrival: {st.arrivalTime ?? "-"} on {arrivalDateForThisStation}</div>
                   </div>
 
                   <div className="mt-2 md:mt-0 text-xs text-right text-gray-600">
-                    <div>
-                      Active restaurants: <span className="font-semibold">{st.restroCount ?? (st.restros?.length ?? 0)}</span>
-                    </div>
+                    <div>Active restaurants: <span className="font-semibold">{st.restroCount ?? (st.restros?.length ?? 0)}</span></div>
                     <div className="mt-1">
-                      Min. order from <span className="font-semibold">{formatCurrency(st.minOrder ?? (st.restros?.[0]?.minimumOrder ?? null))}</span>
+                      Min. order from <span className="font-semibold">{formatCurrency(st.minOrder ?? (st.restros?.[0]?.MinimumOrdermValue ?? null))}</span>
                     </div>
                   </div>
                 </div>
@@ -434,13 +446,13 @@ export default function TrainFoodPage() {
                   {hasRestros && (
                     <div className="space-y-3">
                       {st.restros!.map((r) => {
-                        const restroSlug = makeRestroSlug(r.restroCode, r.restroName);
+                        const restroSlug = `${r.RestroCode || ""}-${encodeURIComponent(String(r.RestroName || "restro"))}`;
                         return (
-                          <div key={restroSlug} className="flex items-center justify-between border rounded-md px-3 py-3 hover:shadow-sm transition-shadow">
+                          <div key={String(r.RestroCode || r.RestroName)} className="flex items-center justify-between border rounded-md px-3 py-3 hover:shadow-sm transition-shadow">
                             <div>
-                              <div className="text-sm font-semibold">{r.restroName}</div>
+                              <div className="text-sm font-semibold">{r.RestroName}</div>
                               <div className="text-xs text-gray-500 mt-1">
-                                Open: {r.openTime ?? "—"} — {r.closeTime ?? "—"} • Min {formatCurrency(r.minimumOrder ?? st.minOrder)}
+                                Open: {r.OpenTime ?? "—"} — {r.ClosedTime ?? "—"} • Min {formatCurrency(r.MinimumOrdermValue ?? st.minOrder)}
                               </div>
                               <div className="text-xs text-gray-500 mt-1">Category: {r.category ?? "—"} • Rating: {r.rating ?? "—"}</div>
                               <div className="text-xs text-gray-500 mt-1">Delivery when train arrives: {st.arrivalTime ?? "-"} on {arrivalDateForThisStation}</div>
