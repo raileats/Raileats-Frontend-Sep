@@ -252,4 +252,60 @@ export default function SearchBox() {
                 <div className="text-sm text-gray-600">Train</div>
                 <div className="text-lg font-semibold">{modalTrainNo}</div>
               </div>
-              <button onClick={() => setShowTrainModal(false)} clas
+              <button onClick={() => setShowTrainModal(false)} className="text-sm px-2 py-1 border rounded">✕</button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-4">
+              <div>
+                <label className="text-xs text-gray-600 block mb-1">Journey date</label>
+                <input
+                  type="date"
+                  value={modalDate}
+                  onChange={(e) => setModalDate(e.target.value)}
+                  className="w-full border rounded px-3 py-2"
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="text-xs text-gray-600 block mb-1">Boarding station</label>
+                <select
+                  value={modalBoarding}
+                  onChange={(e) => setModalBoarding(e.target.value)}
+                  className="w-full border rounded px-3 py-2"
+                >
+                  <option value="" disabled>Select boarding station</option>
+                  {/* show all route stations — include badge for active outlets */}
+                  {modalStations.map((s) => (
+                    <option key={s.stationCode} value={s.stationCode}>
+                      {s.stationName} ({s.stationCode}){s.state ? ` • ${s.state}` : ""} {s.restroCount ? ` — ${s.restroCount} outlets` : ""}
+                    </option>
+                  ))}
+                </select>
+
+                <div className="text-xs text-gray-500 mt-2">
+                  Dropdown lists full route. Stations with active outlets show outlet count.
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-4">
+              {modalLoading && <div className="text-sm text-gray-500">Loading route…</div>}
+              {modalError && <div className="text-sm text-red-600">{modalError}</div>}
+            </div>
+
+            <div className="mt-4 flex justify-end gap-3">
+              <button className="px-4 py-2 rounded border" onClick={() => setShowTrainModal(false)}>Cancel</button>
+              <button
+                className="px-4 py-2 rounded bg-green-600 text-white"
+                onClick={onModalSearchSubmit}
+                disabled={modalLoading || !modalBoarding}
+              >
+                Search & Open
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
