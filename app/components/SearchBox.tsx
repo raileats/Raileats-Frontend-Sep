@@ -1,3 +1,4 @@
+// app/components/SearchBox.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -9,7 +10,6 @@ type TrainStation = {
   stationName: string;
   state?: string | null;
   arrivalTime?: string | null;
-  restroCount?: number; // number of active restaurants (if API returns)
 };
 
 function makeTrainSlug(trainNoRaw: string) {
@@ -47,7 +47,6 @@ export default function SearchBox() {
     return val.trim();
   };
 
-  /* ---------------- handleSearch ---------------- */
   const handleSearch = async () => {
     if (!inputValue || inputValue.trim() === "") {
       alert("Please enter value");
@@ -55,7 +54,6 @@ export default function SearchBox() {
     }
     setLoading(true);
 
-    /* Station search */
     if (searchType === "station") {
       const rawCode =
         selectedStation?.StationCode ?? extractStationCode(inputValue);
@@ -76,13 +74,11 @@ export default function SearchBox() {
       return;
     }
 
-    /* PNR search */
     if (searchType === "pnr") {
       setTimeout(() => (window.location.href = `/pnr/${encodeURIComponent(inputValue.trim())}`), 50);
       return;
     }
 
-    /* TRAIN search - show modal on same page */
     if (searchType === "train") {
       const raw = inputValue.trim();
       const digits = raw.replace(/\D+/g, "");
@@ -107,16 +103,13 @@ export default function SearchBox() {
           setModalStations([]);
         } else {
           const stationsRaw = Array.isArray(j.stations) ? j.stations : [];
-          // map to TrainStation and ensure fields
           const stations: TrainStation[] = stationsRaw.map((s: any) => ({
             stationCode: s.stationCode || s.StationCode || "",
             stationName: s.stationName || s.StationName || "",
             state: s.state || s.State || null,
             arrivalTime: s.arrivalTime || s.Arrives || s.Arrival || null,
-            restroCount: typeof s.restroCount === "number" ? s.restroCount : (Array.isArray(s.restros) ? s.restros.length : 0),
           }));
           setModalStations(stations);
-          // default boarding to first station if exists
           if (stations.length) setModalBoarding((prev) => prev || stations[0].stationCode);
         }
       } catch (err) {
@@ -131,20 +124,21 @@ export default function SearchBox() {
     }
   };
 
-  /* ---------------- onModalSearchSubmit ----------------
-     - When user picks boarding + date and clicks "Search & Open"
-     - Set session/local storage and navigate to /trains/:slug
-  */
+  // <-- IMPORTANT: set sessionStorage flag before navigation -->
   const onModalSearchSubmit = () => {
     if (!modalTrainNo) return alert("Train missing");
     if (!modalBoarding) return alert("Please pick boarding station");
-    // persist last search
     try {
       localStorage.setItem("re_lastSearchType", "train");
       localStorage.setItem("re_lastTrainNumber", modalTrainNo);
-    } catch { /* ignore */ }
+    } catch {}
 
-    // build slug and navigate with query params so trains page & menu can read
+    // new: session flag so trains page knows we came from modal selection
+    try {
+      const payload = { train: modalTrainNo, date: modalDate, boarding: modalBoarding };
+      sessionStorage.setItem("raileats_train_search", JSON.stringify(payload));
+    } catch {}
+
     const slug = makeTrainSlug(modalTrainNo);
     const qs = new URLSearchParams({
       date: modalDate,
@@ -243,7 +237,7 @@ export default function SearchBox() {
         </div>
       </div>
 
-      {/* TRAIN MODAL (shown on Home when searching train) */}
+      {/* TRAIN MODAL */}
       {showTrainModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-2xl bg-white rounded-lg shadow p-5">
@@ -274,16 +268,15 @@ export default function SearchBox() {
                   className="w-full border rounded px-3 py-2"
                 >
                   <option value="" disabled>Select boarding station</option>
-                  {/* show all route stations — include badge for active outlets */}
                   {modalStations.map((s) => (
                     <option key={s.stationCode} value={s.stationCode}>
-                      {s.stationName} ({s.stationCode}){s.state ? ` • ${s.state}` : ""} {s.restroCount ? ` — ${s.restroCount} outlets` : ""}
+                      {s.stationName} ({s.stationCode}){s.state ? ` • ${s.state}` : ""}
                     </option>
                   ))}
                 </select>
 
                 <div className="text-xs text-gray-500 mt-2">
-                  Dropdown lists full route. Stations with active outlets show outlet count.
+                  Dropdown lists full route. Pick the station from where you'll board.
                 </div>
               </div>
             </div>
