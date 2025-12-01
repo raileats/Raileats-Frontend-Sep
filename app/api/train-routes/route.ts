@@ -118,13 +118,11 @@ export async function GET(req: Request) {
       return NextResponse.json({ ok: false, error: "train_not_found" }, { status: 404 });
     }
 
-    // If caller only asked for train route (no station param) -> return full route (optionally can filter by runningDays)
+    // If caller only asked for train route (no station param) -> return full route (optionally filter by runningDays)
     if (!stationParam) {
-      // Optionally filter route by running day (only those rows where train runs on dateParam)
       const rowsForDate = allRows.filter((r) => matchesRunningDay(r.runningDays, dateParam));
       const rowsToReturn = rowsForDate.length ? rowsForDate : allRows;
 
-      // normalize rows for frontend (only necessary fields)
       const mapped = rowsToReturn.map((r) => ({
         StnNumber: r.StnNumber,
         StationCode: String(r.StationCode ?? "").toUpperCase(),
@@ -134,18 +132,21 @@ export async function GET(req: Request) {
         Platform: r.Platform,
         Distance: r.Distance,
         runningDays: r.runningDays,
-        raw: r,
+        Day: r.Day ?? null,
       }));
 
       const trainName = allRows[0].trainName ?? null;
 
-      return NextResponse.json({ ok: true, train: { trainNumber: trainParam, trainName }, rows: mapped }, { status: 200 });
+      return NextResponse.json(
+        { ok: true, train: { trainNumber: trainParam, trainName }, rows: mapped },
+        { status: 200 },
+      );
     }
 
     // ---------- station-specific flow (backwards compatible) ----------
     const stationCode = stationParam.toUpperCase();
 
-    // Apply running-day filter to route
+    // Apply running-day filter to route (to know which rows are valid on date)
     const dayRows = allRows.filter((r) => matchesRunningDay(r.runningDays, dateParam));
     if (!dayRows.length) {
       return NextResponse.json({ ok: false, error: "not_running_on_date", meta: { train: trainParam, date: dateParam } }, { status: 400 });
@@ -157,7 +158,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ ok: false, error: "station_not_on_route", meta: { train: trainParam, stationCode } }, { status: 400 });
     }
 
-    const rows = stationRows; // these are used for checks below
+    const rows = stationRows;
     const first = rows[0];
     const rawArr = ((first.Arrives || first.Departs || "") as string).slice(0, 5) || null;
     const arrivalMinutes = toMinutes(rawArr);
@@ -277,7 +278,19 @@ export async function GET(req: Request) {
       }
     }
 
-    // success: respond with the station-specific rows and meta
+    // prepare a full-route mapping (useful for frontend dropdowns and date/day calculations)
+    const fullRouteMapped = allRows.map((r) => ({
+      StnNumber: r.StnNumber,
+      StationCode: String(r.StationCode ?? "").toUpperCase(),
+      StationName: r.StationName,
+      Arrives: r.Arrives,
+      Departs: r.Departs,
+      Platform: r.Platform,
+      Distance: r.Distance,
+      Day: r.Day ?? null,
+    }));
+
+    // success: respond with the station-specific rows and meta (include boardingDay and fullRoute)
     return NextResponse.json({
       ok: true,
       rows,
@@ -288,6 +301,9 @@ export async function GET(req: Request) {
         date: dateParam,
         count: rows.length,
         arrival: arrivalHHMM,
+        boardingDay: first.Day ?? null,
+        fullRoute: fullRouteMapped,
+        trainName: allRows[0]?.trainName ?? null,
       },
     });
   } catch (e) {
