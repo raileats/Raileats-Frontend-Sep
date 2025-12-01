@@ -1,4 +1,3 @@
-// app/checkout/page.tsx
 "use client";
 import { canPlaceOrder } from "../utils/checkCutoff";
 
@@ -12,13 +11,20 @@ type OutletMeta = {
   stationCode: string;
   stationName?: string;
   restroCode?: string | number;
-  RestroCode?: string | number; // sessionStorage me kabhi-kabhi aise aa sakta hai
+  RestroCode?: string | number;
   outletName?: string;
 
   // cutoff info (RestroMaster se sessionStorage me aa sakta hai)
   CutOffTime?: number;
   cutOffTime?: number;
   cutoffMinutes?: number;
+
+  // train context (optional)
+  source?: string;
+  trainNumber?: string;
+  trainName?: string;
+  journeyDate?: string; // yyyy-mm-dd
+  arrivalTime?: string; // HH:MM
 };
 
 type TrainRouteRow = {
@@ -53,6 +59,7 @@ export default function CheckoutPage() {
 
   // train search state
   const [trainNo, setTrainNo] = useState("");
+  const [trainName, setTrainName] = useState("");
   const [deliveryDate, setDeliveryDate] = useState(todayYMD());
   const [deliveryTime, setDeliveryTime] = useState<string>("");
   const [trainOptions, setTrainOptions] = useState<TrainRouteRow[]>([]);
@@ -66,6 +73,9 @@ export default function CheckoutPage() {
   const [seat, setSeat] = useState("");
   const [name, setName] = useState("");
   const [mobile, setMobile] = useState("");
+
+  // whether this checkout was prefilled by train flow (non-editable fields)
+  const [lockedTrainFlow, setLockedTrainFlow] = useState(false);
 
   // ✅ outlet meta load (station + restro)
   useEffect(() => {
@@ -89,6 +99,15 @@ export default function CheckoutPage() {
       }
       setOutlet(meta);
       setMetaError("");
+
+      // If meta.source === "train", prefill train fields and lock them
+      if (meta.source === "train") {
+        if (meta.trainNumber) setTrainNo(String(meta.trainNumber));
+        if (meta.trainName) setTrainName(String(meta.trainName));
+        if (meta.journeyDate) setDeliveryDate(String(meta.journeyDate));
+        if (meta.arrivalTime) setDeliveryTime(String(meta.arrivalTime));
+        setLockedTrainFlow(true);
+      }
     } catch {
       setMetaError(
         "Could not read station details. Please go back and select outlet again.",
@@ -97,27 +116,24 @@ export default function CheckoutPage() {
     }
   }, []);
 
-  // ✅ last train search se auto-fill (sirf jab user Train search se aaya ho)
+  // ✅ last train search se auto-fill (sirf jab user Train search se aaya ho and not already locked by session)
   useEffect(() => {
     if (typeof window === "undefined") return;
     try {
+      if (lockedTrainFlow) return; // don't override locked train flow
       const lastType = window.localStorage.getItem("re_lastSearchType");
       const lastTrain = window.localStorage.getItem("re_lastTrainNumber");
-      // sirf tab set karo jab:
-      // 1) last search "train" tha
-      // 2) koi stored train number hai
-      // 3) current trainNo empty hai (station-flow ko override na kare)
       if (lastType === "train" && lastTrain && !trainNo) {
         setTrainNo(lastTrain);
       }
     } catch (e) {
       console.warn("Failed to read stored train number", e);
     }
-  }, [trainNo]);
+  }, [trainNo, lockedTrainFlow]);
 
   const canProceed =
     count > 0 &&
-    trainNo.trim().length >= 4 &&
+    trainNo.trim().length >= 3 &&
     deliveryDate &&
     deliveryTime &&
     pnr.trim().length >= 6 &&
@@ -128,6 +144,7 @@ export default function CheckoutPage() {
 
   /* ------------ TRAIN SEARCH ------------ */
   async function searchTrain() {
+    if (lockedTrainFlow) return; // do not allow searching when locked by train flow
     if (!outlet?.stationCode) {
       setMetaError(
         "Station not detected. Please go back and select the outlet again.",
@@ -151,16 +168,13 @@ export default function CheckoutPage() {
       params.set("station", outlet.stationCode);
       params.set("date", deliveryDate);
 
-      // cart item names (item timing check ke liye)
       const itemNames = items.map((l) => l.name).filter(Boolean);
       if (itemNames.length) {
         params.set("items", JSON.stringify(itemNames));
       }
 
-      // subtotal (MinimumOrdermValue check ke liye)
       params.set("subtotal", String(total || 0));
 
-      // RestroCode ko har possible key se nikaalo
       const restroCodeForApi =
         outlet.restroCode ??
         outlet.RestroCode ??
@@ -176,7 +190,6 @@ export default function CheckoutPage() {
       });
       const json = await res.json().catch(() => ({} as any));
 
-      // ---- error handling ----
       if (!json?.ok) {
         const err = json?.error as string | undefined;
         const meta = json?.meta || {};
@@ -232,7 +245,6 @@ export default function CheckoutPage() {
           return;
         }
 
-        // 🔴 cutoff: purana "restro_cutoff" + naya "cutoff_exceeded" dono handle
         if (err === "restro_cutoff" || err === "cutoff_exceeded") {
           alert("Selected Restro Booking closed for this train.");
           setDeliveryTime("");
@@ -280,7 +292,6 @@ export default function CheckoutPage() {
           setTrainMsg(
             `MinimumOrdermValue is ₹${minOrder}. Kindly add more item to complete your order.`,
           );
-          // popup nahi, sirf upar red message
           return;
         }
 
@@ -302,6 +313,9 @@ export default function CheckoutPage() {
       const first = rows[0];
       const arr = (first.Arrives || first.Departs || "").slice(0, 5);
       setDeliveryTime(arr);
+
+      // also fill trainName if provided by API meta
+      if (json.train?.trainName) setTrainName(String(json.train.trainName));
 
       const stationLabel =
         (first.StationCode || outlet.stationCode || "") +
@@ -327,7 +341,6 @@ export default function CheckoutPage() {
       return;
     }
 
-    // 🔹 Restro CutOffTime (minutes) outlet meta se nikaalo
     const anyOutlet = outlet as any;
     const cutoffRaw =
       anyOutlet?.CutOffTime ??
@@ -336,19 +349,13 @@ export default function CheckoutPage() {
       0;
     const cutoff = Number(cutoffRaw) || 0;
 
-    // 🔹 Cutoff validation (sirf same-date par)
-    const { ok, message } = canPlaceOrder(
-      deliveryDate, // e.g. "2025-11-27"
-      deliveryTime, // e.g. "01:05"
-      cutoff,
-    );
+    const { ok, message } = canPlaceOrder(deliveryDate, deliveryTime, cutoff);
 
     if (!ok) {
       alert(message || "Booking closed for this delivery time.");
-      return; // ❌ aage draft/save mat karo
+      return;
     }
 
-    // ✅ yahan aaya matlab cutoff pass ho gaya
     const draft = {
       id: "DRAFT_" + Date.now(),
       items: items.map((l) => ({
@@ -507,24 +514,39 @@ export default function CheckoutPage() {
             <div className="space-y-3 mb-3">
               <div className="flex gap-2 items-end">
                 <div className="flex-1">
-                  <label className="text-sm block mb-1">
-                    Train number (at station)
-                  </label>
+                  <label className="text-sm block mb-1">Train number (at station)</label>
                   <input
                     className="input"
                     value={trainNo}
                     onChange={(e) => setTrainNo(e.target.value)}
                     placeholder="e.g. 11016"
+                    readOnly={lockedTrainFlow}
                   />
                 </div>
-                <button
-                  type="button"
-                  className="rounded px-3 py-2 text-sm bg-blue-600 text-white"
-                  onClick={searchTrain}
-                  disabled={trainLoading}
-                >
-                  {trainLoading ? "Searching…" : "Search"}
-                </button>
+
+                {/* only show search if not locked by train flow */}
+                {!lockedTrainFlow && (
+                  <button
+                    type="button"
+                    className="rounded px-3 py-2 text-sm bg-blue-600 text-white"
+                    onClick={searchTrain}
+                    disabled={trainLoading}
+                  >
+                    {trainLoading ? "Searching…" : "Search"}
+                  </button>
+                )}
+              </div>
+
+              {/* Train name (read-only if train flow) */}
+              <div>
+                <label className="text-sm block mb-1">Train name</label>
+                <input
+                  className="input"
+                  value={trainName}
+                  onChange={(e) => setTrainName(e.target.value)}
+                  placeholder="Train name"
+                  readOnly={lockedTrainFlow}
+                />
               </div>
 
               <div className="flex gap-3">
@@ -535,6 +557,7 @@ export default function CheckoutPage() {
                     className="input"
                     value={deliveryDate}
                     onChange={(e) => setDeliveryDate(e.target.value)}
+                    readOnly={lockedTrainFlow}
                   />
                 </div>
                 <div className="flex-1">
@@ -544,6 +567,7 @@ export default function CheckoutPage() {
                     value={deliveryTime}
                     onChange={(e) => setDeliveryTime(e.target.value)}
                     placeholder="HH:MM"
+                    readOnly={lockedTrainFlow}
                   />
                 </div>
               </div>
