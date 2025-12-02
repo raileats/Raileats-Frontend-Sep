@@ -60,7 +60,8 @@ export default function TrainAutocomplete({ value, onChange, onSelect = () => {}
         console.debug("[TrainAutocomplete] trying eq search for", digitsOnly);
         const { data: eqData, error: eqError } = await supabase
           .from("TrainRoute")
-          .select("trainId, trainNumber, trainName, trainNumber_text")
+          .select(`"trainId","trainNumber","trainName","trainNumber_text"`)
+
           .eq("trainNumber", Number(digitsOnly))
           .limit(50);
 
