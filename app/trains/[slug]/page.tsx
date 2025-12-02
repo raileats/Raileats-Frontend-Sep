@@ -38,9 +38,8 @@ type ApiTrainSearchResponse = {
     trainName: string | null;
     date?: string | null;
   };
-  // some backends use `rows`, some `stations` — accept both
   rows?: ApiStation[];
-  stations?: ApiStation[];
+  stations?: ApiStation[]; // some responses use `stations`
   meta?: any;
   error?: string;
 };
@@ -52,11 +51,6 @@ function addDaysToIso(iso: string, days: number) {
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const dd = String(d.getDate()).padStart(2, "0");
   return `${y}-${m}-${dd}`;
-}
-
-function fmtHHMM(hhmm?: string | null) {
-  if (!hhmm) return "";
-  return String(hhmm).slice(0, 5);
 }
 
 export default function TrainFoodPage() {
@@ -84,6 +78,11 @@ export default function TrainFoodPage() {
     return queryBoarding || null;
   });
 
+  // debug UI state
+  const [debugShowRaw, setDebugShowRaw] = useState<boolean>(false);
+  const [debugSearchCode, setDebugSearchCode] = useState<string>("1004");
+  const [debugSearchResult, setDebugSearchResult] = useState<any[]>([]);
+
   const [boardingDayValue, setBoardingDayValue] = useState<number | null>(null);
 
   useEffect(() => {
@@ -109,13 +108,10 @@ export default function TrainFoodPage() {
           setError(json.error || "Failed to load train details.");
           setData(null);
         } else {
-          // pick rows OR stations (fallback)
-          const rawRows = (json.rows && Array.isArray(json.rows) ? json.rows : json.stations && Array.isArray(json.stations) ? json.stations : []) as any[];
+          const rawRows = (Array.isArray(json.rows) ? json.rows : Array.isArray(json.stations) ? json.stations : []) as any[];
 
-          // normalize structure so frontend fields are consistent
           const stations: ApiStation[] = rawRows.map((r: any, i: number) => {
-            // arrivalTime: prefer Arrives/Departs trimmed to HH:MM, else arrivalTime if provided
-            const arrivalTime = (r.Arrives || r.Departs || r.arrivalTime || "") ? String((r.Arrives || r.Departs || r.arrivalTime || "")).slice(0, 5) : null;
+            const arrivalTime = (r.Arrives || r.Departs || r.arrivalTime || "") ? String(r.Arrives || r.Departs || r.arrivalTime).slice(0, 5) : null;
             const dayVal = typeof r.Day !== "undefined" && r.Day !== null ? (Number(r.Day) || 0) : null;
             return {
               StnNumber: r.StnNumber ?? null,
@@ -125,7 +121,7 @@ export default function TrainFoodPage() {
               Arrives: r.Arrives ?? null,
               Departs: r.Departs ?? null,
               arrivalTime,
-              restroCount: typeof r.restroCount === "number" ? r.restroCount : (Array.isArray(r.restros) ? r.restros.length : (typeof r.restroCount === "string" ? Number(r.restroCount) || 0 : 0)),
+              restroCount: typeof r.restroCount === "number" ? r.restroCount : (Array.isArray(r.restros) ? r.restros.length : 0),
               restros: Array.isArray(r.restros) ? r.restros : (Array.isArray(r.restaurants) ? r.restaurants : []),
               index: i,
               arrivalDate: r.arrivalDate ?? r.arrival_date ?? null,
@@ -172,6 +168,26 @@ export default function TrainFoodPage() {
     }
   }, [data, showModal]);
 
+  // debug search function: find restroCode in returned rows
+  function debugFindRestro(code: string | number) {
+    if (!data?.rows) {
+      setDebugSearchResult([]);
+      return;
+    }
+    const cStr = String(code).trim();
+    const found: any[] = [];
+    for (const row of data.rows) {
+      const arr = row.restros ?? [];
+      for (const r of arr) {
+        if (String(r.restroCode) === cStr || String(r.restroCode) === cStr || String(r.RestroCode) === cStr) {
+          found.push({ station: row.StationCode || row.StationName, row, restro: r });
+        }
+      }
+    }
+    setDebugSearchResult(found);
+    return found;
+  }
+
   const formatCurrency = (val: number | null | undefined) => {
     if (val == null || Number.isNaN(Number(val))) return "-";
     return `₹${Number(val).toFixed(0)}`;
@@ -186,7 +202,6 @@ export default function TrainFoodPage() {
     return `${code}-${encodeURIComponent(cleanName)}`;
   };
 
-  // Compute filtered stations: only include stations at or after selected boarding station
   const filteredStations = useMemo(() => {
     if (!data?.rows) return [];
     if (!selectedBoardingCode) return data.rows;
@@ -195,7 +210,6 @@ export default function TrainFoodPage() {
     return data.rows.slice(idx).map((s: ApiStation, i: number) => ({ ...s, index: idx + i }));
   }, [data?.rows, selectedBoardingCode]);
 
-  // Only stations with restros returned by server
   const stationsWithActiveRestros = useMemo(() => {
     return filteredStations
       .map((s) => ({
@@ -211,7 +225,6 @@ export default function TrainFoodPage() {
   const trainTitleNumber = (data?.train?.trainNumber ?? trainNumberFromSlug) || "Train";
   const trainTitleName = data?.train?.trainName ? ` – ${data.train.trainName}` : "";
 
-  // helper: calculate arrival date for a station using Day offset or arrivalDate
   const computeArrivalDateForStation = (station: ApiStation) => {
     if (station.arrivalDate) return station.arrivalDate;
     if (typeof station.Day === "number" && boardingDayValue != null && !isNaN(Number(station.Day))) {
@@ -254,7 +267,6 @@ export default function TrainFoodPage() {
     router.push(`/Stations/${stationSlug}/${restroSlug}?${qs}`);
   };
 
-  // Loading UI
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -266,7 +278,6 @@ export default function TrainFoodPage() {
   return (
     <div className="min-h-screen bg-gray-50 pb-10">
       <main className="max-w-5xl mx-auto px-4 py-8">
-        {/* Train heading */}
         <h1 className="text-2xl md:text-3xl font-semibold mb-1">
           Train {trainTitleNumber}
           {trainTitleName}
@@ -275,7 +286,65 @@ export default function TrainFoodPage() {
           Food delivery stations & restaurants available on this train. Choose journey date and boarding station first.
         </p>
 
-        {/* Modal */}
+        {/* DEBUG PANEL */}
+        <div className="mb-4 p-3 bg-yellow-50 border rounded">
+          <div className="flex items-center gap-3">
+            <label className="inline-flex items-center gap-2">
+              <input type="checkbox" checked={debugShowRaw} onChange={(e) => setDebugShowRaw(e.target.checked)} />
+              <span className="text-sm">Show raw train-routes rows</span>
+            </label>
+
+            <div className="ml-4 flex items-center gap-2">
+              <input
+                className="border rounded px-2 py-1 text-sm"
+                value={debugSearchCode}
+                onChange={(e) => setDebugSearchCode(e.target.value)}
+                placeholder="RestroCode (e.g. 1004)"
+              />
+              <button
+                type="button"
+                onClick={() => debugFindRestro(debugSearchCode)}
+                className="px-3 py-1 text-sm rounded bg-blue-600 text-white"
+              >
+                Search RestroCode
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  // also auto-run search for convenience
+                  const res = debugFindRestro(debugSearchCode);
+                  if (res && res.length === 0) alert(`No restro ${debugSearchCode} found in train-routes response.`);
+                }}
+                className="px-3 py-1 text-sm rounded bg-gray-200"
+              >
+                Search + alert
+              </button>
+            </div>
+          </div>
+
+          {debugSearchResult && debugSearchResult.length > 0 && (
+            <div className="mt-3 text-xs">
+              <div className="font-semibold">Search results:</div>
+              <ul className="list-disc pl-5">
+                {debugSearchResult.map((r, i) => (
+                  <li key={i}>
+                    Station: <strong>{r.station}</strong> — restro: <code>{JSON.stringify(r.restro)}</code>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+
+        {debugShowRaw && (
+          <div className="mb-6">
+            <div className="text-xs text-gray-600 mb-1">Raw `train-routes` rows (normalized):</div>
+            <pre className="max-h-[40vh] overflow-auto bg-black/5 p-3 rounded text-xs">
+              {JSON.stringify(data?.rows ?? data?.stations ?? null, null, 2)}
+            </pre>
+          </div>
+        )}
+
         {showModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
             <form onSubmit={handleModalSubmit} className="w-full max-w-2xl bg-white rounded-lg shadow-lg p-6">
@@ -341,10 +410,8 @@ export default function TrainFoodPage() {
           </div>
         )}
 
-        {/* Error */}
         {error && <p className="text-sm text-red-600">{error}</p>}
 
-        {/* No active restaurants block — include helpful reasons */}
         {!error && !firstActiveStation && !loading && (
           <div className="p-4 bg-gray-50 rounded text-sm text-gray-700">
             <p>No active restaurants found for the selected boarding station / date.</p>
@@ -361,7 +428,6 @@ export default function TrainFoodPage() {
           </div>
         )}
 
-        {/* First active station summary */}
         {!error && firstActiveStation && (
           <section className="mb-6 bg-white rounded-lg shadow-sm border p-4">
             <div className="flex flex-col md:flex-row md:items-center justify-between">
@@ -387,7 +453,6 @@ export default function TrainFoodPage() {
           </section>
         )}
 
-        {/* Stations list */}
         {!error &&
           filteredStations.map((st) => {
             const hasRestros = (st.restros || []).length > 0;
