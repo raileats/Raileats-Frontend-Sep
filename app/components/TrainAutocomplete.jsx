@@ -26,6 +26,15 @@ export default function TrainAutocomplete({ onSelect = () => {} }) {
   const [activeIndex, setActiveIndex] = useState(-1);
   const ref = useRef();
 
+  // Wrapper to satisfy TS + allow async in parent
+  function onSelectWrapper(item) {
+    try {
+      void onSelect(item);
+    } catch (e) {
+      console.error("Select handler error:", e);
+    }
+  }
+
   // 🔍 Supabase search
   useEffect(() => {
     if (!debouncedQuery || debouncedQuery.length < 1) {
@@ -68,7 +77,7 @@ export default function TrainAutocomplete({ onSelect = () => {} }) {
   function handleSelect(item) {
     const label = `${item.trainNumber} - ${item.trainName}`;
     setQuery(label);
-    onSelect(item);
+    onSelectWrapper(item);
     setOpen(false);
   }
 
@@ -104,7 +113,7 @@ export default function TrainAutocomplete({ onSelect = () => {} }) {
             <div className="p-2 text-sm text-gray-600">No trains found</div>
           )}
 
-          {results.map((item, index) => (
+          {results.map((item) => (
             <div
               key={item.trainId}
               onMouseDown={() => handleSelect(item)}
