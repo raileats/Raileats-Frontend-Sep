@@ -57,19 +57,20 @@ export default function TrainAutocomplete({ value, onChange, onSelect = () => {}
     try {
       // 1) If user typed >=3 digits, try exact numeric eq first (fast)
       if (digitsOnly && digitsOnly.length >= 3) {
-        console.debug("[TrainAutocomplete] trying eq search for", digitsOnly);
-        const { data: eqData, error: eqError } = await supabase
+        console.debug("[TrainAutocomplete] STEP 1: trying eq search for", digitsOnly);
+        const eq = await supabase
           .from("TrainRoute")
-          .select(`"trainId","trainNumber","trainName","trainNumber_text"`)
-
+          .select(["trainId", "trainNumber", "trainName", "trainNumber_text"])
           .eq("trainNumber", Number(digitsOnly))
           .limit(50);
 
-        if (eqError) {
-          console.warn("[TrainAutocomplete] eq search error", eqError);
-        } else if (eqData && eqData.length > 0) {
-          console.debug("[TrainAutocomplete] eqData rows:", eqData.length);
-          setResults(eqData);
+        console.debug("[TrainAutocomplete] eq response:", eq);
+
+        if (eq.error) {
+          // log error (could be RLS / permission)
+          console.warn("[TrainAutocomplete] eq search error", eq.error);
+        } else if (Array.isArray(eq.data) && eq.data.length > 0) {
+          setResults(eq.data);
           setOpen(true);
           return;
         }
@@ -77,25 +78,25 @@ export default function TrainAutocomplete({ value, onChange, onSelect = () => {}
       }
 
       // 2) ilike fallback: search trainNumber_text and trainName
-      // Use trainNumber_text (string) to support partial numeric searches.
-      console.debug("[TrainAutocomplete] trying ilike search for", clean);
+      console.debug("[TrainAutocomplete] STEP 2: trying ilike search for", clean);
       const ilikeQ = `%${clean}%`;
 
-      // Build OR query
-      const { data, error } = await supabase
+      // use array select to avoid quoting issues
+      const ilike = await supabase
         .from("TrainRoute")
-        .select("trainId, trainNumber, trainName, trainNumber_text")
+        .select(["trainId", "trainNumber", "trainName", "trainNumber_text"])
         .or(`trainNumber_text.ilike.${ilikeQ},trainName.ilike.${ilikeQ}`)
         .limit(50);
 
-      if (error) {
-        console.error("[TrainAutocomplete] ilike search error", error);
+      console.debug("[TrainAutocomplete] ilike response:", ilike);
+
+      if (ilike.error) {
+        console.error("[TrainAutocomplete] ilike search error", ilike.error);
         setResults([]);
         setOpen(false);
       } else {
-        console.debug("[TrainAutocomplete] ilike rows:", (data || []).length);
-        setResults(data || []);
-        setOpen((data || []).length > 0);
+        setResults(ilike.data || []);
+        setOpen((ilike.data || []).length > 0);
       }
     } catch (err) {
       console.error("[TrainAutocomplete] unexpected error", err);
