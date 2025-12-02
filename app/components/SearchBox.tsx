@@ -2,16 +2,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import StationSearchBox, { Station } from "./StationSearchBox";
+import StationSearchBox from "./StationSearchBox";
 import { makeStationSlug } from "../lib/stationSlug";
-import TrainAutocomplete from "./TrainAutocomplete"; // <-- new
-
-type TrainStation = {
-  stationCode: string;
-  stationName: string;
-  state?: string | null;
-  arrivalTime?: string | null;
-};
+import TrainAutocomplete from "./TrainAutocomplete";
 
 function makeTrainSlug(trainNoRaw: string) {
   const clean = String(trainNoRaw || "").trim();
@@ -21,22 +14,20 @@ function makeTrainSlug(trainNoRaw: string) {
 }
 
 export default function SearchBox() {
-  const [searchType, setSearchType] = useState<"pnr" | "train" | "station">(
-    "pnr",
-  );
+  const [searchType, setSearchType] = useState("pnr");
   const [inputValue, setInputValue] = useState("");
-  const [selectedStation, setSelectedStation] = useState<Station | null>(null);
+  const [selectedStation, setSelectedStation] = useState(null);
   const [loading, setLoading] = useState(false);
 
   // train modal state
   const [showTrainModal, setShowTrainModal] = useState(false);
   const [modalTrainNo, setModalTrainNo] = useState("");
-  const [modalTrainName, setModalTrainName] = useState<string | null>(null);
-  const [modalStations, setModalStations] = useState<TrainStation[]>([]);
+  const [modalTrainName, setModalTrainName] = useState(null);
+  const [modalStations, setModalStations] = useState([]);
   const [modalLoading, setModalLoading] = useState(false);
-  const [modalError, setModalError] = useState<string | null>(null);
+  const [modalError, setModalError] = useState(null);
   const [modalDate, setModalDate] = useState(() => new Date().toISOString().slice(0, 10));
-  const [modalBoarding, setModalBoarding] = useState<string>("");
+  const [modalBoarding, setModalBoarding] = useState("");
 
   const extractStationCode = (val: string) => {
     const m = val.match(/\(([^)]+)\)$/);
@@ -69,7 +60,7 @@ export default function SearchBox() {
           return;
         } else {
           const stationsRaw = Array.isArray(j2.stations) ? j2.stations : [];
-          const stations: TrainStation[] = stationsRaw.map((s: any) => ({
+          const stations = stationsRaw.map((s: any) => ({
             stationCode: (s.stationCode || s.StationCode || "").toUpperCase(),
             stationName: s.stationName || s.StationName || "",
             state: s.state || s.State || null,
@@ -86,7 +77,7 @@ export default function SearchBox() {
       const trainName = j.trainName || j.train?.trainName || j.train?.name || j.trainNameRaw || null;
       const rows = Array.isArray(j.rows) ? j.rows : Array.isArray(j.data) ? j.data : j.stations || [];
 
-      const stations: TrainStation[] = rows.map((r: any) => {
+      const stations = rows.map((r: any) => {
         const stationCode = r.StationCode ?? r.stationCode ?? r.station_code ?? r.STATIONCODE ?? "";
         const stationName = r.StationName ?? r.stationName ?? r.station_name ?? r.STATIONNAME ?? "";
         const arrival = r.Arrives ?? r.Arrival ?? r.arrivalTime ?? r.arrivesAt ?? null;
@@ -120,15 +111,17 @@ export default function SearchBox() {
 
     if (searchType === "station") {
       const rawCode =
-        selectedStation?.StationCode ?? extractStationCode(inputValue);
+        (selectedStation && (selectedStation.StationCode || selectedStation.stationCode)) ?? extractStationCode(inputValue);
       if (!rawCode) {
         alert("Please enter a valid station code");
         setLoading(false);
         return;
       }
       let slug: string;
-      if (selectedStation?.StationCode && selectedStation?.StationName) {
-        slug = makeStationSlug(String(selectedStation.StationCode), selectedStation.StationName);
+      if (selectedStation && (selectedStation.StationCode || selectedStation.stationCode) && (selectedStation.StationName || selectedStation.stationName)) {
+        const code = String(selectedStation.StationCode || selectedStation.stationCode);
+        const name = String(selectedStation.StationName || selectedStation.stationName);
+        slug = makeStationSlug(code, name);
       } else {
         const upper = String(rawCode).toUpperCase();
         const lower = upper.toLowerCase();
@@ -225,10 +218,15 @@ export default function SearchBox() {
     }
   }
 
+  // wrapper to call async handler (satisfies TS if needed)
+  function onTrainAutocompleteSelectWrapper(item: any) {
+    void onTrainAutocompleteSelect(item);
+  }
+
   return (
     <div className="mt-4 w-full max-w-xl mx-auto bg-white rounded-lg shadow p-4">
       <div className="flex justify-center gap-6 mb-4">
-        {(["pnr", "train", "station"] as const).map((type) => (
+        {["pnr", "train", "station"].map((type) => (
           <label key={type} className="flex items-center gap-2 cursor-pointer">
             <input
               type="radio"
@@ -236,7 +234,7 @@ export default function SearchBox() {
               value={type}
               checked={searchType === type}
               onChange={(e) => {
-                setSearchType(e.target.value as any);
+                setSearchType(e.target.value);
                 setInputValue("");
                 setSelectedStation(null);
               }}
@@ -253,9 +251,9 @@ export default function SearchBox() {
               <div className="flex-1">
                 <StationSearchBox
                   initialValue={inputValue}
-                  onSelect={(s) => {
-                    const val = s ? (s.StationCode ?? s.StationName ?? "") : "";
-                    const display = s ? `${s.StationName}${s.StationCode ? ` (${s.StationCode})` : ""}` : "";
+                  onSelect={(s: any) => {
+                    const val = s ? (s.StationCode ?? s.StationName ?? s.stationCode ?? s.stationName ?? "") : "";
+                    const display = s ? `${s.StationName ?? s.stationName}${(s.StationCode ?? s.stationCode) ? ` (${s.StationCode ?? s.stationCode})` : ""}` : "";
                     setInputValue(display || val);
                     setSelectedStation(s || null);
                   }}
@@ -287,7 +285,7 @@ export default function SearchBox() {
               <div className="flex-1">
                 {/* Use TrainAutocomplete for interactive suggestions */}
                 <TrainAutocomplete
-                  onSelect={onTrainAutocompleteSelect}
+                  onSelect={onTrainAutocompleteSelectWrapper as any}
                 />
               </div>
 
@@ -356,7 +354,7 @@ export default function SearchBox() {
                   className="w-full border rounded px-3 py-2"
                 >
                   <option value="" disabled>Select boarding station</option>
-                  {modalStations.map((s) => (
+                  {modalStations.map((s: any) => (
                     <option key={s.stationCode} value={s.stationCode}>
                       {s.stationName} ({s.stationCode}){s.state ? ` • ${s.state}` : ""}
                     </option>
@@ -389,9 +387,4 @@ export default function SearchBox() {
       )}
     </div>
   );
-}
-// ADD THIS below `onTrainAutocompleteSelect`
-function onTrainAutocompleteSelectWrapper(item) {
-  // call async function without awaiting
-  void onTrainAutocompleteSelect(item);
 }
