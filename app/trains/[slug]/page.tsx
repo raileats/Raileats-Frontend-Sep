@@ -61,7 +61,6 @@ export default function TrainFoodPage() {
   const slug = (params?.slug as string) || "";
   const trainNumberFromSlug = slug.split("-")[0] || "";
 
-  // query params (if user arrived with ?date & ?boarding)
   const queryDate = searchParams?.get("date") || "";
   const queryBoarding = searchParams?.get("boarding") || "";
 
@@ -69,10 +68,8 @@ export default function TrainFoodPage() {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  // modal shown only when user hasn't provided date+boarding
   const shouldHideModal = Boolean(queryDate && queryBoarding);
   const [showModal, setShowModal] = useState<boolean>(() => !shouldHideModal);
-
   const [selectedDate, setSelectedDate] = useState<string>(() => {
     if (queryDate) return queryDate;
     return new Date().toISOString().slice(0, 10);
@@ -81,10 +78,8 @@ export default function TrainFoodPage() {
     return queryBoarding || null;
   });
 
-  // boarding day offset (if API provides Day fields)
   const [boardingDayValue, setBoardingDayValue] = useState<number | null>(null);
 
-  // Fetch route from API
   useEffect(() => {
     if (!trainNumberFromSlug) {
       setError("Invalid train number in URL.");
@@ -97,7 +92,6 @@ export default function TrainFoodPage() {
         setLoading(true);
         setError(null);
 
-        // include boarding param (server may use it to filter / compute)
         const url =
           `/api/train-routes?train=${encodeURIComponent(trainNumberFromSlug)}` +
           `&date=${encodeURIComponent(selectedDate)}` +
@@ -113,10 +107,9 @@ export default function TrainFoodPage() {
           return;
         }
 
-        // defensive: server could send `rows` or `stations`
+        // Defensive parse: server might send rows OR stations
         const rows = (json.rows || json.stations || []) as any[];
 
-        // normalize station objects and restros
         const stations: ApiStation[] = rows.map((r: any, i: number) => {
           const arrivalTime = (r.Arrives || r.Departs || r.arrivalTime || "")?.slice?.(0, 5) || null;
 
@@ -165,7 +158,6 @@ export default function TrainFoodPage() {
     load();
   }, [trainNumberFromSlug, selectedDate, selectedBoardingCode]);
 
-  // if boarding station selected, set boardingDayValue from rows (if present)
   useEffect(() => {
     if (!data?.rows || data.rows.length === 0) return;
     if (!selectedBoardingCode) {
@@ -177,7 +169,6 @@ export default function TrainFoodPage() {
     else setBoardingDayValue(null);
   }, [data, selectedBoardingCode]);
 
-  // preselect first station when modal shown (old behaviour)
   useEffect(() => {
     if (!showModal && selectedBoardingCode) return;
     if (!data?.rows || data.rows.length === 0) return;
@@ -199,7 +190,7 @@ export default function TrainFoodPage() {
     return `${code}-${encodeURIComponent(cleanName)}`;
   };
 
-  // slice route from boarding inclusive (if boarding selected)
+  // --- inclusive slice: boarding station is included (slice starts at idx)
   const filteredStations = useMemo(() => {
     if (!data?.rows) return [];
     if (!selectedBoardingCode) return data.rows;
@@ -208,7 +199,7 @@ export default function TrainFoodPage() {
     return data.rows.slice(idx).map((s, i) => ({ ...s, index: idx + i }));
   }, [data?.rows, selectedBoardingCode]);
 
-  // Only keep stations that actually have restros (server-side mapped outlets)
+  // only stations which actually have restros (and restros are active)
   const stationsWithActiveRestros = useMemo(() => {
     return filteredStations
       .map((s) => ({
@@ -219,7 +210,6 @@ export default function TrainFoodPage() {
       .filter((s) => (s.restros || []).length > 0);
   }, [filteredStations]);
 
-  // first active station (after boarding) for summary
   const firstActiveStation = stationsWithActiveRestros.length > 0 ? stationsWithActiveRestros[0] : null;
 
   const trainTitleNumber = (data?.train?.trainNumber ?? trainNumberFromSlug) || "Train";
@@ -245,7 +235,7 @@ export default function TrainFoodPage() {
     url.searchParams.set("date", selectedDate);
     url.searchParams.set("boarding", selectedBoardingCode);
     window.history.replaceState({}, "", url.toString());
-    // selectedBoardingCode change triggers refetch via effect
+    // selectedBoardingCode triggers refetch via effect
   };
 
   const handleOrderNow = (restro: ApiRestro, station: ApiStation) => {
@@ -317,7 +307,9 @@ export default function TrainFoodPage() {
                     className="w-full border rounded px-3 py-2"
                     required
                   >
-                    <option value="" disabled>Select boarding station</option>
+                    <option value="" disabled>
+                      Select boarding station
+                    </option>
                     {(data?.rows || []).map((s: any) => (
                       <option key={s.StationCode} value={s.StationCode}>
                         {s.StationName} ({s.StationCode}) {s.Day ? ` — day ${s.Day}` : ""}
@@ -332,14 +324,23 @@ export default function TrainFoodPage() {
               </div>
 
               <div className="flex justify-end gap-3">
-                <button type="button" onClick={() => (window.location.href = "/")} className="px-4 py-2 rounded border">Cancel</button>
-                <button type="submit" className="px-4 py-2 rounded bg-green-600 text-white">Search & Open</button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    window.location.href = "/";
+                  }}
+                  className="px-4 py-2 rounded border"
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="px-4 py-2 rounded bg-green-600 text-white">
+                  Search & Open
+                </button>
               </div>
             </form>
           </div>
         )}
 
-        {/* If no active restros after boarding, show reasons box */}
         {!error && !firstActiveStation && !loading && (
           <div className="p-4 bg-gray-50 rounded text-sm text-gray-700">
             <p>No active restaurants found for the selected boarding station / date.</p>
@@ -356,7 +357,6 @@ export default function TrainFoodPage() {
           </div>
         )}
 
-        {/* Summary for first active station */}
         {!error && firstActiveStation && (
           <section className="mb-6 bg-white rounded-lg shadow-sm border p-4">
             <div className="flex flex-col md:flex-row md:items-center justify-between">
@@ -371,72 +371,85 @@ export default function TrainFoodPage() {
               </div>
 
               <div className="mt-3 md:mt-0 text-right text-xs text-gray-600">
-                <div>Active restaurants: <span className="font-semibold">{firstActiveStation.restroCount}</span></div>
-                <div className="mt-1">Min. order: <span className="font-semibold">{formatCurrency(firstActiveStation.minOrder)}</span></div>
+                <div>
+                  Active restaurants: <span className="font-semibold">{firstActiveStation.restroCount}</span>
+                </div>
+                <div className="mt-1">
+                  Min. order: <span className="font-semibold">{formatCurrency(firstActiveStation.minOrder)}</span>
+                </div>
               </div>
             </div>
           </section>
         )}
 
-        {/* Stations list (from boarding onward) */}
-        {!error && (selectedBoardingCode ? filteredStations : data?.rows || []).map((st) => {
-          const hasRestros = (st.restros || []).length > 0;
-          const stationSlug = makeStationSlug(st.StationCode, st.StationName || "");
-          const arrivalDateForThisStation = computeArrivalDateForStation(st);
+        {!error &&
+          (selectedBoardingCode ? filteredStations : data?.rows || []).map((st) => {
+            const hasRestros = (st.restros || []).length > 0;
+            const stationSlug = makeStationSlug(st.StationCode, st.StationName || "");
+            const arrivalDateForThisStation = computeArrivalDateForStation(st);
 
-          return (
-            <section key={`${st.StationCode}-${st.Arrives}-${st.index}`} className="mt-6 bg-white rounded-lg shadow-sm border">
-              <div className="flex flex-col md:flex-row md:items-center justify-between px-4 py-3 border-b bg-gray-50">
-                <div>
-                  <div className="text-sm font-semibold">
-                    {st.StationName} <span className="text-xs text-gray-500">({st.StationCode})</span>
-                    {st.Day ? <span className="text-xs text-gray-500"> — Day {st.Day}</span> : null}
+            return (
+              <section key={`${st.StationCode}-${st.Arrives}-${st.index}`} className="mt-6 bg-white rounded-lg shadow-sm border">
+                <div className="flex flex-col md:flex-row md:items-center justify-between px-4 py-3 border-b bg-gray-50">
+                  <div>
+                    <div className="text-sm font-semibold">
+                      {st.StationName} <span className="text-xs text-gray-500">({st.StationCode})</span>
+                      {st.Day ? <span className="text-xs text-gray-500"> — Day {st.Day}</span> : null}
+                    </div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      Arrival: {st.arrivalTime ?? "-"} on {arrivalDateForThisStation}
+                    </div>
+                    {st.blockedReasons && st.blockedReasons.length ? (
+                      <div className="text-xs text-rose-600 mt-1">Info: {st.blockedReasons.join("; ")}</div>
+                    ) : null}
                   </div>
-                  <div className="text-xs text-gray-500 mt-1">
-                    Arrival: {st.arrivalTime ?? "-"} on {arrivalDateForThisStation}
+
+                  <div className="mt-2 md:mt-0 text-xs text-right text-gray-600">
+                    <div>
+                      Active restaurants: <span className="font-semibold">{st.restroCount ?? (st.restros?.length ?? 0)}</span>
+                    </div>
+                    <div className="mt-1">
+                      Min. order from{" "}
+                      <span className="font-semibold">
+                        {formatCurrency(st.minOrder ?? (st.restros?.[0]?.minimumOrder ?? null))}
+                      </span>
+                    </div>
                   </div>
-                  {st.blockedReasons && st.blockedReasons.length ? (
-                    <div className="text-xs text-rose-600 mt-1">Info: {st.blockedReasons.join("; ")}</div>
-                  ) : null}
                 </div>
 
-                <div className="mt-2 md:mt-0 text-xs text-right text-gray-600">
-                  <div>Active restaurants: <span className="font-semibold">{st.restroCount ?? (st.restros?.length ?? 0)}</span></div>
-                  <div className="mt-1">Min. order from <span className="font-semibold">{formatCurrency(st.minOrder ?? (st.restros?.[0]?.minimumOrder ?? null))}</span></div>
+                <div className="px-4 py-3">
+                  {!hasRestros && <p className="text-xs text-gray-500">No active restaurants at this station for the selected train/date.</p>}
+
+                  {hasRestros && (
+                    <div className="space-y-3">
+                      {st.restros!.map((r: any) => {
+                        const restroSlug = makeRestroSlug(r.restroCode ?? (r as any).RestroCode, r.restroName ?? r.RestroName);
+                        return (
+                          <div key={restroSlug} className="flex items-center justify-between border rounded-md px-3 py-3 hover:shadow-sm transition-shadow">
+                            <div>
+                              <div className="text-sm font-semibold">{r.restroName ?? r.RestroName}</div>
+                              <div className="text-xs text-gray-500 mt-1">
+                                Open: {r.openTime ?? "—"} — {r.closeTime ?? "—"} • Min {formatCurrency(r.minimumOrder ?? r.MinimumOrdermValue ?? st.minOrder)}
+                              </div>
+                              <div className="text-xs text-gray-500 mt-1">
+                                Delivery when train arrives: {st.arrivalTime ?? "-"} on {arrivalDateForThisStation}
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-3">
+                              <button type="button" onClick={() => handleOrderNow(r, st)} className="text-xs md:text-sm px-4 py-2 rounded bg-green-600 text-white hover:bg-green-700">
+                                Order Now
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
-              </div>
-
-              <div className="px-4 py-3">
-                {!hasRestros && <p className="text-xs text-gray-500">No active restaurants at this station for the selected train/date.</p>}
-
-                {hasRestros && (
-                  <div className="space-y-3">
-                    {st.restros!.map((r: any) => {
-                      const restroSlug = makeRestroSlug(r.restroCode ?? (r as any).RestroCode, r.restroName ?? r.RestroName);
-                      return (
-                        <div key={restroSlug} className="flex items-center justify-between border rounded-md px-3 py-3 hover:shadow-sm transition-shadow">
-                          <div>
-                            <div className="text-sm font-semibold">{r.restroName ?? r.RestroName}</div>
-                            <div className="text-xs text-gray-500 mt-1">
-                              Open: {r.openTime ?? "—"} — {r.closeTime ?? "—"} • Min {formatCurrency(r.minimumOrder ?? r.MinimumOrdermValue ?? st.minOrder)}
-                            </div>
-                            <div className="text-xs text-gray-500 mt-1">
-                              Delivery when train arrives: {st.arrivalTime ?? "-"} on {arrivalDateForThisStation}
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-3">
-                            <button type="button" onClick={() => handleOrderNow(r, st)} className="text-xs md:text-sm px-4 py-2 rounded bg-green-600 text-white hover:bg-green-700">Order Now</button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            </section>
-          );
-        })}
+              </section>
+            );
+          })}
       </main>
     </div>
   );
