@@ -18,8 +18,8 @@ function extractTrainNumberFromSlug(slug?: string | null) {
   return m ? m[1] : slug.replace(/[^0-9]/g, "");
 }
 
-/** Small helper to create same slug format you use elsewhere (optional) */
-export function makeTrainSlug(trainNoRaw: string, trainNameRaw?: string | null) {
+/** LOCAL helper (NOT exported) to create slug */
+function makeTrainSlugLocal(trainNoRaw: string, trainNameRaw?: string | null) {
   const clean = String(trainNoRaw || "").trim();
   if (!clean) return "";
   const digits = clean.replace(/\D+/g, "") || clean;
@@ -49,16 +49,14 @@ export default function TrainPage() {
   const [date, setDate] = useState(initialDate);
   const [boarding, setBoarding] = useState(initialBoarding);
 
-  const [rows, setRows] = useState<any[]>([]); // mapped rows returned by API (each row has restros)
+  const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // vendors grouped per station (from boarding onwards)
   const [visibleRestros, setVisibleRestros] = useState<
     { stationCode: string; stationName: string; restros: any[] }[]
   >([]);
 
-  // limit number of stations to show from boarding onward
   const STATION_LIMIT = 6;
 
   async function fetchRoute(trainNo: string, d: string, boardingCode: string | null = null) {
@@ -80,19 +78,15 @@ export default function TrainPage() {
         setVisibleRestros([]);
         setError(j?.error || `Train not found or server error`);
       } else {
-        // j.rows should be the "mapped rows" your route.ts returns (includes restros)
         const mappedRows = Array.isArray(j.rows) ? j.rows : [];
         setRows(mappedRows);
 
-        // set train name if returned by API
         const tname = j?.train?.trainName ?? j?.trainName ?? "";
         setTrainName(String(tname || ""));
 
-        // if boarding was not provided, default to first station
         const pickBoard = boardingCode || (mappedRows[0] && (mappedRows[0].StationCode || mappedRows[0].stationCode || "")) || "";
         setBoarding((prev) => prev || pickBoard);
 
-        // compute visible restros from boarding
         computeRestrosFromBoarding(pickBoard, mappedRows);
       }
     } catch (e) {
@@ -113,7 +107,6 @@ export default function TrainPage() {
     }
     const idx = mappedRows.findIndex((r) => (String(r.StationCode || r.stationCode || "") || "").toUpperCase() === boardingCode.toUpperCase());
     if (idx === -1) {
-      // if boarding not found, start from first row
       setVisibleRestros([]);
       return;
     }
@@ -124,7 +117,6 @@ export default function TrainPage() {
       const restrosRaw = r.restros || r.RestroMaster || r.restro || [];
       const restros = Array.isArray(restrosRaw)
         ? restrosRaw.filter((x: any) => {
-            // support multiple possible active flags
             if (x.isActive === false) return false;
             if (typeof x.IsActive !== "undefined" && x.IsActive === false) return false;
             return true;
@@ -138,35 +130,28 @@ export default function TrainPage() {
       };
     });
 
-    // keep only stations that have at least one restro
     const nonEmpty = grouped.filter((g) => Array.isArray(g.restros) && g.restros.length > 0);
     setVisibleRestros(nonEmpty);
   }
 
-  // initial load: fetch route when component mounts or slug/train/date changes
   useEffect(() => {
-    // If URL slug has digits, prefer that; else use trainNumber state
     const fromSlug = extractTrainNumberFromSlug(slug);
     const tr = fromSlug || trainNumber;
     fetchRoute(tr, date, boarding || undefined);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug]);
 
-  // refetch whenever date or boarding changes (user action)
   useEffect(() => {
     if (!trainNumber) return;
-    // delay a bit or call immediately
     fetchRoute(trainNumber, date, boarding || undefined);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [date, boarding]);
 
-  // When rows change and boarding changes, recompute
   useEffect(() => {
     computeRestrosFromBoarding(boarding, rows);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows, boarding]);
 
-  // choose vendor handler: store session and navigate
   function chooseVendor(restro: any) {
     try {
       const payload = {
@@ -181,8 +166,7 @@ export default function TrainPage() {
       console.warn("session storage failed", e);
     }
 
-    // navigate to trains page with restro filter (you can change destination)
-    const slugForNav = makeTrainSlug(trainNumber, trainName || undefined);
+    const slugForNav = makeTrainSlugLocal(trainNumber, trainName || undefined);
     const q = new URLSearchParams({ date, boarding: boarding || "" , restro: String(restro?.RestroCode ?? restro?.restroCode ?? "") }).toString();
     router.push(`/trains/${encodeURIComponent(slugForNav)}?${q}`);
   }
