@@ -11,52 +11,66 @@ function useDebouncedValue(value, delay = 300) {
   return v;
 }
 
-/*
-Props:
-  value?: string
-  onChange?: (val: string) => void
-  onSelect?: (item) => void
-*/
 export default function TrainAutocomplete({ value, onChange, onSelect = () => {} }) {
   const [localQuery, setLocalQuery] = useState("");
   const query = value !== undefined ? value : localQuery;
   const debouncedQuery = useDebouncedValue(query || "", 300);
 
-  const [suggestions, setSuggestions] = useState([]); // { trainId, trainNumber, trainName, sampleRow }
+  const [suggestions, setSuggestions] = useState([]); // { trainNumber, trainName, trainId, sampleRow }
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const ref = useRef();
 
-  // safe onSelect wrapper
-  function safeCallOnSelect(item) {
-    try {
-      void onSelect(item);
-    } catch (e) {
-      console.error("onSelect error:", e);
-    }
+  // Normalize a single route-row to a train suggestion (robust fallbacks)
+  function normalizeRowToTrain(r) {
+    if (!r) return null;
+    // r can be "mapped row" (with r.raw) or a raw DB row.
+    const raw = r.raw ?? r;
+
+    // try multiple locations for numeric/text number and name
+    const tnCandidates = [
+      r.trainNumber,
+      r.trainNumber_text,
+      raw?.trainNumber,
+      raw?.trainNumber_text,
+      raw?.trainId,
+    ];
+
+    const nameCandidates = [
+      r.trainName,
+      raw?.trainName,
+      raw?.name,
+    ];
+
+    const trainNumber = tnCandidates.find((x) => x !== undefined && x !== null && String(x).trim() !== "");
+    const trainName = nameCandidates.find((x) => x !== undefined && x !== null) || "";
+
+    const trainId = raw?.trainId ?? r.trainId ?? null;
+
+    if (!trainNumber && !trainName) return null;
+
+    return {
+      trainId,
+      trainNumber: trainNumber != null ? String(trainNumber) : "",
+      trainName: String(trainName || ""),
+      sampleRow: r,
+    };
   }
 
-  // Convert server rows (route rows) into unique train suggestions:
-  function rowsToTrains(rows) {
+  // Reduce rows -> unique trains (preserve order)
+  function rowsToUniqueTrains(rows) {
     if (!Array.isArray(rows)) return [];
-    const seen = new Map(); // key -> sampleRow
+    const seen = new Set();
+    const out = [];
     for (const r of rows) {
-      // try multiple locations for train number/name
-      const raw = r || {};
-      const tn = raw.trainNumber ?? raw.trainNumber_text ?? raw?.raw?.trainNumber ?? raw?.raw?.trainId ?? raw?.trainId ?? null;
-      const name = raw.trainName ?? raw?.raw?.trainName ?? null;
-      const key = String(tn ?? name ?? raw?.trainId ?? raw?.trainId ?? JSON.stringify(raw)).trim();
-      if (!seen.has(key)) {
-        seen.set(key, { trainId: raw.trainId ?? raw?.raw?.trainId ?? null, trainNumber: tn, trainName: name, sampleRow: raw });
-      }
+      const t = normalizeRowToTrain(r);
+      if (!t) continue;
+      const key = `${t.trainNumber}|${t.trainName}`; // dedupe by number+name
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(t);
     }
-    // return array preserving insertion order
-    return Array.from(seen.values()).map((it) => ({
-      trainId: it.trainId,
-      trainNumber: it.trainNumber != null ? String(it.trainNumber) : null,
-      trainName: it.trainName != null ? String(it.trainName) : "",
-      sampleRow: it.sampleRow,
-    }));
+    return out;
   }
 
   async function runSearch(q) {
@@ -71,20 +85,19 @@ export default function TrainAutocomplete({ value, onChange, onSelect = () => {}
     setOpen(false);
 
     try {
-      // call server endpoint (two-step server logic handles exact/partial)
       const res = await fetch(`/api/train-routes?train=${encodeURIComponent(q)}&mode=partial`, { cache: "no-store" });
       const j = await res.json().catch(() => null);
       console.debug("[TrainAutocomplete] server response", res.status, j);
-      if (!res.ok) {
-        // server returned 404 or error
-        console.warn("[TrainAutocomplete] server returned error or empty", j);
+      if (!res.ok || !j) {
         setSuggestions([]);
         setOpen(false);
       } else {
-        const rows = j?.rows || [];
-        const trains = rowsToTrains(rows);
+        const rows = j.rows || [];
+        const trains = rowsToUniqueTrains(rows);
         setSuggestions(trains);
         setOpen(trains.length > 0);
+        // debug: print suggestions
+        console.debug("[TrainAutocomplete] suggestions", trains);
       }
     } catch (err) {
       console.error("[TrainAutocomplete] unexpected error", err);
@@ -107,17 +120,20 @@ export default function TrainAutocomplete({ value, onChange, onSelect = () => {}
   }
 
   function handleSelect(item) {
-    // build display text: prefer "11016 — Train Name"
-    const num = item?.trainNumber ?? (item?.sampleRow?.raw?.trainNumber ?? item?.sampleRow?.trainNumber ?? null);
-    const name = item?.trainName ?? (item?.sampleRow?.raw?.trainName ?? item?.sampleRow?.trainName ?? "");
-    const disp = num ? `${String(num)} - ${String(name || "").trim()}`.trim() : String(name || "");
+    const num = item?.trainNumber ?? "";
+    const name = item?.trainName ?? "";
+    const disp = num ? `${num} — ${name}`.trim() : String(name || "");
     if (onChange) onChange(disp);
     else setLocalQuery(disp);
-    safeCallOnSelect(item);
+    try {
+      onSelect(item);
+    } catch (e) {
+      console.error("onSelect error", e);
+    }
     setOpen(false);
   }
 
-  // click outside close
+  // close on outside click
   useEffect(() => {
     function onClick(e) {
       if (ref.current && !ref.current.contains(e.target)) setOpen(false);
@@ -143,14 +159,10 @@ export default function TrainAutocomplete({ value, onChange, onSelect = () => {}
           {!loading && suggestions.length === 0 && <div className="p-2 text-sm text-gray-600">No trains found</div>}
 
           {suggestions.map((item, idx) => {
-            // display safe label with fallbacks
-            const num = item.trainNumber ?? item?.sampleRow?.raw?.trainNumber ?? item?.sampleRow?.trainNumber ?? "";
-            const name = item.trainName ?? item?.sampleRow?.raw?.trainName ?? item?.sampleRow?.trainName ?? "";
-            const label = (num ? `${num} — ${name}` : name || "(unknown train)").trim();
-
+            const label = item.trainNumber ? `${item.trainNumber} — ${item.trainName || "(no name)"}` : item.trainName || "(unknown train)";
             return (
               <div
-                key={item.trainId ?? `${num}_${name}_${idx}`}
+                key={item.trainId ?? `${item.trainNumber}_${idx}`}
                 onMouseDown={(e) => {
                   e.preventDefault();
                   handleSelect(item);
