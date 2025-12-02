@@ -16,16 +16,16 @@ function makeTrainSlug(trainNoRaw: string) {
 export default function SearchBox() {
   const [searchType, setSearchType] = useState("pnr");
   const [inputValue, setInputValue] = useState("");
-  const [selectedStation, setSelectedStation] = useState(null);
+  const [selectedStation, setSelectedStation] = useState<any>(null);
   const [loading, setLoading] = useState(false);
 
   // train modal state
   const [showTrainModal, setShowTrainModal] = useState(false);
   const [modalTrainNo, setModalTrainNo] = useState("");
-  const [modalTrainName, setModalTrainName] = useState(null);
-  const [modalStations, setModalStations] = useState([]);
+  const [modalTrainName, setModalTrainName] = useState<string | null>(null);
+  const [modalStations, setModalStations] = useState<any[]>([]);
   const [modalLoading, setModalLoading] = useState(false);
-  const [modalError, setModalError] = useState(null);
+  const [modalError, setModalError] = useState<string | null>(null);
   const [modalDate, setModalDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [modalBoarding, setModalBoarding] = useState("");
 
@@ -285,6 +285,8 @@ export default function SearchBox() {
               <div className="flex-1">
                 {/* Use TrainAutocomplete for interactive suggestions */}
                 <TrainAutocomplete
+                  value={inputValue}
+                  onChange={(v: string) => setInputValue(v)}
                   onSelect={onTrainAutocompleteSelectWrapper as any}
                 />
               </div>
