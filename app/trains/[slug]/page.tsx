@@ -168,25 +168,33 @@ export default function TrainFoodPage() {
     }
   }, [data, showModal]);
 
-  // debug search function: find restroCode in returned rows
-  function debugFindRestro(code: string | number) {
-    if (!data?.rows) {
-      setDebugSearchResult([]);
-      return;
-    }
-    const cStr = String(code).trim();
-    const found: any[] = [];
-    for (const row of data.rows) {
-      const arr = row.restros ?? [];
-      for (const r of arr) {
-        if (String(r.restroCode) === cStr || String(r.restroCode) === cStr || String(r.RestroCode) === cStr) {
-          found.push({ station: row.StationCode || row.StationName, row, restro: r });
-        }
+ // --- replace the old debugFindRestro with this ---
+function debugFindRestro(code: string | number) {
+  if (!data?.rows) {
+    setDebugSearchResult([]);
+    return [];
+  }
+  const cStr = String(code).trim();
+  const found: any[] = [];
+
+  for (const row of data.rows) {
+    const arr = (row.restros ?? []) as any[]; // treat as any[] to avoid TS property errors
+    for (const r of arr) {
+      // normalise possible restro code fields the backend might return
+      const candidate =
+        (r && ((r.restroCode ?? r.RestroCode ?? r.restro_code ?? r.RestroCode ?? r.restro_id ?? r.id))) ??
+        null;
+
+      if (candidate != null && String(candidate) === cStr) {
+        found.push({ station: row.StationCode ?? row.StationName, row, restro: r });
       }
     }
-    setDebugSearchResult(found);
-    return found;
   }
+
+  setDebugSearchResult(found);
+  return found;
+}
+
 
   const formatCurrency = (val: number | null | undefined) => {
     if (val == null || Number.isNaN(Number(val))) return "-";
