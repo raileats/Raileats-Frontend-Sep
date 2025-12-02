@@ -1,4 +1,3 @@
-// app/components/TrainAutocomplete.jsx
 "use client";
 
 import React, { useEffect, useState, useRef } from "react";
@@ -23,11 +22,12 @@ export default function TrainAutocomplete({ value, onChange, onSelect = () => {}
   const query = value !== undefined ? value : localQuery;
   const debouncedQuery = useDebouncedValue(query || "", 300);
 
-  const [results, setResults] = useState([]);
+  const [suggestions, setSuggestions] = useState([]); // { trainId, trainNumber, trainName, sampleRow }
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const ref = useRef();
 
+  // safe onSelect wrapper
   function safeCallOnSelect(item) {
     try {
       void onSelect(item);
@@ -36,54 +36,59 @@ export default function TrainAutocomplete({ value, onChange, onSelect = () => {}
     }
   }
 
-  // fetch to server endpoint which does the DB lookup (server-side)
+  // Convert server rows (route rows) into unique train suggestions:
+  function rowsToTrains(rows) {
+    if (!Array.isArray(rows)) return [];
+    const seen = new Map(); // key -> sampleRow
+    for (const r of rows) {
+      // try multiple locations for train number/name
+      const raw = r || {};
+      const tn = raw.trainNumber ?? raw.trainNumber_text ?? raw?.raw?.trainNumber ?? raw?.raw?.trainId ?? raw?.trainId ?? null;
+      const name = raw.trainName ?? raw?.raw?.trainName ?? null;
+      const key = String(tn ?? name ?? raw?.trainId ?? raw?.trainId ?? JSON.stringify(raw)).trim();
+      if (!seen.has(key)) {
+        seen.set(key, { trainId: raw.trainId ?? raw?.raw?.trainId ?? null, trainNumber: tn, trainName: name, sampleRow: raw });
+      }
+    }
+    // return array preserving insertion order
+    return Array.from(seen.values()).map((it) => ({
+      trainId: it.trainId,
+      trainNumber: it.trainNumber != null ? String(it.trainNumber) : null,
+      trainName: it.trainName != null ? String(it.trainName) : "",
+      sampleRow: it.sampleRow,
+    }));
+  }
+
   async function runSearch(q) {
     if (!q || q.trim().length < 1) {
-      setResults([]);
+      setSuggestions([]);
       setOpen(false);
       return;
     }
 
-    const clean = String(q).trim();
-    const digits = clean.replace(/\D+/g, "");
     setLoading(true);
-    setResults([]);
+    setSuggestions([]);
     setOpen(false);
 
     try {
-      // Try numeric exact first if user typed digits (server endpoint should handle exact)
-      if (digits && digits.length >= 3) {
-        console.debug("[TrainAutocomplete] server eq lookup for", digits);
-        const res = await fetch(`/api/train-routes?train=${encodeURIComponent(digits)}&mode=exact`, {
-          cache: "no-store",
-        });
-        const json = await res.json().catch(() => null);
-        console.debug("[TrainAutocomplete] server eq result:", json);
-        if (res.ok && json?.ok && Array.isArray(json.rows) && json.rows.length) {
-          setResults(json.rows);
-          setOpen(true);
-          return;
-        }
-      }
-
-      // Fallback: server-side ilike / partial match
-      console.debug("[TrainAutocomplete] server partial lookup for", clean);
-      const res2 = await fetch(`/api/train-routes?train=${encodeURIComponent(clean)}&mode=partial`, {
-        cache: "no-store",
-      });
-      const json2 = await res2.json().catch(() => null);
-      console.debug("[TrainAutocomplete] server partial result:", json2);
-      if (res2.ok && json2?.ok) {
-        setResults(Array.isArray(json2.rows) ? json2.rows : (json2.rows || []));
-        setOpen((json2.rows || []).length > 0);
-      } else {
-        console.warn("[TrainAutocomplete] server returned error or empty", res2.status, json2);
-        setResults([]);
+      // call server endpoint (two-step server logic handles exact/partial)
+      const res = await fetch(`/api/train-routes?train=${encodeURIComponent(q)}&mode=partial`, { cache: "no-store" });
+      const j = await res.json().catch(() => null);
+      console.debug("[TrainAutocomplete] server response", res.status, j);
+      if (!res.ok) {
+        // server returned 404 or error
+        console.warn("[TrainAutocomplete] server returned error or empty", j);
+        setSuggestions([]);
         setOpen(false);
+      } else {
+        const rows = j?.rows || [];
+        const trains = rowsToTrains(rows);
+        setSuggestions(trains);
+        setOpen(trains.length > 0);
       }
     } catch (err) {
       console.error("[TrainAutocomplete] unexpected error", err);
-      setResults([]);
+      setSuggestions([]);
       setOpen(false);
     } finally {
       setLoading(false);
@@ -102,14 +107,17 @@ export default function TrainAutocomplete({ value, onChange, onSelect = () => {}
   }
 
   function handleSelect(item) {
-    const disp = item?.trainNumber ? `${item.trainNumber} - ${item.trainName || ""}`.trim() : (item?.trainName || "");
+    // build display text: prefer "11016 — Train Name"
+    const num = item?.trainNumber ?? (item?.sampleRow?.raw?.trainNumber ?? item?.sampleRow?.trainNumber ?? null);
+    const name = item?.trainName ?? (item?.sampleRow?.raw?.trainName ?? item?.sampleRow?.trainName ?? "");
+    const disp = num ? `${String(num)} - ${String(name || "").trim()}`.trim() : String(name || "");
     if (onChange) onChange(disp);
     else setLocalQuery(disp);
     safeCallOnSelect(item);
     setOpen(false);
   }
 
-  // click outside to close
+  // click outside close
   useEffect(() => {
     function onClick(e) {
       if (ref.current && !ref.current.contains(e.target)) setOpen(false);
@@ -125,28 +133,34 @@ export default function TrainAutocomplete({ value, onChange, onSelect = () => {}
         value={query || ""}
         placeholder="Enter train number or train name"
         onChange={handleInputChange}
-        onFocus={() => (results.length > 0 ? setOpen(true) : null)}
+        onFocus={() => (suggestions.length > 0 ? setOpen(true) : null)}
         className="w-full border px-3 py-2 rounded"
       />
 
       {open && (
         <div className="absolute w-full bg-white shadow border max-h-64 overflow-auto z-50 rounded">
           {loading && <div className="p-2 text-sm">Searching...</div>}
-          {!loading && results.length === 0 && (
-            <div className="p-2 text-sm text-gray-600">No trains found</div>
-          )}
+          {!loading && suggestions.length === 0 && <div className="p-2 text-sm text-gray-600">No trains found</div>}
 
-          {results.map((item) => (
-            <div
-              key={item.trainId ?? `${item.trainNumber}_${item.trainName}`}
-              onMouseDown={(e) => { e.preventDefault(); handleSelect(item); }}
-              className="px-3 py-2 cursor-pointer hover:bg-gray-100"
-            >
-              <div className="font-medium">
-                {item.trainNumber} — {item.trainName}
+          {suggestions.map((item, idx) => {
+            // display safe label with fallbacks
+            const num = item.trainNumber ?? item?.sampleRow?.raw?.trainNumber ?? item?.sampleRow?.trainNumber ?? "";
+            const name = item.trainName ?? item?.sampleRow?.raw?.trainName ?? item?.sampleRow?.trainName ?? "";
+            const label = (num ? `${num} — ${name}` : name || "(unknown train)").trim();
+
+            return (
+              <div
+                key={item.trainId ?? `${num}_${name}_${idx}`}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  handleSelect(item);
+                }}
+                className="px-3 py-2 cursor-pointer hover:bg-gray-100"
+              >
+                <div className="font-medium">{label}</div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
