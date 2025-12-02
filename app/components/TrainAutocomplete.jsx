@@ -1,12 +1,7 @@
+// app/components/TrainAutocomplete.jsx
 "use client";
 
 import React, { useEffect, useState, useRef } from "react";
-import { createClient } from "@supabase/supabase-js";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-);
 
 function useDebouncedValue(value, delay = 300) {
   const [v, setV] = useState(value);
@@ -18,15 +13,15 @@ function useDebouncedValue(value, delay = 300) {
 }
 
 /*
-Controlled props:
+Props:
   value?: string
-  onChange?: (val) => void
+  onChange?: (val: string) => void
   onSelect?: (item) => void
 */
 export default function TrainAutocomplete({ value, onChange, onSelect = () => {} }) {
   const [localQuery, setLocalQuery] = useState("");
   const query = value !== undefined ? value : localQuery;
-  const debouncedQuery = useDebouncedValue(query || "", 250);
+  const debouncedQuery = useDebouncedValue(query || "", 300);
 
   const [results, setResults] = useState([]);
   const [open, setOpen] = useState(false);
@@ -41,6 +36,7 @@ export default function TrainAutocomplete({ value, onChange, onSelect = () => {}
     }
   }
 
+  // fetch to server endpoint which does the DB lookup (server-side)
   async function runSearch(q) {
     if (!q || q.trim().length < 1) {
       setResults([]);
@@ -49,54 +45,41 @@ export default function TrainAutocomplete({ value, onChange, onSelect = () => {}
     }
 
     const clean = String(q).trim();
-    const digitsOnly = clean.replace(/\D+/g, "");
+    const digits = clean.replace(/\D+/g, "");
     setLoading(true);
     setResults([]);
     setOpen(false);
 
     try {
-      // 1) If user typed >=3 digits, try exact numeric eq first (fast)
-      if (digitsOnly && digitsOnly.length >= 3) {
-        console.debug("[TrainAutocomplete] STEP 1: trying eq search for", digitsOnly);
-        const eq = await supabase
-          .from("TrainRoute")
-          .select(["trainId", "trainNumber", "trainName", "trainNumber_text"])
-          .eq("trainNumber", Number(digitsOnly))
-          .limit(50);
-
-        console.debug("[TrainAutocomplete] eq response:", eq);
-
-        if (eq.error) {
-          // log error (could be RLS / permission)
-          console.warn("[TrainAutocomplete] eq search error", eq.error);
-        } else if (Array.isArray(eq.data) && eq.data.length > 0) {
-          setResults(eq.data);
+      // Try numeric exact first if user typed digits (server endpoint should handle exact)
+      if (digits && digits.length >= 3) {
+        console.debug("[TrainAutocomplete] server eq lookup for", digits);
+        const res = await fetch(`/api/train-routes?train=${encodeURIComponent(digits)}&mode=exact`, {
+          cache: "no-store",
+        });
+        const json = await res.json().catch(() => null);
+        console.debug("[TrainAutocomplete] server eq result:", json);
+        if (res.ok && json?.ok && Array.isArray(json.rows) && json.rows.length) {
+          setResults(json.rows);
           setOpen(true);
           return;
         }
-        // no eq result → continue to ilike fallback
       }
 
-      // 2) ilike fallback: search trainNumber_text and trainName
-      console.debug("[TrainAutocomplete] STEP 2: trying ilike search for", clean);
-      const ilikeQ = `%${clean}%`;
-
-      // use array select to avoid quoting issues
-      const ilike = await supabase
-        .from("TrainRoute")
-        .select(["trainId", "trainNumber", "trainName", "trainNumber_text"])
-        .or(`trainNumber_text.ilike.${ilikeQ},trainName.ilike.${ilikeQ}`)
-        .limit(50);
-
-      console.debug("[TrainAutocomplete] ilike response:", ilike);
-
-      if (ilike.error) {
-        console.error("[TrainAutocomplete] ilike search error", ilike.error);
+      // Fallback: server-side ilike / partial match
+      console.debug("[TrainAutocomplete] server partial lookup for", clean);
+      const res2 = await fetch(`/api/train-routes?train=${encodeURIComponent(clean)}&mode=partial`, {
+        cache: "no-store",
+      });
+      const json2 = await res2.json().catch(() => null);
+      console.debug("[TrainAutocomplete] server partial result:", json2);
+      if (res2.ok && json2?.ok) {
+        setResults(Array.isArray(json2.rows) ? json2.rows : (json2.rows || []));
+        setOpen((json2.rows || []).length > 0);
+      } else {
+        console.warn("[TrainAutocomplete] server returned error or empty", res2.status, json2);
         setResults([]);
         setOpen(false);
-      } else {
-        setResults(ilike.data || []);
-        setOpen((ilike.data || []).length > 0);
       }
     } catch (err) {
       console.error("[TrainAutocomplete] unexpected error", err);
@@ -155,7 +138,7 @@ export default function TrainAutocomplete({ value, onChange, onSelect = () => {}
 
           {results.map((item) => (
             <div
-              key={item.trainId || `${item.trainNumber}_${item.trainName}`}
+              key={item.trainId ?? `${item.trainNumber}_${item.trainName}`}
               onMouseDown={(e) => { e.preventDefault(); handleSelect(item); }}
               className="px-3 py-2 cursor-pointer hover:bg-gray-100"
             >
