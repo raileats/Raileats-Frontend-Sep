@@ -390,3 +390,8 @@ export default function SearchBox() {
     </div>
   );
 }
+// ADD THIS below `onTrainAutocompleteSelect`
+function onTrainAutocompleteSelectWrapper(item) {
+  // call async function without awaiting
+  void onTrainAutocompleteSelect(item);
+}
