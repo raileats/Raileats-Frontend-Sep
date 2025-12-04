@@ -153,7 +153,9 @@ export async function GET(req: Request) {
           .select(
             'RestroCode, RestroName, StationCode, StationName, "0penTime", "ClosedTime", WeeklyOff, MinimumOrdermValue, CutOffTime, IsActive',
           )
-          .in("StationCode", stationCodes)
+         // prefer normalized column if exists
+.in("stationcode_norm", stationCodes)
+
           .limit(2000);
 
         if (!restroErr && Array.isArray(restroRows) && restroRows.length) {
