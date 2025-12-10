@@ -3,20 +3,29 @@ import { NextResponse } from "next/server";
 import { serviceClient } from "../../lib/supabaseServer";
 
 /**
- * Optimized train-restros endpoint
- * - returns all stations on the route that have active vendors
- * - keeps holiday checks but:
- *   * runs them highly parallel with a concurrency limiter
- *   * applies short fetch timeouts
- *   * caches holiday results in-memory with TTL (5min default)
+ * High-speed train-restros endpoint (full replacement)
  *
- * Note: in-memory cache helps warm instances. For consistent sub-1s across cold starts,
- * add a shared cache (Redis) or admin-side batch holiday endpoint.
+ * Goals:
+ *  - keep existing business rules (active flag, holiday checks, admin fallback)
+ *  - show full route from boarding -> end (no 6-hour limit)
+ *  - include arrival_time, stoptime, platform, arrival_date
+ *  - dramatically reduce wall-clock latency using:
+ *      * batched DB .in(...) queries
+ *      * parallel admin fetches with short timeouts
+ *      * holiday-list caching per-restro + boolean per restro+date cache
+ *      * limited concurrency worker pool
+ *
+ * TUNE if needed:
+ *  - BATCH_SIZE
+ *  - concurrency numbers for pMap
+ *  - HOLIDAY_TTL_MS and fetch timeouts
+ *
+ * Note: For guaranteed sub-1s across cold-starts, use shared Redis / batch holiday API.
  */
 
 const ADMIN_BASE = process.env.NEXT_PUBLIC_ADMIN_APP_URL || "https://admin.raileats.in";
 
-// ---------- util helpers ----------
+// ---------- utils ----------
 function normalizeToLower(obj: Record<string, any>) {
   const lower: Record<string, any> = {};
   for (const k of Object.keys(obj)) lower[k.toLowerCase()] = obj[k];
@@ -35,6 +44,15 @@ function isActiveValue(val: any) {
   }
   return true;
 }
+async function fetchJson(url: string, opts?: RequestInit) {
+  try {
+    const r = await fetch(url, { cache: "no-store", ...(opts || {}) });
+    if (!r.ok) return null;
+    return await r.json().catch(() => null);
+  } catch {
+    return null;
+  }
+}
 function addDaysToIso(iso: string, days: number) {
   const d = new Date(iso + "T00:00:00");
   d.setDate(d.getDate() + days);
@@ -43,23 +61,6 @@ function addDaysToIso(iso: string, days: number) {
   const dd = String(d.getDate()).padStart(2, "0");
   return `${y}-${m}-${dd}`;
 }
-
-// ---------- fetch with timeout ----------
-async function fetchWithTimeout(input: string, timeoutMs = 800) {
-  const controller = new AbortController();
-  const id = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    const res = await fetch(input, { cache: "no-store", signal: controller.signal });
-    clearTimeout(id);
-    if (!res.ok) return null;
-    return await res.json().catch(() => null);
-  } catch (e) {
-    clearTimeout(id);
-    return null;
-  }
-}
-
-// ---------- admin restro mapper ----------
 function mapAdminRestroToCommon(adminR: any) {
   return {
     RestroCode: adminR.RestroCode ?? adminR.id ?? adminR.code ?? null,
@@ -72,93 +73,113 @@ function mapAdminRestroToCommon(adminR: any) {
     raw: adminR,
   };
 }
+function chunk<T>(arr: T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+  return out;
+}
 
-// ---------- in-memory holiday cache ----------
-type HolidayCacheEntry = { blocked: boolean; ts: number };
-const HOLIDAY_TTL_MS = 1000 * 60 * 5; // 5 minutes
-const holidayCache: Map<string, HolidayCacheEntry> = new Map(); // key = `${restroId}::${isoDate}`
-
-// ---------- holiday check with cache + timeout ----------
-async function isVendorHolidayCached(restroCode: string | number, isoDate: string) {
-  if (!restroCode) return false;
-  const key = `${String(restroCode)}::${isoDate}`;
-  const now = Date.now();
-  const cached = holidayCache.get(key);
-  if (cached && now - cached.ts < HOLIDAY_TTL_MS) {
-    return cached.blocked;
-  }
-
-  // fetch and cache result (use fetchWithTimeout)
-  try {
-    const url = `${ADMIN_BASE.replace(/\/$/, "")}/api/restros/${encodeURIComponent(String(restroCode))}/holidays`;
-    const json = await fetchWithTimeout(url, 800); // 800ms timeout
-    const rows: any[] = json?.rows ?? json?.data ?? (Array.isArray(json) ? json : []);
-    let blocked = false;
-    if (Array.isArray(rows) && rows.length) {
-      const target = Date.parse(isoDate + "T00:00:00");
-      if (Number.isFinite(target)) {
-        for (const r of rows) {
-          const deletedAt = r?.deleted_at ? Date.parse(r.deleted_at) : null;
-          if (deletedAt) continue;
-          const start = r?.start_at ? Date.parse(r.start_at) : NaN;
-          const end = r?.end_at ? Date.parse(r.end_at) : NaN;
-          if (!Number.isFinite(start) || !Number.isFinite(end)) continue;
-          if (start <= target && target <= end) {
-            blocked = true;
-            break;
-          }
-        }
+/** limited concurrency mapper */
+async function pMap<T, R>(items: T[], mapper: (t: T) => Promise<R>, concurrency = 6): Promise<R[]> {
+  const results: R[] = new Array(items.length) as R[];
+  let i = 0;
+  const workers: Promise<void>[] = [];
+  const run = async () => {
+    while (true) {
+      const idx = i++;
+      if (idx >= items.length) return;
+      try {
+        results[idx] = await mapper(items[idx]);
+      } catch (e) {
+        results[idx] = undefined as unknown as R;
       }
     }
-    holidayCache.set(key, { blocked, ts: Date.now() });
-    return blocked;
-  } catch (e) {
-    // on failure: be permissive (do not block)
-    holidayCache.set(key, { blocked: false, ts: Date.now() });
-    return false;
+  };
+  for (let w = 0; w < Math.min(concurrency, items.length); w++) workers.push(run());
+  await Promise.all(workers);
+  return results;
+}
+
+// ---------- fetch with timeout ----------
+async function fetchWithTimeoutJson(url: string, timeoutMs = 900) {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, { cache: "no-store", signal: controller.signal });
+    clearTimeout(id);
+    if (!res.ok) return null;
+    return await res.json().catch(() => null);
+  } catch {
+    clearTimeout(id);
+    return null;
   }
 }
 
-// ---------- concurrency limiter (simple) ----------
-function pLimit(concurrency: number) {
-  let active = 0;
-  const queue: Array<() => void> = [];
-  const next = () => {
-    const fn = queue.shift();
-    if (!fn) return;
-    active++;
-    fn();
-  };
-  return function <T>(fn: () => Promise<T>): Promise<T> {
-    return new Promise((resolve, reject) => {
-      const run = () => {
-        fn()
-          .then((v) => {
-            resolve(v);
-            active--;
-            if (queue.length) next();
-          })
-          .catch((err) => {
-            reject(err);
-            active--;
-            if (queue.length) next();
-          });
-      };
-      if (active < concurrency) {
-        active++;
-        run();
-      } else {
-        queue.push(run);
-      }
-    });
-  };
+// ---------- holiday cache ----------
+const HOLIDAY_TTL_MS = 1000 * 60 * 5; // 5 minutes
+if (!(globalThis as any).__restroHolidayListCache) (globalThis as any).__restroHolidayListCache = {};
+if (!(globalThis as any).__restroHolidayBoolCache) (globalThis as any).__restroHolidayBoolCache = {};
+
+async function fetchVendorHolidaysWithTimeout(restroCode: string | number, timeoutMs = 900) {
+  try {
+    if (!restroCode) return [] as any[];
+    const url = `${ADMIN_BASE.replace(/\/$/, "")}/api/restros/${encodeURIComponent(String(restroCode))}/holidays`;
+    const json = await fetchWithTimeoutJson(url, timeoutMs);
+    const rows: any[] = json?.rows ?? json?.data ?? (Array.isArray(json) ? json : []);
+    return Array.isArray(rows) ? rows : [];
+  } catch {
+    return [];
+  }
 }
 
-// ---------- main handler ----------
+async function isVendorHoliday(restroCode: string | number | null, isoDate: string): Promise<boolean> {
+  if (!restroCode) return false;
+  const boolCacheKey = `${String(restroCode)}::${isoDate}`;
+  const boolCache: Record<string, { blocked: boolean; ts: number }> = (globalThis as any).__restroHolidayBoolCache;
+
+  const cachedBool = boolCache[boolCacheKey];
+  if (cachedBool && Date.now() - cachedBool.ts < HOLIDAY_TTL_MS) {
+    return cachedBool.blocked;
+  }
+
+  const listCacheKey = String(restroCode);
+  const listCache: Record<string, { rows: any[]; fetchedAt: number }> = (globalThis as any).__restroHolidayListCache;
+  const listEntry = listCache[listCacheKey];
+  let rows: any[] = [];
+  const now = Date.now();
+  if (listEntry && now - listEntry.fetchedAt < HOLIDAY_TTL_MS) {
+    rows = listEntry.rows || [];
+  } else {
+    const fetched = await fetchVendorHolidaysWithTimeout(restroCode, 900);
+    rows = Array.isArray(fetched) ? fetched : [];
+    listCache[listCacheKey] = { rows, fetchedAt: Date.now() };
+  }
+
+  const target = Date.parse(isoDate + "T00:00:00");
+  let blocked = false;
+  if (Number.isFinite(target) && Array.isArray(rows) && rows.length) {
+    for (const r of rows) {
+      const deletedAt = r?.deleted_at ? Date.parse(r.deleted_at) : null;
+      if (deletedAt) continue;
+      const start = r?.start_at ? Date.parse(r.start_at) : NaN;
+      const end = r?.end_at ? Date.parse(r.end_at) : NaN;
+      if (!Number.isFinite(start) || !Number.isFinite(end)) continue;
+      if (start <= target && target <= end) {
+        blocked = true;
+        break;
+      }
+    }
+  }
+
+  boolCache[boolCacheKey] = { blocked, ts: Date.now() };
+  return blocked;
+}
+
+// ---------- main ----------
 export async function GET(req: Request) {
   const url = new URL(req.url);
   const trainParam = (url.searchParams.get("train") || "").trim();
-  const date = (url.searchParams.get("date") || "").trim();
+  const date = (url.searchParams.get("date") || "").trim(); // yyyy-mm-dd
   const boarding = (url.searchParams.get("boarding") || "").trim();
 
   if (!trainParam || !date || !boarding) {
@@ -166,11 +187,11 @@ export async function GET(req: Request) {
   }
 
   try {
+    // 1) fetch full route stops (ordered by StnNumber)
     const q = trainParam;
     const isDigits = /^[0-9]+$/.test(q);
     let stopsRows: any[] = [];
 
-    // fetch route (full) - keep limit safe
     if (isDigits) {
       const { data: exactData, error: exactErr } = await serviceClient
         .from("TrainRoute")
@@ -200,9 +221,15 @@ export async function GET(req: Request) {
       return NextResponse.json({ ok: true, train: { trainNumber: trainParam, trainName: null }, stations: [] });
     }
 
-    // compute arrival dates
+    // 2) route from boarding -> end (no 6-hr limit)
+    const normBoard = normalizeCode(boarding);
+    const startIdx = stopsRows.findIndex((r: any) => normalizeCode(r.StationCode ?? r.stationcode ?? r.Station ?? r.station) === normBoard);
+    const sliceStart = startIdx >= 0 ? startIdx : 0;
+    const routeFromBoarding = stopsRows.slice(sliceStart);
+
+    // compute arrival_date for each stop using Day offsets
     const baseDay = typeof stopsRows[0]?.Day === "number" ? Number(stopsRows[0].Day) : 1;
-    const stopsWithArrival = stopsRows.map((s: any) => {
+    const stopsWithArrival = routeFromBoarding.map((s: any) => {
       let arrivalDate = date;
       if (typeof s.Day === "number") {
         const diff = Number(s.Day) - baseDay;
@@ -211,39 +238,37 @@ export async function GET(req: Request) {
       return { ...s, arrivalDate };
     });
 
-    // get unique station codes
-    const stationCodes = Array.from(
-      new Set(
-        stopsWithArrival
-          .map((s: any) => normalizeCode(s.StationCode ?? s.stationcode ?? s.Station ?? s.station))
-          .filter(Boolean),
-      ),
+    // collect unique station codes (ordered)
+    const stationCodesAll = Array.from(
+      new Set(stopsWithArrival.map((s: any) => normalizeCode(s.StationCode ?? s.stationcode ?? s.Station ?? s.station)).filter(Boolean)),
     );
 
-    // RestroMaster single IN query
+    // 3) fetch RestroMaster rows in batches
+    const BATCH_SIZE = 150;
+    const batches = chunk(stationCodesAll, BATCH_SIZE);
     let restroRows: any[] = [];
-    if (stationCodes.length) {
+    for (const b of batches) {
       try {
         const { data, error } = await serviceClient
           .from("RestroMaster")
           .select("RestroCode,RestroName,StationCode,StationName,0penTime,ClosedTime,WeeklyOff,MinimumOrdermValue,CutOffTime,IsActive,RestroDisplayPhoto")
-          .in("StationCode", stationCodes)
-          .limit(5000);
-        if (!error && Array.isArray(data) && data.length) restroRows = data;
-      } catch {
-        // ignore
+          .in("StationCode", b)
+          .limit(20000);
+        if (!error && Array.isArray(data) && data.length) restroRows.push(...data);
+      } catch (e) {
+        console.warn("RestroMaster batch fetch failed", e);
       }
     }
 
-    // fallback: if empty, fetch many and filter
+    // fallback: fetch-all once and filter if still empty
     if (!restroRows.length) {
       try {
         const { data: allRestros } = await serviceClient
           .from("RestroMaster")
           .select("RestroCode,RestroName,StationCode,StationName,0penTime,ClosedTime,WeeklyOff,MinimumOrdermValue,CutOffTime,IsActive,RestroDisplayPhoto")
-          .limit(5000);
+          .limit(20000);
         if (Array.isArray(allRestros)) {
-          const lowerCodes = stationCodes.map((c) => c.toLowerCase());
+          const lowerCodes = stationCodesAll.map((c) => c.toLowerCase());
           restroRows = (allRestros || []).filter((r: any) => {
             const rl = normalizeToLower(r);
             const cand = rl.stationcode ?? rl.station_code ?? rl.station ?? rl.stationid ?? rl.stationname ?? null;
@@ -251,12 +276,12 @@ export async function GET(req: Request) {
             return lowerCodes.includes(String(cand).toLowerCase());
           });
         }
-      } catch {
-        // ignore
+      } catch (e) {
+        console.warn("RestroMaster fetch-all fallback failed", e);
       }
     }
 
-    // group restromaster rows by station code
+    // group RestroMaster rows by StationCode
     const grouped: Record<string, any[]> = {};
     for (const r of restroRows) {
       const sc = normalizeCode(r.StationCode ?? r.stationcode ?? r.Station ?? r.station ?? null);
@@ -264,148 +289,131 @@ export async function GET(req: Request) {
       (grouped[sc] = grouped[sc] || []).push(r);
     }
 
-    // map stops by station for representative arrival/time
-    const stationMap: Record<string, any[]> = {};
-    for (const s of stopsWithArrival) {
-      const sc = normalizeCode(s.StationCode ?? s.stationcode ?? s.Station ?? s.station ?? "");
-      if (!sc) continue;
-      stationMap[sc] = stationMap[sc] || [];
-      stationMap[sc].push(s);
-    }
-
-    // prepare vendor lists per station (collect vendor ids per date)
-    const stationToVendorsRaw: Record<string, { vendors: any[]; arrivalDate: string }> = {};
-    const stationsMissingRestroMaster: string[] = [];
-    const vendorIdsByDate: Record<string, Set<string | number>> = {};
-
-    for (const sc of stationCodes) {
-      const stopList = stationMap[sc] || [];
-      const firstStop = stopList[0] || {};
-      const arrivalDate = firstStop.arrivalDate || date;
-      let vendors: any[] = [];
-
-      if (grouped[sc] && grouped[sc].length) {
-        vendors = grouped[sc]
-          .filter((r: any) => isActiveValue(r.IsActive ?? r.isActive ?? r.active))
-          .map((r: any) => ({
-            RestroCode: r.RestroCode ?? r.restroCode ?? r.id ?? null,
-            RestroName: r.RestroName ?? r.restroName ?? r.name ?? null,
-            isActive: r.IsActive ?? r.isActive ?? true,
-            OpenTime: r["0penTime"] ?? r.openTime ?? null,
-            ClosedTime: r.ClosedTime ?? r.closeTime ?? null,
-            MinimumOrdermValue: r.MinimumOrdermValue ?? r.minOrder ?? null,
-            RestroDisplayPhoto: r.RestroDisplayPhoto ?? null,
-            source: "restromaster",
-            raw: r,
-          }));
-      }
-
-      if (vendors.length) {
-        stationToVendorsRaw[sc] = { vendors, arrivalDate };
-        vendorIdsByDate[arrivalDate] = vendorIdsByDate[arrivalDate] || new Set();
-        vendors.forEach((v) => vendorIdsByDate[arrivalDate].add(v.RestroCode));
-      } else {
-        stationsMissingRestroMaster.push(sc);
-        stationToVendorsRaw[sc] = { vendors: [], arrivalDate };
-      }
-    }
-
-    // admin fallback for stations missing restromaster (parallel)
-    if (stationsMissingRestroMaster.length) {
-      await Promise.all(
-        stationsMissingRestroMaster.map(async (sc) => {
+    // 4) admin fallback for station codes missing restromaster (parallel limited)
+    const needAdminFor = stationCodesAll.filter((sc) => !grouped[sc] || grouped[sc].length === 0);
+    const adminFetchMap: Record<string, any> = {};
+    if (needAdminFor.length) {
+      await pMap(
+        needAdminFor,
+        async (sc) => {
           try {
             const adminUrl = `${ADMIN_BASE.replace(/\/$/, "")}/api/stations/${encodeURIComponent(sc)}`;
-            const adminJson = await fetchWithTimeout(adminUrl, 800);
-            const adminRows = adminJson?.restaurants ?? adminJson?.data ?? adminJson?.rows ?? adminJson ?? null;
-            if (Array.isArray(adminRows) && adminRows.length) {
-              const mapped = adminRows.map((ar: any) => mapAdminRestroToCommon(ar)).filter((m) => m.isActive !== false);
-              stationToVendorsRaw[sc] = stationToVendorsRaw[sc] || { vendors: [], arrivalDate: date };
-              stationToVendorsRaw[sc].vendors = mapped;
-              const firstStop = stationMap[sc]?.[0] || {};
-              const arrivalDate = firstStop.arrivalDate || date;
-              vendorIdsByDate[arrivalDate] = vendorIdsByDate[arrivalDate] || new Set();
-              mapped.forEach((m) => vendorIdsByDate[arrivalDate].add(m.RestroCode));
-            }
+            const json = await fetchWithTimeoutJson(adminUrl, 900);
+            adminFetchMap[sc] = json;
           } catch (e) {
-            // ignore fallback error
-            console.warn("admin fallback failed for", sc, e);
+            adminFetchMap[sc] = null;
           }
-        }),
+          return null;
+        },
+        8,
       );
     }
 
-    // perform holiday checks in parallel with concurrency limit and cached results
-    const concurrency = 50; // large but controlled — tune if admin can't handle concurrency
-    const limit = pLimit(concurrency);
-    const blockedVendorSet = new Set<string | number>();
-
-    const holidayPromises: Promise<void>[] = [];
-    for (const isoDate of Object.keys(vendorIdsByDate)) {
-      const ids = Array.from(vendorIdsByDate[isoDate] || []);
-      for (const id of ids) {
-        const p = limit(async () => {
-          try {
-            const blocked = await isVendorHolidayCached(id, isoDate);
-            if (blocked) blockedVendorSet.add(id);
-          } catch (e) {
-            // ignore per-vendor failure
-          }
-        });
-        holidayPromises.push(p);
-      }
-    }
-    // wait all holiday checks (they will run concurrent up to concurrency)
-    await Promise.all(holidayPromises);
-
-    // assemble finalStations (include arrival_time & stoptime & platform)
+    // 5) build vendors per station with holiday checks (concurrent limited)
     const finalStations: any[] = [];
-    for (const sc of stationCodes) {
-      const repStop = stationMap[sc] && stationMap[sc][0] ? stationMap[sc][0] : null;
-      if (!repStop) continue;
-      const arrivalDate = repStop.arrivalDate;
-      const arrivalTime = repStop.Arrives ?? repStop.Arrival ?? repStop.arrival_time ?? null;
-      const stoptime = repStop.Stoptime ?? repStop.stoptime ?? null;
-      const platform = repStop.Platform ?? repStop.platform ?? null;
-      const day = typeof repStop.Day === "number" ? repStop.Day : repStop.Day ? Number(repStop.Day) : null;
 
-      const rawVendors = (stationToVendorsRaw[sc] && stationToVendorsRaw[sc].vendors) || [];
-      const vendorsFiltered = rawVendors
-        .filter((v: any) => {
-          if (!isActiveValue(v.isActive ?? v.IsActive ?? v.active)) return false;
-          const id = v.RestroCode ?? v.RestroCode;
-          if (!id) return false;
-          if (blockedVendorSet.has(id)) return false;
-          return true;
-        })
-        .map((v: any) => ({
-          RestroCode: v.RestroCode ?? v.RestroCode ?? v.id ?? null,
-          RestroName: v.RestroName ?? v.RestroName ?? v.name ?? null,
-          isActive: v.isActive ?? v.IsActive ?? true,
-          OpenTime: v.OpenTime ?? v.openTime ?? null,
-          ClosedTime: v.ClosedTime ?? v.closeTime ?? null,
-          MinimumOrdermValue: v.MinimumOrdermValue ?? v.minOrder ?? null,
-          RestroDisplayPhoto: v.RestroDisplayPhoto ?? v.RestroDisplayPhoto ?? null,
-          source: v.source ?? "admin",
-          raw: v.raw ?? v,
-        }));
+    await pMap(
+      stopsWithArrival,
+      async (s) => {
+        const sc = normalizeCode(s.StationCode ?? s.stationcode ?? s.Station ?? s.station ?? "");
+        if (!sc) return null;
+        const stationName = s.StationName ?? s.stationName ?? s.station_name ?? s.station ?? sc;
+        const arrivalDate = s.arrivalDate; // yyyy-mm-dd
+        const arrivalTime = s.Arrives ?? s.Arrival ?? s.arrival_time ?? null;
+        const stoptime = s.Stoptime ?? s.stoptime ?? s.Stoptime ?? null;
+        const platform = s.Platform ?? s.platform ?? null;
 
-      if (vendorsFiltered.length) {
-        finalStations.push({
-          StationCode: sc,
-          StationName: repStop.StationName ?? repStop.stationName ?? repStop.station_name ?? sc,
-          arrival_time: arrivalTime,
-          stoptime,
-          platform,
-          Day: day,
-          arrival_date: arrivalDate,
-          vendors: vendorsFiltered,
-        });
-      }
-    }
+        let vendors: any[] = [];
+
+        if (grouped[sc] && Array.isArray(grouped[sc]) && grouped[sc].length) {
+          const candidateVendors = grouped[sc]
+            .filter((r: any) => isActiveValue(r.IsActive ?? r.isActive ?? r.active))
+            .map((r: any) => ({
+              RestroCode: r.RestroCode ?? r.restroCode ?? r.id ?? null,
+              RestroName: r.RestroName ?? r.restroName ?? r.name ?? null,
+              rawR: r,
+              OpenTime: r["0penTime"] ?? r.openTime ?? null,
+              ClosedTime: r.ClosedTime ?? r.closeTime ?? null,
+              MinimumOrdermValue: r.MinimumOrdermValue ?? r.minOrder ?? null,
+              RestroDisplayPhoto: r.RestroDisplayPhoto ?? null,
+            }));
+
+          const checked = await pMap(
+            candidateVendors,
+            async (cv) => {
+              try {
+                const restroId = cv.RestroCode ?? null;
+                const blocked = await isVendorHoliday(restroId, arrivalDate);
+                if (blocked) return null;
+                return {
+                  RestroCode: cv.RestroCode,
+                  RestroName: cv.RestroName,
+                  isActive: true,
+                  OpenTime: cv.OpenTime,
+                  ClosedTime: cv.ClosedTime,
+                  MinimumOrdermValue: cv.MinimumOrdermValue,
+                  RestroDisplayPhoto: cv.RestroDisplayPhoto,
+                  source: "restromaster",
+                  raw: cv.rawR,
+                };
+              } catch {
+                return null;
+              }
+            },
+            8,
+          );
+          vendors = checked.filter(Boolean);
+        } else {
+          const adminJson = adminFetchMap[sc] ?? null;
+          const adminRows = adminJson?.restaurants ?? adminJson?.data ?? adminJson?.rows ?? adminJson ?? null;
+          if (Array.isArray(adminRows) && adminRows.length) {
+            const candidateVendors = adminRows.map((ar: any) => {
+              const mapped = mapAdminRestroToCommon(ar);
+              return { mapped, rawA: ar };
+            }).filter((x: any) => x.mapped.isActive !== false);
+
+            const checked = await pMap(
+              candidateVendors,
+              async (cv) => {
+                try {
+                  const restroId = cv.mapped.RestroCode ?? null;
+                  const blocked = await isVendorHoliday(restroId, arrivalDate);
+                  if (blocked) return null;
+                  return { ...cv.mapped, source: "admin", raw: cv.rawA };
+                } catch {
+                  return null;
+                }
+              },
+              6,
+            );
+            vendors = checked.filter(Boolean);
+          }
+        }
+
+        if (vendors && vendors.length) {
+          finalStations.push({
+            StationCode: sc,
+            StationName: stationName,
+            arrival_time: arrivalTime,
+            stoptime,
+            platform,
+            Day: typeof s.Day === "number" ? s.Day : s.Day ? Number(s.Day) : null,
+            arrival_date: arrivalDate,
+            vendors,
+          });
+        }
+
+        return null;
+      },
+      6,
+    );
+
+    // sort by route order
+    const indexByCode = new Map<string, number>();
+    routeFromBoarding.forEach((r: any, idx: number) => indexByCode.set(normalizeCode(r.StationCode ?? r.stationcode ?? r.Station ?? r.station), idx));
+    finalStations.sort((a: any, b: any) => (indexByCode.get(a.StationCode) ?? 0) - (indexByCode.get(b.StationCode) ?? 0));
 
     const trainName = (stopsRows[0]?.trainName ?? stopsRows[0]?.train_name ?? null) || null;
-
     return NextResponse.json({
       ok: true,
       train: { trainNumber: trainParam, trainName },
