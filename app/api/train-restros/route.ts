@@ -2,82 +2,21 @@
 import { NextResponse } from "next/server";
 import { serviceClient } from "../../lib/supabaseServer";
 
-// Optional Upstash Redis client (serverless friendly)
-let redisClient: any = null;
-const UPSTASH_URL = process.env.UPSTASH_REDIS_REST_URL;
-const UPSTASH_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
-const CACHE_TTL_SEC = Number(process.env.TRAIN_RESTROS_CACHE_TTL_SEC ?? "30"); // default 30s
+/**
+ * Optimized + Upstash caching version
+ * - caches final response per train/date/boarding in Upstash
+ * - caches per-restro holiday lists in Upstash
+ * - batched RestroMaster queries + parallel admin fallback
+ * - computes arrival_time and halt_time from TrainRoute Stoptime/Arrives/Departs
+ */
 
-if (UPSTASH_URL && UPSTASH_TOKEN) {
-  try {
-    // dynamically require to avoid dev-time failures when package not installed
-    // install: npm i @upstash/redis
-    // Using CommonJS-style import to keep compatibility in some environments.
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { Redis } = require("@upstash/redis");
-    redisClient = new Redis({ url: UPSTASH_URL, token: UPSTASH_TOKEN });
-  } catch (e) {
-    console.warn("Upstash client init failed, falling back to in-memory cache", e);
-    redisClient = null;
-  }
-}
-
-// simple in-memory fallback cache (process-level)
-;(globalThis as any).__trainRestrosInMemoryCache = (globalThis as any).__trainRestrosInMemoryCache || new Map();
-function memCacheGet(k: string) {
-  const m = (globalThis as any).__trainRestrosInMemoryCache as Map<string, { ts: number; v: any }>;
-  const r = m.get(k);
-  if (!r) return null;
-  if (Date.now() - r.ts > CACHE_TTL_SEC * 1000) {
-    m.delete(k);
-    return null;
-  }
-  return r.v;
-}
-function memCacheSet(k: string, v: any) {
-  const m = (globalThis as any).__trainRestrosInMemoryCache as Map<string, { ts: number; v: any }>;
-  m.set(k, { ts: Date.now(), v });
-}
-
-// unified cache helpers (prefer Upstash, fallback to memory)
-async function cacheGet(key: string) {
-  if (redisClient) {
-    try {
-      const raw = await redisClient.get(key);
-      if (!raw) return null;
-      try {
-        return JSON.parse(raw);
-      } catch {
-        return raw;
-      }
-    } catch (e) {
-      // on redis error fallback to mem
-      return memCacheGet(key);
-    }
-  } else {
-    return memCacheGet(key);
-  }
-}
-async function cacheSet(key: string, value: any, ttlSec = CACHE_TTL_SEC) {
-  const payload = typeof value === "string" ? value : JSON.stringify(value);
-  if (redisClient) {
-    try {
-      // upstash redis set with ex
-      await redisClient.set(key, payload, { ex: ttlSec });
-      return;
-    } catch (e) {
-      // fallback to memory
-      memCacheSet(key, value);
-      return;
-    }
-  } else {
-    memCacheSet(key, value);
-  }
-}
-
-/* ------------ rest of helper funcs (same as fast code) ------------ */
 const ADMIN_BASE = process.env.NEXT_PUBLIC_ADMIN_APP_URL || "https://admin.raileats.in";
+const UPSTASH_URL = process.env.UPSTASH_REDIS_REST_URL || "";
+const UPSTASH_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || "";
+const CACHE_TTL = Number(process.env.TRAIN_RESTROS_CACHE_TTL_SEC || "30");
+const HOLIDAY_TTL = Number(process.env.TRAIN_RESTROS_HOLIDAY_TTL_SEC || "86400"); // 1 day default
 
+// ---------- utils ----------
 function normalizeToLower(obj: Record<string, any>) {
   const lower: Record<string, any> = {};
   for (const k of Object.keys(obj)) lower[k.toLowerCase()] = obj[k];
@@ -96,43 +35,22 @@ function isActiveValue(val: any) {
   }
   return true;
 }
+function chunk<T>(arr: T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+  return out;
+}
 async function fetchJson(url: string, opts?: RequestInit) {
   try {
-    const r = await fetch(url, { cache: "no-store", ...(opts || {}) });
+    const r = await fetch(url, { cache: "no-store", ...(opts || {}), timeout: 6000 as any });
     if (!r.ok) return null;
     return await r.json().catch(() => null);
   } catch {
     return null;
   }
 }
-function addDaysToIso(iso: string, days: number) {
-  const d = new Date(iso + "T00:00:00");
-  d.setDate(d.getDate() + days);
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${dd}`;
-}
-function mapAdminRestroToCommon(adminR: any) {
-  const a = normalizeToLower(adminR || {});
-  return {
-    RestroCode: adminR.RestroCode ?? adminR.id ?? a.id ?? a.restrocode ?? a.restro_code ?? null,
-    RestroName: adminR.RestroName ?? adminR.name ?? a.name ?? a.restroname ?? a.restro_name ?? null,
-    isActive: isActiveValue(adminR.IsActive ?? adminR.is_active ?? a.active ?? a.is_active ?? a.isactive),
-    OpenTime: adminR.OpenTime ?? adminR.open_time ?? a.open_time ?? a.openTime ?? null,
-    ClosedTime: adminR.ClosedTime ?? adminR.closed_time ?? a.closed_time ?? a.closeTime ?? null,
-    MinimumOrdermValue:
-      adminR.MinimumOrdermValue ?? adminR.minOrder ?? a.minOrder ?? a.minimum_order ?? a.minimumOrder ?? null,
-    RestroDisplayPhoto:
-      adminR.RestroDisplayPhoto ?? adminR.display_photo ?? a.display_photo ?? a.restrodisplayphoto ?? null,
-    raw: adminR,
-  };
-}
-function chunk<T>(arr: T[], size: number): T[][] {
-  const out: T[][] = [];
-  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
-  return out;
-}
+
+/** time helpers */
 function timeToSeconds(t: string | null | undefined) {
   if (!t) return null;
   const s = String(t).trim();
@@ -153,8 +71,123 @@ function secondsToHuman(sec: number | null) {
   const mm = m % 60;
   return `${h}h ${mm}m`;
 }
+function addDaysToIso(iso: string, days: number) {
+  const d = new Date(iso + "T00:00:00");
+  d.setDate(d.getDate() + days);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${dd}`;
+}
 
-/* ------------------ main endpoint (fast logic) ------------------ */
+/* ---------------- Upstash REST helpers ---------------- */
+async function upstashGet(key: string) {
+  if (!UPSTASH_URL || !UPSTASH_TOKEN) return null;
+  try {
+    const url = `${UPSTASH_URL.replace(/\/$/, "")}/get/${encodeURIComponent(key)}`;
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${UPSTASH_TOKEN}`, Accept: "application/json" } });
+    if (!res.ok) return null;
+    const j = await res.json().catch(() => null);
+    // Upstash returns { result: value } where value is raw string or null
+    if (!j || !("result" in j)) return null;
+    return j.result === null ? null : JSON.parse(j.result);
+  } catch (e) {
+    console.warn("upstashGet failed", e);
+    return null;
+  }
+}
+async function upstashSet(key: string, value: any, exSeconds = CACHE_TTL) {
+  if (!UPSTASH_URL || !UPSTASH_TOKEN) return false;
+  try {
+    const encoded = encodeURIComponent(JSON.stringify(value));
+    const url = `${UPSTASH_URL.replace(/\/$/, "")}/set/${encodeURIComponent(key)}/${encoded}?ex=${Number(exSeconds)}`;
+    const res = await fetch(url, { method: "POST", headers: { Authorization: `Bearer ${UPSTASH_TOKEN}`, Accept: "application/json" } });
+    return res.ok;
+  } catch (e) {
+    console.warn("upstashSet failed", e);
+    return false;
+  }
+}
+
+/* ------------ map admin restro shape ------------- */
+function mapAdminRestroToCommon(adminR: any) {
+  return {
+    RestroCode: adminR.RestroCode ?? adminR.id ?? adminR.code ?? null,
+    RestroName: adminR.RestroName ?? adminR.name ?? adminR.restro_name ?? null,
+    isActive: isActiveValue(adminR.IsActive ?? adminR.is_active ?? adminR.active),
+    OpenTime: adminR.OpenTime ?? adminR.open_time ?? adminR.openTime ?? null,
+    ClosedTime: adminR.ClosedTime ?? adminR.closed_time ?? adminR.closeTime ?? null,
+    MinimumOrdermValue: adminR.MinimumOrdermValue ?? adminR.minOrder ?? adminR.minimum_order ?? null,
+    RestroDisplayPhoto: adminR.RestroDisplayPhoto ?? adminR.display_photo ?? null,
+    raw: adminR,
+  };
+}
+
+/* ------------ holiday fetch & cache per-restro ------------- */
+async function fetchVendorHolidays(restroCode: string | number) {
+  try {
+    if (!restroCode) return [];
+    const url = `${ADMIN_BASE.replace(/\/$/, "")}/api/restros/${encodeURIComponent(String(restroCode))}/holidays`;
+    const res = await fetch(url, { cache: "no-store" });
+    if (!res.ok) return [];
+    const j = await res.json().catch(() => null);
+    const rows = j?.rows ?? j?.data ?? (Array.isArray(j) ? j : []);
+    return Array.isArray(rows) ? rows : [];
+  } catch (e) {
+    console.warn("fetchVendorHolidays failed", e);
+    return [];
+  }
+}
+async function getVendorHolidaysCached(restroCode: string | number) {
+  if (!restroCode) return [];
+  const key = `hols:${String(restroCode)}`;
+  // try upstash
+  const cached = await upstashGet(key);
+  if (Array.isArray(cached)) return cached;
+  // fetch and set
+  const rows = await fetchVendorHolidays(restroCode);
+  try {
+    await upstashSet(key, rows, HOLIDAY_TTL);
+  } catch {}
+  return rows;
+}
+function isHolidayRowsBlocking(rows: any[], isoDate: string) {
+  if (!Array.isArray(rows) || !rows.length) return false;
+  const target = Date.parse(isoDate + "T00:00:00");
+  if (!Number.isFinite(target)) return false;
+  for (const r of rows) {
+    const deletedAt = r?.deleted_at ? Date.parse(r.deleted_at) : null;
+    if (deletedAt) continue;
+    const start = r?.start_at ? Date.parse(r.start_at) : NaN;
+    const end = r?.end_at ? Date.parse(r.end_at) : NaN;
+    if (!Number.isFinite(start) || !Number.isFinite(end)) continue;
+    if (start <= target && target <= end) return true;
+  }
+  return false;
+}
+
+/* ---------------- limited concurrency mapper ---------------- */
+async function pMap<T, R>(items: T[], mapper: (t: T) => Promise<R>, concurrency = 12): Promise<R[]> {
+  const results: R[] = new Array(items.length) as R[];
+  let i = 0;
+  const workers: Promise<void>[] = [];
+  const run = async () => {
+    while (true) {
+      const idx = i++;
+      if (idx >= items.length) return;
+      try {
+        results[idx] = await mapper(items[idx]);
+      } catch (e) {
+        results[idx] = undefined as unknown as R;
+      }
+    }
+  };
+  for (let w = 0; w < Math.min(concurrency, items.length); w++) workers.push(run());
+  await Promise.all(workers);
+  return results;
+}
+
+/* ---------------- main handler ---------------- */
 export async function GET(req: Request) {
   const url = new URL(req.url);
   const trainParam = (url.searchParams.get("train") || "").trim();
@@ -166,11 +199,17 @@ export async function GET(req: Request) {
   }
 
   const cacheKey = `train:${trainParam}::date:${date}::board:${boarding}`;
-  const cached = await cacheGet(cacheKey);
-  if (cached) return NextResponse.json(cached);
+
+  // 1) try Redis cache first
+  try {
+    const cached = await upstashGet(cacheKey);
+    if (cached) return NextResponse.json(cached);
+  } catch (e) {
+    // ignore cache errors
+  }
 
   try {
-    // 1) load full route stops (include Stoptime / Arrives / Departs)
+    // 2) load full route stops
     const q = trainParam;
     const isDigits = /^[0-9]+$/.test(q);
     let stopsRows: any[] = [];
@@ -184,7 +223,6 @@ export async function GET(req: Request) {
         .eq("trainNumber", Number(q))
         .order("StnNumber", { ascending: true })
         .limit(2000);
-
       if (!exactErr && Array.isArray(exactData) && exactData.length) stopsRows = exactData;
     }
 
@@ -198,18 +236,16 @@ export async function GET(req: Request) {
           .order("StnNumber", { ascending: true })
           .limit(2000);
         if (Array.isArray(partialData) && partialData.length) stopsRows = partialData;
-      } catch {
-        // ignore
-      }
+      } catch {}
     }
 
     if (!stopsRows.length) {
       const result = { ok: true, train: { trainNumber: trainParam, trainName: null }, stations: [] };
-      await cacheSet(cacheKey, result);
+      await upstashSet(cacheKey, result, CACHE_TTL).catch(() => {});
       return NextResponse.json(result);
     }
 
-    // 2) route from boarding -> end
+    // 3) full route from boarding -> end
     const normBoard = normalizeCode(boarding);
     const startIdx = stopsRows.findIndex((r: any) =>
       normalizeCode(r.StationCode ?? r.stationcode ?? r.Station ?? r.station) === normBoard,
@@ -228,16 +264,12 @@ export async function GET(req: Request) {
       return { ...s, arrivalDate };
     });
 
-    // collect unique station codes
+    // unique station codes
     const stationCodesAll = Array.from(
-      new Set(
-        stopsWithArrival
-          .map((s: any) => normalizeCode(s.StationCode ?? s.stationcode ?? s.Station ?? s.station))
-          .filter(Boolean),
-      ),
+      new Set(stopsWithArrival.map((s: any) => normalizeCode(s.StationCode ?? s.stationcode ?? s.Station ?? s.station)).filter(Boolean)),
     );
 
-    // 3) batch fetch RestroMaster rows
+    // 4) batched RestroMaster fetch
     const BATCH = 200;
     const batches = chunk(stationCodesAll, BATCH);
     let restroRows: any[] = [];
@@ -246,7 +278,7 @@ export async function GET(req: Request) {
         const { data, error } = await serviceClient
           .from("RestroMaster")
           .select(
-            "RestroCode,RestroName,StationCode,StationName,0penTime,OpenTime,ClosedTime,WeeklyOff,MinimumOrdermValue,CutOffTime,IsActive,RestroDisplayPhoto",
+            "RestroCode,RestroName,StationCode,StationName,0penTime,ClosedTime,WeeklyOff,MinimumOrdermValue,CutOffTime,IsActive,RestroDisplayPhoto",
           )
           .in("StationCode", b)
           .limit(20000);
@@ -256,12 +288,13 @@ export async function GET(req: Request) {
       }
     }
 
+    // fallback fetch-all once
     if (!restroRows.length) {
       try {
         const { data: allRestros } = await serviceClient
           .from("RestroMaster")
           .select(
-            "RestroCode,RestroName,StationCode,StationName,0penTime,OpenTime,ClosedTime,WeeklyOff,MinimumOrdermValue,CutOffTime,IsActive,RestroDisplayPhoto",
+            "RestroCode,RestroName,StationCode,StationName,0penTime,ClosedTime,WeeklyOff,MinimumOrdermValue,CutOffTime,IsActive,RestroDisplayPhoto",
           )
           .limit(20000);
         if (Array.isArray(allRestros)) {
@@ -278,103 +311,135 @@ export async function GET(req: Request) {
       }
     }
 
-    // group by normalized station code
+    // group by station code
     const grouped: Record<string, any[]> = {};
     for (const r of restroRows) {
-      const raw = normalizeToLower(r);
-      const codeCandidate =
-        r.StationCode ?? r.stationcode ?? r.Station ?? r.station ?? raw.stationcode ?? raw.station ?? raw.stationid ?? null;
-      const sc = normalizeCode(codeCandidate ?? null);
+      const sc = normalizeCode(r.StationCode ?? r.stationcode ?? r.Station ?? r.station ?? null);
       if (!sc) continue;
       (grouped[sc] = grouped[sc] || []).push(r);
     }
 
-    // 4) admin fallback (parallel)
+    // 5) admin fallback for missing stations (parallel)
     const needAdminFor = stationCodesAll.filter((sc) => !grouped[sc] || grouped[sc].length === 0);
     const adminFetchMap: Record<string, any> = {};
     if (needAdminFor.length) {
-      const promises = needAdminFor.map(async (sc) => {
-        try {
-          const adminUrl = `${ADMIN_BASE.replace(/\/$/, "")}/api/stations/${encodeURIComponent(sc)}`;
-          const json = await fetchJson(adminUrl);
-          adminFetchMap[sc] = json;
-        } catch (e) {
-          adminFetchMap[sc] = null;
-        }
-      });
-      await Promise.allSettled(promises);
+      await Promise.allSettled(
+        needAdminFor.map(async (sc) => {
+          try {
+            const adminUrl = `${ADMIN_BASE.replace(/\/$/, "")}/api/stations/${encodeURIComponent(sc)}`;
+            const json = await fetchJson(adminUrl);
+            adminFetchMap[sc] = json;
+          } catch (e) {
+            adminFetchMap[sc] = null;
+          }
+        }),
+      );
     }
 
-    // 5) assemble finalStations with arrival_time + halt_time
+    // 6) assemble final stations (parallel), but use cached holiday lists for vendors
     const finalStations: any[] = [];
+    const stationResults = await pMap(
+      stopsWithArrival,
+      async (s) => {
+        const sc = normalizeCode(s.StationCode ?? s.stationcode ?? s.Station ?? s.station ?? "");
+        if (!sc) return null;
+        const stationName = s.StationName ?? s.stationName ?? s.station_name ?? s.station ?? sc;
+        const arrivalDate = s.arrivalDate;
 
-    for (const s of stopsWithArrival) {
-      const sc = normalizeCode(s.StationCode ?? s.stationcode ?? s.Station ?? s.station ?? "");
-      if (!sc) continue;
-      const stationName = s.StationName ?? s.stationName ?? s.station_name ?? s.station ?? sc;
-      const arrivalDate = s.arrivalDate;
-
-      const arrival_time = s.Arrives ?? s.Arrival ?? s.arrival_time ?? null;
-      let halt_time: string | null = null;
-
-      const stopRaw = s.Stoptime ?? s.stoptime ?? s.StopTime ?? null;
-      if (stopRaw) {
-        const sec = timeToSeconds(stopRaw);
-        halt_time = secondsToHuman(sec);
-      } else if (s.Arrives && s.Departs) {
-        const aSec = timeToSeconds(s.Arrives);
-        const dSec = timeToSeconds(s.Departs);
-        if (aSec !== null && dSec !== null) {
-          let diff = dSec - aSec;
-          if (diff < 0) diff += 24 * 3600;
-          if (diff >= 0) halt_time = secondsToHuman(diff);
+        const arrival_time = s.Arrives ?? s.Arrival ?? s.arrival_time ?? null;
+        let halt_time: string | null = null;
+        if (s.Stoptime ?? s.stoptime ?? s.StopTime) {
+          const stRaw = s.Stoptime ?? s.stoptime ?? s.StopTime;
+          const sec = timeToSeconds(stRaw);
+          halt_time = secondsToHuman(sec);
+        } else if (s.Arrives && s.Departs) {
+          const aSec = timeToSeconds(s.Arrives);
+          const dSec = timeToSeconds(s.Departs);
+          if (aSec !== null && dSec !== null) {
+            const diff = dSec - aSec;
+            if (diff >= 0) halt_time = secondsToHuman(diff);
+          }
         }
-      }
 
-      // vendors from RestroMaster or admin fallback
-      let vendors: any[] = [];
-      if (grouped[sc] && Array.isArray(grouped[sc]) && grouped[sc].length) {
-        vendors = grouped[sc]
-          .filter((r: any) => isActiveValue(r.IsActive ?? r.is_active ?? r.isActive ?? r.active ?? r.Active))
-          .map((r: any) => {
-            const raw = normalizeToLower(r);
-            const restroCode = r.RestroCode ?? r.restroCode ?? r.id ?? raw.id ?? raw.restrocode ?? raw.code ?? null;
-            return {
-              RestroCode: restroCode,
-              RestroName: r.RestroName ?? r.restroName ?? r.name ?? raw.name ?? null,
-              isActive: isActiveValue(r.IsActive ?? r.is_active ?? r.active),
-              OpenTime: r["0penTime"] ?? r.OpenTime ?? r.open_time ?? raw.open_time ?? null,
-              ClosedTime: r.ClosedTime ?? r.closeTime ?? r.closed_time ?? raw.closed_time ?? null,
-              MinimumOrdermValue: r.MinimumOrdermValue ?? r.minOrder ?? raw.minorder ?? null,
-              RestroDisplayPhoto: r.RestroDisplayPhoto ?? r.display_photo ?? raw.display_photo ?? null,
-              source: "restromaster",
+        let vendors: any[] = [];
+
+        if (grouped[sc] && grouped[sc].length) {
+          // convert grouped restromaster rows into common shape
+          const candidateVendors = grouped[sc]
+            .filter((r: any) => isActiveValue(r.IsActive ?? r.isActive ?? r.active))
+            .map((r: any) => ({
+              RestroCode: r.RestroCode ?? r.restroCode ?? r.id ?? null,
+              RestroName: r.RestroName ?? r.restroName ?? r.name ?? null,
+              OpenTime: r["0penTime"] ?? r.openTime ?? null,
+              ClosedTime: r.ClosedTime ?? r.closeTime ?? null,
+              MinimumOrdermValue: r.MinimumOrdermValue ?? r.minOrder ?? null,
+              RestroDisplayPhoto: r.RestroDisplayPhoto ?? null,
               raw: r,
-            };
-          });
-      } else {
-        const adminJson = adminFetchMap[sc] ?? null;
-        const adminRows = adminJson?.restaurants ?? adminJson?.data ?? adminJson?.rows ?? adminJson ?? null;
-        if (Array.isArray(adminRows) && adminRows.length) {
-          vendors = adminRows
-            .map((ar: any) => ({ ...mapAdminRestroToCommon(ar), source: "admin", raw: ar }))
-            .filter((v: any) => v.isActive !== false);
+            }));
+
+          // run holiday filter but using cached holiday lists (Upstash)
+          const checked = await pMap(
+            candidateVendors,
+            async (cv) => {
+              try {
+                const restroId = cv.RestroCode ?? null;
+                if (!restroId) return null;
+                const rows = await getVendorHolidaysCached(restroId);
+                const blocked = isHolidayRowsBlocking(rows, arrivalDate);
+                if (blocked) return null;
+                return { RestroCode: cv.RestroCode, RestroName: cv.RestroName, isActive: true, OpenTime: cv.OpenTime, ClosedTime: cv.ClosedTime, MinimumOrdermValue: cv.MinimumOrdermValue, RestroDisplayPhoto: cv.RestroDisplayPhoto, source: "restromaster", raw: cv.raw };
+              } catch {
+                return null;
+              }
+            },
+            10,
+          );
+
+          vendors = (checked || []).filter(Boolean);
+        } else {
+          const adminJson = adminFetchMap[sc] ?? null;
+          const adminRows = adminJson?.restaurants ?? adminJson?.data ?? adminJson?.rows ?? adminJson ?? null;
+          if (Array.isArray(adminRows) && adminRows.length) {
+            const candidate = adminRows.map((ar: any) => ({ mapped: mapAdminRestroToCommon(ar), rawA: ar })).filter((x: any) => x.mapped.isActive !== false);
+            const checked = await pMap(
+              candidate,
+              async (cv) => {
+                try {
+                  const restroId = cv.mapped.RestroCode ?? null;
+                  if (!restroId) return null;
+                  const rows = await getVendorHolidaysCached(restroId);
+                  const blocked = isHolidayRowsBlocking(rows, arrivalDate);
+                  if (blocked) return null;
+                  return { ...cv.mapped, source: "admin", raw: cv.rawA };
+                } catch {
+                  return null;
+                }
+              },
+              8,
+            );
+            vendors = (checked || []).filter(Boolean);
+          }
         }
-      }
 
-      if (vendors && vendors.length) {
-        finalStations.push({
-          StationCode: sc,
-          StationName: stationName,
-          arrival_time,
-          halt_time,
-          Day: typeof s.Day === "number" ? s.Day : s.Day ? Number(s.Day) : null,
-          arrival_date: arrivalDate,
-          vendors,
-        });
-      }
-    }
+        if (vendors && vendors.length) {
+          return {
+            StationCode: sc,
+            StationName: stationName,
+            arrival_time,
+            halt_time,
+            Day: typeof s.Day === "number" ? s.Day : s.Day ? Number(s.Day) : null,
+            arrival_date: arrivalDate,
+            vendors,
+          };
+        }
+        return null;
+      },
+      12,
+    );
 
-    // 6) sort
+    for (const r of stationResults) if (r) finalStations.push(r);
+
+    // sort finalStations
     const indexByCode = new Map<string, number>();
     routeFromBoarding.forEach((r: any, idx: number) =>
       indexByCode.set(normalizeCode(r.StationCode ?? r.stationcode ?? r.Station ?? r.station), idx),
@@ -384,7 +449,11 @@ export async function GET(req: Request) {
     const trainName = (stopsRows[0]?.trainName ?? stopsRows[0]?.train_name ?? null) || null;
     const result = { ok: true, train: { trainNumber: trainParam, trainName }, stations: finalStations };
 
-    await cacheSet(cacheKey, result);
+    // cache final result
+    try {
+      await upstashSet(cacheKey, result, CACHE_TTL);
+    } catch {}
+
     return NextResponse.json(result);
   } catch (e) {
     console.error("train-restros error", e);
