@@ -3,16 +3,35 @@ import { NextResponse } from "next/server";
 import { serviceClient } from "../../lib/supabaseServer";
 
 /**
- * train-restros endpoint (fast, old-behaviour)
- * - Full route from boarding -> end (no 6-hour limit)
- * - Batched RestroMaster .in(...) queries (single/few DB hits)
- * - Admin fallback per-station fetched in parallel with limited concurrency
- * - NO holiday checks (matches old behaviour) — restores vendors visibility
- *
- * Note: tune BATCH_SIZE and concurrency for your infra.
+ * Fast train-restros endpoint
+ * - Full route from boarding -> end
+ * - Batched RestroMaster .in(...) queries
+ * - Admin fallback per-station fetched in parallel (limited concurrency)
+ * - NO holiday blocking (old behaviour)
+ * - Adds arrival_time and halt_time (derived from Stoptime or Arrives/Departs)
+ * - Adds an in-memory cache for identical train+date+boarding requests (short TTL)
  */
 
 const ADMIN_BASE = process.env.NEXT_PUBLIC_ADMIN_APP_URL || "https://admin.raileats.in";
+const CACHE_TTL_MS = 60 * 1000; // 60s cache to make repeated calls fast
+
+// Simple in-memory cache (process-global)
+;(globalThis as any).__trainRestrosCache = (globalThis as any).__trainRestrosCache || new Map<string, { ts: number; value: any }>();
+
+function cacheGet(key: string) {
+  const m = (globalThis as any).__trainRestrosCache as Map<string, any>;
+  const rec = m.get(key);
+  if (!rec) return null;
+  if (Date.now() - rec.ts > CACHE_TTL_MS) {
+    m.delete(key);
+    return null;
+  }
+  return rec.value;
+}
+function cacheSet(key: string, value: any) {
+  const m = (globalThis as any).__trainRestrosCache as Map<string, any>;
+  m.set(key, { ts: Date.now(), value });
+}
 
 function normalizeToLower(obj: Record<string, any>) {
   const lower: Record<string, any> = {};
@@ -87,6 +106,27 @@ async function pMap<T, R>(items: T[], mapper: (t: T) => Promise<R>, concurrency 
   return results;
 }
 
+/** parse "HH:MM:SS" or "H:MM:SS" or "HH:MM" into seconds since midnight, null if invalid */
+function timeToSeconds(t: string | null | undefined) {
+  if (!t) return null;
+  const s = String(t).trim();
+  if (!s) return null;
+  const parts = s.split(":").map((x) => Number(x));
+  if (parts.length < 2 || parts.some((p) => Number.isNaN(p))) return null;
+  const hh = parts[0] || 0;
+  const mm = parts[1] || 0;
+  const ss = parts[2] || 0;
+  return hh * 3600 + mm * 60 + ss;
+}
+/** seconds -> "H:MM" or "MM" (human readable) */
+function secondsToHM(sec: number | null) {
+  if (sec === null || !Number.isFinite(sec)) return null;
+  const mm = Math.floor((sec % 3600) / 60);
+  const hh = Math.floor(sec / 3600);
+  if (hh > 0) return `${hh}:${String(mm).padStart(2, "0")}`;
+  return `${mm}m`;
+}
+
 export async function GET(req: Request) {
   const url = new URL(req.url);
   const trainParam = (url.searchParams.get("train") || "").trim();
@@ -97,8 +137,15 @@ export async function GET(req: Request) {
     return NextResponse.json({ ok: false, error: "missing params: train/date/boarding" }, { status: 400 });
   }
 
+  // cache key
+  const cacheKey = `train:${trainParam}::date:${date}::board:${boarding}`;
+  const cached = cacheGet(cacheKey);
+  if (cached) {
+    return NextResponse.json(cached);
+  }
+
   try {
-    // 1) fetch full route stops (ordered by StnNumber)
+    // 1) fetch full route stops (ordered by StnNumber). include Stoptime
     const q = trainParam;
     const isDigits = /^[0-9]+$/.test(q);
     let stopsRows: any[] = [];
@@ -113,7 +160,6 @@ export async function GET(req: Request) {
       if (!exactErr && Array.isArray(exactData) && exactData.length) stopsRows = exactData;
     }
 
-    // fallback ilike
     if (!stopsRows.length) {
       const ilikeQ = `%${q}%`;
       try {
@@ -130,7 +176,9 @@ export async function GET(req: Request) {
     }
 
     if (!stopsRows.length) {
-      return NextResponse.json({ ok: true, train: { trainNumber: trainParam, trainName: null }, stations: [] });
+      const result = { ok: true, train: { trainNumber: trainParam, trainName: null }, stations: [] };
+      cacheSet(cacheKey, result);
+      return NextResponse.json(result);
     }
 
     // 2) compute route from boarding -> end (full route)
@@ -151,9 +199,11 @@ export async function GET(req: Request) {
     });
 
     // unique station codes
-    const stationCodesAll = Array.from(new Set(stopsWithArrival.map((s: any) => normalizeCode(s.StationCode ?? s.stationcode ?? s.Station ?? s.station)).filter(Boolean)));
+    const stationCodesAll = Array.from(
+      new Set(stopsWithArrival.map((s: any) => normalizeCode(s.StationCode ?? s.stationcode ?? s.Station ?? s.station)).filter(Boolean)),
+    );
 
-    // 3) fetch RestroMaster rows in a single batch (or multiple batches if necessary)
+    // 3) fetch RestroMaster rows in batches
     const BATCH_SIZE = 200;
     const batches = chunk(stationCodesAll, BATCH_SIZE);
     let restroRows: any[] = [];
@@ -215,17 +265,37 @@ export async function GET(req: Request) {
           }
           return null;
         },
-        8,
+        12, // increase concurrency a bit to speed up
       );
     }
 
-    // 5) build final stations – NO holiday blocking (old behaviour)
+    // 5) assemble final stations (no holiday blocking) and compute halt_time/stoptime
     const finalStations: any[] = [];
     for (const s of stopsWithArrival) {
       const sc = normalizeCode(s.StationCode ?? s.stationcode ?? s.Station ?? s.station ?? "");
       if (!sc) continue;
       const stationName = s.StationName ?? s.stationName ?? s.station_name ?? s.station ?? sc;
       const arrivalDate = s.arrivalDate;
+
+      // compute arrival_time and halt_time using Stoptime or Arrives/Departs
+      const arrival_time = s.Arrives ?? s.Arrival ?? s.arrival_time ?? null;
+      let stoptimeRaw = s.Stoptime ?? s.stoptime ?? s.StopTime ?? null;
+      // if stoptimeRaw is null but Arrives/Departs present, compute difference
+      if (!stoptimeRaw && s.Arrives && s.Departs) {
+        const aSec = timeToSeconds(s.Arrives);
+        const dSec = timeToSeconds(s.Departs);
+        if (aSec !== null && dSec !== null) {
+          const diff = dSec - aSec;
+          if (diff >= 0) {
+            // format as "mm" or "h:mm"
+            stoptimeRaw = secondsToHM(diff);
+          }
+        }
+      } else if (stoptimeRaw && typeof stoptimeRaw === "string" && stoptimeRaw.includes(":")) {
+        // if Stoptime is "0:05:00" format, convert to human form "0:05" or "5m"
+        const sec = timeToSeconds(stoptimeRaw);
+        if (sec !== null) stoptimeRaw = secondsToHM(sec);
+      }
 
       let vendors: any[] = [];
 
@@ -257,8 +327,8 @@ export async function GET(req: Request) {
         finalStations.push({
           StationCode: sc,
           StationName: stationName,
-          arrival_time: s.Arrives ?? s.Arrival ?? s.arrival_time ?? null,
-          stoptime: s.Stoptime ?? s.stoptime ?? s.Stoptime ?? null,
+          arrival_time,
+          stoptime: stoptimeRaw,
           Day: typeof s.Day === "number" ? s.Day : s.Day ? Number(s.Day) : null,
           arrival_date: arrivalDate,
           vendors,
@@ -272,11 +342,17 @@ export async function GET(req: Request) {
     finalStations.sort((a: any, b: any) => (indexByCode.get(a.StationCode) ?? 0) - (indexByCode.get(b.StationCode) ?? 0));
 
     const trainName = (stopsRows[0]?.trainName ?? stopsRows[0]?.train_name ?? null) || null;
-    return NextResponse.json({
+
+    const result = {
       ok: true,
       train: { trainNumber: trainParam, trainName },
       stations: finalStations,
-    });
+    };
+
+    // cache result for short TTL
+    cacheSet(cacheKey, result);
+
+    return NextResponse.json(result);
   } catch (e) {
     console.error("train-restros error", e);
     return NextResponse.json({ ok: false, error: "server_error" }, { status: 500 });
