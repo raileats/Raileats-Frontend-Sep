@@ -1,4 +1,4 @@
-// app/api/train-restros/route.ts  (DEBUG VERSION - remove after debugging)
+// app/api/train-restros/route.ts  (TEMP DEBUG - show full errors)
 import { NextResponse } from "next/server";
 import { serviceClient } from "../../lib/supabaseServer";
 
@@ -43,6 +43,16 @@ function mapAdminRestroToCommon(adminR: any) {
   };
 }
 
+// Helper to safely stringify error-like values
+function safeStringify(v: any) {
+  try {
+    if (typeof v === "string") return v;
+    return JSON.stringify(v, Object.getOwnPropertyNames(v), 2);
+  } catch {
+    try { return String(v); } catch { return "<unserializable>"; }
+  }
+}
+
 export async function GET(req: Request) {
   const url = new URL(req.url);
   const train = url.searchParams.get("train");
@@ -53,18 +63,21 @@ export async function GET(req: Request) {
     return NextResponse.json({ ok: false, error: "missing params: train/date/boarding" }, { status: 400 });
   }
 
-  // DEBUG info accumulator
   const debug: any = { params: { train, date, boarding }, steps: [] };
 
   try {
-    // 1) read stops (tolerant)
+    // 1) fetch train stops
     const { data: stopsRaw, error: stopsErr } = await serviceClient
       .from("train_stops")
       .select("station_code,station_name,state,stop_sequence,arrival_time")
       .eq("train_number", train)
       .order("stop_sequence", { ascending: true });
 
-    debug.steps.push({ step: "fetched_train_stops", stopsRawLength: Array.isArray(stopsRaw) ? stopsRaw.length : null, stopsErr: String(stopsErr || "") });
+    debug.steps.push({
+      step: "fetched_train_stops",
+      stopsRawLength: Array.isArray(stopsRaw) ? stopsRaw.length : null,
+      stopsErr: safeStringify(stopsErr),
+    });
 
     const stops: any[] = Array.isArray(stopsRaw) ? stopsRaw : [];
 
@@ -72,6 +85,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ ok: true, train: { train_number: train, train_name: "" }, stations: [], debug }, { status: 200 });
     }
 
+    // find boarding index
     const boardingIndex = stops.findIndex((s: any) =>
       String((s.station_code ?? s.StationCode ?? s.station ?? "")).toUpperCase() === boarding.toUpperCase()
     );
@@ -82,21 +96,21 @@ export async function GET(req: Request) {
     const stationCodes = candidateStops.map((s: any) => normalizeCode(s.station_code ?? s.StationCode ?? s.station ?? "")).filter(Boolean);
     debug.steps.push({ step: "candidate_station_codes", stationCodes });
 
-    // 2) try RestroMaster fast path
+    // 2) RestroMaster in() query
     let restroRows: any[] = [];
     try {
       const { data, error } = await serviceClient.from("RestroMaster").select("*").in("StationCode", stationCodes);
-      debug.steps.push({ step: "restromaster_in_query", rows: Array.isArray(data) ? data.length : null, error: String(error || "") });
+      debug.steps.push({ step: "restromaster_in_query", rows: Array.isArray(data) ? data.length : null, error: safeStringify(error) });
       if (Array.isArray(data)) restroRows = data;
     } catch (e:any) {
-      debug.steps.push({ step: "restromaster_in_query_error", error: String(e) });
+      debug.steps.push({ step: "restromaster_in_query_error", error: safeStringify(e) });
     }
 
-    // fallback fetch all & filter if none
+    // fallback fetch all & filter client-side
     if (!restroRows.length) {
       try {
         const { data: allRestros, error } = await serviceClient.from("RestroMaster").select("*").limit(5000);
-        debug.steps.push({ step: "restromaster_all_fetch", rows: Array.isArray(allRestros) ? allRestros.length : null, error: String(error || "") });
+        debug.steps.push({ step: "restromaster_all_fetch", rows: Array.isArray(allRestros) ? allRestros.length : null, error: safeStringify(error) });
         if (Array.isArray(allRestros)) {
           const lowerCodes = stationCodes.map((c) => c.toLowerCase());
           restroRows = (allRestros || []).filter((r: any) => {
@@ -107,13 +121,11 @@ export async function GET(req: Request) {
           });
         }
       } catch (e:any) {
-        debug.steps.push({ step: "restromaster_all_fetch_error", error: String(e) });
+        debug.steps.push({ step: "restromaster_all_fetch_error", error: safeStringify(e) });
       }
     }
 
     debug.steps.push({ step: "restromaster_group_count", restroRowsCount: restroRows.length });
-
-    // group
     const grouped: Record<string, any[]> = {};
     for (const r of restroRows) {
       const sc = normalizeCode(r.StationCode ?? r.stationcode ?? r.Station ?? r.station ?? null);
@@ -122,7 +134,7 @@ export async function GET(req: Request) {
     }
     debug.steps.push({ step: "grouped_keys", keys: Object.keys(grouped).slice(0, 20) });
 
-    // prepare final stations
+    // assemble finalStations with admin fallback per station
     const finalStations: any[] = [];
 
     for (const s of candidateStops) {
@@ -131,22 +143,20 @@ export async function GET(req: Request) {
       let vendors: any[] = [];
 
       if (grouped[sc] && Array.isArray(grouped[sc])) {
-        vendors = grouped[sc].filter((r: any) => {
+        vendors = grouped[sc].filter((r:any)=>{
           const isActive = r.IsActive ?? r.isActive ?? r.active;
           return isActive === undefined ? true : isActiveValue(isActive);
-        }).map((r: any) => ({ ...r, source: "restromaster" }));
+        }).map((r:any)=>({...r, source:"restromaster"}));
       }
 
       if (!vendors.length) {
-        // ADMIN fallback
         const adminUrl = `${ADMIN_BASE.replace(/\/$/, "")}/api/stations/${encodeURIComponent(sc)}`;
         const adminResp = await fetchJson(adminUrl);
-        debug.steps.push({ step: "admin_fetch", station: sc, adminRespStatus: adminResp?.status ?? null, adminRespOk: adminResp?.ok ?? false });
+        debug.steps.push({ step: "admin_fetch", station: sc, adminRespStatus: adminResp?.status ?? null, adminRespOk: adminResp?.ok ?? false, adminRespText: safeStringify(adminResp?.text ?? adminResp?.error ?? adminResp?.json ?? null) });
         const adminRows = adminResp?.json?.restaurants ?? adminResp?.json?.data ?? adminResp?.json?.rows ?? adminResp?.json ?? null;
         if (Array.isArray(adminRows) && adminRows.length) {
-          vendors = adminRows.map((ar:any) => ({ ...mapAdminRestroToCommon(ar), source: "admin" }));
-          vendors = vendors.filter((v:any) => v.isActive !== false);
-          debug.steps.push({ step: "admin_used_for", station: sc, adminRows: adminRows.length });
+          vendors = adminRows.map((ar:any) => ({ ...mapAdminRestroToCommon(ar), source: "admin" })).filter((v:any) => v.isActive !== false);
+          debug.steps.push({ step: "admin_used_for", station: sc, adminRowsCount: adminRows.length });
         }
       }
 
@@ -161,7 +171,7 @@ export async function GET(req: Request) {
     }
 
     const { data: trainMeta, error: trainErr } = await serviceClient.from("trains").select("train_number,train_name").eq("train_number", train).single();
-    debug.steps.push({ step: "train_meta", trainMeta: trainMeta ?? null, trainErr: String(trainErr || "") });
+    debug.steps.push({ step: "train_meta", trainMeta: trainMeta ?? null, trainErr: safeStringify(trainErr) });
 
     return NextResponse.json({
       ok: true,
@@ -169,13 +179,13 @@ export async function GET(req: Request) {
       stations: finalStations,
       debug
     }, { status: 200 });
-  } catch (err: any) {
-    // DEBUG: return error details so you can paste here
+
+  } catch (err:any) {
     return NextResponse.json({
       ok: false,
       error: "server_error",
-      message: String(err?.message ?? err),
-      stack: String(err?.stack ?? ""),
+      message: safeStringify(err),
+      stack: safeStringify(err?.stack ?? null)
     }, { status: 500 });
   }
 }
