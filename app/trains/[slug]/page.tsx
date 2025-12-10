@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 
-/* ---------- helpers ---------- */
+/* ---------------- helpers ---------------- */
 function todayYMD() {
   const now = new Date();
   const y = now.getFullYear();
@@ -16,23 +16,30 @@ function extractTrainNumberFromSlug(slug?: string | null) {
   const m = slug.match(/^(\d+)/);
   return m ? m[1] : slug.replace(/[^0-9]/g, "");
 }
-/** LOCAL helper to create slug */
+function slugify(s?: string | null) {
+  return (String(s || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "") || "").replace(/-+/g, "-");
+}
 function makeTrainSlugLocal(trainNoRaw: string, trainNameRaw?: string | null) {
   const clean = String(trainNoRaw || "").trim();
   if (!clean) return "";
   const digits = clean.replace(/\D+/g, "") || clean;
   let trainPart = "";
   if (trainNameRaw) {
-    trainPart = String(trainNameRaw)
-      .trim()
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "");
+    trainPart = slugify(trainNameRaw);
   }
   return trainPart ? `${digits}-${trainPart}-train-food-delivery-in-train` : `${digits}-train-food-delivery-in-train`;
 }
+function makeStationSlugLocal(code: string, name?: string | null) {
+  const c = String(code || "").toUpperCase();
+  const part = name ? slugify(name) : "";
+  return part ? `${c}-${part}-food-delivery-in-train` : `${c}-food-delivery-in-train`;
+}
 
-/* ---------- page component ---------- */
+/* ---------------- component ---------------- */
 export default function TrainPage() {
   const params = useParams();
   const router = useRouter();
@@ -48,12 +55,13 @@ export default function TrainPage() {
   const [date, setDate] = useState(initialDate);
   const [boarding, setBoarding] = useState(initialBoarding);
 
-  const [routeRows, setRouteRows] = useState<any[]>([]); // full route rows (TrainRoute)
-  const [stationsWithVendors, setStationsWithVendors] = useState<any[]>([]); // from /api/train-restros
+  const [routeRows, setRouteRows] = useState<any[]>([]);
+  const [stationsWithVendorsFull, setStationsWithVendorsFull] = useState<any[]>([]); // full-route vendors from endpoint
+  const [stationImages, setStationImages] = useState<Record<string, string | null>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // fetch full route (TrainRoute) — used to populate boarding dropdown
+  // fetch full train route (for boarding dropdown)
   async function fetchRouteRows(trainNo: string, d: string) {
     if (!trainNo) {
       setRouteRows([]);
@@ -67,96 +75,174 @@ export default function TrainPage() {
         setRouteRows([]);
         setError(j?.error || "Failed to load train route");
       } else {
-        setRouteRows(Array.isArray(j.rows) ? j.rows : []);
+        const rows = Array.isArray(j.rows) ? j.rows : [];
+        setRouteRows(rows);
         const tname = j?.train?.trainName ?? j?.trainName ?? "";
         setTrainName(String(tname || ""));
-        // if boarding not set pick first station code
-        if (!boarding && Array.isArray(j.rows) && j.rows.length) {
-          const pick = (j.rows[0].StationCode || j.rows[0].stationCode || j.rows[0].Station || "").toUpperCase();
+        if (!boarding && rows.length) {
+          const pick = (rows[0].StationCode || rows[0].stationCode || "").toUpperCase();
           setBoarding((prev) => prev || pick);
         }
       }
     } catch (e) {
       console.error("fetchRouteRows error", e);
       setError("Failed to fetch route rows");
-      setRouteRows([]);
     }
   }
 
-  // fetch stations with vendors using train-restros endpoint (server does RestroMaster + admin fallback).
-  // Use full=1 to scan the whole route and return only stations that have vendors.
-  async function fetchStationsWithVendors(trainNo: string, d: string, boardingCode: string | null = null) {
+  // fetch full stations-with-vendors (server does RestroMaster + admin fallback)
+  async function fetchStationsWithVendorsFull(trainNo: string, d: string) {
     if (!trainNo) {
-      setStationsWithVendors([]);
+      setStationsWithVendorsFull([]);
       return;
     }
     setLoading(true);
     setError(null);
     try {
-      const base = `/api/train-restros?train=${encodeURIComponent(String(trainNo))}&date=${encodeURIComponent(String(d))}&full=1`;
-      const url = boardingCode ? `${base}&boarding=${encodeURIComponent(boardingCode)}` : base;
+      // full=1 ensures server scans full route for vendors
+      const url = `/api/train-restros?train=${encodeURIComponent(String(trainNo))}&date=${encodeURIComponent(String(d))}&full=1`;
       const res = await fetch(url, { cache: "no-store" });
       const j = await res.json().catch(() => null);
       if (!res.ok || !j || !j.ok) {
-        setStationsWithVendors([]);
-        setError(j?.error || "No vendors found");
+        setStationsWithVendorsFull([]);
+        setError(j?.error || "No vendors found for this train");
       } else {
-        // server returns stations: [{StationCode, StationName, arrival_time, Day, vendors: [...] }]
-        setStationsWithVendors(Array.isArray(j.stations) ? j.stations : []);
+        // expect j.stations = [{ StationCode, StationName, arrival_time, Day, vendors: [...] }, ...]
+        const stations = Array.isArray(j.stations) ? j.stations : [];
+        setStationsWithVendorsFull(stations);
         const tname = j?.train?.trainName ?? j?.trainName ?? "";
         setTrainName(String(tname || ""));
+        // fetch station images for these stations (parallel)
+        const codes = stations.map((s: any) => (s.StationCode || s.station_code || s.station || "").toUpperCase()).filter(Boolean);
+        fetchStationImages(codes);
       }
     } catch (e) {
-      console.error("fetchStationsWithVendors error", e);
+      console.error("fetchStationsWithVendorsFull error", e);
+      setStationsWithVendorsFull([]);
       setError("Failed to fetch vendors");
-      setStationsWithVendors([]);
     } finally {
       setLoading(false);
     }
   }
 
+  // fetch admin station images (only for needed codes)
+  async function fetchStationImages(codes: string[]) {
+    const out: Record<string, string | null> = { ...stationImages };
+    const need = codes.filter((c) => typeof out[c] === "undefined");
+    if (!need.length) {
+      setStationImages(out);
+      return;
+    }
+    await Promise.all(
+      need.map(async (code) => {
+        try {
+          const a = await fetch(`https://admin.raileats.in/api/stations/${encodeURIComponent(code)}`, { cache: "no-store" });
+          const j = await a.json().catch(() => null);
+          const url = j?.station?.image_url ?? null;
+          out[code] = url;
+        } catch {
+          out[code] = null;
+        }
+      })
+    );
+    setStationImages(out);
+  }
+
+  // return stations to display, ordered: stations that are on-route after boarding first (if boarding present),
+  // but we still include all stationsWithVendorsFull so user doesn't have to manually change boarding.
+  function getOrderedStationsToShow() {
+    const stations = stationsWithVendorsFull || [];
+    if (!boarding) return stations;
+    const codeUpper = boarding.toUpperCase();
+    // need index map from routeRows for ordering
+    const pos: Record<string, number> = {};
+    routeRows.forEach((r: any, i: number) => {
+      const sc = (r.StationCode || r.stationCode || "").toUpperCase();
+      if (sc) pos[sc] = i;
+    });
+    // sort stations by position; if station not in pos, keep at end
+    const sorted = [...stations].sort((a: any, b: any) => {
+      const aa = (a.StationCode || a.station || "").toUpperCase();
+      const bb = (b.StationCode || b.station || "").toUpperCase();
+      const ia = typeof pos[aa] === "number" ? pos[aa] : 99999;
+      const ib = typeof pos[bb] === "number" ? pos[bb] : 99999;
+      return ia - ib;
+    });
+    // also rotate so that the first shown station is the first with index >= boardingIndex if possible
+    const boardingIndex = typeof pos[codeUpper] === "number" ? pos[codeUpper] : -1;
+    if (boardingIndex >= 0) {
+      // find first station whose pos >= boardingIndex
+      const idx = sorted.findIndex((s: any) => {
+        const sc = (s.StationCode || s.station || "").toUpperCase();
+        const p = typeof pos[sc] === "number" ? pos[sc] : 99999;
+        return p >= boardingIndex;
+      });
+      if (idx > 0) {
+        const rotated = [...sorted.slice(idx), ...sorted.slice(0, idx)];
+        return rotated;
+      }
+    }
+    return sorted;
+  }
+
   useEffect(() => {
     const tr = initialTrainNumber || trainNumber;
+    if (!tr) return;
     fetchRouteRows(tr, date);
-    fetchStationsWithVendors(tr, date, boarding || undefined);
+    fetchStationsWithVendorsFull(tr, date);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug]);
 
   useEffect(() => {
     if (!trainNumber) return;
     fetchRouteRows(trainNumber, date);
-    fetchStationsWithVendors(trainNumber, date, boarding || undefined);
+    fetchStationsWithVendorsFull(trainNumber, date);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [date, boarding, trainNumber]);
+  }, [date, trainNumber]);
 
-  // choose vendor -> save session and navigate to train page with restro param + date/boarding
-  function chooseVendor(restro: any) {
+  // when boarding changes, try to reorder displayed stations (we already compute on render)
+  useEffect(() => {
+    // nothing to do here; ordering is computed on render
+  }, [boarding, stationsWithVendorsFull, routeRows]);
+
+  function goToStationRestro(station: any, restro: any) {
+    // Save payload in session for later flows
     try {
       const payload = {
         train: trainNumber,
         trainName,
         date,
         boarding,
-        restro: restro?.RestroCode ?? restro?.restroCode ?? restro?.RestroId ?? restro?.id ?? null,
+        restro: restro?.RestroCode ?? restro?.restroCode ?? restro?.id ?? null,
+        station: station?.StationCode ?? station?.station || null,
       };
       sessionStorage.setItem("raileats_train_search", JSON.stringify(payload));
     } catch (e) {
       console.warn("session storage failed", e);
     }
-    const slugForNav = makeTrainSlugLocal(trainNumber, trainName || undefined);
-    const q = new URLSearchParams({ date, boarding: boarding || "", restro: String(restro?.RestroCode ?? restro?.restroCode ?? "") }).toString();
-    router.push(`/trains/${encodeURIComponent(slugForNav)}?${q}`);
+
+    // navigate to Station page (station slug) and include restro slug part encoded
+    const stationCode = (station.StationCode || station.station || "").toUpperCase();
+    const stationName = station.StationName || station.stationName || station.station || "";
+    const stationSlug = makeStationSlugLocal(stationCode, stationName);
+    const restroCode = restro.RestroCode ?? restro.restroCode ?? restro.id ?? "";
+    const restroSlugPart = encodeURIComponent(`${restroCode}-${restro.RestroName ?? restro.restroName ?? "Restaurant"}`);
+    // URL pattern: /Stations/<station-seo>/<restroSlugPart>
+    const href = `/Stations/${stationSlug}/${restroSlugPart}`;
+    router.push(href);
   }
+
+  const stationsToShow = getOrderedStationsToShow();
 
   return (
     <main className="site-container page-safe-bottom py-6">
-      <div className="max-w-3xl mx-auto">
+      <div className="max-w-4xl mx-auto">
         <div className="mb-4">
           <h1 className="text-2xl font-bold">{trainNumber ? `Train ${trainNumber}` : "Train"} {trainName ? `— ${trainName}` : ""}</h1>
-          <p className="text-sm text-gray-600 mt-1">Choose boarding station & date, then pick a vendor from stations that have active restaurants.</p>
+          <p className="text-sm text-gray-600 mt-1">Choose boarding station & date — we show stations on the route that have active restaurants (you don’t need to change boarding to see them).</p>
         </div>
 
-        <div className="card-safe p-4 mb-4">
+        <div className="card-safe p-4 mb-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
             <div>
               <label className="text-xs text-gray-600 block mb-1">Journey date</label>
@@ -172,7 +258,7 @@ export default function TrainPage() {
               >
                 <option value="" disabled>Select boarding station</option>
                 {routeRows.map((r: any) => {
-                  const sc = (r.StationCode || r.stationCode || r.station || "").toUpperCase();
+                  const sc = (r.StationCode || r.stationCode || "").toUpperCase();
                   return (
                     <option key={r.StnNumber ?? sc} value={sc}>
                       {(r.StationName || r.stationName || r.StationCode || sc)} {sc ? `(${sc})` : ""}
@@ -189,55 +275,86 @@ export default function TrainPage() {
         ) : error ? (
           <div className="card-safe p-4 text-red-600">{error}</div>
         ) : (
-          <>
-            <div className="card-safe p-4 mb-4">
-              <h3 className="font-semibold mb-3">Available Restaurants on Your Route</h3>
+          <div className="space-y-6">
+            {stationsToShow.length === 0 ? (
+              <div className="card-safe p-4">No active restaurants found for this journey.</div>
+            ) : (
+              stationsToShow.map((st: any) => {
+                const sc = (st.StationCode || st.station || "").toUpperCase();
+                const stationName = st.StationName || st.stationName || st.station || sc;
+                const img = stationImages[sc] ?? null;
+                return (
+                  <section key={sc} className="bg-white rounded-md shadow p-4">
+                    <div className="flex gap-4 items-start">
+                      <div className="w-28 h-28 bg-gray-100 rounded overflow-hidden flex-shrink-0">
+                        {img ? (
+                          // station image from admin API
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={img} alt={stationName} loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-gray-400 text-sm">Station</div>
+                        )}
+                      </div>
 
-              {stationsWithVendors.length === 0 ? (
-                <div className="text-sm text-gray-600">No active restaurants found for your journey.</div>
-              ) : (
-                <div className="space-y-4">
-                  {stationsWithVendors.map((st) => (
-                    <div key={st.StationCode} className="p-3 border rounded bg-gray-50">
-                      <div className="flex items-center justify-between mb-2">
-                        <div>
-                          <div className="font-medium">{st.StationName || st.stationName || st.StationCode} ({st.StationCode})</div>
-                          <div className="text-xs text-gray-500">Arrival: {String(st.arrival_time ?? st.arrival_time ?? "—").slice(0,5)} • Day: {st.Day ?? "-"}</div>
+                      <div className="flex-1">
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <h2 className="text-lg font-semibold">{stationName} ({sc})</h2>
+                            <div className="text-sm text-gray-500 mt-1">Arrival: {(st.arrival_time || st.arrival_time || "").slice(0,5) || "—"} • Day: {st.Day ?? "-"}</div>
+                          </div>
+                        </div>
+
+                        <div className="mt-4">
+                          {/* restaurants list */}
+                          {Array.isArray(st.vendors) && st.vendors.length ? (
+                            <div className="space-y-3">
+                              {st.vendors.map((r: any) => {
+                                const restroCode = r.RestroCode ?? r.restroCode ?? r.id ?? r.restro_id ?? "";
+                                const restroName = r.RestroName ?? r.restroName ?? r.name ?? "Vendor";
+                                const minOrder = r.MinimumOrdermValue ?? r.minOrder ?? "—";
+                                const openTime = r.OpenTime ?? r["0penTime"] ?? r.openTime ?? "—";
+                                const closeTime = r.ClosedTime ?? r.closeTime ?? "—";
+                                const restroImg = (r.RestroDisplayPhoto || (r.raw && r.raw.RestroDisplayPhoto) || null);
+
+                                return (
+                                  <article key={String(restroCode || restroName)} className="flex items-center gap-4 p-3 border rounded">
+                                    <div className="w-28 h-20 bg-gray-100 rounded overflow-hidden flex-shrink-0">
+                                      {restroImg ? (
+                                        // eslint-disable-next-line @next/next/no-img-element
+                                        <img src={restroImg} alt={restroName} loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                                      ) : (
+                                        <div className="w-full h-full flex items-center justify-center text-gray-400 text-sm">No image</div>
+                                      )}
+                                    </div>
+
+                                    <div className="flex-1">
+                                      <h3 className="font-semibold">{restroName}</h3>
+                                      <div className="text-sm text-gray-600 mt-1">Min order: ₹{minOrder} • {openTime} - {closeTime}</div>
+                                    </div>
+
+                                    <div className="ml-4">
+                                      <button
+                                        onClick={() => goToStationRestro(st, r)}
+                                        className="bg-green-600 text-white px-4 py-2 rounded"
+                                      >
+                                        Order Now
+                                      </button>
+                                    </div>
+                                  </article>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <div className="p-3 bg-gray-50 rounded text-sm text-gray-600">No active restaurants at this station.</div>
+                          )}
                         </div>
                       </div>
-
-                      <div className="grid grid-cols-1 gap-3 mt-2">
-                        {Array.isArray(st.vendors) && st.vendors.map((r: any) => {
-                          const restroCode = r.RestroCode ?? r.restroCode ?? r.id ?? r.restro_id;
-                          const restroName = r.RestroName ?? r.restroName ?? r.name ?? "Vendor";
-                          const minOrder = r.MinimumOrdermValue ?? r.minOrder ?? "—";
-                          const openTime = r.OpenTime ?? r["0penTime"] ?? "—";
-                          const closeTime = r.ClosedTime ?? r.closeTime ?? "—";
-
-                          return (
-                            <div key={String(restroCode ?? restroName)} className="flex items-center justify-between gap-3 p-2 bg-white rounded shadow-sm">
-                              <div>
-                                <div className="font-medium">{restroName}</div>
-                                <div className="text-xs text-gray-500">Min order: {minOrder} • {openTime} - {closeTime}</div>
-                              </div>
-                              <div>
-                                <button
-                                  className="px-3 py-1 bg-green-600 text-white rounded"
-                                  onClick={() => chooseVendor(r)}
-                                >
-                                  Choose
-                                </button>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
                     </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </>
+                  </section>
+                );
+              })
+            )}
+          </div>
         )}
       </div>
     </main>
