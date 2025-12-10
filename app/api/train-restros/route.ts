@@ -1,33 +1,82 @@
+// app/api/train-restros/route.ts
 import { NextResponse } from "next/server";
 import { serviceClient } from "../../lib/supabaseServer";
 
-/**
- * Fast & robust train-restros endpoint
- * - Full route from boarding -> end
- * - Exposes arrival_time (Arrives) and halt_time (Stoptime or Departs-Arrives)
- * - Batched RestroMaster .in(...) queries
- * - Admin fallback fetched in parallel (normalized)
- * - Short process-level cache to speed repeated calls
- */
+// Optional Upstash Redis client (serverless friendly)
+let redisClient: any = null;
+const UPSTASH_URL = process.env.UPSTASH_REDIS_REST_URL;
+const UPSTASH_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
+const CACHE_TTL_SEC = Number(process.env.TRAIN_RESTROS_CACHE_TTL_SEC ?? "30"); // default 30s
 
-const ADMIN_BASE = process.env.NEXT_PUBLIC_ADMIN_APP_URL || "https://admin.raileats.in";
-const CACHE_TTL_MS = 30 * 1000; // 30s
+if (UPSTASH_URL && UPSTASH_TOKEN) {
+  try {
+    // dynamically require to avoid dev-time failures when package not installed
+    // install: npm i @upstash/redis
+    // Using CommonJS-style import to keep compatibility in some environments.
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { Redis } = require("@upstash/redis");
+    redisClient = new Redis({ url: UPSTASH_URL, token: UPSTASH_TOKEN });
+  } catch (e) {
+    console.warn("Upstash client init failed, falling back to in-memory cache", e);
+    redisClient = null;
+  }
+}
 
-;(globalThis as any).__trainRestrosCache = (globalThis as any).__trainRestrosCache || new Map();
-function cacheGet(k: string) {
-  const m = (globalThis as any).__trainRestrosCache as Map<string, { ts: number; v: any }>;
+// simple in-memory fallback cache (process-level)
+;(globalThis as any).__trainRestrosInMemoryCache = (globalThis as any).__trainRestrosInMemoryCache || new Map();
+function memCacheGet(k: string) {
+  const m = (globalThis as any).__trainRestrosInMemoryCache as Map<string, { ts: number; v: any }>;
   const r = m.get(k);
   if (!r) return null;
-  if (Date.now() - r.ts > CACHE_TTL_MS) {
+  if (Date.now() - r.ts > CACHE_TTL_SEC * 1000) {
     m.delete(k);
     return null;
   }
   return r.v;
 }
-function cacheSet(k: string, v: any) {
-  const m = (globalThis as any).__trainRestrosCache as Map<string, { ts: number; v: any }>;
+function memCacheSet(k: string, v: any) {
+  const m = (globalThis as any).__trainRestrosInMemoryCache as Map<string, { ts: number; v: any }>;
   m.set(k, { ts: Date.now(), v });
 }
+
+// unified cache helpers (prefer Upstash, fallback to memory)
+async function cacheGet(key: string) {
+  if (redisClient) {
+    try {
+      const raw = await redisClient.get(key);
+      if (!raw) return null;
+      try {
+        return JSON.parse(raw);
+      } catch {
+        return raw;
+      }
+    } catch (e) {
+      // on redis error fallback to mem
+      return memCacheGet(key);
+    }
+  } else {
+    return memCacheGet(key);
+  }
+}
+async function cacheSet(key: string, value: any, ttlSec = CACHE_TTL_SEC) {
+  const payload = typeof value === "string" ? value : JSON.stringify(value);
+  if (redisClient) {
+    try {
+      // upstash redis set with ex
+      await redisClient.set(key, payload, { ex: ttlSec });
+      return;
+    } catch (e) {
+      // fallback to memory
+      memCacheSet(key, value);
+      return;
+    }
+  } else {
+    memCacheSet(key, value);
+  }
+}
+
+/* ------------ rest of helper funcs (same as fast code) ------------ */
+const ADMIN_BASE = process.env.NEXT_PUBLIC_ADMIN_APP_URL || "https://admin.raileats.in";
 
 function normalizeToLower(obj: Record<string, any>) {
   const lower: Record<string, any> = {};
@@ -65,7 +114,6 @@ function addDaysToIso(iso: string, days: number) {
   return `${y}-${m}-${dd}`;
 }
 function mapAdminRestroToCommon(adminR: any) {
-  // defensive mapping — admin response can have many different keys
   const a = normalizeToLower(adminR || {});
   return {
     RestroCode: adminR.RestroCode ?? adminR.id ?? a.id ?? a.restrocode ?? a.restro_code ?? null,
@@ -85,8 +133,6 @@ function chunk<T>(arr: T[], size: number): T[][] {
   for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
   return out;
 }
-
-/** parse "HH:MM:SS" or "HH:MM" => seconds since midnight */
 function timeToSeconds(t: string | null | undefined) {
   if (!t) return null;
   const s = String(t).trim();
@@ -108,6 +154,7 @@ function secondsToHuman(sec: number | null) {
   return `${h}h ${mm}m`;
 }
 
+/* ------------------ main endpoint (fast logic) ------------------ */
 export async function GET(req: Request) {
   const url = new URL(req.url);
   const trainParam = (url.searchParams.get("train") || "").trim();
@@ -119,7 +166,7 @@ export async function GET(req: Request) {
   }
 
   const cacheKey = `train:${trainParam}::date:${date}::board:${boarding}`;
-  const cached = cacheGet(cacheKey);
+  const cached = await cacheGet(cacheKey);
   if (cached) return NextResponse.json(cached);
 
   try {
@@ -158,7 +205,7 @@ export async function GET(req: Request) {
 
     if (!stopsRows.length) {
       const result = { ok: true, train: { trainNumber: trainParam, trainName: null }, stations: [] };
-      cacheSet(cacheKey, result);
+      await cacheSet(cacheKey, result);
       return NextResponse.json(result);
     }
 
@@ -198,7 +245,6 @@ export async function GET(req: Request) {
       try {
         const { data, error } = await serviceClient
           .from("RestroMaster")
-          // request common columns — if your table has different column names ensure they exist.
           .select(
             "RestroCode,RestroName,StationCode,StationName,0penTime,OpenTime,ClosedTime,WeeklyOff,MinimumOrdermValue,CutOffTime,IsActive,RestroDisplayPhoto",
           )
@@ -210,7 +256,6 @@ export async function GET(req: Request) {
       }
     }
 
-    // fallback: fetch-all once and filter (only if batch returned nothing)
     if (!restroRows.length) {
       try {
         const { data: allRestros } = await serviceClient
@@ -233,10 +278,9 @@ export async function GET(req: Request) {
       }
     }
 
-    // group restromaster rows by normalized station code
+    // group by normalized station code
     const grouped: Record<string, any[]> = {};
     for (const r of restroRows) {
-      // station code may be present under different keys; handle defensively
       const raw = normalizeToLower(r);
       const codeCandidate =
         r.StationCode ?? r.stationcode ?? r.Station ?? r.station ?? raw.stationcode ?? raw.station ?? raw.stationid ?? null;
@@ -245,7 +289,7 @@ export async function GET(req: Request) {
       (grouped[sc] = grouped[sc] || []).push(r);
     }
 
-    // 4) admin fallback for missing stations (parallel)
+    // 4) admin fallback (parallel)
     const needAdminFor = stationCodesAll.filter((sc) => !grouped[sc] || grouped[sc].length === 0);
     const adminFetchMap: Record<string, any> = {};
     if (needAdminFor.length) {
@@ -261,7 +305,7 @@ export async function GET(req: Request) {
       await Promise.allSettled(promises);
     }
 
-    // 5) assemble final stations (no per-vendor holiday checks here)
+    // 5) assemble finalStations with arrival_time + halt_time
     const finalStations: any[] = [];
 
     for (const s of stopsWithArrival) {
@@ -273,7 +317,6 @@ export async function GET(req: Request) {
       const arrival_time = s.Arrives ?? s.Arrival ?? s.arrival_time ?? null;
       let halt_time: string | null = null;
 
-      // prefer Stoptime if present
       const stopRaw = s.Stoptime ?? s.stoptime ?? s.StopTime ?? null;
       if (stopRaw) {
         const sec = timeToSeconds(stopRaw);
@@ -283,7 +326,6 @@ export async function GET(req: Request) {
         const dSec = timeToSeconds(s.Departs);
         if (aSec !== null && dSec !== null) {
           let diff = dSec - aSec;
-          // if departure smaller than arrival (midnight rollover), adjust by +24h
           if (diff < 0) diff += 24 * 3600;
           if (diff >= 0) halt_time = secondsToHuman(diff);
         }
@@ -332,7 +374,7 @@ export async function GET(req: Request) {
       }
     }
 
-    // 6) sort finalStations in route order (as per routeFromBoarding)
+    // 6) sort
     const indexByCode = new Map<string, number>();
     routeFromBoarding.forEach((r: any, idx: number) =>
       indexByCode.set(normalizeCode(r.StationCode ?? r.stationcode ?? r.Station ?? r.station), idx),
@@ -342,7 +384,7 @@ export async function GET(req: Request) {
     const trainName = (stopsRows[0]?.trainName ?? stopsRows[0]?.train_name ?? null) || null;
     const result = { ok: true, train: { trainNumber: trainParam, trainName }, stations: finalStations };
 
-    cacheSet(cacheKey, result);
+    await cacheSet(cacheKey, result);
     return NextResponse.json(result);
   } catch (e) {
     console.error("train-restros error", e);
