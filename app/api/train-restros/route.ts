@@ -40,12 +40,30 @@ function chunk<T>(arr: T[], size: number): T[][] {
   for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
   return out;
 }
-async function fetchJson(url: string, opts?: RequestInit) {
+
+/**
+ * fetchJson with AbortController timeout (no 'timeout' in RequestInit).
+ * - default timeoutMs = 6000ms
+ * - returns parsed JSON or null on error/timeout/non-OK
+ */
+async function fetchJson(url: string, opts?: RequestInit, timeoutMs = 6000): Promise<any | null> {
   try {
-    const r = await fetch(url, { cache: "no-store", ...(opts || {}), timeout: 6000 as any });
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeoutMs);
+
+    const merged: RequestInit = {
+      cache: "no-store",
+      signal: controller.signal,
+      ...(opts || {}),
+    };
+
+    const r = await fetch(url, merged);
+    clearTimeout(id);
+
     if (!r.ok) return null;
     return await r.json().catch(() => null);
-  } catch {
+  } catch (err) {
+    // aborted or any other fetch error -> return null
     return null;
   }
 }
@@ -88,7 +106,6 @@ async function upstashGet(key: string) {
     const res = await fetch(url, { headers: { Authorization: `Bearer ${UPSTASH_TOKEN}`, Accept: "application/json" } });
     if (!res.ok) return null;
     const j = await res.json().catch(() => null);
-    // Upstash returns { result: value } where value is raw string or null
     if (!j || !("result" in j)) return null;
     return j.result === null ? null : JSON.parse(j.result);
   } catch (e) {
@@ -141,10 +158,8 @@ async function fetchVendorHolidays(restroCode: string | number) {
 async function getVendorHolidaysCached(restroCode: string | number) {
   if (!restroCode) return [];
   const key = `hols:${String(restroCode)}`;
-  // try upstash
   const cached = await upstashGet(key);
   if (Array.isArray(cached)) return cached;
-  // fetch and set
   const rows = await fetchVendorHolidays(restroCode);
   try {
     await upstashSet(key, rows, HOLIDAY_TTL);
