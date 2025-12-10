@@ -3,11 +3,8 @@ import { NextResponse } from "next/server";
 import { serviceClient } from "../../lib/supabaseServer";
 
 /**
- * train-restros endpoint
- * Primary: fetch vendors from RestroMaster
- * Fallback: for stations with no vendors in RestroMaster, call ADMIN_BASE /api/stations/{code}
- *
- * NOTE: set ADMIN_BASE via NEXT_PUBLIC_ADMIN_APP_URL env var (same as Stations page)
+ * train-restros endpoint with admin API fallback for missing RestroMaster rows.
+ * Build-safe: tolerant property access, avoids TypeScript property-name issues.
  */
 
 const ADMIN_BASE = process.env.NEXT_PUBLIC_ADMIN_APP_URL || "https://admin.raileats.in";
@@ -33,7 +30,6 @@ function isActiveValue(val: any) {
   return true;
 }
 
-// Simple fetch JSON helper
 async function fetchJson(url: string) {
   try {
     const r = await fetch(url, { cache: "no-store" });
@@ -44,7 +40,6 @@ async function fetchJson(url: string) {
   }
 }
 
-// Map admin station restaurant shape to minimal restro shape used by frontend
 function mapAdminRestroToCommon(adminR: any) {
   return {
     RestroCode: adminR.RestroCode ?? adminR.id ?? adminR.code ?? null,
@@ -68,81 +63,88 @@ export async function GET(req: Request) {
   }
 
   try {
-    // 1) fetch train stops
-    const { data: stops, error: stopsErr } = await serviceClient
+    // 1) fetch train stops (tolerant typing)
+    const { data: stopsRaw, error: stopsErr } = await serviceClient
       .from("train_stops")
       .select("station_code,station_name,state,stop_sequence,arrival_time")
       .eq("train_number", train)
       .order("stop_sequence", { ascending: true });
 
     if (stopsErr) throw stopsErr;
-    if (!stops || stops.length === 0) {
+    const stops: any[] = Array.isArray(stopsRaw) ? stopsRaw : [];
+
+    if (!stops.length) {
       return NextResponse.json({ ok: true, train: { train_number: train, train_name: "" }, stations: [] });
     }
 
-    // find boarding
-    const boardingIndex = stops.findIndex(s => (s.station_code || s.StationCode || "").toString().toUpperCase() === boarding.toUpperCase());
+    // find boarding index (use station_code primarily)
+    const boardingIndex = stops.findIndex((s: any) =>
+      String((s.station_code ?? s.station ?? s.StationCode ?? "")).toUpperCase() === boarding.toUpperCase()
+    );
+
     const routeFromBoarding = boardingIndex >= 0 ? stops.slice(boardingIndex) : stops;
     const nextN = 12;
     const candidateStops = routeFromBoarding.slice(0, nextN);
-    const stationCodes = candidateStops.map(s => normalizeCode(s.station_code || s.StationCode || s.station || "")).filter(Boolean);
+    const stationCodes = candidateStops
+      .map((s: any) => normalizeCode(s.station_code ?? s.StationCode ?? s.station ?? ""))
+      .filter(Boolean);
 
-    // 2) try fast path: RestroMaster .in("StationCode", stationCodes)
+    // 2) attempt to fetch RestroMaster rows for these station codes
     let restroRows: any[] = [];
     try {
       const { data, error } = await serviceClient.from("RestroMaster").select("*").in("StationCode", stationCodes);
       if (!error && Array.isArray(data) && data.length) restroRows = data;
     } catch {
-      // ignore - fallback below
+      // ignore and proceed to fallback
     }
 
-    // fallback: if no results, select all and filter client-side (limit to reasonable size)
+    // fallback: fetch many RestroMaster rows and filter client-side
     if (!restroRows.length) {
-      const { data: all, error } = await serviceClient.from("RestroMaster").select("*").limit(5000);
-      if (error) throw error;
-      const lowerCodes = stationCodes.map(c => c.toLowerCase());
-      restroRows = (all || []).filter((r: any) => {
-        const rl = normalizeToLower(r);
-        const cand = rl.stationcode ?? rl.station_code ?? rl.station ?? rl.stationid ?? rl.stationname ?? null;
-        if (!cand) return false;
-        return lowerCodes.includes(String(cand).toLowerCase());
-      });
+      const { data: allRestros, error } = await serviceClient.from("RestroMaster").select("*").limit(5000);
+      if (error) {
+        // if selecting all fails, continue with empty restroRows
+        console.warn("RestroMaster fallback fetch error:", error);
+      } else if (Array.isArray(allRestros)) {
+        const lowerCodes = stationCodes.map((c) => c.toLowerCase());
+        restroRows = (allRestros || []).filter((r: any) => {
+          const rl = normalizeToLower(r);
+          const cand = rl.stationcode ?? rl.station_code ?? rl.station ?? rl.stationid ?? rl.stationname ?? null;
+          if (!cand) return false;
+          return lowerCodes.includes(String(cand).toLowerCase());
+        });
+      }
     }
 
-    // group RestroMaster rows by station code
+    // group restros by normalized station code
     const grouped: Record<string, any[]> = {};
     for (const r of restroRows) {
       const sc = normalizeCode(r.StationCode ?? r.stationcode ?? r.Station ?? r.station ?? null);
       if (!sc) continue;
-      if (!grouped[sc]) grouped[sc] = [];
-      grouped[sc].push(r);
+      (grouped[sc] = grouped[sc] || []).push(r);
     }
 
-    // 3) For any station code that has no vendors in grouped, call admin stations API as fallback
+    // 3) For each candidate stop, prepare vendors (RestroMaster first, then ADMIN fallback)
     const finalStations: any[] = [];
     for (const s of candidateStops) {
       const sc = normalizeCode(s.station_code ?? s.StationCode ?? s.station ?? "");
       const stationName = s.station_name ?? s.StationName ?? s.station ?? sc;
       let vendors: any[] = [];
 
-      // Use RestroMaster vendors first (filter active)
+      // use RestroMaster vendors if present (filter active)
       if (grouped[sc] && Array.isArray(grouped[sc])) {
         vendors = grouped[sc].filter((r: any) => {
-          // active check tolerant
           const isActive = r.IsActive ?? r.isActive ?? r.active;
           return isActive === undefined ? true : isActiveValue(isActive);
         }).map((r: any) => ({ ...r, source: "restromaster" }));
       }
 
-      // if none found, attempt ADMIN fallback
+      // if no vendors from RestroMaster, try admin stations API
       if (!vendors.length) {
         const adminUrl = `${ADMIN_BASE.replace(/\/$/, "")}/api/stations/${encodeURIComponent(sc)}`;
         const adminJson = await fetchJson(adminUrl);
-        const adminRows = adminJson?.restaurants ?? adminJson?.data ?? adminJson?.rows ?? null;
+        const adminRows = adminJson?.restaurants ?? adminJson?.data ?? adminJson?.rows ?? adminJson?.list ?? null;
         if (Array.isArray(adminRows) && adminRows.length) {
-          // map admin restros to compact shape
           vendors = adminRows.map((ar: any) => ({ ...mapAdminRestroToCommon(ar), source: "admin" }));
-          // optionally filter by IsActive mapped value
           vendors = vendors.filter((v: any) => v.isActive !== false);
         }
       }
@@ -157,7 +159,7 @@ export async function GET(req: Request) {
       }
     }
 
-    // 4) best-effort train meta
+    // 4) train meta best-effort
     const { data: trainMeta } = await serviceClient.from("trains").select("train_number,train_name").eq("train_number", train).single();
 
     return NextResponse.json({
