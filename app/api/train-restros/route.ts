@@ -1,11 +1,6 @@
-// app/api/train-restros/route.ts
+// app/api/train-restros/route.ts  (DEBUG VERSION - remove after debugging)
 import { NextResponse } from "next/server";
 import { serviceClient } from "../../lib/supabaseServer";
-
-/**
- * train-restros endpoint with admin API fallback for missing RestroMaster rows.
- * Build-safe: tolerant property access, avoids TypeScript property-name issues.
- */
 
 const ADMIN_BASE = process.env.NEXT_PUBLIC_ADMIN_APP_URL || "https://admin.raileats.in";
 
@@ -14,11 +9,9 @@ function normalizeToLower(obj: Record<string, any>) {
   for (const k of Object.keys(obj)) lower[k.toLowerCase()] = obj[k];
   return lower;
 }
-
 function normalizeCode(val: any) {
   return String(val ?? "").toUpperCase().trim();
 }
-
 function isActiveValue(val: any) {
   if (typeof val === "boolean") return val;
   if (typeof val === "number") return val !== 0;
@@ -29,22 +22,20 @@ function isActiveValue(val: any) {
   }
   return true;
 }
-
 async function fetchJson(url: string) {
   try {
     const r = await fetch(url, { cache: "no-store" });
-    if (!r.ok) return null;
-    return await r.json().catch(() => null);
-  } catch {
-    return null;
+    if (!r.ok) return { ok: false, status: r.status, text: await r.text().catch(()=>null) };
+    return { ok: true, json: await r.json().catch(()=>null), status: r.status };
+  } catch (e:any) {
+    return { ok: false, error: String(e) };
   }
 }
-
 function mapAdminRestroToCommon(adminR: any) {
   return {
     RestroCode: adminR.RestroCode ?? adminR.id ?? adminR.code ?? null,
     RestroName: adminR.RestroName ?? adminR.name ?? adminR.restro_name ?? null,
-    isActive: isActiveValue(adminR.IsActive ?? adminR.is_active ?? adminR.active),
+    isActive: adminR.IsActive ?? adminR.is_active ?? adminR.active ?? true,
     OpenTime: adminR.OpenTime ?? adminR.open_time ?? adminR.openTime ?? null,
     ClosedTime: adminR.ClosedTime ?? adminR.closed_time ?? adminR.closeTime ?? null,
     MinimumOrdermValue: adminR.MinimumOrdermValue ?? adminR.minOrder ?? adminR.minimum_order ?? null,
@@ -62,75 +53,83 @@ export async function GET(req: Request) {
     return NextResponse.json({ ok: false, error: "missing params: train/date/boarding" }, { status: 400 });
   }
 
+  // DEBUG info accumulator
+  const debug: any = { params: { train, date, boarding }, steps: [] };
+
   try {
-    // 1) fetch train stops (tolerant typing)
+    // 1) read stops (tolerant)
     const { data: stopsRaw, error: stopsErr } = await serviceClient
       .from("train_stops")
       .select("station_code,station_name,state,stop_sequence,arrival_time")
       .eq("train_number", train)
       .order("stop_sequence", { ascending: true });
 
-    if (stopsErr) throw stopsErr;
+    debug.steps.push({ step: "fetched_train_stops", stopsRawLength: Array.isArray(stopsRaw) ? stopsRaw.length : null, stopsErr: String(stopsErr || "") });
+
     const stops: any[] = Array.isArray(stopsRaw) ? stopsRaw : [];
 
     if (!stops.length) {
-      return NextResponse.json({ ok: true, train: { train_number: train, train_name: "" }, stations: [] });
+      return NextResponse.json({ ok: true, train: { train_number: train, train_name: "" }, stations: [], debug }, { status: 200 });
     }
 
-    // find boarding index (use station_code primarily)
     const boardingIndex = stops.findIndex((s: any) =>
-      String((s.station_code ?? s.station ?? s.StationCode ?? "")).toUpperCase() === boarding.toUpperCase()
+      String((s.station_code ?? s.StationCode ?? s.station ?? "")).toUpperCase() === boarding.toUpperCase()
     );
+    debug.steps.push({ step: "found_boarding_index", boardingIndex });
 
     const routeFromBoarding = boardingIndex >= 0 ? stops.slice(boardingIndex) : stops;
-    const nextN = 12;
-    const candidateStops = routeFromBoarding.slice(0, nextN);
-    const stationCodes = candidateStops
-      .map((s: any) => normalizeCode(s.station_code ?? s.StationCode ?? s.station ?? ""))
-      .filter(Boolean);
+    const candidateStops = routeFromBoarding.slice(0, 12);
+    const stationCodes = candidateStops.map((s: any) => normalizeCode(s.station_code ?? s.StationCode ?? s.station ?? "")).filter(Boolean);
+    debug.steps.push({ step: "candidate_station_codes", stationCodes });
 
-    // 2) attempt to fetch RestroMaster rows for these station codes
+    // 2) try RestroMaster fast path
     let restroRows: any[] = [];
     try {
       const { data, error } = await serviceClient.from("RestroMaster").select("*").in("StationCode", stationCodes);
-      if (!error && Array.isArray(data) && data.length) restroRows = data;
-    } catch {
-      // ignore and proceed to fallback
+      debug.steps.push({ step: "restromaster_in_query", rows: Array.isArray(data) ? data.length : null, error: String(error || "") });
+      if (Array.isArray(data)) restroRows = data;
+    } catch (e:any) {
+      debug.steps.push({ step: "restromaster_in_query_error", error: String(e) });
     }
 
-    // fallback: fetch many RestroMaster rows and filter client-side
+    // fallback fetch all & filter if none
     if (!restroRows.length) {
-      const { data: allRestros, error } = await serviceClient.from("RestroMaster").select("*").limit(5000);
-      if (error) {
-        // if selecting all fails, continue with empty restroRows
-        console.warn("RestroMaster fallback fetch error:", error);
-      } else if (Array.isArray(allRestros)) {
-        const lowerCodes = stationCodes.map((c) => c.toLowerCase());
-        restroRows = (allRestros || []).filter((r: any) => {
-          const rl = normalizeToLower(r);
-          const cand = rl.stationcode ?? rl.station_code ?? rl.station ?? rl.stationid ?? rl.stationname ?? null;
-          if (!cand) return false;
-          return lowerCodes.includes(String(cand).toLowerCase());
-        });
+      try {
+        const { data: allRestros, error } = await serviceClient.from("RestroMaster").select("*").limit(5000);
+        debug.steps.push({ step: "restromaster_all_fetch", rows: Array.isArray(allRestros) ? allRestros.length : null, error: String(error || "") });
+        if (Array.isArray(allRestros)) {
+          const lowerCodes = stationCodes.map((c) => c.toLowerCase());
+          restroRows = (allRestros || []).filter((r: any) => {
+            const rl = normalizeToLower(r);
+            const cand = rl.stationcode ?? rl.station_code ?? rl.station ?? rl.stationid ?? rl.stationname ?? null;
+            if (!cand) return false;
+            return lowerCodes.includes(String(cand).toLowerCase());
+          });
+        }
+      } catch (e:any) {
+        debug.steps.push({ step: "restromaster_all_fetch_error", error: String(e) });
       }
     }
 
-    // group restros by normalized station code
+    debug.steps.push({ step: "restromaster_group_count", restroRowsCount: restroRows.length });
+
+    // group
     const grouped: Record<string, any[]> = {};
     for (const r of restroRows) {
       const sc = normalizeCode(r.StationCode ?? r.stationcode ?? r.Station ?? r.station ?? null);
       if (!sc) continue;
       (grouped[sc] = grouped[sc] || []).push(r);
     }
+    debug.steps.push({ step: "grouped_keys", keys: Object.keys(grouped).slice(0, 20) });
 
-    // 3) For each candidate stop, prepare vendors (RestroMaster first, then ADMIN fallback)
+    // prepare final stations
     const finalStations: any[] = [];
+
     for (const s of candidateStops) {
       const sc = normalizeCode(s.station_code ?? s.StationCode ?? s.station ?? "");
       const stationName = s.station_name ?? s.StationName ?? s.station ?? sc;
       let vendors: any[] = [];
 
-      // use RestroMaster vendors if present (filter active)
       if (grouped[sc] && Array.isArray(grouped[sc])) {
         vendors = grouped[sc].filter((r: any) => {
           const isActive = r.IsActive ?? r.isActive ?? r.active;
@@ -138,14 +137,16 @@ export async function GET(req: Request) {
         }).map((r: any) => ({ ...r, source: "restromaster" }));
       }
 
-      // if no vendors from RestroMaster, try admin stations API
       if (!vendors.length) {
+        // ADMIN fallback
         const adminUrl = `${ADMIN_BASE.replace(/\/$/, "")}/api/stations/${encodeURIComponent(sc)}`;
-        const adminJson = await fetchJson(adminUrl);
-        const adminRows = adminJson?.restaurants ?? adminJson?.data ?? adminJson?.rows ?? adminJson?.list ?? null;
+        const adminResp = await fetchJson(adminUrl);
+        debug.steps.push({ step: "admin_fetch", station: sc, adminRespStatus: adminResp?.status ?? null, adminRespOk: adminResp?.ok ?? false });
+        const adminRows = adminResp?.json?.restaurants ?? adminResp?.json?.data ?? adminResp?.json?.rows ?? adminResp?.json ?? null;
         if (Array.isArray(adminRows) && adminRows.length) {
-          vendors = adminRows.map((ar: any) => ({ ...mapAdminRestroToCommon(ar), source: "admin" }));
-          vendors = vendors.filter((v: any) => v.isActive !== false);
+          vendors = adminRows.map((ar:any) => ({ ...mapAdminRestroToCommon(ar), source: "admin" }));
+          vendors = vendors.filter((v:any) => v.isActive !== false);
+          debug.steps.push({ step: "admin_used_for", station: sc, adminRows: adminRows.length });
         }
       }
 
@@ -159,16 +160,22 @@ export async function GET(req: Request) {
       }
     }
 
-    // 4) train meta best-effort
-    const { data: trainMeta } = await serviceClient.from("trains").select("train_number,train_name").eq("train_number", train).single();
+    const { data: trainMeta, error: trainErr } = await serviceClient.from("trains").select("train_number,train_name").eq("train_number", train).single();
+    debug.steps.push({ step: "train_meta", trainMeta: trainMeta ?? null, trainErr: String(trainErr || "") });
 
     return NextResponse.json({
       ok: true,
       train: trainMeta || { train_number: train, train_name: "" },
       stations: finalStations,
-    });
-  } catch (err) {
-    console.error("train-restros error:", err);
-    return NextResponse.json({ ok: false, error: "server_error" }, { status: 500 });
+      debug
+    }, { status: 200 });
+  } catch (err: any) {
+    // DEBUG: return error details so you can paste here
+    return NextResponse.json({
+      ok: false,
+      error: "server_error",
+      message: String(err?.message ?? err),
+      stack: String(err?.stack ?? ""),
+    }, { status: 500 });
   }
 }
