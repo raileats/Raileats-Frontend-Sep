@@ -49,56 +49,18 @@ export default function TrainPage() {
   const [date, setDate] = useState(initialDate);
   const [boarding, setBoarding] = useState(initialBoarding);
 
-  const [rows, setRows] = useState<any[]>([]);
+  const [rows, setRows] = useState<any[]>([]); // full route rows from train-routes
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // visibleRestros holds the vendor groups we show in UI (stationCode/stationName/restros[])
   const [visibleRestros, setVisibleRestros] = useState<
     { stationCode: string; stationName: string; restros: any[] }[]
   >([]);
 
   const STATION_LIMIT = 6;
 
-  async function fetchRoute(trainNo: string, d: string, boardingCode: string | null = null) {
-    if (!trainNo) {
-      setRows([]);
-      setVisibleRestros([]);
-      return;
-    }
-    setLoading(true);
-    setError(null);
-
-    try {
-      const url = `/api/train-routes?train=${encodeURIComponent(String(trainNo))}&date=${encodeURIComponent(String(d))}${boardingCode ? `&boarding=${encodeURIComponent(boardingCode)}` : ""}`;
-      const res = await fetch(url, { cache: "no-store" });
-      const j = await res.json().catch(() => null);
-
-      if (!res.ok || !j || !j.ok) {
-        setRows([]);
-        setVisibleRestros([]);
-        setError(j?.error || `Train not found or server error`);
-      } else {
-        const mappedRows = Array.isArray(j.rows) ? j.rows : [];
-        setRows(mappedRows);
-
-        const tname = j?.train?.trainName ?? j?.trainName ?? "";
-        setTrainName(String(tname || ""));
-
-        const pickBoard = boardingCode || (mappedRows[0] && (mappedRows[0].StationCode || mappedRows[0].stationCode || "")) || "";
-        setBoarding((prev) => prev || pickBoard);
-
-        computeRestrosFromBoarding(pickBoard, mappedRows);
-      }
-    } catch (e) {
-      console.error("fetchRoute error", e);
-      setError("Failed to fetch route. Try again.");
-      setRows([]);
-      setVisibleRestros([]);
-    } finally {
-      setLoading(false);
-    }
-  }
-
+  // compute restros from full route rows (existing logic)
   function computeRestrosFromBoarding(boardingCode: string, mappedRowsParam?: any[]) {
     const mappedRows = mappedRowsParam ?? rows ?? [];
     if (!boardingCode) {
@@ -134,19 +96,110 @@ export default function TrainPage() {
     setVisibleRestros(nonEmpty);
   }
 
+  // new: fetch both endpoints. train-restros for active vendor stations; train-routes for full route rows
+  async function loadData(trainNo: string, d: string, boardingCode: string | null = null) {
+    if (!trainNo) {
+      setRows([]);
+      setVisibleRestros([]);
+      return;
+    }
+    setLoading(true);
+    setError(null);
+
+    try {
+      const restrosUrl = `/api/train-restros?train=${encodeURIComponent(String(trainNo))}&date=${encodeURIComponent(String(d))}${boardingCode ? `&boarding=${encodeURIComponent(boardingCode)}` : ""}`;
+      const routeUrl = `/api/train-routes?train=${encodeURIComponent(String(trainNo))}&date=${encodeURIComponent(String(d))}${boardingCode ? `&boarding=${encodeURIComponent(boardingCode)}` : ""}`;
+
+      // run in parallel
+      const [restrosRes, routeRes] = await Promise.allSettled([
+        fetch(restrosUrl, { cache: "no-store" }),
+        fetch(routeUrl, { cache: "no-store" }),
+      ]);
+
+      // process train-routes (rows) for boarding select and fallback compute
+      if (routeRes.status === "fulfilled") {
+        const rRes = routeRes.value;
+        const j = await rRes.json().catch(() => null);
+        if (rRes.ok && j && (j.rows || j.stations || j.rows === undefined)) {
+          // old train-routes returns j.rows; sometimes other shapes — normalize to rows
+          const mappedRows = Array.isArray(j.rows) ? j.rows : Array.isArray(j.stations) ? j.stations : j.rows || [];
+          setRows(mappedRows);
+          const tname = j?.train?.trainName ?? j?.trainName ?? "";
+          setTrainName(String(tname || ""));
+          // determine boarding if not set
+          const pickBoard = boardingCode || (mappedRows[0] && (mappedRows[0].StationCode || mappedRows[0].stationCode || "")) || "";
+          setBoarding((prev) => prev || pickBoard);
+        } else {
+          // route fetch failed - keep rows empty
+          setRows([]);
+        }
+      } else {
+        // rejected
+        setRows([]);
+      }
+
+      // process train-restros (primary)
+      if (restrosRes.status === "fulfilled") {
+        const rr = restrosRes.value;
+        const j2 = await rr.json().catch(() => null);
+        if (rr.ok && j2 && Array.isArray(j2.stations) && j2.stations.length) {
+          // train-restros returns stations[] — each station should have StationCode, StationName, restros[]
+          const stations = j2.stations;
+          // map to our visibleRestros shape (stationCode, stationName, restros)
+          const mappedVisible = stations.map((s: any) => ({
+            stationCode: (s.StationCode || s.station_code || s.stationCode || "").toUpperCase(),
+            stationName: s.StationName || s.station_name || s.stationName || (s.StationCode || s.station_code || s.stationCode || ""),
+            restros: Array.isArray(s.restros) ? s.restros : (s.vendors || []),
+          }));
+          setVisibleRestros(mappedVisible);
+          // set train name if not set earlier
+          if (!trainName && j2?.train) {
+            const tname = j2.train.trainName ?? j2.train.train_name ?? "";
+            if (tname) setTrainName(String(tname));
+          }
+          // ensure boarding set if possible
+          if (!boarding && mappedVisible.length > 0) {
+            setBoarding((prev) => prev || mappedVisible[0].stationCode);
+          }
+          setLoading(false);
+          return; // primary data shown, so return early
+        }
+      }
+
+      // if we reach here — train-restros had no stations OR failed → fallback to computing from route rows
+      if (rows && rows.length) {
+        const pickBoard = boardingCode || boarding || ((rows[0] && (rows[0].StationCode || rows[0].stationCode)) || "");
+        setBoarding((prev) => prev || pickBoard);
+        computeRestrosFromBoarding(pickBoard, rows);
+      } else {
+        setVisibleRestros([]);
+      }
+    } catch (e) {
+      console.error("loadData error", e);
+      setError("Failed to load train data. Try again.");
+      setRows([]);
+      setVisibleRestros([]);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // on initial slug change or first mount
   useEffect(() => {
     const fromSlug = extractTrainNumberFromSlug(slug);
     const tr = fromSlug || trainNumber;
-    fetchRoute(tr, date, boarding || undefined);
+    loadData(tr, date, boarding || undefined);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug]);
 
+  // when date or boarding changes, refetch (keep behavior)
   useEffect(() => {
     if (!trainNumber) return;
-    fetchRoute(trainNumber, date, boarding || undefined);
+    loadData(trainNumber, date, boarding || undefined);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [date, boarding]);
 
+  // keep computeRestrosFromBoarding in sync if rows change (fallback scenario)
   useEffect(() => {
     computeRestrosFromBoarding(boarding, rows);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -159,7 +212,7 @@ export default function TrainPage() {
         trainName,
         date,
         boarding,
-        restro: restro?.RestroCode ?? restro?.restroCode ?? restro?.restro_id ?? restro?.RestroId ?? restro?.RestroCode,
+        restro: restro?.RestroCode ?? restro?.restroCode ?? restro?.restro_id ?? restro?.RestroId ?? restro?.id ?? restro?.code,
       };
       sessionStorage.setItem("raileats_train_search", JSON.stringify(payload));
     } catch (e) {
@@ -167,7 +220,7 @@ export default function TrainPage() {
     }
 
     const slugForNav = makeTrainSlugLocal(trainNumber, trainName || undefined);
-    const q = new URLSearchParams({ date, boarding: boarding || "" , restro: String(restro?.RestroCode ?? restro?.restroCode ?? "") }).toString();
+    const q = new URLSearchParams({ date, boarding: boarding || "" , restro: String(restro?.RestroCode ?? restro?.restroCode ?? restro?.id ?? "") }).toString();
     router.push(`/trains/${encodeURIComponent(slugForNav)}?${q}`);
   }
 
@@ -243,7 +296,7 @@ export default function TrainPage() {
 
                       <div className="grid grid-cols-1 gap-3">
                         {grp.restros.map((r: any) => {
-                          const restroCode = r.RestroCode ?? r.restroCode ?? r.RestroCode ?? r.restroCode ?? r.restro_id ?? r.RestroId;
+                          const restroCode = r.RestroCode ?? r.restroCode ?? r.RestroCode ?? r.restroCode ?? r.restro_id ?? r.RestroId ?? r.id ?? r.code;
                           const restroName = r.RestroName ?? r.restroName ?? r.restroName ?? r.name ?? "Vendor";
                           const minOrder = r.MinimumOrdermValue ?? r.minOrder ?? r.MinimumOrderValue ?? "N/A";
                           const openTime = r["0penTime"] ?? r.openTime ?? r.OpenTime ?? "—";
