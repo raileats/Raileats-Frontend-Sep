@@ -56,12 +56,11 @@ export default function TrainPage() {
   const [boarding, setBoarding] = useState(initialBoarding);
 
   const [routeRows, setRouteRows] = useState<any[]>([]);
-  const [stationsWithVendorsFull, setStationsWithVendorsFull] = useState<any[]>([]); // full-route vendors from endpoint
+  const [stationsWithVendorsFull, setStationsWithVendorsFull] = useState<any[]>([]);
   const [stationImages, setStationImages] = useState<Record<string, string | null>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // fetch full train route (for boarding dropdown)
   async function fetchRouteRows(trainNo: string, d: string) {
     if (!trainNo) {
       setRouteRows([]);
@@ -90,7 +89,6 @@ export default function TrainPage() {
     }
   }
 
-  // fetch full stations-with-vendors (server does RestroMaster + admin fallback)
   async function fetchStationsWithVendorsFull(trainNo: string, d: string) {
     if (!trainNo) {
       setStationsWithVendorsFull([]);
@@ -99,7 +97,6 @@ export default function TrainPage() {
     setLoading(true);
     setError(null);
     try {
-      // full=1 ensures server scans full route for vendors
       const url = `/api/train-restros?train=${encodeURIComponent(String(trainNo))}&date=${encodeURIComponent(String(d))}&full=1`;
       const res = await fetch(url, { cache: "no-store" });
       const j = await res.json().catch(() => null);
@@ -107,13 +104,11 @@ export default function TrainPage() {
         setStationsWithVendorsFull([]);
         setError(j?.error || "No vendors found for this train");
       } else {
-        // expect j.stations = [{ StationCode, StationName, arrival_time, Day, vendors: [...] }, ...]
         const stations = Array.isArray(j.stations) ? j.stations : [];
         setStationsWithVendorsFull(stations);
         const tname = j?.train?.trainName ?? j?.trainName ?? "";
         setTrainName(String(tname || ""));
-        // fetch station images for these stations (parallel)
-        const codes = stations.map((s: any) => (s.StationCode || s.station_code || s.station || "").toUpperCase()).filter(Boolean);
+        const codes = stations.map((s: any) => (s.StationCode || s.station || "").toUpperCase()).filter(Boolean);
         fetchStationImages(codes);
       }
     } catch (e) {
@@ -125,7 +120,6 @@ export default function TrainPage() {
     }
   }
 
-  // fetch admin station images (only for needed codes)
   async function fetchStationImages(codes: string[]) {
     const out: Record<string, string | null> = { ...stationImages };
     const need = codes.filter((c) => typeof out[c] === "undefined");
@@ -148,19 +142,15 @@ export default function TrainPage() {
     setStationImages(out);
   }
 
-  // return stations to display, ordered: stations that are on-route after boarding first (if boarding present),
-  // but we still include all stationsWithVendorsFull so user doesn't have to manually change boarding.
   function getOrderedStationsToShow() {
     const stations = stationsWithVendorsFull || [];
     if (!boarding) return stations;
     const codeUpper = boarding.toUpperCase();
-    // need index map from routeRows for ordering
     const pos: Record<string, number> = {};
     routeRows.forEach((r: any, i: number) => {
       const sc = (r.StationCode || r.stationCode || "").toUpperCase();
       if (sc) pos[sc] = i;
     });
-    // sort stations by position; if station not in pos, keep at end
     const sorted = [...stations].sort((a: any, b: any) => {
       const aa = (a.StationCode || a.station || "").toUpperCase();
       const bb = (b.StationCode || b.station || "").toUpperCase();
@@ -168,10 +158,8 @@ export default function TrainPage() {
       const ib = typeof pos[bb] === "number" ? pos[bb] : 99999;
       return ia - ib;
     });
-    // also rotate so that the first shown station is the first with index >= boardingIndex if possible
     const boardingIndex = typeof pos[codeUpper] === "number" ? pos[codeUpper] : -1;
     if (boardingIndex >= 0) {
-      // find first station whose pos >= boardingIndex
       const idx = sorted.findIndex((s: any) => {
         const sc = (s.StationCode || s.station || "").toUpperCase();
         const p = typeof pos[sc] === "number" ? pos[sc] : 99999;
@@ -200,13 +188,11 @@ export default function TrainPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [date, trainNumber]);
 
-  // when boarding changes, try to reorder displayed stations (we already compute on render)
   useEffect(() => {
-    // nothing to do here; ordering is computed on render
+    // ordering computed each render
   }, [boarding, stationsWithVendorsFull, routeRows]);
 
   function goToStationRestro(station: any, restro: any) {
-    // Save payload in session for later flows
     try {
       const payload = {
         train: trainNumber,
@@ -214,20 +200,18 @@ export default function TrainPage() {
         date,
         boarding,
         restro: restro?.RestroCode ?? restro?.restroCode ?? restro?.id ?? null,
-        station: station?.StationCode ?? station?.station || null,
+        station: ((station?.StationCode ?? station?.station) || null),
       };
       sessionStorage.setItem("raileats_train_search", JSON.stringify(payload));
     } catch (e) {
       console.warn("session storage failed", e);
     }
 
-    // navigate to Station page (station slug) and include restro slug part encoded
     const stationCode = (station.StationCode || station.station || "").toUpperCase();
     const stationName = station.StationName || station.stationName || station.station || "";
     const stationSlug = makeStationSlugLocal(stationCode, stationName);
     const restroCode = restro.RestroCode ?? restro.restroCode ?? restro.id ?? "";
     const restroSlugPart = encodeURIComponent(`${restroCode}-${restro.RestroName ?? restro.restroName ?? "Restaurant"}`);
-    // URL pattern: /Stations/<station-seo>/<restroSlugPart>
     const href = `/Stations/${stationSlug}/${restroSlugPart}`;
     router.push(href);
   }
@@ -288,8 +272,6 @@ export default function TrainPage() {
                     <div className="flex gap-4 items-start">
                       <div className="w-28 h-28 bg-gray-100 rounded overflow-hidden flex-shrink-0">
                         {img ? (
-                          // station image from admin API
-                          // eslint-disable-next-line @next/next/no-img-element
                           <img src={img} alt={stationName} loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center text-gray-400 text-sm">Station</div>
@@ -305,7 +287,6 @@ export default function TrainPage() {
                         </div>
 
                         <div className="mt-4">
-                          {/* restaurants list */}
                           {Array.isArray(st.vendors) && st.vendors.length ? (
                             <div className="space-y-3">
                               {st.vendors.map((r: any) => {
@@ -320,7 +301,6 @@ export default function TrainPage() {
                                   <article key={String(restroCode || restroName)} className="flex items-center gap-4 p-3 border rounded">
                                     <div className="w-28 h-20 bg-gray-100 rounded overflow-hidden flex-shrink-0">
                                       {restroImg ? (
-                                        // eslint-disable-next-line @next/next/no-img-element
                                         <img src={restroImg} alt={restroName} loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
                                       ) : (
                                         <div className="w-full h-full flex items-center justify-center text-gray-400 text-sm">No image</div>
