@@ -3,29 +3,18 @@ import { NextResponse } from "next/server";
 import { serviceClient } from "../../lib/supabaseServer";
 
 /**
- * High-speed train-restros endpoint (full replacement)
+ * High-speed train-restros endpoint (keeps holiday/time checks)
+ * - Full route from boarding -> end (no 6-hour limit)
+ * - Batched RestroMaster .in(...) queries (single/few DB work)
+ * - Admin fallback per-station fetched in parallel with limit
+ * - Per-vendor holiday checks preserved, but executed concurrently with limited concurrency and caching
  *
- * Goals:
- *  - keep existing business rules (active flag, holiday checks, admin fallback)
- *  - show full route from boarding -> end (no 6-hour limit)
- *  - include arrival_time, stoptime, platform, arrival_date
- *  - dramatically reduce wall-clock latency using:
- *      * batched DB .in(...) queries
- *      * parallel admin fetches with short timeouts
- *      * holiday-list caching per-restro + boolean per restro+date cache
- *      * limited concurrency worker pool
- *
- * TUNE if needed:
- *  - BATCH_SIZE
- *  - concurrency numbers for pMap
- *  - HOLIDAY_TTL_MS and fetch timeouts
- *
- * Note: For guaranteed sub-1s across cold-starts, use shared Redis / batch holiday API.
+ * NOTE: tune CONCURRENCY / BATCH_SIZE based on your infra.
  */
 
 const ADMIN_BASE = process.env.NEXT_PUBLIC_ADMIN_APP_URL || "https://admin.raileats.in";
 
-// ---------- utils ----------
+// ---------- small utils ----------
 function normalizeToLower(obj: Record<string, any>) {
   const lower: Record<string, any> = {};
   for (const k of Object.keys(obj)) lower[k.toLowerCase()] = obj[k];
@@ -100,64 +89,58 @@ async function pMap<T, R>(items: T[], mapper: (t: T) => Promise<R>, concurrency 
   return results;
 }
 
-// ---------- fetch with timeout ----------
-async function fetchWithTimeoutJson(url: string, timeoutMs = 900) {
-  const controller = new AbortController();
-  const id = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    const res = await fetch(url, { cache: "no-store", signal: controller.signal });
-    clearTimeout(id);
-    if (!res.ok) return null;
-    return await res.json().catch(() => null);
-  } catch {
-    clearTimeout(id);
-    return null;
-  }
-}
-
-// ---------- holiday cache ----------
-const HOLIDAY_TTL_MS = 1000 * 60 * 5; // 5 minutes
-if (!(globalThis as any).__restroHolidayListCache) (globalThis as any).__restroHolidayListCache = {};
-if (!(globalThis as any).__restroHolidayBoolCache) (globalThis as any).__restroHolidayBoolCache = {};
-
-async function fetchVendorHolidaysWithTimeout(restroCode: string | number, timeoutMs = 900) {
+// ---------- holiday checker with cache & concurrency ----------
+/** Cache for restro-date -> boolean (blocked) */
+const holidayCache = new Map<string, boolean>();
+async function fetchVendorHolidays(restroCode: string | number) {
   try {
     if (!restroCode) return [] as any[];
     const url = `${ADMIN_BASE.replace(/\/$/, "")}/api/restros/${encodeURIComponent(String(restroCode))}/holidays`;
-    const json = await fetchWithTimeoutJson(url, timeoutMs);
+    const res = await fetch(url, { cache: "no-store" });
+    if (!res.ok) return [];
+    const json = await res.json().catch(() => null);
     const rows: any[] = json?.rows ?? json?.data ?? (Array.isArray(json) ? json : []);
     return Array.isArray(rows) ? rows : [];
-  } catch {
+  } catch (e) {
+    console.warn("fetchVendorHolidays failed", restroCode, e);
     return [];
   }
 }
 
+/** Given restroCode and isoDate yyyy-mm-dd, return true if holiday covers date.
+ * Uses holidayCache to avoid duplicate network calls per restro/date.
+ */
 async function isVendorHoliday(restroCode: string | number | null, isoDate: string): Promise<boolean> {
   if (!restroCode) return false;
-  const boolCacheKey = `${String(restroCode)}::${isoDate}`;
-  const boolCache: Record<string, { blocked: boolean; ts: number }> = (globalThis as any).__restroHolidayBoolCache;
+  const key = `${String(restroCode)}::${isoDate}`;
+  if (holidayCache.has(key)) return Boolean(holidayCache.get(key));
+  try {
+    // To avoid N per-vendor network hits we first fetch vendor holidays once and cache per-restro for session.
+    // But here we implement per restro+date caching; first call fetches holidays for the restro (not per date).
+    const holidaysKeyPrefix = `hols::${String(restroCode)}`;
+    // If we haven't fetched holidays list for this restro, fetch and store with a separate cache marker.
+    const listKey = `${holidaysKeyPrefix}::list`;
+    let rows: any[] | null = null;
+    if ((globalThis as any).__restroHolidayListCache && (globalThis as any).__restroHolidayListCache[listKey]) {
+      rows = (globalThis as any).__restroHolidayListCache[listKey];
+    } else {
+      const fetched = await fetchVendorHolidays(restroCode);
+      rows = Array.isArray(fetched) ? fetched : [];
+      (globalThis as any).__restroHolidayListCache = (globalThis as any).__restroHolidayListCache || {};
+      (globalThis as any).__restroHolidayListCache[listKey] = rows;
+    }
 
-  const cachedBool = boolCache[boolCacheKey];
-  if (cachedBool && Date.now() - cachedBool.ts < HOLIDAY_TTL_MS) {
-    return cachedBool.blocked;
-  }
+    if (!rows || !rows.length) {
+      holidayCache.set(key, false);
+      return false;
+    }
 
-  const listCacheKey = String(restroCode);
-  const listCache: Record<string, { rows: any[]; fetchedAt: number }> = (globalThis as any).__restroHolidayListCache;
-  const listEntry = listCache[listCacheKey];
-  let rows: any[] = [];
-  const now = Date.now();
-  if (listEntry && now - listEntry.fetchedAt < HOLIDAY_TTL_MS) {
-    rows = listEntry.rows || [];
-  } else {
-    const fetched = await fetchVendorHolidaysWithTimeout(restroCode, 900);
-    rows = Array.isArray(fetched) ? fetched : [];
-    listCache[listCacheKey] = { rows, fetchedAt: Date.now() };
-  }
+    const target = Date.parse(isoDate + "T00:00:00");
+    if (!Number.isFinite(target)) {
+      holidayCache.set(key, false);
+      return false;
+    }
 
-  const target = Date.parse(isoDate + "T00:00:00");
-  let blocked = false;
-  if (Number.isFinite(target) && Array.isArray(rows) && rows.length) {
     for (const r of rows) {
       const deletedAt = r?.deleted_at ? Date.parse(r.deleted_at) : null;
       if (deletedAt) continue;
@@ -165,17 +148,21 @@ async function isVendorHoliday(restroCode: string | number | null, isoDate: stri
       const end = r?.end_at ? Date.parse(r.end_at) : NaN;
       if (!Number.isFinite(start) || !Number.isFinite(end)) continue;
       if (start <= target && target <= end) {
-        blocked = true;
-        break;
+        holidayCache.set(key, true);
+        return true;
       }
     }
-  }
 
-  boolCache[boolCacheKey] = { blocked, ts: Date.now() };
-  return blocked;
+    holidayCache.set(key, false);
+    return false;
+  } catch (e) {
+    console.warn("isVendorHoliday failed", restroCode, e);
+    holidayCache.set(key, false);
+    return false;
+  }
 }
 
-// ---------- main ----------
+// ---------- main endpoint ----------
 export async function GET(req: Request) {
   const url = new URL(req.url);
   const trainParam = (url.searchParams.get("train") || "").trim();
@@ -195,7 +182,7 @@ export async function GET(req: Request) {
     if (isDigits) {
       const { data: exactData, error: exactErr } = await serviceClient
         .from("TrainRoute")
-        .select("StnNumber,StationCode,StationName,Arrives,Departs,Day,Platform,Distance,Stoptime,trainNumber,trainName,runningDays")
+        .select("StnNumber,StationCode,StationName,Arrives,Departs,Day,Platform,Distance,trainNumber,trainName,runningDays")
         .eq("trainNumber", Number(q))
         .order("StnNumber", { ascending: true })
         .limit(2000);
@@ -207,7 +194,7 @@ export async function GET(req: Request) {
       try {
         const { data: partialData } = await serviceClient
           .from("TrainRoute")
-          .select("StnNumber,StationCode,StationName,Arrives,Departs,Day,Platform,Distance,Stoptime,trainNumber,trainName,runningDays")
+          .select("StnNumber,StationCode,StationName,Arrives,Departs,Day,Platform,Distance,trainNumber,trainName,runningDays")
           .or(`trainName.ilike.${ilikeQ},trainNumber_text.ilike.${ilikeQ}`)
           .order("StnNumber", { ascending: true })
           .limit(2000);
@@ -221,13 +208,13 @@ export async function GET(req: Request) {
       return NextResponse.json({ ok: true, train: { trainNumber: trainParam, trainName: null }, stations: [] });
     }
 
-    // 2) route from boarding -> end (no 6-hr limit)
+    // 2) compute route from boarding -> end (full route, no 6-hr limit)
     const normBoard = normalizeCode(boarding);
     const startIdx = stopsRows.findIndex((r: any) => normalizeCode(r.StationCode ?? r.stationcode ?? r.Station ?? r.station) === normBoard);
     const sliceStart = startIdx >= 0 ? startIdx : 0;
     const routeFromBoarding = stopsRows.slice(sliceStart);
 
-    // compute arrival_date for each stop using Day offsets
+    // compute arrival_date for each stop
     const baseDay = typeof stopsRows[0]?.Day === "number" ? Number(stopsRows[0].Day) : 1;
     const stopsWithArrival = routeFromBoarding.map((s: any) => {
       let arrivalDate = date;
@@ -238,12 +225,12 @@ export async function GET(req: Request) {
       return { ...s, arrivalDate };
     });
 
-    // collect unique station codes (ordered)
+    // collect unique station codes
     const stationCodesAll = Array.from(
       new Set(stopsWithArrival.map((s: any) => normalizeCode(s.StationCode ?? s.stationcode ?? s.Station ?? s.station)).filter(Boolean)),
     );
 
-    // 3) fetch RestroMaster rows in batches
+    // 3) fetch RestroMaster rows in batches (.in queries)
     const BATCH_SIZE = 150;
     const batches = chunk(stationCodesAll, BATCH_SIZE);
     let restroRows: any[] = [];
@@ -298,20 +285,21 @@ export async function GET(req: Request) {
         async (sc) => {
           try {
             const adminUrl = `${ADMIN_BASE.replace(/\/$/, "")}/api/stations/${encodeURIComponent(sc)}`;
-            const json = await fetchWithTimeoutJson(adminUrl, 900);
+            const json = await fetchJson(adminUrl);
             adminFetchMap[sc] = json;
           } catch (e) {
             adminFetchMap[sc] = null;
           }
           return null;
         },
-        8,
+        8, // admin concurrency
       );
     }
 
-    // 5) build vendors per station with holiday checks (concurrent limited)
+    // 5) For each station, build vendor list but run holiday checks concurrently (with caching)
     const finalStations: any[] = [];
 
+    // We'll prepare tasks to process stations in parallel (limited concurrency)
     await pMap(
       stopsWithArrival,
       async (s) => {
@@ -319,13 +307,11 @@ export async function GET(req: Request) {
         if (!sc) return null;
         const stationName = s.StationName ?? s.stationName ?? s.station_name ?? s.station ?? sc;
         const arrivalDate = s.arrivalDate; // yyyy-mm-dd
-        const arrivalTime = s.Arrives ?? s.Arrival ?? s.arrival_time ?? null;
-        const stoptime = s.Stoptime ?? s.stoptime ?? s.Stoptime ?? null;
-        const platform = s.Platform ?? s.platform ?? null;
 
         let vendors: any[] = [];
 
         if (grouped[sc] && Array.isArray(grouped[sc]) && grouped[sc].length) {
+          // convert grouped restromaster rows into common shape
           const candidateVendors = grouped[sc]
             .filter((r: any) => isActiveValue(r.IsActive ?? r.isActive ?? r.active))
             .map((r: any) => ({
@@ -338,6 +324,7 @@ export async function GET(req: Request) {
               RestroDisplayPhoto: r.RestroDisplayPhoto ?? null,
             }));
 
+          // for these candidate vendors, run holiday checks concurrently (limited)
           const checked = await pMap(
             candidateVendors,
             async (cv) => {
@@ -356,17 +343,19 @@ export async function GET(req: Request) {
                   source: "restromaster",
                   raw: cv.rawR,
                 };
-              } catch {
+              } catch (e) {
                 return null;
               }
             },
-            8,
+            8, // per-station vendor holiday concurrency
           );
           vendors = checked.filter(Boolean);
         } else {
+          // admin fallback: use data from adminFetchMap
           const adminJson = adminFetchMap[sc] ?? null;
           const adminRows = adminJson?.restaurants ?? adminJson?.data ?? adminJson?.rows ?? adminJson ?? null;
           if (Array.isArray(adminRows) && adminRows.length) {
+            // prepare candidates
             const candidateVendors = adminRows.map((ar: any) => {
               const mapped = mapAdminRestroToCommon(ar);
               return { mapped, rawA: ar };
@@ -394,9 +383,7 @@ export async function GET(req: Request) {
           finalStations.push({
             StationCode: sc,
             StationName: stationName,
-            arrival_time: arrivalTime,
-            stoptime,
-            platform,
+            arrival_time: s.Arrives ?? s.Arrival ?? s.arrival_time ?? null,
             Day: typeof s.Day === "number" ? s.Day : s.Day ? Number(s.Day) : null,
             arrival_date: arrivalDate,
             vendors,
@@ -405,10 +392,10 @@ export async function GET(req: Request) {
 
         return null;
       },
-      6,
+      6, // station processing concurrency
     );
 
-    // sort by route order
+    // final: sort finalStations by StnNumber order as in routeFromBoarding
     const indexByCode = new Map<string, number>();
     routeFromBoarding.forEach((r: any, idx: number) => indexByCode.set(normalizeCode(r.StationCode ?? r.stationcode ?? r.Station ?? r.station), idx));
     finalStations.sort((a: any, b: any) => (indexByCode.get(a.StationCode) ?? 0) - (indexByCode.get(b.StationCode) ?? 0));
