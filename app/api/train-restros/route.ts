@@ -2,16 +2,46 @@
 import { NextResponse } from "next/server";
 import { serviceClient } from "../../lib/supabaseServer";
 
+/**
+ * train-restros endpoint (production)
+ * - Uses TrainRoute to read stops (ordered by StnNumber)
+ * - Prefers RestroMaster rows for stations
+ * - Falls back to ADMIN stations API when RestroMaster has no rows for a station
+ *
+ * Minimal change: vendors are filtered by whether they have an active holiday on the station's arrivalDate.
+ */
+
 const ADMIN_BASE = process.env.NEXT_PUBLIC_ADMIN_APP_URL || "https://admin.raileats.in";
 
-function todayYMD() {
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = String(now.getMonth() + 1).padStart(2, "0");
-  const d = String(now.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
+function normalizeToLower(obj: Record<string, any>) {
+  const lower: Record<string, any> = {};
+  for (const k of Object.keys(obj)) lower[k.toLowerCase()] = obj[k];
+  return lower;
+}
+function normalizeCode(val: any) {
+  return String(val ?? "").toUpperCase().trim();
+}
+function isActiveValue(val: any) {
+  if (typeof val === "boolean") return val;
+  if (typeof val === "number") return val !== 0;
+  if (typeof val === "string") {
+    const t = val.trim().toLowerCase();
+    if (["0", "false", "no", "n", ""].includes(t)) return false;
+    return true;
+  }
+  return true;
+}
+async function fetchJson(url: string) {
+  try {
+    const r = await fetch(url, { cache: "no-store" });
+    if (!r.ok) return null;
+    return await r.json().catch(() => null);
+  } catch {
+    return null;
+  }
 }
 
+/** helper: add days to ISO yyyy-mm-dd */
 function addDaysToIso(iso: string, days: number) {
   const d = new Date(iso + "T00:00:00");
   d.setDate(d.getDate() + days);
@@ -21,26 +51,13 @@ function addDaysToIso(iso: string, days: number) {
   return `${y}-${m}-${dd}`;
 }
 
-function normalizeCode(val: any) {
-  return String(val ?? "").toUpperCase().trim();
-}
-
-function isActiveValue(val: any) {
-  if (typeof val === "boolean") return val;
-  if (typeof val === "number") return val !== 0;
-  if (typeof val === "string") {
-    const t = val.trim().toLowerCase();
-    if (t === "" || t === "false" || t === "0" || t === "no" || t === "n") return false;
-    return true;
-  }
-  return true;
-}
-
-/** Check vendor holidays from admin API for a specific date.
- * Returns true if vendor is blocked on that date (has a holiday covering that date)
+/** Check if vendor has a holiday covering the given ISO date (yyyy-mm-dd).
+ * Uses admin endpoint: /api/restros/{restroCode}/holidays
+ * Returns true if vendor is blocked on that date.
  */
-async function isVendorHoliday(restroCode: string | number, isoDate: string): Promise<boolean> {
+async function isVendorHoliday(restroCode: string | number, isoDate: string) {
   try {
+    if (!restroCode) return false;
     const url = `${ADMIN_BASE.replace(/\/$/, "")}/api/restros/${encodeURIComponent(String(restroCode))}/holidays`;
     const res = await fetch(url, { cache: "no-store" });
     if (!res.ok) return false;
@@ -52,7 +69,7 @@ async function isVendorHoliday(restroCode: string | number, isoDate: string): Pr
     if (!Number.isFinite(target)) return false;
 
     for (const r of rows) {
-      // ignore deleted
+      // ignore logically deleted holidays
       const deletedAt = r?.deleted_at ? Date.parse(r.deleted_at) : null;
       if (deletedAt) continue;
 
@@ -63,253 +80,226 @@ async function isVendorHoliday(restroCode: string | number, isoDate: string): Pr
     }
     return false;
   } catch (e) {
-    console.warn("holiday check failed", e);
+    // if holiday check fails, conservatively treat as NOT blocked (so we don't hide vendors incorrectly)
+    console.warn("holiday check failed for", restroCode, e);
     return false;
   }
 }
 
+function mapAdminRestroToCommon(adminR: any) {
+  return {
+    RestroCode: adminR.RestroCode ?? adminR.id ?? adminR.code ?? null,
+    RestroName: adminR.RestroName ?? adminR.name ?? adminR.restro_name ?? null,
+    isActive: isActiveValue(adminR.IsActive ?? adminR.is_active ?? adminR.active),
+    OpenTime: adminR.OpenTime ?? adminR.open_time ?? adminR.openTime ?? null,
+    ClosedTime: adminR.ClosedTime ?? adminR.closed_time ?? adminR.closeTime ?? null,
+    MinimumOrdermValue: adminR.MinimumOrdermValue ?? adminR.minOrder ?? adminR.minimum_order ?? null,
+    RestroDisplayPhoto: adminR.RestroDisplayPhoto ?? adminR.display_photo ?? null,
+    raw: adminR,
+  };
+}
+
 export async function GET(req: Request) {
+  const url = new URL(req.url);
+  const trainParam = (url.searchParams.get("train") || "").trim();
+  const date = (url.searchParams.get("date") || "").trim(); // required - base journey date (yyyy-mm-dd)
+  const boarding = (url.searchParams.get("boarding") || "").trim();
+
+  if (!trainParam || !date || !boarding) {
+    return NextResponse.json({ ok: false, error: "missing params: train/date/boarding" }, { status: 400 });
+  }
+
   try {
-    const url = new URL(req.url);
-    const trainParam = (url.searchParams.get("train") || "").trim();
-    const dateParam = (url.searchParams.get("date") || "").trim() || todayYMD();
-    const boardingParam = (url.searchParams.get("boarding") || "").trim().toUpperCase();
-    const debug = url.searchParams.get("debug") === "1";
-
-    const supa = serviceClient;
-
-    if (!trainParam) {
-      return NextResponse.json({ ok: false, error: "missing_train" }, { status: 400 });
-    }
-
-    // 1) fetch route rows (prefer numeric exact)
+    // 1) fetch train stops from TrainRoute (order by StnNumber)
     const q = trainParam;
     const isDigits = /^[0-9]+$/.test(q);
-    let routeRows: any[] = [];
+    let stopsRows: any[] = [];
 
     if (isDigits) {
-      const num = Number(q);
-      const { data: exactData, error: exactErr } = await supa
+      const { data: exactData, error: exactErr } = await serviceClient
         .from("TrainRoute")
-        .select(
-          "trainId, trainNumber, trainName, stationFrom, stationTo, runningDays, StnNumber, StationCode, StationName, Arrives, Departs, Stoptime, Distance, Platform, Route, Day",
-        )
-        .eq("trainNumber", num)
-        .order("StnNumber", { ascending: true });
+        .select("StnNumber,StationCode,StationName,Arrives,Departs,Day,Platform,Distance,trainNumber,trainName,runningDays")
+        .eq("trainNumber", Number(q))
+        .order("StnNumber", { ascending: true })
+        .limit(1000);
 
-      if (!exactErr && Array.isArray(exactData) && exactData.length) {
-        routeRows = exactData as any[];
-      }
+      if (!exactErr && Array.isArray(exactData) && exactData.length) stopsRows = exactData;
     }
 
-    if (!routeRows.length) {
-      const ilikeQ = `%${q.trim()}%`;
+    if (!stopsRows.length) {
+      const ilikeQ = `%${q}%`;
       try {
-        const { data: partialData, error: partialErr } = await supa
+        const { data: partialData } = await serviceClient
           .from("TrainRoute")
-          .select(
-            "trainId, trainNumber, trainName, stationFrom, stationTo, runningDays, StnNumber, StationCode, StationName, Arrives, Departs, Stoptime, Distance, Platform, Route, Day",
-          )
+          .select("StnNumber,StationCode,StationName,Arrives,Departs,Day,Platform,Distance,trainNumber,trainName,runningDays")
           .or(`trainName.ilike.${ilikeQ},trainNumber_text.ilike.${ilikeQ}`)
           .order("StnNumber", { ascending: true })
-          .limit(500);
-        if (!partialErr && Array.isArray(partialData) && partialData.length) {
-          routeRows = partialData as any[];
-        }
-      } catch (e) {
-        console.warn("partial route fetch failed", e);
+          .limit(1000);
+        if (Array.isArray(partialData) && partialData.length) stopsRows = partialData;
+      } catch {
+        // ignore
       }
     }
 
-    if (!routeRows.length) {
-      return NextResponse.json({ ok: false, error: "train_not_found" }, { status: 404 });
+    if (!stopsRows.length) {
+      return NextResponse.json({ ok: true, train: { trainNumber: trainParam, trainName: null }, stations: [] });
     }
 
-    // compute arrivalDate per row (based on Day)
-    // boarding day base: if boardingParam is provided, find that row's Day as boarding base; else use first row Day or 1
-    let boardingDayValue: number | null = null;
-    if (boardingParam) {
-      const b = routeRows.find((r) => normalizeCode(r.StationCode) === normalizeCode(boardingParam));
-      if (b && typeof b.Day !== "undefined" && b.Day !== null) {
-        boardingDayValue = Number(b.Day);
-      }
-    }
-    const baseDay = typeof routeRows[0]?.Day === "number" ? Number(routeRows[0].Day) : 1;
+    // compute candidate stops from boarding onward
+    const normBoard = normalizeCode(boarding);
+    const startIdx = stopsRows.findIndex((r: any) =>
+      normalizeCode(r.StationCode ?? r.stationcode ?? r.Station ?? r.station) === normBoard
+    );
+    const sliceStart = startIdx >= 0 ? startIdx : 0;
+    const CAND_LIMIT = 12;
+    const candidateStops = stopsRows.slice(sliceStart, sliceStart + CAND_LIMIT);
 
-    const rowsWithArrival = routeRows.map((r) => {
-      let arrivalDate = dateParam;
-      if (typeof r.Day === "number" && boardingDayValue != null) {
-        const diff = Number(r.Day) - Number(boardingDayValue);
-        arrivalDate = addDaysToIso(dateParam, diff);
-      } else if (typeof r.Day === "number") {
-        const diff = Number(r.Day) - baseDay;
-        arrivalDate = addDaysToIso(dateParam, diff);
+    // compute arrivalDate for each candidate stop using Day offset relative to first row's Day and the requested date
+    // If Day exists on rows use it otherwise assume same day.
+    const baseDay = typeof stopsRows[0]?.Day === "number" ? Number(stopsRows[0].Day) : 1;
+    const stopsWithArrival = candidateStops.map((s: any) => {
+      let arrivalDate = date; // default
+      if (typeof s.Day === "number") {
+        const diff = Number(s.Day) - baseDay;
+        arrivalDate = addDaysToIso(date, diff);
       }
-      return { ...r, arrivalDate };
+      return { ...s, arrivalDate };
     });
 
-    // prepare station code list
-    const stationCodes = Array.from(new Set(rowsWithArrival.map((r) => normalizeCode(r.StationCode)).filter(Boolean)));
+    const stationCodes = stopsWithArrival.map((s: any) => normalizeCode(s.StationCode ?? s.stationcode ?? s.Station ?? s.station)).filter(Boolean);
 
-    // fetch restros for those stationCodes
-    let restrosByStation: Record<string, any[]> = {};
-
+    // 2) fast path: RestroMaster .in("StationCode", stationCodes)
+    let restroRows: any[] = [];
     if (stationCodes.length) {
       try {
-        // try normalized column if exists
-        const colCandidates = ["stationcode_norm", "StationCode", "station_code", "stationcode"];
-        let fetched: any[] | null = null;
-
-        // first attempt: if the normalized column exists (common in your DB)
-        try {
-          const { data: rr1, error: rr1err } = await supa
-            .from("RestroMaster")
-            .select('RestroCode, RestroName, StationCode, StationName, "0penTime", "ClosedTime", WeeklyOff, MinimumOrdermValue, CutOffTime, IsActive, RestroDisplayPhoto')
-            .in("stationcode_norm", stationCodes)
-            .limit(5000);
-
-          if (!rr1err && Array.isArray(rr1) && rr1.length) {
-            fetched = rr1;
-          }
-        } catch {
-          // ignore
-        }
-
-        // second attempt: StationCode column exact match
-        if (!fetched) {
-          try {
-            const { data: rr2, error: rr2err } = await supa
-              .from("RestroMaster")
-              .select('RestroCode, RestroName, StationCode, StationName, "0penTime", "ClosedTime", WeeklyOff, MinimumOrdermValue, CutOffTime, IsActive, RestroDisplayPhoto')
-              .in("StationCode", stationCodes)
-              .limit(5000);
-            if (!rr2err && Array.isArray(rr2) && rr2.length) {
-              fetched = rr2;
-            }
-          } catch {
-            // ignore
-          }
-        }
-
-        // fallback: ilike by StationCode or StationName
-        if (!fetched) {
-          const orParts = stationCodes.map((c) => `StationCode.ilike.%${c}%`);
-          const orCond = orParts.join(",");
-          const { data: rr3, error: rr3err } = await supa
-            .from("RestroMaster")
-            .select('RestroCode, RestroName, StationCode, StationName, "0penTime", "ClosedTime", WeeklyOff, MinimumOrdermValue, CutOffTime, IsActive, RestroDisplayPhoto')
-            .or(orCond)
-            .limit(5000);
-          if (!rr3err && Array.isArray(rr3) && rr3.length) {
-            fetched = rr3;
-          }
-        }
-
-        // final fallback: fetch many and filter client-side
-        if (!fetched) {
-          const { data: allR, error: allErr } = await supa
-            .from("RestroMaster")
-            .select('RestroCode, RestroName, StationCode, StationName, "0penTime", "ClosedTime", WeeklyOff, MinimumOrdermValue, CutOffTime, IsActive, RestroDisplayPhoto')
-            .limit(10000);
-          if (!allErr && Array.isArray(allR)) fetched = allR;
-        }
-
-        if (fetched && Array.isArray(fetched)) {
-          for (const r of fetched) {
-            const sc = normalizeCode(r.StationCode);
-            restrosByStation[sc] = restrosByStation[sc] || [];
-            restrosByStation[sc].push(r);
-          }
-        }
-      } catch (e) {
-        console.error("restromaster fetch failed", e);
+        const { data, error } = await serviceClient
+          .from("RestroMaster")
+          .select("RestroCode,RestroName,StationCode,StationName,0penTime,ClosedTime,WeeklyOff,MinimumOrdermValue,CutOffTime,IsActive,RestroDisplayPhoto")
+          .in("StationCode", stationCodes)
+          .limit(5000);
+        if (!error && Array.isArray(data) && data.length) restroRows = data;
+      } catch {
+        // ignore and fallback below
       }
     }
 
-    // For each route row, attach restros that are active on the row.arrivalDate
-    const stationsOut = [];
-    for (const r of rowsWithArrival) {
-      const sc = normalizeCode(r.StationCode);
-      const arrivalDate = r.arrivalDate; // ISO yyyy-mm-dd for that station
-      const rawRestros = restrosByStation[sc] || [];
-
-      const restrosAvailable: any[] = [];
-      for (const vendor of rawRestros) {
-        try {
-          const isActiveField = vendor.IsActive ?? vendor.isActive;
-          if (!isActiveValue(isActiveField)) continue;
-
-          // holiday check: if vendor has holiday covering arrivalDate, skip
-          const holidayBlocked = await isVendorHoliday(vendor.RestroCode ?? vendor.restroCode ?? vendor.id, arrivalDate);
-          if (holidayBlocked) continue;
-
-          // vendor considered available on arrivalDate
-          restrosAvailable.push({
-            RestroCode: vendor.RestroCode ?? vendor.restroCode ?? vendor.id,
-            RestroName: vendor.RestroName ?? vendor.restroName ?? vendor.name,
-            isActive: true,
-            OpenTime: vendor["0penTime"] ?? vendor.OpenTime ?? vendor.openTime ?? null,
-            ClosedTime: vendor.ClosedTime ?? vendor.closeTime ?? vendor.ClosedTime ?? null,
-            MinimumOrdermValue: vendor.MinimumOrdermValue ?? vendor.minOrder ?? vendor.MinimumOrdermValue ?? null,
-            RestroDisplayPhoto: vendor.RestroDisplayPhoto ?? vendor.display_photo ?? vendor.photo ?? null,
-            raw: vendor,
-            source: "admin",
+    // fallback: fetch many and filter client-side if restroRows is empty
+    if (!restroRows.length) {
+      try {
+        const { data: allRestros } = await serviceClient
+          .from("RestroMaster")
+          .select("RestroCode,RestroName,StationCode,StationName,0penTime,ClosedTime,WeeklyOff,MinimumOrdermValue,CutOffTime,IsActive,RestroDisplayPhoto")
+          .limit(5000);
+        if (Array.isArray(allRestros)) {
+          const lowerCodes = stationCodes.map((c) => c.toLowerCase());
+          restroRows = (allRestros || []).filter((r: any) => {
+            const rl = normalizeToLower(r);
+            const cand = rl.stationcode ?? rl.station_code ?? rl.station ?? rl.stationid ?? rl.stationname ?? null;
+            if (!cand) return false;
+            return lowerCodes.includes(String(cand).toLowerCase());
           });
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    // group RestroMaster rows by normalized StationCode
+    const grouped: Record<string, any[]> = {};
+    for (const r of restroRows) {
+      const sc = normalizeCode(r.StationCode ?? r.stationcode ?? r.Station ?? r.station ?? null);
+      if (!sc) continue;
+      (grouped[sc] = grouped[sc] || []).push(r);
+    }
+
+    // 3) assemble final stations: prefer restromaster vendors, fallback to admin stations API
+    const finalStations: any[] = [];
+    for (const s of stopsWithArrival) {
+      const sc = normalizeCode(s.StationCode ?? s.stationcode ?? s.Station ?? s.station ?? "");
+      if (!sc) continue;
+      const stationName = s.StationName ?? s.stationName ?? s.station_name ?? s.station ?? sc;
+      const arrivalDate = s.arrivalDate; // yyyy-mm-dd
+      let vendors: any[] = [];
+
+      // use RestroMaster vendors first; filter by active flag AND holiday on arrivalDate
+      if (grouped[sc] && Array.isArray(grouped[sc])) {
+        const arr = [];
+        for (const r of grouped[sc]) {
+          try {
+            const activeFlag = r.IsActive ?? r.isActive ?? r.active;
+            if (!isActiveValue(activeFlag)) continue;
+
+            // holiday check: exclude vendor if holiday covers arrivalDate
+            const restroId = r.RestroCode ?? r.restroCode ?? r.id ?? null;
+            const holidayBlocked = await isVendorHoliday(restroId, arrivalDate);
+            if (holidayBlocked) continue;
+
+            arr.push({
+              RestroCode: r.RestroCode ?? r.restroCode ?? r.id ?? null,
+              RestroName: r.RestroName ?? r.restroName ?? r.name ?? null,
+              isActive: r.IsActive ?? r.isActive ?? true,
+              OpenTime: r["0penTime"] ?? r.openTime ?? null,
+              ClosedTime: r.ClosedTime ?? r.closeTime ?? null,
+              MinimumOrdermValue: r.MinimumOrdermValue ?? r.minOrder ?? null,
+              RestroDisplayPhoto: r.RestroDisplayPhoto ?? null,
+              source: "restromaster",
+              raw: r,
+            });
+          } catch (e) {
+            console.warn("vendor-check-restromaster failed", e);
+            continue;
+          }
+        }
+        vendors = arr;
+      }
+
+      // admin fallback if none (and also filter holidays)
+      if (!vendors.length) {
+        try {
+          const adminUrl = `${ADMIN_BASE.replace(/\/$/, "")}/api/stations/${encodeURIComponent(sc)}`;
+          const adminJson = await fetchJson(adminUrl);
+          const adminRows = adminJson?.restaurants ?? adminJson?.data ?? adminJson?.rows ?? adminJson ?? null;
+          if (Array.isArray(adminRows) && adminRows.length) {
+            const arr: any[] = [];
+            for (const ar of adminRows) {
+              const mapped = mapAdminRestroToCommon(ar);
+              if (!mapped.isActive) continue;
+              const restroId = mapped.RestroCode ?? null;
+              const holidayBlocked = await isVendorHoliday(restroId, arrivalDate);
+              if (holidayBlocked) continue;
+              arr.push({ ...mapped, source: "admin" });
+            }
+            vendors = arr;
+          }
         } catch (e) {
-          console.warn("vendor check failed", e);
-          continue;
+          // ignore admin fallback errors
+          console.warn("admin fallback failed for", sc, e);
         }
       }
 
-      const blockedReasons = [];
-      if (!restrosAvailable.length) blockedReasons.push("No vendor mapped at this station for arrivalDate");
-
-      stationsOut.push({
-        StnNumber: r.StnNumber,
-        StationCode: sc,
-        StationName: r.StationName ?? r.stationName ?? sc,
-        Day: typeof r.Day === "number" ? Number(r.Day) : null,
-        Arrives: r.Arrives ?? null,
-        Departs: r.Departs ?? null,
-        arrivalTime: (r.Arrives || r.Departs || "").slice(0, 5) || null,
-        arrivalDate,
-        Platform: r.Platform ?? null,
-        Distance: r.Distance ?? null,
-        runningDays: r.runningDays ?? null,
-        restros: restrosAvailable,
-        restroCount: restrosAvailable.length,
-        blockedReasons,
-        raw: r,
-      });
-    }
-
-    // If a stationParam was passed, return only that station row (and keep vendors)
-    const stationParam = (url.searchParams.get("station") || "").trim();
-    if (stationParam) {
-      const stationCode = normalizeCode(stationParam);
-      const stationRows = stationsOut.filter((s: any) => (s.StationCode || "").toUpperCase() === stationCode);
-      if (!stationRows.length) {
-        return NextResponse.json({ ok: false, error: "station_not_on_route", meta: { train: trainParam, stationCode } }, { status: 400 });
+      // push only if vendors exist (keeps behavior similar to prior)
+      if (vendors.length) {
+        finalStations.push({
+          StationCode: sc,
+          StationName: stationName,
+          arrival_time: s.Arrives ?? s.Arrival ?? s.arrival_time ?? null,
+          Day: typeof s.Day === "number" ? s.Day : (s.Day ? Number(s.Day) : null),
+          arrival_date: arrivalDate, // NEW: station-specific arrival date
+          vendors,
+        });
       }
-      return NextResponse.json({
-        ok: true,
-        train: { trainNumber: trainParam, trainName: routeRows[0]?.trainName ?? null },
-        rows: stationRows,
-        meta: { stationCode, date: dateParam, boarding: boardingParam || null },
-        debug: debug ? { stationCodes, restrosByStationKeys: Object.keys(restrosByStation) } : undefined,
-      });
     }
 
-    // otherwise return all stations (with attached restros only if active on that station's arrivalDate)
+    // 4) train meta best-effort
+    const trainName = (stopsRows[0]?.trainName ?? stopsRows[0]?.train_name ?? null) || null;
+
     return NextResponse.json({
       ok: true,
-      train: { trainNumber: trainParam, trainName: routeRows[0]?.trainName ?? null },
-      rows: stationsOut,
-      meta: { date: dateParam, boarding: boardingParam || null },
-      debug: debug ? { stationCodes, restrosByStationKeys: Object.keys(restrosByStation) } : undefined,
+      train: { trainNumber: trainParam, trainName },
+      stations: finalStations,
     });
   } catch (e) {
-    console.error("train-restros GET server_error", e);
+    console.error("train-restros error", e);
     return NextResponse.json({ ok: false, error: "server_error" }, { status: 500 });
   }
 }
