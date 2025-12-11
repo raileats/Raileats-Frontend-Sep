@@ -1,35 +1,37 @@
 // app/api/pnr/[pnr]/route.ts
 import { NextResponse } from "next/server";
 
-const RAPID_KEY = process.env.RAPIDAPI_KEY;
-const RAPID_HOST = process.env.RAPIDAPI_HOST;
+const PNR_KEY = process.env.RAPIDAPI_KEY;
+const PNR_HOST = process.env.RAPIDAPI_HOST;
 
-// optional route provider (if you add another RapidAPI provider for train route)
 const ROUTE_KEY = process.env.RAPIDAPI_KEY_ROUTE;
 const ROUTE_HOST = process.env.RAPIDAPI_HOST_ROUTE;
+
+const LIVE_KEY = process.env.RAPIDAPI_KEY_LIVE;
+const LIVE_HOST = process.env.RAPIDAPI_HOST_LIVE;
 
 const CACHE_MS = 1000 * 60 * 3;
 const cache = global.__raileats_pnr_cache__ || new Map();
 global.__raileats_pnr_cache__ = cache;
 
 function getCached(k: string) {
-  const e = cache.get(k);
-  if (!e) return null;
-  if (Date.now() - e.ts > CACHE_MS) { cache.delete(k); return null; }
-  return e.val;
+  const v = cache.get(k);
+  if (!v) return null;
+  if (Date.now() - v.ts > CACHE_MS) { cache.delete(k); return null; }
+  return v.val;
 }
-function setCached(k: string, v: any) { cache.set(k, { ts: Date.now(), val: v }); }
+function setCached(k: string, val: any) { cache.set(k, { ts: Date.now(), val }); }
 
 async function safeFetch(url: string, headers: Record<string,string>) {
   const res = await fetch(url, { method: "GET", headers });
-  const txt = await res.text().catch(() => "");
-  try { return { ok: res.ok, status: res.status, json: JSON.parse(txt) }; }
-  catch { return { ok: res.ok, status: res.status, json: txt }; }
+  const text = await res.text().catch(() => "");
+  try { return { ok: res.ok, status: res.status, json: JSON.parse(text) }; }
+  catch { return { ok: res.ok, status: res.status, json: text }; }
 }
 
 function normalizePassenger(p: any) {
   return {
-    serial: p?.passengerSerialNumber ?? null,
+    serial: p?.passengerSerialNumber ?? p?.serial ?? null,
     quota: p?.passengerQuota ?? null,
     bookingStatus: p?.bookingStatus ?? null,
     bookingDetails: p?.bookingStatusDetails ?? null,
@@ -44,35 +46,28 @@ function normalizePassenger(p: any) {
 }
 
 export async function GET(_req: Request, { params }: { params: { pnr: string } }) {
-  const rawPnr = String(params.pnr || "").trim();
-  const pnr = rawPnr.replace(/\D/g, "");
-  if (!pnr || pnr.length < 6) {
-    return NextResponse.json({ ok: false, error: "Invalid PNR" }, { status: 400 });
-  }
+  const raw = String(params.pnr || "").trim();
+  const pnr = raw.replace(/\D/g, "");
+  if (!pnr || pnr.length < 6) return NextResponse.json({ ok: false, error: "Invalid PNR" }, { status: 400 });
 
   const cacheKey = `pnr:${pnr}`;
   const cached = getCached(cacheKey);
   if (cached) return NextResponse.json({ ok: true, fromCache: true, ...cached });
 
-  if (!RAPID_KEY || !RAPID_HOST) {
-    return NextResponse.json({ ok: false, error: "Server misconfigured: RAPIDAPI env missing" }, { status: 500 });
+  if (!PNR_KEY || !PNR_HOST) {
+    return NextResponse.json({ ok: false, error: "Server misconfigured: missing PNR provider env" }, { status: 500 });
   }
 
   try {
-    // 1) fetch PNR from RapidAPI provider (example path)
-    const pnrUrl = `https://${RAPID_HOST}/getPNRStatus/${encodeURIComponent(pnr)}`;
-    const pnrRes = await safeFetch(pnrUrl, { "x-rapidapi-host": RAPID_HOST, "x-rapidapi-key": RAPID_KEY });
+    // 1) PNR fetch
+    const pnrUrl = `https://${PNR_HOST}/getPNRStatus/${encodeURIComponent(pnr)}`;
+    const pnrRes = await safeFetch(pnrUrl, { "x-rapidapi-host": PNR_HOST, "x-rapidapi-key": PNR_KEY });
 
     if (!pnrRes.ok) {
-      // if provider explicitly says "not subscribed", surface upstream details
-      const details = pnrRes.json;
-      return NextResponse.json({ ok: false, error: "PNR fetch failed", details }, { status: 502 });
+      return NextResponse.json({ ok: false, error: "PNR fetch failed", details: pnrRes.json }, { status: 502 });
     }
 
-    // provider returns wrapper: { success:true, data: { ... } }
-    const data = (pnrRes.json && pnrRes.json.data) ? pnrRes.json.data : pnrRes.json;
-
-    // parse main fields (best-effort)
+    const data = pnrRes.json && pnrRes.json.data ? pnrRes.json.data : pnrRes.json;
     const trainNo = data?.trainNumber ?? data?.train_number ?? null;
     const trainName = data?.trainName ?? data?.train_name ?? null;
     const doj = data?.dateOfJourney ?? data?.doj ?? null;
@@ -82,14 +77,35 @@ export async function GET(_req: Request, { params }: { params: { pnr: string } }
     const chartStatus = data?.chartStatus ?? null;
     const passengerList = Array.isArray(data?.passengerList) ? data.passengerList.map(normalizePassenger) : [];
 
-    // optional: fetch route (if ROUTE_HOST provided)
+    // 2) Try train route (best-effort)
     let route = null;
     if (ROUTE_KEY && ROUTE_HOST && trainNo) {
       try {
-        const routeUrl = `https://${ROUTE_HOST}/getTrainRoute/${encodeURIComponent(String(trainNo))}`;
-        const r = await safeFetch(routeUrl, { "x-rapidapi-host": ROUTE_HOST, "x-rapidapi-key": ROUTE_KEY });
-        if (r.ok) route = r.json;
-      } catch (e) { /* ignore */ }
+        // try two common path styles in order
+        const tryUrls = [
+          `https://${ROUTE_HOST}/getTrainRoute/${encodeURIComponent(String(trainNo))}`,
+          `https://${ROUTE_HOST}/train-route?train=${encodeURIComponent(String(trainNo))}`
+        ];
+        for (const u of tryUrls) {
+          const r = await safeFetch(u, { "x-rapidapi-host": ROUTE_HOST, "x-rapidapi-key": ROUTE_KEY });
+          if (r.ok && r.json) { route = r.json; break; }
+        }
+      } catch (e) { /* ignore route error */ }
+    }
+
+    // 3) Try live running status (best-effort)
+    let live = null;
+    if (LIVE_KEY && LIVE_HOST && trainNo) {
+      try {
+        const tryUrls = [
+          `https://${LIVE_HOST}/getLiveStatus/${encodeURIComponent(String(trainNo))}`,
+          `https://${LIVE_HOST}/live-train-status?train=${encodeURIComponent(String(trainNo))}`
+        ];
+        for (const u of tryUrls) {
+          const r = await safeFetch(u, { "x-rapidapi-host": LIVE_HOST, "x-rapidapi-key": LIVE_KEY });
+          if (r.ok && r.json) { live = r.json; break; }
+        }
+      } catch (e) { /* ignore live error */ }
     }
 
     const payload = {
@@ -106,7 +122,8 @@ export async function GET(_req: Request, { params }: { params: { pnr: string } }
       passengers: passengerList,
       fare: { bookingFare: data?.bookingFare ?? null, ticketFare: data?.ticketFare ?? null },
       raw: data,
-      route, // may be null if not fetched
+      route,
+      live,
     };
 
     setCached(cacheKey, payload);
