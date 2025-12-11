@@ -133,3 +133,28 @@ export async function GET(_req: Request, { params }: { params: { pnr: string } }
     return NextResponse.json({ ok: false, error: err?.message || "Server error" }, { status: 500 });
   }
 }
+// FETCH TRAIN ROUTE (Free API)
+let route = null;
+try {
+  if (trainNo) {
+    const r = await fetch(`${process.env.ROUTE_API}${trainNo}`);
+    route = await r.json();
+  }
+} catch (e) {
+  route = null;
+}
+
+// FETCH LIVE STATUS (Free API)
+let live = null;
+try {
+  if (trainNo) {
+    const l = await fetch(`${process.env.LIVE_API}${trainNo}`);
+    live = await l.json();
+  }
+} catch (e) {
+  live = null;
+}
+
+// add to payload
+payload.route = route;
+payload.live = live;
