@@ -1,56 +1,47 @@
-// debug-route.ts (replace your current file temporarily)
+// DEBUG handler — paste & redeploy once
 import { NextResponse } from "next/server";
-
-const KEY = process.env.RAPIDAPI_KEY;
-const HOST = process.env.RAPIDAPI_HOST;
-
-function safeJSON(txt: string) {
-  try { return JSON.parse(txt); } catch(e) { return txt; }
-}
 
 export async function GET(_req: Request, { params }: { params: { pnr: string } }) {
   const pnr = String(params.pnr || "").trim();
+  console.log("DEBUG -- PNR REQUESTED:", pnr);
 
-  // DEBUG: log key length and host (do NOT print full key)
-  console.log("DEBUG: RAPIDAPI_KEY present:", KEY ? true : false, "length:", KEY?.length ?? "undefined");
-  console.log("DEBUG: RAPIDAPI_HOST:", HOST);
+  // debug environment vars (do NOT log full key)
+  const key = process.env.RAPIDAPI_KEY;
+  const host = process.env.RAPIDAPI_HOST;
+  console.log("DEBUG -- RAPIDAPI_KEY present:", !!key, "length:", key?.length ?? "undefined");
+  console.log("DEBUG -- RAPIDAPI_HOST:", host);
 
-  if (!pnr || pnr.length < 6) {
-    return NextResponse.json({ ok: false, error: "Invalid PNR" }, { status: 400 });
-  }
+  if (!pnr) return NextResponse.json({ ok: false, error: "PNR missing" }, { status: 400 });
 
   try {
-    if (!KEY || !HOST) {
-      console.error("DEBUG: Missing env KEY/HOST");
+    if (!key || !host) {
+      console.error("DEBUG: Missing RAPIDAPI env");
       return NextResponse.json({ ok: false, error: "Server env missing RAPIDAPI_KEY or RAPIDAPI_HOST" }, { status: 500 });
     }
 
-    const url = `https://${HOST}/getPNRStatus/${encodeURIComponent(pnr)}`;
-    console.log("DEBUG: calling upstream url:", url);
+    const url = `https://${host}/getPNRStatus/${encodeURIComponent(pnr)}`;
+    console.log("DEBUG: Calling upstream:", url);
 
     const res = await fetch(url, {
       method: "GET",
       headers: {
-        "x-rapidapi-key": KEY,
-        "x-rapidapi-host": HOST,
+        "x-rapidapi-host": host,
+        "x-rapidapi-key": key,
       },
     });
 
     const text = await res.text().catch(() => "");
-    let parsed = safeJSON(text);
-    console.log("DEBUG: upstream status:", res.status, "body:", parsed);
+    let body;
+    try { body = JSON.parse(text); } catch { body = text; }
+    console.log("DEBUG: Upstream status:", res.status, "body:", body);
 
-    // If upstream returned 401/403/429 or body indicates not-subscribed, forward as 502 with details
     if (!res.ok) {
-      return NextResponse.json({ ok: false, error: "PNR fetch failed", details: parsed }, { status: 502 });
+      return NextResponse.json({ ok: false, error: "PNR fetch failed", details: body }, { status: 502 });
     }
 
-    // success branch: try to parse JSON
-    const json = typeof parsed === "string" ? safeJSON(parsed) : parsed;
-    // return json as-is for now
-    return NextResponse.json({ ok: true, raw: json });
-  } catch (err: any) {
-    console.error("DEBUG: handler error:", err);
-    return NextResponse.json({ ok: false, error: err?.message || "Server error" }, { status: 500 });
+    return NextResponse.json({ ok: true, raw: body });
+  } catch (e: any) {
+    console.error("DEBUG: Handler error:", e);
+    return NextResponse.json({ ok: false, error: e?.message || "Server error" }, { status: 500 });
   }
 }
