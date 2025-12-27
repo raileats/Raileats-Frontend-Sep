@@ -4,7 +4,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { serviceClient } from "../../lib/supabaseServer";
 
-/* ================= HELPERS ================= */
+/* ================= TIME HELPERS ================= */
 
 function todayYMD() {
   return new Date().toISOString().slice(0, 10);
@@ -14,15 +14,16 @@ function normalize(val: any) {
   return String(val ?? "").trim().toUpperCase();
 }
 
-function matchesRunningDay(runningDays: string | null, dateStr: string) {
-  if (!runningDays) return true;
+function toMinutes(t?: string | null) {
+  if (!t) return null;
+  const [h, m] = t.slice(0, 5).split(":").map(Number);
+  return h * 60 + m;
+}
 
-  const map = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
-  const day = map[new Date(dateStr).getDay()];
-  const s = runningDays.toUpperCase();
-
-  if (s === "DAILY" || s === "ALL") return true;
-  return s.includes(day);
+function isTimeBetween(check: number, start: number, end: number) {
+  if (start <= end) return check >= start && check <= end;
+  // overnight window (22:00 – 06:00)
+  return check >= start || check <= end;
 }
 
 function addDays(base: string, diff: number) {
@@ -31,82 +32,12 @@ function addDays(base: string, diff: number) {
   return d.toISOString().slice(0, 10);
 }
 
-/* ================= TIME HELPERS ================= */
-
-function timeToMinutes(t: string | null) {
-  if (!t) return null;
-  const [h, m] = t.split(":").map(Number);
-  return h * 60 + m;
-}
-
-function dayCodeFromDate(dateStr: string) {
+function matchesRunningDay(runningDays: string | null, dateStr: string) {
+  if (!runningDays) return true;
   const map = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
-  return map[new Date(dateStr).getDay()];
-}
-
-function isActiveValue(val: any) {
-  if (typeof val === "boolean") return val;
-  if (typeof val === "number") return val !== 0;
-  if (typeof val === "string") {
-    const t = val.trim().toLowerCase();
-    return !(t === "false" || t === "0" || t === "no");
-  }
-  return true;
-}
-
-/* ================= RESTRO AVAILABILITY ================= */
-
-function evaluateRestroAvailability({
-  restro,
-  arrivalTime,
-  arrivalDate,
-}: {
-  restro: any;
-  arrivalTime: string | null;
-  arrivalDate: string;
-}) {
-  const reasons: string[] = [];
-
-  if (!isActiveValue(restro.IsActive)) {
-    reasons.push("Vendor inactive");
-  }
-
-  const todayCode = dayCodeFromDate(arrivalDate);
-  if (
-    restro.WeeklyOff &&
-    restro.WeeklyOff.toUpperCase().includes(todayCode)
-  ) {
-    reasons.push("Weekly off");
-  }
-
-  const arrMin = timeToMinutes(arrivalTime);
-  const openMin = timeToMinutes(restro["0penTime"]);
-  const closeMin = timeToMinutes(restro["ClosedTime"]);
-
-  if (
-    arrMin != null &&
-    openMin != null &&
-    closeMin != null &&
-    (arrMin < openMin || arrMin > closeMin)
-  ) {
-    reasons.push("Restaurant closed at arrival time");
-  }
-
-  if (
-    restro.CutOffTime != null &&
-    arrMin != null &&
-    openMin != null
-  ) {
-    const latestOrderMin = arrMin - Number(restro.CutOffTime);
-    if (latestOrderMin < openMin) {
-      reasons.push("Cut-off time exceeded");
-    }
-  }
-
-  return {
-    isAvailable: reasons.length === 0,
-    blockedReasons: reasons,
-  };
+  const day = map[new Date(dateStr).getDay()];
+  const s = runningDays.toUpperCase();
+  return s === "DAILY" || s === "ALL" || s.includes(day);
 }
 
 /* ================= API ================= */
@@ -120,110 +51,161 @@ export async function GET(req: Request) {
     const boarding = (url.searchParams.get("boarding") || "").trim();
     const date = (url.searchParams.get("date") || "").trim() || todayYMD();
 
-    // Build-time safety
+    // build-time safety
     if (!train) {
       return NextResponse.json({ ok: true, build: true, rows: [] });
     }
 
     const supa = serviceClient;
 
-    /* ===== 1️⃣ FETCH TRAIN ROUTE ===== */
+    /* ================= 1️⃣ TRAIN ROUTE ================= */
 
-    const { data: rows, error } = await supa
+    const { data: routeRows } = await supa
       .from("TrainRoute")
-      .select("*")
+      .select(`
+        trainNumber, trainName, runningDays,
+        StnNumber, StationCode, StationName,
+        Arrives, Departs, Stoptime, Distance, Platform, Day
+      `)
       .eq("trainNumber", Number(train))
       .order("StnNumber", { ascending: true });
 
-    if (error || !rows || rows.length === 0) {
+    if (!routeRows || !routeRows.length) {
       return NextResponse.json(
         { ok: false, error: "train_not_found", train },
         { status: 404 }
       );
     }
 
-    /* ===== 2️⃣ FILTER BY RUNNING DAY ===== */
-
-    const validRows = rows.filter(r =>
+    const validRows = routeRows.filter(r =>
       matchesRunningDay(r.runningDays, date)
     );
+    const rows = validRows.length ? validRows : routeRows;
+    const trainName = rows[0].trainName;
 
-    const routeRows = validRows.length ? validRows : rows;
-    const trainName = routeRows[0].trainName;
-
-    /* ===== 3️⃣ BOARDING DAY ===== */
+    /* ================= 2️⃣ BOARDING DAY ================= */
 
     let boardingDay: number | null = null;
     if (boarding) {
-      const b = routeRows.find(
+      const b = rows.find(
         r => normalize(r.StationCode) === normalize(boarding)
       );
       if (b?.Day != null) boardingDay = Number(b.Day);
     }
 
-    /* ===== 4️⃣ FETCH RESTROS ===== */
+    /* ================= 3️⃣ COLLECT STATIONS ================= */
 
     const stationCodes = Array.from(
-      new Set(routeRows.map(r => normalize(r.StationCode)))
+      new Set(rows.map(r => normalize(r.StationCode)))
     );
+
+    /* ================= 4️⃣ RESTRO MASTER ================= */
 
     const { data: restros } = await supa
       .from("RestroMaster")
       .select(`
-        RestroCode,
-        RestroName,
-        StationCode,
-        "0penTime",
-        "ClosedTime",
-        WeeklyOff,
-        MinimumOrdermValue,
-        CutOffTime,
-        IsActive
+        RestroCode, RestroName, StationCode,
+        "0penTime", "ClosedTime",
+        WeeklyOff, CutOffTime, IsActive
       `)
-      .in("stationcode_norm", stationCodes)
-      .limit(3000);
+      .in("stationcode_norm", stationCodes);
 
-    const restroMap: Record<string, any[]> = {};
-    (restros || []).forEach(r => {
+    /* ================= 5️⃣ RESTRO TIME OVERRIDES ================= */
+
+    const { data: restroTimes } = await supa
+      .from("RestroTime")
+      .select(`restro_code, start_at, end_at, is_deleted`)
+      .eq("is_deleted", false);
+
+    const timeMap: Record<number, any[]> = {};
+    for (const t of restroTimes || []) {
+      timeMap[t.restro_code] ||= [];
+      timeMap[t.restro_code].push(t);
+    }
+
+    /* ================= 6️⃣ RESTRO HOLIDAYS ================= */
+
+    const { data: holidays } = await supa
+      .from("RestroHolidays")
+      .select(`restro_code, start_date, end_date, is_deleted`)
+      .eq("is_deleted", false);
+
+    const holidayMap: Record<number, any[]> = {};
+    for (const h of holidays || []) {
+      holidayMap[h.restro_code] ||= [];
+      holidayMap[h.restro_code].push(h);
+    }
+
+    /* ================= 7️⃣ FINAL MAP ================= */
+
+    const mapped = rows.map(r => {
       const sc = normalize(r.StationCode);
-      restroMap[sc] = restroMap[sc] || [];
-      restroMap[sc].push(r);
-    });
 
-    /* ===== 5️⃣ MAP FINAL RESPONSE ===== */
-
-    const mapped = routeRows.map(r => {
       let arrivalDate = date;
       if (typeof r.Day === "number" && boardingDay != null) {
         arrivalDate = addDays(date, r.Day - boardingDay);
       }
 
-      const arrivalTime = r.Arrives || r.Departs || null;
-      const sc = normalize(r.StationCode);
+      const arrivalTime =
+        toMinutes(r.Arrives) ?? toMinutes(r.Departs) ?? null;
 
-      const restroList = (restroMap[sc] || []).map(restro => {
-        const availability = evaluateRestroAvailability({
-          restro,
-          arrivalTime,
-          arrivalDate,
+      const vendors = (restros || [])
+        .filter(x => normalize(x.StationCode) === sc && x.IsActive)
+        .map(x => {
+          const reasons: string[] = [];
+          let available = true;
+
+          /* ---- Holiday check ---- */
+          const hs = holidayMap[x.RestroCode] || [];
+          if (
+            hs.some(
+              h =>
+                arrivalDate >= h.start_date &&
+                arrivalDate <= h.end_date
+            )
+          ) {
+            available = false;
+            reasons.push("Holiday");
+          }
+
+          /* ---- Time window override ---- */
+          if (arrivalTime != null && timeMap[x.RestroCode]) {
+            const ok = timeMap[x.RestroCode].some(t => {
+              const s = toMinutes(
+                new Date(t.start_at).toISOString().slice(11, 16)
+              );
+              const e = toMinutes(
+                new Date(t.end_at).toISOString().slice(11, 16)
+              );
+              return s != null && e != null && isTimeBetween(arrivalTime, s, e);
+            });
+            if (!ok) {
+              available = false;
+              reasons.push("Outside special time window");
+            }
+          }
+
+          /* ---- Default open/close ---- */
+          if (arrivalTime != null && available) {
+            const o = toMinutes(x["0penTime"]);
+            const c = toMinutes(x["ClosedTime"]);
+            if (o != null && c != null && !isTimeBetween(arrivalTime, o, c)) {
+              available = false;
+              reasons.push("Outside open hours");
+            }
+          }
+
+          return {
+            restroCode: x.RestroCode,
+            restroName: x.RestroName,
+            available,
+            reasons,
+          };
         });
-
-        return {
-          restroCode: restro.RestroCode,
-          restroName: restro.RestroName,
-          openTime: restro["0penTime"],
-          closeTime: restro["ClosedTime"],
-          weeklyOff: restro.WeeklyOff,
-          minOrder: restro.MinimumOrdermValue,
-          cutOff: restro.CutOffTime,
-          isAvailable: availability.isAvailable,
-          blockedReasons: availability.blockedReasons,
-        };
-      });
 
       return {
         StnNumber: r.StnNumber,
-        StationCode: r.StationCode,
+        StationCode: sc,
         StationName: r.StationName,
         Arrives: r.Arrives,
         Departs: r.Departs,
@@ -232,25 +214,23 @@ export async function GET(req: Request) {
         arrivalDate,
         Distance: r.Distance,
         Platform: r.Platform,
-        restros: restroList,
-        restroCount: restroList.filter(r => r.isAvailable).length,
+        restros: vendors,
+        restroCount: vendors.filter(v => v.available).length,
       };
     });
 
-    /* ===== 6️⃣ SINGLE STATION MODE ===== */
+    /* ================= 8️⃣ SINGLE STATION ================= */
 
     if (station) {
       const row = mapped.find(
         r => normalize(r.StationCode) === normalize(station)
       );
-
       if (!row) {
         return NextResponse.json(
           { ok: false, error: "station_not_on_route" },
           { status: 400 }
         );
       }
-
       return NextResponse.json({
         ok: true,
         train: { trainNumber: train, trainName },
@@ -258,7 +238,7 @@ export async function GET(req: Request) {
       });
     }
 
-    /* ===== FINAL ===== */
+    /* ================= FINAL ================= */
 
     return NextResponse.json({
       ok: true,
