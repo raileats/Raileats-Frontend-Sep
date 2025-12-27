@@ -127,10 +127,12 @@ export async function GET(req: Request) {
     const mapped = rows.map(r => {
       const sc = normalize(r.StationCode);
 
-      let arrivalDate = date;
-      if (typeof r.Day === "number" && boardingDay != null) {
-        arrivalDate = addDays(date, r.Day - boardingDay);
-      }
+     // ✅ IRCTC correct: Day is from journey start date
+let arrivalDate = date;
+if (typeof r.Day === "number") {
+  arrivalDate = addDays(date, Number(r.Day) - 1);
+}
+
 
       const arrivalMin =
         istEpochMinutes(arrivalDate, r.Arrives || r.Departs || "");
