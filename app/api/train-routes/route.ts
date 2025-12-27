@@ -32,11 +32,15 @@ function addDays(base: string, diff: number) {
   return d.toISOString().slice(0, 10);
 }
 
+function dayOfWeek(dateStr: string): string {
+  const map = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
+  return map[new Date(`${dateStr}T00:00:00+05:30`).getDay()];
+}
+
 function matchesRunningDay(runningDays: string | null, dateStr: string) {
   if (!runningDays) return true;
-  const map = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
-  const day = map[new Date(`${dateStr}T00:00:00`).getDay()];
-  const s = runningDays.toUpperCase();
+  const day = dayOfWeek(dateStr);
+  const s = normalize(runningDays);
   return s === "DAILY" || s === "ALL" || s.includes(day);
 }
 
@@ -88,15 +92,17 @@ export async function GET(req: Request) {
 
     /* ================= 3️⃣ RESTROS ================= */
 
-    const stationCodes = Array.from(
-      new Set(rows.map(r => normalize(r.StationCode)))
-    );
+    const stationCodes: string[] = [];
+    for (const r of rows) {
+      const sc = normalize(r.StationCode);
+      if (!stationCodes.includes(sc)) stationCodes.push(sc);
+    }
 
     const { data: restros } = await supa
       .from("RestroMaster")
       .select(`
         RestroCode, RestroName, StationCode,
-        CutOffTime, RaileatsStatus
+        WeeklyOff, CutOffTime, RaileatsStatus
       `)
       .in("stationcode_norm", stationCodes);
 
@@ -115,6 +121,7 @@ export async function GET(req: Request) {
           : date;
 
       const arrivalMinutes = toMinutes(r.Arrives);
+      const arrivalDayName = dayOfWeek(arrivalDate);
 
       const vendors = (restros || [])
         .filter(x => normalize(x.StationCode) === sc && x.RaileatsStatus === 1)
@@ -128,7 +135,19 @@ export async function GET(req: Request) {
             reasons.push("Train already departed");
           }
 
-          /* ===== RULE 1: CutOffTime (MINUTES LOGIC) ===== */
+          /* ===== RULE 1: WeeklyOff ===== */
+          if (available && x.WeeklyOff) {
+            const wo = normalize(x.WeeklyOff);
+            if (wo !== "NOOFF") {
+              const offDays = wo.split(",").map(d => d.trim());
+              if (offDays.includes(arrivalDayName)) {
+                available = false;
+                reasons.push(`Closed on ${arrivalDayName}`);
+              }
+            }
+          }
+
+          /* ===== RULE 2: CutOffTime ===== */
           if (
             available &&
             arrivalDate === today &&
@@ -188,7 +207,7 @@ export async function GET(req: Request) {
     });
 
   } catch (e) {
-    console.error("FINAL SIMPLE CUTOFF error:", e);
+    console.error("FINAL WEEKLYOFF error:", e);
     return NextResponse.json(
       { ok: false, error: "server_error" },
       { status: 500 }
