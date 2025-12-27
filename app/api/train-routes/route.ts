@@ -106,17 +106,19 @@ export async function GET(req: Request) {
       `)
       .in("stationcode_norm", stationCodes);
 
-    /* ================= HOLIDAYS ================= */
+    /* ================= HOLIDAYS (FIXED) ================= */
 
     const { data: holidays } = await supa
       .from("RestroHolidays")
       .select(`restro_code, start_at, end_at`)
       .eq("is_deleted", false);
 
-    const holidayMap: Record<number, any[]> = {};
+    // 🔥 KEY FIX: always string key
+    const holidayMap: Record<string, any[]> = {};
     for (const h of holidays || []) {
-      holidayMap[h.restro_code] ||= [];
-      holidayMap[h.restro_code].push(h);
+      const key = String(h.restro_code);
+      if (!holidayMap[key]) holidayMap[key] = [];
+      holidayMap[key].push(h);
     }
 
     const now = nowIST();
@@ -134,13 +136,9 @@ export async function GET(req: Request) {
           : date;
 
       let arrivalUTC: Date | null = null;
-
       if (r.Arrives) {
         const [hh, mm] = r.Arrives.slice(0, 5).split(":");
-        // 🔥 IST → UTC conversion (MOST IMPORTANT)
-        arrivalUTC = new Date(
-          `${arrivalDate}T${hh}:${mm}:00+05:30`
-        );
+        arrivalUTC = new Date(`${arrivalDate}T${hh}:${mm}:00+05:30`);
       }
 
       const arrivalMinutes = toMinutes(r.Arrives);
@@ -152,47 +150,47 @@ export async function GET(req: Request) {
           let available = true;
           const reasons: string[] = [];
 
-          /* ===== Past Date ===== */
+          const restroKey = String(x.RestroCode);
+
+          /* Past date */
           if (arrivalDate < today) {
             available = false;
             reasons.push("Train already departed");
           }
 
-          /* ===== Weekly Off ===== */
+          /* WeeklyOff */
           if (available && x.WeeklyOff) {
             const wo = normalize(x.WeeklyOff);
             if (wo !== "NOOFF") {
-              const offDays = wo.split(",");
-              if (offDays.includes(arrivalDayName)) {
+              if (wo.split(",").includes(arrivalDayName)) {
                 available = false;
                 reasons.push(`Closed on ${arrivalDayName}`);
               }
             }
           }
 
-          /* ===== 🔥 HOLIDAY (UTC SAFE) ===== */
+          /* 🔥 HOLIDAY (NOW WORKING) */
           if (available && arrivalUTC) {
-            const hs = holidayMap[x.RestroCode] || [];
+            const hs = holidayMap[restroKey] || [];
             if (
-              hs.some(h => arrivalUTC! >= new Date(h.start_at) &&
-                           arrivalUTC! <= new Date(h.end_at))
+              hs.some(h =>
+                arrivalUTC! >= new Date(h.start_at) &&
+                arrivalUTC! <= new Date(h.end_at)
+              )
             ) {
               available = false;
               reasons.push("Holiday");
             }
           }
 
-          /* ===== CutOffTime ===== */
+          /* CutOff */
           if (
             available &&
             arrivalDate === today &&
             arrivalMinutes != null &&
             x.CutOffTime != null
           ) {
-            const lastOrderMinute =
-              arrivalMinutes - Number(x.CutOffTime);
-
-            if (nowMinutes > lastOrderMinute) {
+            if (nowMinutes > arrivalMinutes - Number(x.CutOffTime)) {
               available = false;
               reasons.push("Cut-off time passed");
             }
