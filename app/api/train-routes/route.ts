@@ -106,16 +106,11 @@ export async function GET(req: Request) {
       `)
       .in("stationcode_norm", stationCodes);
 
-    /* ================= 4️⃣ HOLIDAYS (DATE + TIME) ================= */
+    /* ================= 4️⃣ HOLIDAYS ================= */
 
     const { data: holidays } = await supa
       .from("RestroHolidays")
-      .select(`
-        restro_code,
-        start_at,
-        end_at,
-        is_deleted
-      `)
+      .select(`restro_code, start_at, end_at, is_deleted`)
       .eq("is_deleted", false);
 
     const holidayMap: Record<number, any[]> = {};
@@ -173,14 +168,28 @@ export async function GET(req: Request) {
             }
           }
 
-          /* ===== RULE 2: Holiday (WITH TIME) ===== */
+          /* ===== RULE 2: Holiday (IST SAFE FIX ✅) ===== */
           if (available && arrivalDateTime) {
             const hs = holidayMap[x.RestroCode] || [];
+
             if (
               hs.some(h => {
-                const start = new Date(h.start_at);
-                const end = new Date(h.end_at);
-                return arrivalDateTime! >= start && arrivalDateTime! <= end;
+                const startIST = new Date(
+                  new Date(h.start_at).toLocaleString("en-US", {
+                    timeZone: "Asia/Kolkata",
+                  })
+                );
+
+                const endIST = new Date(
+                  new Date(h.end_at).toLocaleString("en-US", {
+                    timeZone: "Asia/Kolkata",
+                  })
+                );
+
+                return (
+                  arrivalDateTime! >= startIST &&
+                  arrivalDateTime! <= endIST
+                );
               })
             ) {
               available = false;
