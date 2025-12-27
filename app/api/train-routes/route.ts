@@ -4,7 +4,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { serviceClient } from "../../lib/supabaseServer";
 
-/* ================= TIME HELPERS ================= */
+/* ================= HELPERS ================= */
 
 function todayYMD() {
   return new Date().toISOString().slice(0, 10);
@@ -22,7 +22,7 @@ function toMinutes(t?: string | null) {
 
 function isTimeBetween(check: number, start: number, end: number) {
   if (start <= end) return check >= start && check <= end;
-  return check >= start || check <= end; // overnight
+  return check >= start || check <= end;
 }
 
 function addDays(base: string, diff: number) {
@@ -37,6 +37,17 @@ function matchesRunningDay(runningDays: string | null, dateStr: string) {
   const day = map[new Date(dateStr).getDay()];
   const s = runningDays.toUpperCase();
   return s === "DAILY" || s === "ALL" || s.includes(day);
+}
+
+function isActiveValue(val: any) {
+  if (val === true) return true;
+  if (val === false) return false;
+  if (typeof val === "number") return val === 1;
+  if (typeof val === "string") {
+    const v = val.toLowerCase().trim();
+    return v === "true" || v === "t" || v === "1" || v === "yes";
+  }
+  return false;
 }
 
 /* ================= API ================= */
@@ -56,7 +67,7 @@ export async function GET(req: Request) {
 
     const supa = serviceClient;
 
-    /* ========== 1️⃣ TRAIN ROUTE ========== */
+    /* ===== TRAIN ROUTE ===== */
 
     const { data: routeRows } = await supa
       .from("TrainRoute")
@@ -81,7 +92,7 @@ export async function GET(req: Request) {
     const rows = valid.length ? valid : routeRows;
     const trainName = rows[0].trainName;
 
-    /* ========== 2️⃣ BOARDING DAY ========== */
+    /* ===== BOARDING DAY ===== */
 
     let boardingDay: number | null = null;
     if (boarding) {
@@ -91,7 +102,7 @@ export async function GET(req: Request) {
       if (b?.Day != null) boardingDay = Number(b.Day);
     }
 
-    /* ========== 3️⃣ RESTRO MASTER (🔥 NO STATION FILTER) ========== */
+    /* ===== RESTRO MASTER (NO STATION FILTER) ===== */
 
     const { data: restros } = await supa
       .from("RestroMaster")
@@ -101,33 +112,7 @@ export async function GET(req: Request) {
         WeeklyOff, CutOffTime, IsActive
       `);
 
-    /* ========== 4️⃣ RESTRO TIME OVERRIDE ========== */
-
-    const { data: restroTimes } = await supa
-      .from("RestroTime")
-      .select(`restro_code, start_at, end_at, is_deleted`)
-      .eq("is_deleted", false);
-
-    const timeMap: Record<number, any[]> = {};
-    for (const t of restroTimes || []) {
-      timeMap[t.restro_code] ||= [];
-      timeMap[t.restro_code].push(t);
-    }
-
-    /* ========== 5️⃣ RESTRO HOLIDAYS ========== */
-
-    const { data: holidays } = await supa
-      .from("RestroHolidays")
-      .select(`restro_code, start_date, end_date, is_deleted`)
-      .eq("is_deleted", false);
-
-    const holidayMap: Record<number, any[]> = {};
-    for (const h of holidays || []) {
-      holidayMap[h.restro_code] ||= [];
-      holidayMap[h.restro_code].push(h);
-    }
-
-    /* ========== 6️⃣ FINAL MAP ========== */
+    /* ===== FINAL MAP ===== */
 
     const mapped = rows.map(r => {
       const sc = normalize(r.StationCode);
@@ -144,48 +129,23 @@ export async function GET(req: Request) {
         .filter(
           x =>
             normalize(x.StationCode) === sc &&
-            x.IsActive === true
+            isActiveValue(x.IsActive)
         )
         .map(x => {
           let available = true;
           const reasons: string[] = [];
 
-          /* Holiday */
-          const hs = holidayMap[x.RestroCode] || [];
+          const o = toMinutes(x["0penTime"]);
+          const c = toMinutes(x["ClosedTime"]);
+
           if (
-            hs.some(
-              h => arrivalDate >= h.start_date && arrivalDate <= h.end_date
-            )
+            arrivalTime != null &&
+            o != null &&
+            c != null &&
+            !isTimeBetween(arrivalTime, o, c)
           ) {
             available = false;
-            reasons.push("Holiday");
-          }
-
-          /* Special time override */
-          if (arrivalTime != null && timeMap[x.RestroCode]) {
-            const ok = timeMap[x.RestroCode].some(t => {
-              const s = toMinutes(
-                new Date(t.start_at).toISOString().slice(11, 16)
-              );
-              const e = toMinutes(
-                new Date(t.end_at).toISOString().slice(11, 16)
-              );
-              return s != null && e != null && isTimeBetween(arrivalTime, s, e);
-            });
-            if (!ok) {
-              available = false;
-              reasons.push("Outside special time");
-            }
-          }
-
-          /* Default open / close */
-          if (arrivalTime != null && available) {
-            const o = toMinutes(x["0penTime"]);
-            const c = toMinutes(x["ClosedTime"]);
-            if (o != null && c != null && !isTimeBetween(arrivalTime, o, c)) {
-              available = false;
-              reasons.push("Closed");
-            }
+            reasons.push("Outside open hours");
           }
 
           return {
@@ -212,22 +172,14 @@ export async function GET(req: Request) {
       };
     });
 
-    /* ========== 7️⃣ SINGLE STATION ========== */
-
     if (station) {
       const row = mapped.find(
         r => normalize(r.StationCode) === normalize(station)
       );
-      if (!row) {
-        return NextResponse.json(
-          { ok: false, error: "station_not_on_route" },
-          { status: 400 }
-        );
-      }
       return NextResponse.json({
         ok: true,
         train: { trainNumber: train, trainName },
-        rows: [row],
+        rows: row ? [row] : [],
       });
     }
 
