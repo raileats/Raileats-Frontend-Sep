@@ -1,29 +1,8 @@
-// 🔴 IMPORTANT: force dynamic (BUILD + PRERENDER FIX)
+// 🔴 IMPORTANT: force dynamic (BUILD FIX)
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { serviceClient } from "../../lib/supabaseServer";
-
-/* ===================== TYPES ===================== */
-
-type TrainRouteRow = {
-  trainId: number;
-  trainNumber: number | null;
-  trainName: string | null;
-  stationFrom: string | null;
-  stationTo: string | null;
-  runningDays: string | null;
-  StnNumber: number | null;
-  StationCode: string | null;
-  StationName: string | null;
-  Arrives: string | null;
-  Departs: string | null;
-  Stoptime: string | null;
-  Distance: string | null;
-  Platform: string | null;
-  Route: number | null;
-  Day: number | null;
-};
 
 /* ===================== HELPERS ===================== */
 
@@ -38,24 +17,10 @@ function normalizeCode(v: any) {
 
 function matchesRunningDay(runningDays: string | null, dateStr: string) {
   if (!runningDays) return true;
-  const map = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
-  const code = map[new Date(dateStr).getDay()];
+  const day = ["SUN","MON","TUE","WED","THU","FRI","SAT"][new Date(dateStr).getDay()];
   const s = runningDays.toUpperCase();
   if (s === "DAILY" || s === "ALL") return true;
-  return s.split(/[ ,/]+/).includes(code);
-}
-
-function addDays(date: string, diff: number) {
-  const d = new Date(date + "T00:00:00");
-  d.setDate(d.getDate() + diff);
-  return d.toISOString().slice(0, 10);
-}
-
-function isActiveValue(v: any) {
-  if (typeof v === "boolean") return v;
-  if (typeof v === "number") return v !== 0;
-  if (typeof v === "string") return !["0", "false", "no"].includes(v.toLowerCase());
-  return true;
+  return s.includes(day);
 }
 
 /* ===================== API ===================== */
@@ -63,152 +28,83 @@ function isActiveValue(v: any) {
 export async function GET(req: Request) {
   try {
     const url = new URL(req.url);
+    const train = (url.searchParams.get("train") || "").trim();
+    const station = (url.searchParams.get("station") || "").trim();
+    const date = (url.searchParams.get("date") || "").trim() || todayYMD();
 
-    const trainParam = (url.searchParams.get("train") || "").trim();
-    const stationParam = (url.searchParams.get("station") || "").trim();
-    const dateParam = url.searchParams.get("date") || todayYMD();
-    const boardingParam = (url.searchParams.get("boarding") || "").trim();
-
-    // 🔴 BUILD TIME SAFETY
-    if (!trainParam) {
+    // ⛑️ build safety
+    if (!train) {
       return NextResponse.json({ ok: true, build: true, rows: [] });
     }
 
     const supa = serviceClient;
-    let routeRows: TrainRouteRow[] = [];
+    let rows: any[] = [];
 
-    /* ===================== 1️⃣ TRAIN LOOKUP ===================== */
+    /* ===================== STEP 1: FETCH TRAIN ROUTE ===================== */
 
-    // A) trainNumber_text
-    {
-      const { data } = await supa
-        .from("TrainRoute")
-        .select("*")
-        .eq("trainNumber_text", trainParam)
-        .order("StnNumber");
+    // 1️⃣ exact string match
+    let res = await supa
+      .from("TrainRoute")
+      .select("*")
+      .eq("trainNumber", train)
+      .order("StnNumber", { ascending: true });
 
-      if (data?.length) routeRows = data;
+    if (res.data?.length) {
+      rows = res.data;
     }
 
-    // B) trainNumber (numeric)
-    if (!routeRows.length && /^[0-9]+$/.test(trainParam)) {
-      const { data } = await supa
+    // 2️⃣ fallback: trainNumber_text
+    if (!rows.length) {
+      res = await supa
         .from("TrainRoute")
         .select("*")
-        .eq("trainNumber", Number(trainParam))
-        .order("StnNumber");
+        .ilike("trainNumber_text", `%${train}%`)
+        .order("StnNumber", { ascending: true });
 
-      if (data?.length) routeRows = data;
+      if (res.data?.length) rows = res.data;
     }
 
-    // C) trainName fallback
-    if (!routeRows.length) {
-      const { data } = await supa
+    // 3️⃣ fallback: trainName
+    if (!rows.length) {
+      res = await supa
         .from("TrainRoute")
         .select("*")
-        .ilike("trainName", `%${trainParam}%`)
-        .order("StnNumber")
-        .limit(500);
+        .ilike("trainName", `%${train}%`)
+        .order("StnNumber", { ascending: true });
 
-      if (data?.length) routeRows = data;
+      if (res.data?.length) rows = res.data;
     }
 
-    if (!routeRows.length) {
+    if (!rows.length) {
       return NextResponse.json(
-        { ok: false, error: "train_not_found", train: trainParam },
+        { ok: false, error: "train_not_found", train },
         { status: 404 }
       );
     }
 
-    /* ===================== 2️⃣ RUNNING DAY FILTER ===================== */
+    /* ===================== STEP 2: RUNNING DAY FILTER ===================== */
 
-    const filtered =
-      routeRows.filter((r) => matchesRunningDay(r.runningDays, dateParam)) ||
-      routeRows;
+    const usable = rows.filter(r => matchesRunningDay(r.runningDays, date));
+    const route = usable.length ? usable : rows;
+    const trainName = route[0]?.trainName ?? null;
 
-    const rowsToUse = filtered.length ? filtered : routeRows;
-    const trainName = rowsToUse[0]?.trainName ?? null;
+    /* ===================== STEP 3: MAP RESPONSE ===================== */
 
-    /* ===================== 3️⃣ RESTRO MASTER ===================== */
+    const mapped = route.map(r => ({
+      StnNumber: r.StnNumber,
+      StationCode: normalizeCode(r.StationCode),
+      StationName: r.StationName,
+      Arrives: r.Arrives,
+      Departs: r.Departs,
+      Day: r.Day,
+      Platform: r.Platform,
+      Distance: r.Distance
+    }));
 
-    const stationCodes = Array.from(
-      new Set(rowsToUse.map((r) => normalizeCode(r.StationCode)).filter(Boolean))
-    );
-
-    let restrosByStation: Record<string, any[]> = {};
-
-    if (stationCodes.length) {
-      const { data } = await supa
-        .from("RestroMaster")
-        .select(
-          'RestroCode, RestroName, StationCode, "0penTime", "ClosedTime", WeeklyOff, MinimumOrdermValue, CutOffTime, IsActive'
-        )
-        .in("stationcode_norm", stationCodes)
-        .limit(3000);
-
-      if (data) {
-        for (const r of data) {
-          const sc = normalizeCode(r.StationCode);
-          restrosByStation[sc] = restrosByStation[sc] || [];
-          restrosByStation[sc].push(r);
-        }
-      }
-    }
-
-    /* ===================== 4️⃣ BOARDING DAY ===================== */
-
-    let boardingDay: number | null = null;
-    if (boardingParam) {
-      const b = rowsToUse.find(
-        (r) => normalizeCode(r.StationCode) === normalizeCode(boardingParam)
-      );
-      if (b?.Day != null) boardingDay = Number(b.Day);
-    }
-
-    /* ===================== 5️⃣ FINAL MAP ===================== */
-
-    const mapped = rowsToUse.map((r) => {
-      const sc = normalizeCode(r.StationCode);
-
-      let arrivalDate = dateParam;
-      if (typeof r.Day === "number" && boardingDay != null) {
-        arrivalDate = addDays(dateParam, r.Day - boardingDay);
-      }
-
-      const restros =
-        (restrosByStation[sc] || [])
-          .filter((x) => isActiveValue(x.IsActive))
-          .map((x) => ({
-            restroCode: x.RestroCode,
-            restroName: x.RestroName,
-            openTime: x["0penTime"],
-            closeTime: x["ClosedTime"],
-            cutOff: x.CutOffTime,
-            minOrder: x.MinimumOrdermValue,
-          })) || [];
-
-      return {
-        StnNumber: r.StnNumber,
-        StationCode: sc,
-        StationName: r.StationName,
-        Arrives: r.Arrives,
-        Departs: r.Departs,
-        Day: r.Day,
-        arrivalDate,
-        Platform: r.Platform,
-        Distance: r.Distance,
-        restros,
-        restroCount: restros.length,
-        blocked: restros.length === 0,
-      };
-    });
-
-    /* ===================== SINGLE STATION ===================== */
-
-    if (stationParam) {
-      const sc = normalizeCode(stationParam);
-      const row = mapped.find((m) => m.StationCode === sc);
-      if (!row) {
+    if (station) {
+      const sc = normalizeCode(station);
+      const one = mapped.find(x => x.StationCode === sc);
+      if (!one) {
         return NextResponse.json(
           { ok: false, error: "station_not_on_route" },
           { status: 400 }
@@ -216,19 +112,18 @@ export async function GET(req: Request) {
       }
       return NextResponse.json({
         ok: true,
-        train: { trainNumber: trainParam, trainName },
-        rows: [row],
+        train: { trainNumber: train, trainName },
+        rows: [one]
       });
     }
 
-    /* ===================== FINAL ===================== */
-
     return NextResponse.json({
       ok: true,
-      train: { trainNumber: trainParam, trainName },
+      train: { trainNumber: train, trainName },
       rows: mapped,
-      meta: { date: dateParam, boarding: boardingParam || null },
+      meta: { date }
     });
+
   } catch (e) {
     console.error("train-routes error", e);
     return NextResponse.json(
