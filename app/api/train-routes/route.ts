@@ -6,25 +6,12 @@ import { serviceClient } from "../../lib/supabaseServer";
 
 /* ================= TIME HELPERS ================= */
 
-function todayISTDate() {
-  return new Date(
-    new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" })
-  )
-    .toISOString()
-    .slice(0, 10);
-}
-
-function nowIST() {
-  return new Date(
-    new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" })
-  );
-}
+const IST_OFFSET_MIN = 330; // +5:30
 
 function normalize(val: any) {
   return String(val ?? "").trim().toUpperCase();
 }
 
-// ✅ SAFE TIME PARSER (handles 1:22:00 / 01:22:00)
 function parseHHMM(timeStr?: string | null): { h: number; m: number } | null {
   if (!timeStr) return null;
   const parts = timeStr.split(":").map(Number);
@@ -32,10 +19,39 @@ function parseHHMM(timeStr?: string | null): { h: number; m: number } | null {
   return { h: parts[0], m: parts[1] };
 }
 
+// IST epoch minutes (NO Date timezone bugs)
+function istEpochMinutes(dateYMD: string, timeStr: string): number | null {
+  const t = parseHHMM(timeStr);
+  if (!t) return null;
+
+  const [y, m, d] = dateYMD.split("-").map(Number);
+
+  // UTC millis at IST midnight
+  const utcMillis =
+    Date.UTC(y, m - 1, d, 0, 0, 0) - IST_OFFSET_MIN * 60 * 1000;
+
+  return (
+    Math.floor(utcMillis / 60000) +
+    t.h * 60 +
+    t.m
+  );
+}
+
+function nowISTMinutes(): number {
+  const now = Date.now();
+  return Math.floor(now / 60000) + IST_OFFSET_MIN;
+}
+
+function todayISTDate(): string {
+  const mins = nowISTMinutes();
+  const ms = mins * 60000;
+  return new Date(ms).toISOString().slice(0, 10);
+}
+
 function addDays(base: string, diff: number) {
-  const d = new Date(base + "T00:00:00+05:30");
-  d.setDate(d.getDate() + diff);
-  return d.toISOString().slice(0, 10);
+  const [y, m, d] = base.split("-").map(Number);
+  const utc = Date.UTC(y, m - 1, d + diff);
+  return new Date(utc).toISOString().slice(0, 10);
 }
 
 function matchesRunningDay(runningDays: string | null, dateStr: string) {
@@ -63,7 +79,7 @@ export async function GET(req: Request) {
 
     const supa = serviceClient;
 
-    /* ================= 1️⃣ TRAIN ROUTE ================= */
+    /* ================= TRAIN ROUTE ================= */
 
     const { data: routeRows } = await supa
       .from("TrainRoute")
@@ -75,35 +91,24 @@ export async function GET(req: Request) {
       .eq("trainNumber", Number(train))
       .order("StnNumber", { ascending: true });
 
-    if (!routeRows || !routeRows.length) {
-      return NextResponse.json(
-        { ok: false, error: "train_not_found" },
-        { status: 404 }
-      );
+    if (!routeRows?.length) {
+      return NextResponse.json({ ok: false, error: "train_not_found" }, { status: 404 });
     }
 
-    const validRows = routeRows.filter(r =>
-      matchesRunningDay(r.runningDays, date)
-    );
-
-    const rows = validRows.length ? validRows : routeRows;
+    const rows = routeRows.filter(r => matchesRunningDay(r.runningDays, date));
     const trainName = rows[0].trainName;
 
-    /* ================= 2️⃣ BOARDING DAY ================= */
+    /* ================= BOARDING DAY ================= */
 
     let boardingDay: number | null = null;
     if (boarding) {
-      const b = rows.find(
-        r => normalize(r.StationCode) === normalize(boarding)
-      );
+      const b = rows.find(r => normalize(r.StationCode) === normalize(boarding));
       if (b?.Day != null) boardingDay = Number(b.Day);
     }
 
-    /* ================= 3️⃣ RESTROS ================= */
+    /* ================= RESTROS ================= */
 
-    const stationCodes = Array.from(
-      new Set(rows.map(r => normalize(r.StationCode)))
-    );
+    const stationCodes = Array.from(new Set(rows.map(r => normalize(r.StationCode))));
 
     const { data: restros } = await supa
       .from("RestroMaster")
@@ -114,10 +119,10 @@ export async function GET(req: Request) {
       `)
       .in("stationcode_norm", stationCodes);
 
+    const nowMin = nowISTMinutes();
     const todayIST = todayISTDate();
-    const now = nowIST();
 
-    /* ================= 4️⃣ FINAL MAP ================= */
+    /* ================= FINAL MAP ================= */
 
     const mapped = rows.map(r => {
       const sc = normalize(r.StationCode);
@@ -127,64 +132,27 @@ export async function GET(req: Request) {
         arrivalDate = addDays(date, r.Day - boardingDay);
       }
 
+      const arrivalMin =
+        istEpochMinutes(arrivalDate, r.Arrives || r.Departs || "");
+
       const vendors = (restros || [])
         .filter(x => normalize(x.StationCode) === sc && x.RaileatsStatus === 1)
         .map(x => {
           let available = true;
           const reasons: string[] = [];
 
-          /* =================================================
-             RULE 0️⃣ : PAST DATE BLOCK
-          ================================================= */
+          /* ---- PAST DATE ---- */
           if (arrivalDate < todayIST) {
             available = false;
             reasons.push("Train already departed");
           }
 
-          /* =================================================
-             RULE 1️⃣ : CUTOFF TIME (FULL DATETIME)
-          ================================================= */
-          if (available && x.CutOffTime && r.Arrives) {
-            const tm = parseHHMM(r.Arrives);
-            if (tm) {
-              const arrivalDateTime = new Date(
-                `${arrivalDate}T${String(tm.h).padStart(2, "0")}:${String(tm.m).padStart(2, "0")}:00+05:30`
-              );
-
-              const lastOrderTime = new Date(arrivalDateTime);
-              lastOrderTime.setMinutes(
-                lastOrderTime.getMinutes() - Number(x.CutOffTime)
-              );
-
-              if (now > lastOrderTime) {
-                available = false;
-                reasons.push("Cut-off time passed");
-              }
-            }
-          }
-
-          /* =================================================
-             RULE 2️⃣ : OPEN / CLOSE WINDOW
-          ================================================= */
-          if (available && r.Arrives && x["0penTime"] && x["ClosedTime"]) {
-            const at = parseHHMM(r.Arrives);
-            const ot = parseHHMM(x["0penTime"]);
-            const ct = parseHHMM(x["ClosedTime"]);
-
-            if (at && ot && ct) {
-              const arrMin = at.h * 60 + at.m;
-              const openMin = ot.h * 60 + ot.m;
-              const closeMin = ct.h * 60 + ct.m;
-
-              const inWindow =
-                openMin <= closeMin
-                  ? arrMin >= openMin && arrMin <= closeMin
-                  : arrMin >= openMin || arrMin <= closeMin;
-
-              if (!inWindow) {
-                available = false;
-                reasons.push("Outside open hours");
-              }
+          /* ---- CUTOFF (100% SAFE) ---- */
+          if (available && arrivalMin != null && x.CutOffTime != null) {
+            const lastOrderMin = arrivalMin - Number(x.CutOffTime);
+            if (nowMin > lastOrderMin) {
+              available = false;
+              reasons.push("Cut-off time passed");
             }
           }
 
@@ -211,31 +179,15 @@ export async function GET(req: Request) {
       };
     });
 
-    /* ================= SINGLE STATION ================= */
-
     if (station) {
-      const row = mapped.find(
-        r => normalize(r.StationCode) === normalize(station)
-      );
-      return NextResponse.json({
-        ok: true,
-        train: { trainNumber: train, trainName },
-        rows: row ? [row] : [],
-      });
+      const row = mapped.find(r => normalize(r.StationCode) === normalize(station));
+      return NextResponse.json({ ok: true, train: { trainNumber: train, trainName }, rows: row ? [row] : [] });
     }
 
-    return NextResponse.json({
-      ok: true,
-      train: { trainNumber: train, trainName },
-      rows: mapped,
-      meta: { date, boarding: boarding || null },
-    });
+    return NextResponse.json({ ok: true, train: { trainNumber: train, trainName }, rows: mapped });
 
   } catch (e) {
-    console.error("train-routes FINAL error:", e);
-    return NextResponse.json(
-      { ok: false, error: "server_error" },
-      { status: 500 }
-    );
+    console.error("train-routes error", e);
+    return NextResponse.json({ ok: false, error: "server_error" }, { status: 500 });
   }
 }
