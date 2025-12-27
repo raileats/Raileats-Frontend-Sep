@@ -75,10 +75,10 @@ export async function GET(req: Request) {
       );
     }
 
-    const filtered = routeRows.filter(r =>
+    const valid = routeRows.filter(r =>
       matchesRunningDay(r.runningDays, date)
     );
-    const rows = filtered.length ? filtered : routeRows;
+    const rows = valid.length ? valid : routeRows;
     const trainName = rows[0].trainName;
 
     /* ========== 2️⃣ BOARDING DAY ========== */
@@ -91,13 +91,7 @@ export async function GET(req: Request) {
       if (b?.Day != null) boardingDay = Number(b.Day);
     }
 
-    /* ========== 3️⃣ STATION CODES ========== */
-
-    const stationCodes = Array.from(
-      new Set(rows.map(r => normalize(r.StationCode)))
-    );
-
-    /* ========== 4️⃣ RESTRO MASTER (🔥 FIXED) ========== */
+    /* ========== 3️⃣ RESTRO MASTER (🔥 NO STATION FILTER) ========== */
 
     const { data: restros } = await supa
       .from("RestroMaster")
@@ -105,10 +99,9 @@ export async function GET(req: Request) {
         RestroCode, RestroName, StationCode,
         "0penTime", "ClosedTime",
         WeeklyOff, CutOffTime, IsActive
-      `)
-      .in("StationCode", stationCodes); // ✅ FIX
+      `);
 
-    /* ========== 5️⃣ RESTRO TIME OVERRIDE ========== */
+    /* ========== 4️⃣ RESTRO TIME OVERRIDE ========== */
 
     const { data: restroTimes } = await supa
       .from("RestroTime")
@@ -121,7 +114,7 @@ export async function GET(req: Request) {
       timeMap[t.restro_code].push(t);
     }
 
-    /* ========== 6️⃣ RESTRO HOLIDAYS (🔥 FIXED) ========== */
+    /* ========== 5️⃣ RESTRO HOLIDAYS ========== */
 
     const { data: holidays } = await supa
       .from("RestroHolidays")
@@ -134,7 +127,7 @@ export async function GET(req: Request) {
       holidayMap[h.restro_code].push(h);
     }
 
-    /* ========== 7️⃣ FINAL MAP ========== */
+    /* ========== 6️⃣ FINAL MAP ========== */
 
     const mapped = rows.map(r => {
       const sc = normalize(r.StationCode);
@@ -148,12 +141,16 @@ export async function GET(req: Request) {
         toMinutes(r.Arrives) ?? toMinutes(r.Departs) ?? null;
 
       const vendors = (restros || [])
-        .filter(x => normalize(x.StationCode) === sc && x.IsActive)
+        .filter(
+          x =>
+            normalize(x.StationCode) === sc &&
+            x.IsActive === true
+        )
         .map(x => {
           let available = true;
           const reasons: string[] = [];
 
-          /* Holiday check */
+          /* Holiday */
           const hs = holidayMap[x.RestroCode] || [];
           if (
             hs.some(
@@ -177,17 +174,17 @@ export async function GET(req: Request) {
             });
             if (!ok) {
               available = false;
-              reasons.push("Outside special time window");
+              reasons.push("Outside special time");
             }
           }
 
-          /* Default open/close */
+          /* Default open / close */
           if (arrivalTime != null && available) {
             const o = toMinutes(x["0penTime"]);
             const c = toMinutes(x["ClosedTime"]);
             if (o != null && c != null && !isTimeBetween(arrivalTime, o, c)) {
               available = false;
-              reasons.push("Outside open hours");
+              reasons.push("Closed");
             }
           }
 
@@ -215,7 +212,7 @@ export async function GET(req: Request) {
       };
     });
 
-    /* ========== 8️⃣ SINGLE STATION ========== */
+    /* ========== 7️⃣ SINGLE STATION ========== */
 
     if (station) {
       const row = mapped.find(
@@ -233,8 +230,6 @@ export async function GET(req: Request) {
         rows: [row],
       });
     }
-
-    /* ========== FINAL ========== */
 
     return NextResponse.json({
       ok: true,
