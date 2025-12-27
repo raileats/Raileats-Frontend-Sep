@@ -4,7 +4,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { serviceClient } from "../../lib/supabaseServer";
 
-/* ================= TIME HELPERS (IST SAFE) ================= */
+/* ================= IST HELPERS ================= */
 
 function nowIST(): Date {
   return new Date(
@@ -18,6 +18,12 @@ function todayIST(): string {
 
 function normalize(v: any) {
   return String(v ?? "").trim().toUpperCase();
+}
+
+function toMinutes(t?: string | null): number | null {
+  if (!t) return null;
+  const [h, m] = t.slice(0, 5).split(":").map(Number);
+  return h * 60 + m;
 }
 
 function addDays(base: string, diff: number) {
@@ -72,11 +78,10 @@ export async function GET(req: Request) {
     const validRows = routeRows.filter(r =>
       matchesRunningDay(r.runningDays, date)
     );
-
     const rows = validRows.length ? validRows : routeRows;
     const trainName = rows[0].trainName;
 
-    /* ================= 2️⃣ BOARDING DAY DATE ================= */
+    /* ================= 2️⃣ BOARDING DATE ================= */
 
     const firstDay = Number(rows[0].Day || 1);
     const boardingDate = addDays(date, 1 - firstDay);
@@ -96,17 +101,20 @@ export async function GET(req: Request) {
       .in("stationcode_norm", stationCodes);
 
     const now = nowIST();
+    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+    const today = todayIST();
 
     /* ================= 4️⃣ FINAL MAP ================= */
 
     const mapped = rows.map(r => {
       const sc = normalize(r.StationCode);
 
-      // Arrival date from boarding date + day offset
       const arrivalDate =
         typeof r.Day === "number"
           ? addDays(boardingDate, r.Day - 1)
           : date;
+
+      const arrivalMinutes = toMinutes(r.Arrives);
 
       const vendors = (restros || [])
         .filter(x => normalize(x.StationCode) === sc && x.RaileatsStatus === 1)
@@ -114,26 +122,23 @@ export async function GET(req: Request) {
           let available = true;
           const reasons: string[] = [];
 
-          /* ===== Arrival DateTime (IST) ===== */
-          if (r.Arrives && x.CutOffTime != null) {
-            const [hh, mm, ss] = r.Arrives
-              .padEnd(8, "0")
-              .split(":")
-              .map(Number);
+          /* ===== RULE 0: Past date ===== */
+          if (arrivalDate < today) {
+            available = false;
+            reasons.push("Train already departed");
+          }
 
-            const arrivalDT = new Date(
-              `${arrivalDate}T${String(hh).padStart(2, "0")}:${String(mm).padStart(
-                2,
-                "0"
-              )}:${String(ss || 0).padStart(2, "0")}+05:30`
-            );
+          /* ===== RULE 1: CutOffTime (MINUTES LOGIC) ===== */
+          if (
+            available &&
+            arrivalDate === today &&
+            arrivalMinutes != null &&
+            x.CutOffTime != null
+          ) {
+            const lastOrderMinute =
+              arrivalMinutes - Number(x.CutOffTime);
 
-            const lastOrderDT = new Date(arrivalDT);
-            lastOrderDT.setMinutes(
-              lastOrderDT.getMinutes() - Number(x.CutOffTime)
-            );
-
-            if (now > lastOrderDT) {
+            if (nowMinutes > lastOrderMinute) {
               available = false;
               reasons.push("Cut-off time passed");
             }
@@ -183,7 +188,7 @@ export async function GET(req: Request) {
     });
 
   } catch (e) {
-    console.error("FINAL train-routes error:", e);
+    console.error("FINAL SIMPLE CUTOFF error:", e);
     return NextResponse.json(
       { ok: false, error: "server_error" },
       { status: 500 }
