@@ -24,6 +24,14 @@ function normalize(val: any) {
   return String(val ?? "").trim().toUpperCase();
 }
 
+// ✅ SAFE TIME PARSER (handles 1:22:00 / 01:22:00)
+function parseHHMM(timeStr?: string | null): { h: number; m: number } | null {
+  if (!timeStr) return null;
+  const parts = timeStr.split(":").map(Number);
+  if (parts.length < 2 || isNaN(parts[0]) || isNaN(parts[1])) return null;
+  return { h: parts[0], m: parts[1] };
+}
+
 function addDays(base: string, diff: number) {
   const d = new Date(base + "T00:00:00+05:30");
   d.setDate(d.getDate() + diff);
@@ -126,7 +134,7 @@ export async function GET(req: Request) {
           const reasons: string[] = [];
 
           /* =================================================
-             RULE 0️⃣ : PAST DATE BLOCK (MOST IMPORTANT)
+             RULE 0️⃣ : PAST DATE BLOCK
           ================================================= */
           if (arrivalDate < todayIST) {
             available = false;
@@ -134,47 +142,49 @@ export async function GET(req: Request) {
           }
 
           /* =================================================
-             RULE 1️⃣ : CUTOFF TIME (FULL DATETIME SAFE)
+             RULE 1️⃣ : CUTOFF TIME (FULL DATETIME)
           ================================================= */
           if (available && x.CutOffTime && r.Arrives) {
-            const [ah, am] = r.Arrives.slice(0, 5).split(":").map(Number);
+            const tm = parseHHMM(r.Arrives);
+            if (tm) {
+              const arrivalDateTime = new Date(
+                `${arrivalDate}T${String(tm.h).padStart(2, "0")}:${String(tm.m).padStart(2, "0")}:00+05:30`
+              );
 
-            const arrivalDateTime = new Date(
-              `${arrivalDate}T${String(ah).padStart(2, "0")}:${String(am).padStart(2, "0")}:00+05:30`
-            );
+              const lastOrderTime = new Date(arrivalDateTime);
+              lastOrderTime.setMinutes(
+                lastOrderTime.getMinutes() - Number(x.CutOffTime)
+              );
 
-            const lastOrderTime = new Date(arrivalDateTime);
-            lastOrderTime.setMinutes(
-              lastOrderTime.getMinutes() - Number(x.CutOffTime)
-            );
-
-            if (now > lastOrderTime) {
-              available = false;
-              reasons.push("Cut-off time passed");
+              if (now > lastOrderTime) {
+                available = false;
+                reasons.push("Cut-off time passed");
+              }
             }
           }
 
           /* =================================================
-             RULE 2️⃣ : OPEN / CLOSE TIME
+             RULE 2️⃣ : OPEN / CLOSE WINDOW
           ================================================= */
           if (available && r.Arrives && x["0penTime"] && x["ClosedTime"]) {
-            const [ah, am] = r.Arrives.slice(0, 5).split(":").map(Number);
-            const arrMin = ah * 60 + am;
+            const at = parseHHMM(r.Arrives);
+            const ot = parseHHMM(x["0penTime"]);
+            const ct = parseHHMM(x["ClosedTime"]);
 
-            const [oh, om] = x["0penTime"].slice(0, 5).split(":").map(Number);
-            const [ch, cm] = x["ClosedTime"].slice(0, 5).split(":").map(Number);
+            if (at && ot && ct) {
+              const arrMin = at.h * 60 + at.m;
+              const openMin = ot.h * 60 + ot.m;
+              const closeMin = ct.h * 60 + ct.m;
 
-            const openMin = oh * 60 + om;
-            const closeMin = ch * 60 + cm;
+              const inWindow =
+                openMin <= closeMin
+                  ? arrMin >= openMin && arrMin <= closeMin
+                  : arrMin >= openMin || arrMin <= closeMin;
 
-            const inWindow =
-              openMin <= closeMin
-                ? arrMin >= openMin && arrMin <= closeMin
-                : arrMin >= openMin || arrMin <= closeMin;
-
-            if (!inWindow) {
-              available = false;
-              reasons.push("Outside open hours");
+              if (!inWindow) {
+                available = false;
+                reasons.push("Outside open hours");
+              }
             }
           }
 
