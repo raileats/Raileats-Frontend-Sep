@@ -106,11 +106,29 @@ export async function GET(req: Request) {
       `)
       .in("stationcode_norm", stationCodes);
 
+    /* ================= 4️⃣ HOLIDAYS (DATE + TIME) ================= */
+
+    const { data: holidays } = await supa
+      .from("RestroHolidays")
+      .select(`
+        restro_code,
+        start_at,
+        end_at,
+        is_deleted
+      `)
+      .eq("is_deleted", false);
+
+    const holidayMap: Record<number, any[]> = {};
+    for (const h of holidays || []) {
+      holidayMap[h.restro_code] ||= [];
+      holidayMap[h.restro_code].push(h);
+    }
+
     const now = nowIST();
     const nowMinutes = now.getHours() * 60 + now.getMinutes();
     const today = todayIST();
 
-    /* ================= 4️⃣ FINAL MAP ================= */
+    /* ================= 5️⃣ FINAL MAP ================= */
 
     const mapped = rows.map(r => {
       const sc = normalize(r.StationCode);
@@ -122,6 +140,14 @@ export async function GET(req: Request) {
 
       const arrivalMinutes = toMinutes(r.Arrives);
       const arrivalDayName = dayOfWeek(arrivalDate);
+
+      let arrivalDateTime: Date | null = null;
+      if (r.Arrives) {
+        const [hh, mm] = r.Arrives.slice(0, 5).split(":");
+        arrivalDateTime = new Date(
+          `${arrivalDate}T${hh}:${mm}:00+05:30`
+        );
+      }
 
       const vendors = (restros || [])
         .filter(x => normalize(x.StationCode) === sc && x.RaileatsStatus === 1)
@@ -147,7 +173,22 @@ export async function GET(req: Request) {
             }
           }
 
-          /* ===== RULE 2: CutOffTime ===== */
+          /* ===== RULE 2: Holiday (WITH TIME) ===== */
+          if (available && arrivalDateTime) {
+            const hs = holidayMap[x.RestroCode] || [];
+            if (
+              hs.some(h => {
+                const start = new Date(h.start_at);
+                const end = new Date(h.end_at);
+                return arrivalDateTime! >= start && arrivalDateTime! <= end;
+              })
+            ) {
+              available = false;
+              reasons.push("Holiday");
+            }
+          }
+
+          /* ===== RULE 3: CutOffTime ===== */
           if (
             available &&
             arrivalDate === today &&
@@ -207,7 +248,7 @@ export async function GET(req: Request) {
     });
 
   } catch (e) {
-    console.error("FINAL WEEKLYOFF error:", e);
+    console.error("FINAL WEEKLYOFF + HOLIDAY error:", e);
     return NextResponse.json(
       { ok: false, error: "server_error" },
       { status: 500 }
