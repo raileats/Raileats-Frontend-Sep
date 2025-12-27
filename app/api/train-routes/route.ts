@@ -6,27 +6,26 @@ import { serviceClient } from "../../lib/supabaseServer";
 
 /* ================= TIME HELPERS ================= */
 
-function todayYMD() {
-  return new Date().toISOString().slice(0, 10);
+function todayISTDate() {
+  return new Date(
+    new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" })
+  )
+    .toISOString()
+    .slice(0, 10);
+}
+
+function nowIST() {
+  return new Date(
+    new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" })
+  );
 }
 
 function normalize(val: any) {
   return String(val ?? "").trim().toUpperCase();
 }
 
-function toMinutes(t?: string | null) {
-  if (!t) return null;
-  const [h, m] = t.slice(0, 5).split(":").map(Number);
-  return h * 60 + m;
-}
-
-function isTimeBetween(check: number, start: number, end: number) {
-  if (start <= end) return check >= start && check <= end;
-  return check >= start || check <= end; // overnight
-}
-
 function addDays(base: string, diff: number) {
-  const d = new Date(base + "T00:00:00");
+  const d = new Date(base + "T00:00:00+05:30");
   d.setDate(d.getDate() + diff);
   return d.toISOString().slice(0, 10);
 }
@@ -34,7 +33,7 @@ function addDays(base: string, diff: number) {
 function matchesRunningDay(runningDays: string | null, dateStr: string) {
   if (!runningDays) return true;
   const map = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
-  const day = map[new Date(dateStr).getDay()];
+  const day = map[new Date(dateStr + "T00:00:00").getDay()];
   const s = runningDays.toUpperCase();
   return s === "DAILY" || s === "ALL" || s.includes(day);
 }
@@ -48,7 +47,7 @@ export async function GET(req: Request) {
     const train = (url.searchParams.get("train") || "").trim();
     const station = (url.searchParams.get("station") || "").trim();
     const boarding = (url.searchParams.get("boarding") || "").trim();
-    const date = (url.searchParams.get("date") || "").trim() || todayYMD();
+    const date = (url.searchParams.get("date") || "").trim() || todayISTDate();
 
     if (!train) {
       return NextResponse.json({ ok: true, build: true, rows: [] });
@@ -63,7 +62,7 @@ export async function GET(req: Request) {
       .select(`
         trainNumber, trainName, runningDays,
         StnNumber, StationCode, StationName,
-        Arrives, Departs, Stoptime, Distance, Platform, Day
+        Arrives, Departs, Distance, Platform, Day
       `)
       .eq("trainNumber", Number(train))
       .order("StnNumber", { ascending: true });
@@ -78,6 +77,7 @@ export async function GET(req: Request) {
     const validRows = routeRows.filter(r =>
       matchesRunningDay(r.runningDays, date)
     );
+
     const rows = validRows.length ? validRows : routeRows;
     const trainName = rows[0].trainName;
 
@@ -106,16 +106,10 @@ export async function GET(req: Request) {
       `)
       .in("stationcode_norm", stationCodes);
 
-    /* ================= 4️⃣ FINAL MAP (CutOff Logic) ================= */
+    const todayIST = todayISTDate();
+    const now = nowIST();
 
-    // ✅ Always use IST time
-const nowIST = new Date(
-  new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" })
-);
-
-const currentMinutes =
-  nowIST.getHours() * 60 + nowIST.getMinutes();
-
+    /* ================= 4️⃣ FINAL MAP ================= */
 
     const mapped = rows.map(r => {
       const sc = normalize(r.StationCode);
@@ -125,33 +119,60 @@ const currentMinutes =
         arrivalDate = addDays(date, r.Day - boardingDay);
       }
 
-      const arrivalMinutes =
-        toMinutes(r.Arrives) ?? toMinutes(r.Departs);
-
       const vendors = (restros || [])
         .filter(x => normalize(x.StationCode) === sc && x.RaileatsStatus === 1)
         .map(x => {
           let available = true;
           const reasons: string[] = [];
 
-          /* ---- CutOffTime Logic ---- */
-          if (arrivalMinutes != null && x.CutOffTime != null) {
-            const lastOrderMinute = arrivalMinutes - Number(x.CutOffTime);
+          /* =================================================
+             RULE 0️⃣ : PAST DATE BLOCK (MOST IMPORTANT)
+          ================================================= */
+          if (arrivalDate < todayIST) {
+            available = false;
+            reasons.push("Train already departed");
+          }
 
-            // same day check only
-            if (arrivalDate === todayYMD()) {
-              if (currentMinutes > lastOrderMinute) {
-                available = false;
-                reasons.push("Cut-off time passed");
-              }
+          /* =================================================
+             RULE 1️⃣ : CUTOFF TIME (FULL DATETIME SAFE)
+          ================================================= */
+          if (available && x.CutOffTime && r.Arrives) {
+            const [ah, am] = r.Arrives.slice(0, 5).split(":").map(Number);
+
+            const arrivalDateTime = new Date(
+              `${arrivalDate}T${String(ah).padStart(2, "0")}:${String(am).padStart(2, "0")}:00+05:30`
+            );
+
+            const lastOrderTime = new Date(arrivalDateTime);
+            lastOrderTime.setMinutes(
+              lastOrderTime.getMinutes() - Number(x.CutOffTime)
+            );
+
+            if (now > lastOrderTime) {
+              available = false;
+              reasons.push("Cut-off time passed");
             }
           }
 
-          /* ---- Open / Close ---- */
-          if (arrivalMinutes != null && available) {
-            const o = toMinutes(x["0penTime"]);
-            const c = toMinutes(x["ClosedTime"]);
-            if (o != null && c != null && !isTimeBetween(arrivalMinutes, o, c)) {
+          /* =================================================
+             RULE 2️⃣ : OPEN / CLOSE TIME
+          ================================================= */
+          if (available && r.Arrives && x["0penTime"] && x["ClosedTime"]) {
+            const [ah, am] = r.Arrives.slice(0, 5).split(":").map(Number);
+            const arrMin = ah * 60 + am;
+
+            const [oh, om] = x["0penTime"].slice(0, 5).split(":").map(Number);
+            const [ch, cm] = x["ClosedTime"].slice(0, 5).split(":").map(Number);
+
+            const openMin = oh * 60 + om;
+            const closeMin = ch * 60 + cm;
+
+            const inWindow =
+              openMin <= closeMin
+                ? arrMin >= openMin && arrMin <= closeMin
+                : arrMin >= openMin || arrMin <= closeMin;
+
+            if (!inWindow) {
               available = false;
               reasons.push("Outside open hours");
             }
@@ -201,7 +222,7 @@ const currentMinutes =
     });
 
   } catch (e) {
-    console.error("CutOff API error:", e);
+    console.error("train-routes FINAL error:", e);
     return NextResponse.json(
       { ok: false, error: "server_error" },
       { status: 500 }
