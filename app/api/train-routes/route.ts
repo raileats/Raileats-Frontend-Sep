@@ -60,7 +60,7 @@ export async function GET(req: Request) {
 
     const supa = serviceClient;
 
-    /* ================= TRAIN ROUTE ================= */
+    /* ================= 1️⃣ TRAIN ROUTE ================= */
 
     const { data: routeRows } = await supa
       .from("TrainRoute")
@@ -85,12 +85,12 @@ export async function GET(req: Request) {
     const rows = validRows.length ? validRows : routeRows;
     const trainName = rows[0].trainName;
 
-    /* ================= BOARDING DATE ================= */
+    /* ================= 2️⃣ BOARDING DATE ================= */
 
     const firstDay = Number(rows[0].Day || 1);
     const boardingDate = addDays(date, 1 - firstDay);
 
-    /* ================= RESTROS ================= */
+    /* ================= 3️⃣ RESTROS ================= */
 
     const stationCodes: string[] = [];
     for (const r of rows) {
@@ -106,17 +106,17 @@ export async function GET(req: Request) {
       `)
       .in("stationcode_norm", stationCodes);
 
-    /* ================= HOLIDAYS (FIXED) ================= */
+    /* ================= 4️⃣ HOLIDAYS (FINAL FIX) ================= */
 
     const { data: holidays } = await supa
       .from("RestroHolidays")
       .select(`restro_code, start_at, end_at`)
       .eq("is_deleted", false);
 
-    // 🔥 KEY FIX: always string key
+    // 🔥 STRONG NORMALIZATION (THIS WAS THE REAL BUG)
     const holidayMap: Record<string, any[]> = {};
     for (const h of holidays || []) {
-      const key = String(h.restro_code);
+      const key = String(h.restro_code).trim();
       if (!holidayMap[key]) holidayMap[key] = [];
       holidayMap[key].push(h);
     }
@@ -125,7 +125,7 @@ export async function GET(req: Request) {
     const nowMinutes = now.getHours() * 60 + now.getMinutes();
     const today = todayIST();
 
-    /* ================= FINAL MAP ================= */
+    /* ================= 5️⃣ FINAL MAP ================= */
 
     const mapped = rows.map(r => {
       const sc = normalize(r.StationCode);
@@ -135,14 +135,16 @@ export async function GET(req: Request) {
           ? addDays(boardingDate, r.Day - 1)
           : date;
 
-      let arrivalUTC: Date | null = null;
-      if (r.Arrives) {
-        const [hh, mm] = r.Arrives.slice(0, 5).split(":");
-        arrivalUTC = new Date(`${arrivalDate}T${hh}:${mm}:00+05:30`);
-      }
-
       const arrivalMinutes = toMinutes(r.Arrives);
       const arrivalDayName = dayOfWeek(arrivalDate);
+
+      let arrivalDateTime: Date | null = null;
+      if (r.Arrives) {
+        const [hh, mm] = r.Arrives.slice(0, 5).split(":");
+        arrivalDateTime = new Date(
+          `${arrivalDate}T${hh}:${mm}:00+05:30`
+        );
+      }
 
       const vendors = (restros || [])
         .filter(x => normalize(x.StationCode) === sc && x.RaileatsStatus === 1)
@@ -150,47 +152,52 @@ export async function GET(req: Request) {
           let available = true;
           const reasons: string[] = [];
 
-          const restroKey = String(x.RestroCode);
+          const restroKey = String(x.RestroCode).trim(); // 🔴 IMPORTANT
 
-          /* Past date */
+          /* ===== RULE 0: Past date ===== */
           if (arrivalDate < today) {
             available = false;
             reasons.push("Train already departed");
           }
 
-          /* WeeklyOff */
+          /* ===== RULE 1: WeeklyOff ===== */
           if (available && x.WeeklyOff) {
             const wo = normalize(x.WeeklyOff);
             if (wo !== "NOOFF") {
-              if (wo.split(",").includes(arrivalDayName)) {
+              const offDays = wo.split(",").map(d => d.trim());
+              if (offDays.includes(arrivalDayName)) {
                 available = false;
                 reasons.push(`Closed on ${arrivalDayName}`);
               }
             }
           }
 
-          /* 🔥 HOLIDAY (NOW WORKING) */
-          if (available && arrivalUTC) {
+          /* ===== RULE 2: Holiday (DATE + TIME, FIXED) ===== */
+          if (available && arrivalDateTime) {
             const hs = holidayMap[restroKey] || [];
             if (
-              hs.some(h =>
-                arrivalUTC! >= new Date(h.start_at) &&
-                arrivalUTC! <= new Date(h.end_at)
-              )
+              hs.some(h => {
+                const start = new Date(h.start_at);
+                const end = new Date(h.end_at);
+                return arrivalDateTime! >= start && arrivalDateTime! <= end;
+              })
             ) {
               available = false;
               reasons.push("Holiday");
             }
           }
 
-          /* CutOff */
+          /* ===== RULE 3: CutOffTime ===== */
           if (
             available &&
             arrivalDate === today &&
             arrivalMinutes != null &&
             x.CutOffTime != null
           ) {
-            if (nowMinutes > arrivalMinutes - Number(x.CutOffTime)) {
+            const lastOrderMinute =
+              arrivalMinutes - Number(x.CutOffTime);
+
+            if (nowMinutes > lastOrderMinute) {
               available = false;
               reasons.push("Cut-off time passed");
             }
@@ -240,7 +247,7 @@ export async function GET(req: Request) {
     });
 
   } catch (e) {
-    console.error("FINAL HOLIDAY FIX error:", e);
+    console.error("FINAL WEEKLYOFF + HOLIDAY error:", e);
     return NextResponse.json(
       { ok: false, error: "server_error" },
       { status: 500 }
