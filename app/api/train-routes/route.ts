@@ -22,8 +22,7 @@ function toMinutes(t?: string | null) {
 
 function isTimeBetween(check: number, start: number, end: number) {
   if (start <= end) return check >= start && check <= end;
-  // overnight window (22:00 – 06:00)
-  return check >= start || check <= end;
+  return check >= start || check <= end; // overnight
 }
 
 function addDays(base: string, diff: number) {
@@ -51,16 +50,15 @@ export async function GET(req: Request) {
     const boarding = (url.searchParams.get("boarding") || "").trim();
     const date = (url.searchParams.get("date") || "").trim() || todayYMD();
 
-    // build-time safety
     if (!train) {
       return NextResponse.json({ ok: true, build: true, rows: [] });
     }
 
     const supa = serviceClient;
 
-    /* ================= 1️⃣ TRAIN ROUTE ================= */
+    /* ========== 1️⃣ TRAIN ROUTE ========== */
 
-    const { data: routeRows, error: routeErr } = await supa
+    const { data: routeRows } = await supa
       .from("TrainRoute")
       .select(`
         trainNumber, trainName, runningDays,
@@ -70,21 +68,20 @@ export async function GET(req: Request) {
       .eq("trainNumber", Number(train))
       .order("StnNumber", { ascending: true });
 
-    if (routeErr || !routeRows || !routeRows.length) {
+    if (!routeRows || !routeRows.length) {
       return NextResponse.json(
         { ok: false, error: "train_not_found", train },
         { status: 404 }
       );
     }
 
-    const validRows = routeRows.filter(r =>
+    const filtered = routeRows.filter(r =>
       matchesRunningDay(r.runningDays, date)
     );
-
-    const rows = validRows.length ? validRows : routeRows;
+    const rows = filtered.length ? filtered : routeRows;
     const trainName = rows[0].trainName;
 
-    /* ================= 2️⃣ BOARDING DAY ================= */
+    /* ========== 2️⃣ BOARDING DAY ========== */
 
     let boardingDay: number | null = null;
     if (boarding) {
@@ -94,13 +91,13 @@ export async function GET(req: Request) {
       if (b?.Day != null) boardingDay = Number(b.Day);
     }
 
-    /* ================= 3️⃣ STATION CODES ================= */
+    /* ========== 3️⃣ STATION CODES ========== */
 
     const stationCodes = Array.from(
       new Set(rows.map(r => normalize(r.StationCode)))
     );
 
-    /* ================= 4️⃣ RESTRO MASTER ================= */
+    /* ========== 4️⃣ RESTRO MASTER (🔥 FIXED) ========== */
 
     const { data: restros } = await supa
       .from("RestroMaster")
@@ -109,9 +106,9 @@ export async function GET(req: Request) {
         "0penTime", "ClosedTime",
         WeeklyOff, CutOffTime, IsActive
       `)
-      .in("stationcode_norm", stationCodes);
+      .in("StationCode", stationCodes); // ✅ FIX
 
-    /* ================= 5️⃣ RESTRO TIME OVERRIDE ================= */
+    /* ========== 5️⃣ RESTRO TIME OVERRIDE ========== */
 
     const { data: restroTimes } = await supa
       .from("RestroTime")
@@ -124,11 +121,11 @@ export async function GET(req: Request) {
       timeMap[t.restro_code].push(t);
     }
 
-    /* ================= 6️⃣ RESTRO HOLIDAYS ================= */
+    /* ========== 6️⃣ RESTRO HOLIDAYS (🔥 FIXED) ========== */
 
     const { data: holidays } = await supa
       .from("RestroHolidays")
-      .select(`restro_code, start_at, end_at, is_deleted`)
+      .select(`restro_code, start_date, end_date, is_deleted`)
       .eq("is_deleted", false);
 
     const holidayMap: Record<number, any[]> = {};
@@ -137,7 +134,7 @@ export async function GET(req: Request) {
       holidayMap[h.restro_code].push(h);
     }
 
-    /* ================= 7️⃣ FINAL MAP ================= */
+    /* ========== 7️⃣ FINAL MAP ========== */
 
     const mapped = rows.map(r => {
       const sc = normalize(r.StationCode);
@@ -156,19 +153,18 @@ export async function GET(req: Request) {
           let available = true;
           const reasons: string[] = [];
 
-          /* ---- HOLIDAY CHECK ---- */
+          /* Holiday check */
           const hs = holidayMap[x.RestroCode] || [];
           if (
-            hs.some(h =>
-              arrivalDate >= h.start_at.slice(0, 10) &&
-              arrivalDate <= h.end_at.slice(0, 10)
+            hs.some(
+              h => arrivalDate >= h.start_date && arrivalDate <= h.end_date
             )
           ) {
             available = false;
             reasons.push("Holiday");
           }
 
-          /* ---- SPECIAL TIME OVERRIDE ---- */
+          /* Special time override */
           if (arrivalTime != null && timeMap[x.RestroCode]) {
             const ok = timeMap[x.RestroCode].some(t => {
               const s = toMinutes(
@@ -185,7 +181,7 @@ export async function GET(req: Request) {
             }
           }
 
-          /* ---- DEFAULT OPEN / CLOSE ---- */
+          /* Default open/close */
           if (arrivalTime != null && available) {
             const o = toMinutes(x["0penTime"]);
             const c = toMinutes(x["ClosedTime"]);
@@ -219,7 +215,7 @@ export async function GET(req: Request) {
       };
     });
 
-    /* ================= 8️⃣ SINGLE STATION ================= */
+    /* ========== 8️⃣ SINGLE STATION ========== */
 
     if (station) {
       const row = mapped.find(
@@ -238,7 +234,7 @@ export async function GET(req: Request) {
       });
     }
 
-    /* ================= FINAL ================= */
+    /* ========== FINAL ========== */
 
     return NextResponse.json({
       ok: true,
