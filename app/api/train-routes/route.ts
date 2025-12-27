@@ -4,7 +4,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { serviceClient } from "../../lib/supabaseServer";
 
-/* ================= HELPERS ================= */
+/* ================= TIME HELPERS ================= */
 
 function todayYMD() {
   return new Date().toISOString().slice(0, 10);
@@ -50,14 +50,13 @@ export async function GET(req: Request) {
     const boarding = (url.searchParams.get("boarding") || "").trim();
     const date = (url.searchParams.get("date") || "").trim() || todayYMD();
 
-    // build-time safety
     if (!train) {
       return NextResponse.json({ ok: true, build: true, rows: [] });
     }
 
     const supa = serviceClient;
 
-    /* ========== 1️⃣ TRAIN ROUTE ========== */
+    /* ================= 1️⃣ TRAIN ROUTE ================= */
 
     const { data: routeRows } = await supa
       .from("TrainRoute")
@@ -71,18 +70,18 @@ export async function GET(req: Request) {
 
     if (!routeRows || !routeRows.length) {
       return NextResponse.json(
-        { ok: false, error: "train_not_found", train },
+        { ok: false, error: "train_not_found" },
         { status: 404 }
       );
     }
 
-    const valid = routeRows.filter(r =>
+    const validRows = routeRows.filter(r =>
       matchesRunningDay(r.runningDays, date)
     );
-    const rows = valid.length ? valid : routeRows;
+    const rows = validRows.length ? validRows : routeRows;
     const trainName = rows[0].trainName;
 
-    /* ========== 2️⃣ BOARDING DAY ========== */
+    /* ================= 2️⃣ BOARDING DAY ================= */
 
     let boardingDay: number | null = null;
     if (boarding) {
@@ -92,35 +91,25 @@ export async function GET(req: Request) {
       if (b?.Day != null) boardingDay = Number(b.Day);
     }
 
-    /* ========== 3️⃣ RESTRO MASTER (USE RaileatsStatus) ========== */
+    /* ================= 3️⃣ RESTROS ================= */
+
+    const stationCodes = Array.from(
+      new Set(rows.map(r => normalize(r.StationCode)))
+    );
 
     const { data: restros } = await supa
       .from("RestroMaster")
       .select(`
-        RestroCode,
-        RestroName,
-        StationCode,
-        "0penTime",
-        "ClosedTime",
-        WeeklyOff,
-        CutOffTime,
-        RaileatsStatus
-      `);
+        RestroCode, RestroName, StationCode,
+        "0penTime", "ClosedTime",
+        CutOffTime, RaileatsStatus
+      `)
+      .in("stationcode_norm", stationCodes);
 
-    /* ========== 4️⃣ RESTRO HOLIDAYS ========== */
+    /* ================= 4️⃣ FINAL MAP (CutOff Logic) ================= */
 
-    const { data: holidays } = await supa
-      .from("RestroHolidays")
-      .select(`restro_code, start_date, end_date, is_deleted`)
-      .eq("is_deleted", false);
-
-    const holidayMap: Record<number, any[]> = {};
-    for (const h of holidays || []) {
-      holidayMap[h.restro_code] ||= [];
-      holidayMap[h.restro_code].push(h);
-    }
-
-    /* ========== 5️⃣ FINAL MAP ========== */
+    const now = new Date();
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
 
     const mapped = rows.map(r => {
       const sc = normalize(r.StationCode);
@@ -130,35 +119,33 @@ export async function GET(req: Request) {
         arrivalDate = addDays(date, r.Day - boardingDay);
       }
 
-      const arrivalTime =
-        toMinutes(r.Arrives) ?? toMinutes(r.Departs) ?? null;
+      const arrivalMinutes =
+        toMinutes(r.Arrives) ?? toMinutes(r.Departs);
 
       const vendors = (restros || [])
-        .filter(
-          x =>
-            normalize(x.StationCode) === sc &&
-            Number(x.RaileatsStatus) === 1   // ✅ FINAL TRUTH
-        )
+        .filter(x => normalize(x.StationCode) === sc && x.RaileatsStatus === 1)
         .map(x => {
           let available = true;
           const reasons: string[] = [];
 
-          /* ---- HOLIDAY CHECK ---- */
-          const hs = holidayMap[x.RestroCode] || [];
-          if (
-            hs.some(
-              h => arrivalDate >= h.start_date && arrivalDate <= h.end_date
-            )
-          ) {
-            available = false;
-            reasons.push("Holiday");
+          /* ---- CutOffTime Logic ---- */
+          if (arrivalMinutes != null && x.CutOffTime != null) {
+            const lastOrderMinute = arrivalMinutes - Number(x.CutOffTime);
+
+            // same day check only
+            if (arrivalDate === todayYMD()) {
+              if (currentMinutes > lastOrderMinute) {
+                available = false;
+                reasons.push("Cut-off time passed");
+              }
+            }
           }
 
-          /* ---- OPEN / CLOSE TIME ---- */
-          if (arrivalTime != null && available) {
+          /* ---- Open / Close ---- */
+          if (arrivalMinutes != null && available) {
             const o = toMinutes(x["0penTime"]);
             const c = toMinutes(x["ClosedTime"]);
-            if (o != null && c != null && !isTimeBetween(arrivalTime, o, c)) {
+            if (o != null && c != null && !isTimeBetween(arrivalMinutes, o, c)) {
               available = false;
               reasons.push("Outside open hours");
             }
@@ -178,7 +165,6 @@ export async function GET(req: Request) {
         StationName: r.StationName,
         Arrives: r.Arrives,
         Departs: r.Departs,
-        Stoptime: r.Stoptime,
         Day: r.Day,
         arrivalDate,
         Distance: r.Distance,
@@ -188,7 +174,7 @@ export async function GET(req: Request) {
       };
     });
 
-    /* ========== 6️⃣ SINGLE STATION ========== */
+    /* ================= SINGLE STATION ================= */
 
     if (station) {
       const row = mapped.find(
@@ -201,8 +187,6 @@ export async function GET(req: Request) {
       });
     }
 
-    /* ========== FINAL ========== */
-
     return NextResponse.json({
       ok: true,
       train: { trainNumber: train, trainName },
@@ -211,7 +195,7 @@ export async function GET(req: Request) {
     });
 
   } catch (e) {
-    console.error("train-routes API error:", e);
+    console.error("CutOff API error:", e);
     return NextResponse.json(
       { ok: false, error: "server_error" },
       { status: 500 }
