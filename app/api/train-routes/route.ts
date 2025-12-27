@@ -1,4 +1,4 @@
-// 🔴 IMPORTANT: force dynamic (BUILD FIX)
+// 🔴 IMPORTANT: force dynamic (BUILD + PRERENDER FIX)
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
@@ -28,43 +28,33 @@ type TrainRouteRow = {
 /* ===================== HELPERS ===================== */
 
 function todayYMD() {
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = String(now.getMonth() + 1).padStart(2, "0");
-  const d = String(now.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
+  const d = new Date();
+  return d.toISOString().slice(0, 10);
 }
 
-function normalizeCode(val: any) {
-  return String(val ?? "").toUpperCase().trim();
+function normalizeCode(v: any) {
+  return String(v ?? "").toUpperCase().trim();
 }
 
 function matchesRunningDay(runningDays: string | null, dateStr: string) {
   if (!runningDays) return true;
-  const dayIndex = new Date(dateStr).getDay();
   const map = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
-  const code = map[dayIndex];
-  const s = String(runningDays || "").toUpperCase().trim();
-  if (!s || s === "DAILY" || s === "ALL") return true;
+  const code = map[new Date(dateStr).getDay()];
+  const s = runningDays.toUpperCase();
+  if (s === "DAILY" || s === "ALL") return true;
   return s.split(/[ ,/]+/).includes(code);
 }
 
-function addDaysToIso(iso: string, days: number) {
-  const d = new Date(iso + "T00:00:00");
-  d.setDate(d.getDate() + days);
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${dd}`;
+function addDays(date: string, diff: number) {
+  const d = new Date(date + "T00:00:00");
+  d.setDate(d.getDate() + diff);
+  return d.toISOString().slice(0, 10);
 }
 
-function isActiveValue(val: any) {
-  if (typeof val === "boolean") return val;
-  if (typeof val === "number") return val !== 0;
-  if (typeof val === "string") {
-    const t = val.trim().toLowerCase();
-    return !(t === "" || t === "false" || t === "0" || t === "no");
-  }
+function isActiveValue(v: any) {
+  if (typeof v === "boolean") return v;
+  if (typeof v === "number") return v !== 0;
+  if (typeof v === "string") return !["0", "false", "no"].includes(v.toLowerCase());
   return true;
 }
 
@@ -76,52 +66,70 @@ export async function GET(req: Request) {
 
     const trainParam = (url.searchParams.get("train") || "").trim();
     const stationParam = (url.searchParams.get("station") || "").trim();
-    const dateParam = (url.searchParams.get("date") || "").trim() || todayYMD();
+    const dateParam = url.searchParams.get("date") || todayYMD();
     const boardingParam = (url.searchParams.get("boarding") || "").trim();
 
-    // 🔴 BUILD-TIME SAFETY (Next.js prerender)
+    // 🔴 BUILD TIME SAFETY
     if (!trainParam) {
-      return NextResponse.json(
-        { ok: true, build: true, rows: [] },
-        { status: 200 }
-      );
+      return NextResponse.json({ ok: true, build: true, rows: [] });
     }
 
     const supa = serviceClient;
     let routeRows: TrainRouteRow[] = [];
 
-    /* ===== 1️⃣ FETCH TRAIN ROUTE FROM SUPABASE ===== */
+    /* ===================== 1️⃣ TRAIN LOOKUP ===================== */
 
-    const isDigits = /^[0-9]+$/.test(trainParam);
+    // A) trainNumber_text
+    {
+      const { data } = await supa
+        .from("TrainRoute")
+        .select("*")
+        .eq("trainNumber_text", trainParam)
+        .order("StnNumber");
 
-    if (isDigits) {
+      if (data?.length) routeRows = data;
+    }
+
+    // B) trainNumber (numeric)
+    if (!routeRows.length && /^[0-9]+$/.test(trainParam)) {
       const { data } = await supa
         .from("TrainRoute")
         .select("*")
         .eq("trainNumber", Number(trainParam))
-        .order("StnNumber", { ascending: true });
+        .order("StnNumber");
 
-      if (Array.isArray(data) && data.length) {
-        routeRows = data as TrainRouteRow[];
-      }
+      if (data?.length) routeRows = data;
+    }
+
+    // C) trainName fallback
+    if (!routeRows.length) {
+      const { data } = await supa
+        .from("TrainRoute")
+        .select("*")
+        .ilike("trainName", `%${trainParam}%`)
+        .order("StnNumber")
+        .limit(500);
+
+      if (data?.length) routeRows = data;
     }
 
     if (!routeRows.length) {
       return NextResponse.json(
-        { ok: false, error: "train_not_found" },
+        { ok: false, error: "train_not_found", train: trainParam },
         { status: 404 }
       );
     }
 
-    /* ===== 2️⃣ FILTER BY RUNNING DAY ===== */
+    /* ===================== 2️⃣ RUNNING DAY FILTER ===================== */
 
-    const rowsForDate = routeRows.filter((r) =>
-      matchesRunningDay(r.runningDays, dateParam)
-    );
-    const rowsToUse = rowsForDate.length ? rowsForDate : routeRows;
+    const filtered =
+      routeRows.filter((r) => matchesRunningDay(r.runningDays, dateParam)) ||
+      routeRows;
+
+    const rowsToUse = filtered.length ? filtered : routeRows;
     const trainName = rowsToUse[0]?.trainName ?? null;
 
-    /* ===== 3️⃣ FETCH RESTRO MASTER ===== */
+    /* ===================== 3️⃣ RESTRO MASTER ===================== */
 
     const stationCodes = Array.from(
       new Set(rowsToUse.map((r) => normalizeCode(r.StationCode)).filter(Boolean))
@@ -130,7 +138,7 @@ export async function GET(req: Request) {
     let restrosByStation: Record<string, any[]> = {};
 
     if (stationCodes.length) {
-      const { data: restros } = await supa
+      const { data } = await supa
         .from("RestroMaster")
         .select(
           'RestroCode, RestroName, StationCode, "0penTime", "ClosedTime", WeeklyOff, MinimumOrdermValue, CutOffTime, IsActive'
@@ -138,8 +146,8 @@ export async function GET(req: Request) {
         .in("stationcode_norm", stationCodes)
         .limit(3000);
 
-      if (Array.isArray(restros)) {
-        for (const r of restros) {
+      if (data) {
+        for (const r of data) {
           const sc = normalizeCode(r.StationCode);
           restrosByStation[sc] = restrosByStation[sc] || [];
           restrosByStation[sc].push(r);
@@ -147,24 +155,24 @@ export async function GET(req: Request) {
       }
     }
 
-    /* ===== 4️⃣ BOARDING DAY ===== */
+    /* ===================== 4️⃣ BOARDING DAY ===================== */
 
-    let boardingDayValue: number | null = null;
+    let boardingDay: number | null = null;
     if (boardingParam) {
       const b = rowsToUse.find(
         (r) => normalizeCode(r.StationCode) === normalizeCode(boardingParam)
       );
-      if (b?.Day != null) boardingDayValue = Number(b.Day);
+      if (b?.Day != null) boardingDay = Number(b.Day);
     }
 
-    /* ===== 5️⃣ MAP FINAL RESPONSE ===== */
+    /* ===================== 5️⃣ FINAL MAP ===================== */
 
     const mapped = rowsToUse.map((r) => {
       const sc = normalizeCode(r.StationCode);
 
       let arrivalDate = dateParam;
-      if (typeof r.Day === "number" && boardingDayValue != null) {
-        arrivalDate = addDaysToIso(dateParam, r.Day - boardingDayValue);
+      if (typeof r.Day === "number" && boardingDay != null) {
+        arrivalDate = addDays(dateParam, r.Day - boardingDay);
       }
 
       const restros =
@@ -195,7 +203,7 @@ export async function GET(req: Request) {
       };
     });
 
-    /* ===== SINGLE STATION MODE ===== */
+    /* ===================== SINGLE STATION ===================== */
 
     if (stationParam) {
       const sc = normalizeCode(stationParam);
@@ -213,7 +221,7 @@ export async function GET(req: Request) {
       });
     }
 
-    /* ===== FINAL RESPONSE ===== */
+    /* ===================== FINAL ===================== */
 
     return NextResponse.json({
       ok: true,
