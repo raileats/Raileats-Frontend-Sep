@@ -108,8 +108,14 @@ export async function GET(req: Request) {
 
     /* ================= 4️⃣ FINAL MAP (CutOff Logic) ================= */
 
-    const now = new Date();
-    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+    // ✅ Always use IST time
+const nowIST = new Date(
+  new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" })
+);
+
+const currentMinutes =
+  nowIST.getHours() * 60 + nowIST.getMinutes();
+
 
     const mapped = rows.map(r => {
       const sc = normalize(r.StationCode);
