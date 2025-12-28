@@ -106,9 +106,9 @@ export async function GET(req: Request) {
       `)
       .in("stationcode_norm", stationCodes);
 
-    /* ================= HOLIDAYS (✅ FINAL LOGIC) ================= */
-    /* deleted_at IS NULL  → active holiday
-       deleted_at NOT NULL → holiday removed */
+    /* ================= HOLIDAYS (FINAL & CORRECT) ================= */
+    // deleted_at IS NULL => active holiday
+    // deleted_at NOT NULL => holiday removed
 
     const { data: holidays } = await supa
       .from("RestroHolidays")
@@ -118,7 +118,7 @@ export async function GET(req: Request) {
         end_at,
         deleted_at
       `)
-      .is("deleted_at", null); // ✅ ONLY ACTIVE HOLIDAYS
+      .is("deleted_at", null);
 
     const holidayMap: Record<string, any[]> = {};
     for (const h of holidays || []) {
@@ -127,21 +127,28 @@ export async function GET(req: Request) {
       holidayMap[key].push(h);
     }
 
-    const now = nowIST();
     const today = todayIST();
+    const now = nowIST();
 
     /* ================= FINAL MAP ================= */
 
     const mapped = rows.map(r => {
       const sc = normalize(r.StationCode);
 
-     // ✅ Station-specific search: arrival date = user selected date
-const arrivalDate = station ? date : (
-  typeof r.Day === "number"
-    ? addDays(boardingDate, r.Day - 1)
-    : date
-);
+      // ✅ station search me arrivalDate = user date
+      const arrivalDate = station
+        ? date
+        : typeof r.Day === "number"
+          ? addDays(boardingDate, r.Day - 1)
+          : date;
 
+      let arrivalDateTime: Date | null = null;
+      if (r.Arrives) {
+        const [hh, mm] = r.Arrives.slice(0, 5).split(":");
+        arrivalDateTime = new Date(
+          `${arrivalDate}T${hh}:${mm}:00+05:30`
+        );
+      }
 
       const arrivalDayName = dayOfWeek(arrivalDate);
       const arrivalMinutes = toMinutes(r.Arrives);
@@ -171,14 +178,14 @@ const arrivalDate = station ? date : (
             }
           }
 
-          /* RULE 2: HOLIDAY (NOW-BASED, deleted_at SAFE) */
-          if (available) {
+          /* ✅ RULE 2: HOLIDAY (ARRIVAL-TIME BASED) */
+          if (available && arrivalDateTime) {
             const hs = holidayMap[restroKey] || [];
             if (
               hs.some(h => {
                 const start = new Date(h.start_at);
                 const end = new Date(h.end_at);
-                return now >= start && now <= end;
+                return arrivalDateTime! >= start && arrivalDateTime! <= end;
               })
             ) {
               available = false;
@@ -247,7 +254,7 @@ const arrivalDate = station ? date : (
     });
 
   } catch (e) {
-    console.error("FINAL HOLIDAY deleted_at FIX error:", e);
+    console.error("FINAL HOLIDAY arrival-time FIX error:", e);
     return NextResponse.json(
       { ok: false, error: "server_error" },
       { status: 500 }
