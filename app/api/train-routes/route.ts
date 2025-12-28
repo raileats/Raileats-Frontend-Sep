@@ -76,6 +76,48 @@ export async function GET(req: Request) {
     const trainName = routeRows[0].trainName;
     const runningDays = routeRows[0].runningDays;
 
+    /* ================= TRAIN START DATE (SINGLE SOURCE OF TRUTH) ================= */
+
+    // Find booking station row
+    const bookingRow = station
+      ? routeRows.find(
+          r => normalize(r.StationCode) === normalize(station)
+        )
+      : routeRows[0];
+
+    if (!bookingRow || typeof bookingRow.Day !== "number") {
+      return NextResponse.json({
+        ok: false,
+        error: "station_not_on_route",
+      });
+    }
+
+    // Train start date = arrivalDate - (Day - 1)
+    const trainStartDate = new Date(
+      new Date(`${date}T00:00:00+05:30`).getTime() -
+        (bookingRow.Day - 1) * 24 * 60 * 60 * 1000
+    )
+      .toISOString()
+      .slice(0, 10);
+
+    // ❌ Train does not run on calculated start date
+    if (!matchesRunningDay(runningDays, trainStartDate)) {
+      return NextResponse.json({
+        ok: true,
+        train: { trainNumber: train, trainName },
+        rows: [
+          {
+            StationCode: normalize(bookingRow.StationCode),
+            StationName: bookingRow.StationName,
+            arrivalDate: date,
+            restros: [],
+            restroCount: 0,
+            error: "Train does not arrive on selected date",
+          },
+        ],
+      });
+    }
+
     /* ================= RESTROS ================= */
 
     const stationCodes: string[] = [];
@@ -92,7 +134,7 @@ export async function GET(req: Request) {
       `)
       .in("stationcode_norm", stationCodes);
 
-    /* ================= HOLIDAYS (UTC SOURCE) ================= */
+    /* ================= HOLIDAYS (UTC) ================= */
 
     const { data: holidays } = await supa
       .from("RestroHolidays")
@@ -112,40 +154,8 @@ export async function GET(req: Request) {
 
     const mapped = routeRows.map(r => {
       const sc = normalize(r.StationCode);
-
-      // ✅ user provided date IS arrival date
       const arrivalDate = date;
 
-      // 🚨 NEW LOGIC: Train start date from arrival date
-      const trainStartDate =
-        typeof r.Day === "number"
-          ? new Date(
-              new Date(`${arrivalDate}T00:00:00+05:30`).getTime() -
-                (r.Day - 1) * 24 * 60 * 60 * 1000
-            )
-              .toISOString()
-              .slice(0, 10)
-          : arrivalDate;
-
-      // ❌ Train does NOT start on correct running day
-      if (!matchesRunningDay(runningDays, trainStartDate)) {
-        return {
-          StnNumber: r.StnNumber,
-          StationCode: sc,
-          StationName: r.StationName,
-          Arrives: r.Arrives,
-          Departs: r.Departs,
-          Day: r.Day,
-          arrivalDate,
-          Distance: r.Distance,
-          Platform: r.Platform,
-          restros: [],
-          restroCount: 0,
-          error: "Train does not arrive on selected date",
-        };
-      }
-
-      /* Arrival UTC */
       let arrivalUTC: Date | null = null;
       if (r.Arrives) {
         const [hh, mm] = r.Arrives.slice(0, 5).split(":").map(Number);
@@ -167,13 +177,11 @@ export async function GET(req: Request) {
           let available = true;
           const reasons: string[] = [];
 
-          /* Past date */
           if (arrivalDate < today) {
             available = false;
             reasons.push("Train already departed");
           }
 
-          /* Weekly off */
           if (available && x.WeeklyOff) {
             const wo = normalize(x.WeeklyOff);
             if (wo !== "NOOFF") {
@@ -185,7 +193,6 @@ export async function GET(req: Request) {
             }
           }
 
-          /* Holiday (UTC safe) */
           if (available && arrivalUTC) {
             const hs = holidayMap[x.RestroCode] || [];
             if (
@@ -200,7 +207,6 @@ export async function GET(req: Request) {
             }
           }
 
-          /* Cutoff */
           if (
             available &&
             arrivalDate === today &&
@@ -254,7 +260,7 @@ export async function GET(req: Request) {
       ok: true,
       train: { trainNumber: train, trainName },
       rows: mapped,
-      meta: { date },
+      meta: { date, trainStartDate },
     });
 
   } catch (e) {
