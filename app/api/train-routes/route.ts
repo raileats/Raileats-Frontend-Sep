@@ -26,6 +26,24 @@ function toMinutes(t?: string | null): number | null {
   return h * 60 + m;
 }
 
+function addDays(base: string, diff: number) {
+  const d = new Date(`${base}T00:00:00+05:30`);
+  d.setDate(d.getDate() + diff);
+  return d.toISOString().slice(0, 10);
+}
+
+function dayOfWeek(dateStr: string): string {
+  const map = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
+  return map[new Date(`${dateStr}T00:00:00+05:30`).getDay()];
+}
+
+function matchesRunningDay(runningDays: string | null, dateStr: string) {
+  if (!runningDays) return true;
+  const day = dayOfWeek(dateStr);
+  const s = normalize(runningDays);
+  return s === "DAILY" || s === "ALL" || s.includes(day);
+}
+
 /* ================= API ================= */
 
 export async function GET(req: Request) {
@@ -37,7 +55,7 @@ export async function GET(req: Request) {
     const date = (url.searchParams.get("date") || "").trim() || todayIST();
 
     if (!train) {
-      return NextResponse.json({ ok: true, rows: [] });
+      return NextResponse.json({ ok: true, build: true, rows: [] });
     }
 
     const supa = serviceClient;
@@ -47,7 +65,7 @@ export async function GET(req: Request) {
     const { data: routeRows } = await supa
       .from("TrainRoute")
       .select(`
-        trainNumber, trainName,
+        trainNumber, trainName, runningDays,
         StnNumber, StationCode, StationName,
         Arrives, Departs, Distance, Platform, Day
       `)
@@ -55,16 +73,30 @@ export async function GET(req: Request) {
       .order("StnNumber", { ascending: true });
 
     if (!routeRows || !routeRows.length) {
-      return NextResponse.json({ ok: false, error: "train_not_found" });
+      return NextResponse.json(
+        { ok: false, error: "train_not_found" },
+        { status: 404 }
+      );
     }
 
-    const trainName = routeRows[0].trainName;
+    const validRows = routeRows.filter(r =>
+      matchesRunningDay(r.runningDays, date)
+    );
+    const rows = validRows.length ? validRows : routeRows;
+    const trainName = rows[0].trainName;
+
+    /* ================= BOARDING DATE ================= */
+
+    const firstDay = Number(rows[0].Day || 1);
+    const boardingDate = addDays(date, 1 - firstDay);
 
     /* ================= RESTROS ================= */
 
-    const stationCodes = Array.from(
-      new Set(routeRows.map(r => normalize(r.StationCode)))
-    );
+    const stationCodes: string[] = [];
+    for (const r of rows) {
+      const sc = normalize(r.StationCode);
+      if (!stationCodes.includes(sc)) stationCodes.push(sc);
+    }
 
     const { data: restros } = await supa
       .from("RestroMaster")
@@ -74,17 +106,22 @@ export async function GET(req: Request) {
       `)
       .in("stationcode_norm", stationCodes);
 
-    /* ================= HOLIDAYS (UTC – SOURCE OF TRUTH) ================= */
+    /* ================= HOLIDAYS (UTC SOURCE – FINAL FIX) ================= */
 
     const { data: holidays } = await supa
       .from("RestroHolidays")
-      .select(`restro_code, start_at, end_at`)
+      .select(`
+        restro_code,
+        start_at,
+        end_at
+      `)
       .eq("is_deleted", false);
 
-    const holidayMap: Record<number, any[]> = {};
+    const holidayMap: Record<string, any[]> = {};
     for (const h of holidays || []) {
-      holidayMap[h.restro_code] ||= [];
-      holidayMap[h.restro_code].push(h);
+      const key = String(h.restro_code).trim();
+      if (!holidayMap[key]) holidayMap[key] = [];
+      holidayMap[key].push(h);
     }
 
     const now = nowIST();
@@ -92,23 +129,15 @@ export async function GET(req: Request) {
 
     /* ================= FINAL MAP ================= */
 
-    const mapped = routeRows.map(r => {
+    const mapped = rows.map(r => {
       const sc = normalize(r.StationCode);
-      const arrivalDate = date; // 🔑 user date ONLY
 
-      let arrivalUTC: Date | null = null;
+      const arrivalDate =
+        typeof r.Day === "number"
+          ? addDays(boardingDate, r.Day - 1)
+          : date;
 
-      if (r.Arrives) {
-        const [hh, mm] = r.Arrives.slice(0, 5).split(":");
-
-        // 🔑 IST EXPLICIT
-        const arrivalIST = new Date(
-          `${arrivalDate}T${hh.padStart(2, "0")}:${mm.padStart(2, "0")}:00+05:30`
-        );
-
-        arrivalUTC = new Date(arrivalIST.toISOString());
-      }
-
+      const arrivalDayName = dayOfWeek(arrivalDate);
       const arrivalMinutes = toMinutes(r.Arrives);
 
       const vendors = (restros || [])
@@ -116,21 +145,34 @@ export async function GET(req: Request) {
         .map(x => {
           let available = true;
           const reasons: string[] = [];
+          const restroKey = String(x.RestroCode).trim();
 
-          // Past date
+          /* RULE 0: Past date */
           if (arrivalDate < today) {
             available = false;
             reasons.push("Train already departed");
           }
 
-          // HOLIDAY (UTC ↔ UTC)
-          if (available && arrivalUTC) {
-            const hs = holidayMap[x.RestroCode] || [];
+          /* RULE 1: WeeklyOff */
+          if (available && x.WeeklyOff) {
+            const wo = normalize(x.WeeklyOff);
+            if (wo !== "NOOFF") {
+              const offDays = wo.split(",").map(d => d.trim());
+              if (offDays.includes(arrivalDayName)) {
+                available = false;
+                reasons.push(`Closed on ${arrivalDayName}`);
+              }
+            }
+          }
+
+          /* ✅ RULE 2: HOLIDAY (NOW-BASED, IST SAFE) */
+          if (available) {
+            const hs = holidayMap[restroKey] || [];
             if (
               hs.some(h => {
-                const startUTC = new Date(h.start_at);
-                const endUTC = new Date(h.end_at);
-                return arrivalUTC! >= startUTC && arrivalUTC! <= endUTC;
+                const start = new Date(h.start_at);
+                const end = new Date(h.end_at);
+                return now >= start && now <= end;
               })
             ) {
               available = false;
@@ -138,15 +180,18 @@ export async function GET(req: Request) {
             }
           }
 
-          // Cutoff
+          /* RULE 3: CutOffTime */
           if (
             available &&
             arrivalDate === today &&
             arrivalMinutes != null &&
             x.CutOffTime != null
           ) {
-            const nowMin = now.getHours() * 60 + now.getMinutes();
-            if (nowMin > arrivalMinutes - Number(x.CutOffTime)) {
+            const nowMinutes = now.getHours() * 60 + now.getMinutes();
+            const lastOrderMinute =
+              arrivalMinutes - Number(x.CutOffTime);
+
+            if (nowMinutes > lastOrderMinute) {
               available = false;
               reasons.push("Cut-off time passed");
             }
@@ -192,10 +237,14 @@ export async function GET(req: Request) {
       ok: true,
       train: { trainNumber: train, trainName },
       rows: mapped,
+      meta: { date, boardingDate },
     });
 
   } catch (e) {
-    console.error("HOLIDAY TIME FIX error:", e);
-    return NextResponse.json({ ok: false, error: "server_error" });
+    console.error("FINAL HOLIDAY NOW-BASED FIX error:", e);
+    return NextResponse.json(
+      { ok: false, error: "server_error" },
+      { status: 500 }
+    );
   }
 }
