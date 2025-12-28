@@ -26,6 +26,12 @@ function toMinutes(t?: string | null): number | null {
   return h * 60 + m;
 }
 
+function addDays(base: string, diff: number) {
+  const d = new Date(`${base}T00:00:00+05:30`);
+  d.setDate(d.getDate() + diff);
+  return d.toISOString().slice(0, 10);
+}
+
 function dayOfWeek(dateStr: string): string {
   const map = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
   return map[new Date(`${dateStr}T00:00:00+05:30`).getDay()];
@@ -79,6 +85,11 @@ export async function GET(req: Request) {
     const rows = validRows.length ? validRows : routeRows;
     const trainName = rows[0].trainName;
 
+    /* ================= BOARDING DATE ================= */
+
+    const firstDay = Number(rows[0].Day || 1);
+    const boardingDate = addDays(date, 1 - firstDay);
+
     /* ================= RESTROS ================= */
 
     const stationCodes: string[] = [];
@@ -121,11 +132,12 @@ export async function GET(req: Request) {
     const mapped = rows.map(r => {
       const sc = normalize(r.StationCode);
 
-      // ✅ FINAL FIX:
-      // user-provided date IS the station arrival date
-      const arrivalDate = date;
+      const arrivalDate =
+        typeof r.Day === "number"
+          ? addDays(boardingDate, r.Day - 1)
+          : date;
 
-      /* Arrival DateTime (IST → UTC) */
+      /* 🔑 Arrival DateTime (IST → UTC) */
       let arrivalUTC: Date | null = null;
       if (r.Arrives) {
         const [hh, mm] = r.Arrives.slice(0, 5).split(":").map(Number);
@@ -165,7 +177,7 @@ export async function GET(req: Request) {
             }
           }
 
-          /* RULE 2: HOLIDAY (UTC BASED – CORRECT) */
+          /* ✅ RULE 2: HOLIDAY (UTC BASED – FINAL FIX) */
           if (available && arrivalUTC) {
             const hs = holidayMap[x.RestroCode] || [];
             if (
@@ -237,11 +249,11 @@ export async function GET(req: Request) {
       ok: true,
       train: { trainNumber: train, trainName },
       rows: mapped,
-      meta: { date },
+      meta: { date, boardingDate },
     });
 
   } catch (e) {
-    console.error("FINAL STATION-DATE FIX error:", e);
+    console.error("FINAL HOLIDAY UTC FIX error:", e);
     return NextResponse.json(
       { ok: false, error: "server_error" },
       { status: 500 }
