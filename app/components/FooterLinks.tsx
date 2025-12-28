@@ -30,7 +30,7 @@ export default function FooterLinks() {
         <div>
           <p className="font-medium mb-1">About RailEats</p>
           <ul className="space-y-1">
-            <li><Link href="/about" className="text-gray-600 hover:text-yellow-700">About Us</Link></li>
+            <li><Link href="/menu#about" className="text-gray-600 hover:text-yellow-700">About Us</Link></li>
             <li><Link href="/menu#faq" className="text-gray-600 hover:text-yellow-700">FAQ</Link></li>
             <li><Link href="/menu#terms" className="text-gray-600 hover:text-yellow-700">Terms & Conditions</Link></li>
             <li><Link href="/menu#privacy" className="text-gray-600 hover:text-yellow-700">Privacy Policy</Link></li>
