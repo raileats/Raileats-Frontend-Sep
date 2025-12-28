@@ -28,25 +28,19 @@ function toMinutes(t?: string | null): number | null {
 }
 
 /* =================================================
-   🔥 CRITICAL FIX — IST DAY (NO UTC CONVERSION)
+   🔥 IST SAFE DAY (NO UTC ROLLOVER)
 ================================================= */
 function dayOfWeekIST(dateStr: string): string {
-  // dateStr = YYYY-MM-DD
   const [y, m, d] = dateStr.split("-").map(Number);
-
-  // Noon IST to avoid UTC rollover bugs
-  const istDate = new Date(y, m - 1, d, 12, 0, 0);
-
+  const istDate = new Date(y, m - 1, d, 12, 0, 0); // noon trick
   const map = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
   return map[istDate.getDay()];
 }
 
 function matchesRunningDay(runningDays: string | null, dateStr: string) {
   if (!runningDays) return true;
-
-  const day = dayOfWeekIST(dateStr); // ✅ IST SAFE
+  const day = dayOfWeekIST(dateStr);
   const s = normalize(runningDays);
-
   return s === "DAILY" || s === "ALL" || s.includes(day);
 }
 
@@ -99,36 +93,30 @@ export async function GET(req: Request) {
     }
 
     /* =================================================
-       ✅ RUNNING DAY VALIDATION — FINAL & CORRECT
+       ✅ RUNNING DAY VALIDATION (FINAL IST LOGIC)
     ================================================= */
 
     let checkDate = date;
 
     if (bookingRow.Day > 1) {
-      // reverse calculate start date ONLY if Day > 1
-      checkDate = new Date(
-        new Date(`${date}T12:00:00`).getTime() -
-          (bookingRow.Day - 1) * 24 * 60 * 60 * 1000
-      )
-        .toISOString()
-        .slice(0, 10);
+      const [y, m, d] = date.split("-").map(Number);
+      const base = new Date(y, m - 1, d, 12, 0, 0);
+      base.setDate(base.getDate() - (bookingRow.Day - 1));
+      checkDate = `${base.getFullYear()}-${String(base.getMonth() + 1).padStart(2,"0")}-${String(base.getDate()).padStart(2,"0")}`;
     }
 
-    // 🔑 IST-based running day check
     if (!matchesRunningDay(runningDays, checkDate)) {
       return NextResponse.json({
         ok: true,
         train: { trainNumber: train, trainName },
-        rows: [
-          {
-            StationCode: normalize(bookingRow.StationCode),
-            StationName: bookingRow.StationName,
-            arrivalDate: date,
-            restros: [],
-            restroCount: 0,
-            error: "Train does not arrive on selected date",
-          },
-        ],
+        rows: [{
+          StationCode: normalize(bookingRow.StationCode),
+          StationName: bookingRow.StationName,
+          arrivalDate: date,
+          restros: [],
+          restroCount: 0,
+          error: "Train does not arrive on selected date",
+        }],
       });
     }
 
@@ -173,12 +161,7 @@ export async function GET(req: Request) {
       let arrivalUTC: Date | null = null;
       if (r.Arrives) {
         const [hh, mm] = r.Arrives.slice(0, 5).split(":").map(Number);
-        const ist = new Date(
-          `${arrivalDate}T${String(hh).padStart(2, "0")}:${String(mm).padStart(
-            2,
-            "0"
-          )}:00+05:30`
-        );
+        const ist = new Date(`${arrivalDate}T${String(hh).padStart(2,"0")}:${String(mm).padStart(2,"0")}:00+05:30`);
         arrivalUTC = new Date(ist.toISOString());
       }
 
@@ -197,36 +180,22 @@ export async function GET(req: Request) {
           }
 
           if (available && x.WeeklyOff) {
-            const wo = normalize(x.WeeklyOff);
-            if (wo !== "NOOFF") {
-              const offs = wo.split(",").map(d => d.trim());
-              if (offs.includes(arrivalDayName)) {
-                available = false;
-                reasons.push(`Closed on ${arrivalDayName}`);
-              }
+            const offs = normalize(x.WeeklyOff).split(",").map(d => d.trim());
+            if (offs[0] !== "NOOFF" && offs.includes(arrivalDayName)) {
+              available = false;
+              reasons.push(`Closed on ${arrivalDayName}`);
             }
           }
 
           if (available && arrivalUTC) {
             const hs = holidayMap[x.RestroCode] || [];
-            if (
-              hs.some(h => {
-                const s = new Date(h.start_at);
-                const e = new Date(h.end_at);
-                return arrivalUTC! >= s && arrivalUTC! <= e;
-              })
-            ) {
+            if (hs.some(h => arrivalUTC! >= new Date(h.start_at) && arrivalUTC! <= new Date(h.end_at))) {
               available = false;
               reasons.push("Holiday");
             }
           }
 
-          if (
-            available &&
-            arrivalDate === today &&
-            arrivalMinutes != null &&
-            x.CutOffTime != null
-          ) {
+          if (available && arrivalDate === today && arrivalMinutes != null && x.CutOffTime != null) {
             const nowMin = now.getHours() * 60 + now.getMinutes();
             if (nowMin > arrivalMinutes - Number(x.CutOffTime)) {
               available = false;
@@ -234,12 +203,7 @@ export async function GET(req: Request) {
             }
           }
 
-          return {
-            restroCode: x.RestroCode,
-            restroName: x.RestroName,
-            available,
-            reasons,
-          };
+          return { restroCode: x.RestroCode, restroName: x.RestroName, available, reasons };
         });
 
       return {
@@ -257,31 +221,15 @@ export async function GET(req: Request) {
       };
     });
 
-    /* ================= SINGLE STATION ================= */
-
     if (station) {
-      const row = mapped.find(
-        r => normalize(r.StationCode) === normalize(station)
-      );
-      return NextResponse.json({
-        ok: true,
-        train: { trainNumber: train, trainName },
-        rows: row ? [row] : [],
-      });
+      const row = mapped.find(r => normalize(r.StationCode) === normalize(station));
+      return NextResponse.json({ ok: true, train: { trainNumber: train, trainName }, rows: row ? [row] : [] });
     }
 
-    return NextResponse.json({
-      ok: true,
-      train: { trainNumber: train, trainName },
-      rows: mapped,
-      meta: { date },
-    });
+    return NextResponse.json({ ok: true, train: { trainNumber: train, trainName }, rows: mapped, meta: { date } });
 
   } catch (e) {
     console.error("FINAL RUNNING-DAY IST FIX error:", e);
-    return NextResponse.json(
-      { ok: false, error: "server_error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ ok: false, error: "server_error" }, { status: 500 });
   }
 }
