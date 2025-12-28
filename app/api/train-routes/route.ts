@@ -106,21 +106,20 @@ export async function GET(req: Request) {
       `)
       .in("stationcode_norm", stationCodes);
 
-    /* ================= HOLIDAYS (CORRECT SOURCE) ================= */
+    /* ================= HOLIDAYS (UTC – SOURCE OF TRUTH) ================= */
 
     const { data: holidays } = await supa
       .from("RestroHolidays")
       .select(`
         restro_code,
         start_at,
-        end_at,
-        is_deleted
+        end_at
       `)
       .eq("is_deleted", false);
 
-    const holidayMap: Record<string, any[]> = {};
+    const holidayMap: Record<number, any[]> = {};
     for (const h of holidays || []) {
-      const key = String(h.restro_code).trim();
+      const key = Number(h.restro_code);
       if (!holidayMap[key]) holidayMap[key] = [];
       holidayMap[key].push(h);
     }
@@ -138,21 +137,17 @@ export async function GET(req: Request) {
           ? addDays(boardingDate, r.Day - 1)
           : date;
 
-      let arrivalDateTimeIST: Date | null = null;
+      /* 🔑 Arrival DateTime (IST → UTC) */
+      let arrivalUTC: Date | null = null;
       if (r.Arrives) {
-        const [hh, mm] = r.Arrives.slice(0, 5).split(":");
-        arrivalDateTimeIST = new Date(
-          `${arrivalDate}T${hh}:${mm}:00+05:30`
+        const [hh, mm] = r.Arrives.slice(0, 5).split(":").map(Number);
+        const istDateTime = new Date(
+          `${arrivalDate}T${String(hh).padStart(2, "0")}:${String(mm).padStart(
+            2,
+            "0"
+          )}:00+05:30`
         );
-      }
-
-      // 👉 IMPORTANT: IST → UTC (for holiday compare)
-      let arrivalDateTimeUTC: Date | null = null;
-      if (arrivalDateTimeIST) {
-        arrivalDateTimeUTC = new Date(arrivalDateTimeIST);
-        arrivalDateTimeUTC.setMinutes(
-          arrivalDateTimeUTC.getMinutes() - 330
-        );
+        arrivalUTC = new Date(istDateTime.toISOString());
       }
 
       const arrivalDayName = dayOfWeek(arrivalDate);
@@ -163,7 +158,6 @@ export async function GET(req: Request) {
         .map(x => {
           let available = true;
           const reasons: string[] = [];
-          const restroKey = String(x.RestroCode).trim();
 
           /* RULE 0: Past date */
           if (arrivalDate < today) {
@@ -183,17 +177,14 @@ export async function GET(req: Request) {
             }
           }
 
-          /* RULE 2: HOLIDAY (UTC SAFE – FINAL FIX) */
-          if (available && arrivalDateTimeUTC) {
-            const hs = holidayMap[restroKey] || [];
+          /* ✅ RULE 2: HOLIDAY (UTC BASED – FINAL FIX) */
+          if (available && arrivalUTC) {
+            const hs = holidayMap[x.RestroCode] || [];
             if (
               hs.some(h => {
-                const startUTC = new Date(h.start_at); // already UTC
-                const endUTC = new Date(h.end_at);     // already UTC
-                return (
-                  arrivalDateTimeUTC! >= startUTC &&
-                  arrivalDateTimeUTC! <= endUTC
-                );
+                const startUTC = new Date(h.start_at);
+                const endUTC = new Date(h.end_at);
+                return arrivalUTC! >= startUTC && arrivalUTC! <= endUTC;
               })
             ) {
               available = false;
@@ -208,8 +199,7 @@ export async function GET(req: Request) {
             arrivalMinutes != null &&
             x.CutOffTime != null
           ) {
-            const nowMinutes =
-              now.getHours() * 60 + now.getMinutes();
+            const nowMinutes = now.getHours() * 60 + now.getMinutes();
             const lastOrderMinute =
               arrivalMinutes - Number(x.CutOffTime);
 
