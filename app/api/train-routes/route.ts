@@ -106,16 +106,19 @@ export async function GET(req: Request) {
       `)
       .in("stationcode_norm", stationCodes);
 
-    /* ================= HOLIDAYS (UTC SOURCE – FINAL FIX) ================= */
+    /* ================= HOLIDAYS (✅ FINAL LOGIC) ================= */
+    /* deleted_at IS NULL  → active holiday
+       deleted_at NOT NULL → holiday removed */
 
     const { data: holidays } = await supa
       .from("RestroHolidays")
       .select(`
         restro_code,
         start_at,
-        end_at
+        end_at,
+        deleted_at
       `)
-      .eq("is_deleted", false);
+      .is("deleted_at", null); // ✅ ONLY ACTIVE HOLIDAYS
 
     const holidayMap: Record<string, any[]> = {};
     for (const h of holidays || []) {
@@ -165,7 +168,7 @@ export async function GET(req: Request) {
             }
           }
 
-          /* ✅ RULE 2: HOLIDAY (NOW-BASED, IST SAFE) */
+          /* RULE 2: HOLIDAY (NOW-BASED, deleted_at SAFE) */
           if (available) {
             const hs = holidayMap[restroKey] || [];
             if (
@@ -241,7 +244,7 @@ export async function GET(req: Request) {
     });
 
   } catch (e) {
-    console.error("FINAL HOLIDAY NOW-BASED FIX error:", e);
+    console.error("FINAL HOLIDAY deleted_at FIX error:", e);
     return NextResponse.json(
       { ok: false, error: "server_error" },
       { status: 500 }
