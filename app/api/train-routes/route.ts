@@ -6,7 +6,6 @@ import { serviceClient } from "../../lib/supabaseServer";
 
 /* ================= IST HELPERS ================= */
 
-// 🔑 IST NOW (safe)
 function nowIST(): Date {
   return new Date(
     new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" })
@@ -27,21 +26,28 @@ function toMinutes(t?: string | null): number | null {
   return h * 60 + m;
 }
 
-/* =================================================
-   🔥 IST SAFE DAY (NO UTC ROLLOVER)
-================================================= */
-function dayOfWeekIST(dateStr: string): string {
+/* ========= IST SAFE WEEKDAY ========= */
+
+const WEEK = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
+
+function weekdayIndexIST(dateStr: string): number {
   const [y, m, d] = dateStr.split("-").map(Number);
-  const istDate = new Date(y, m - 1, d, 12, 0, 0); // noon trick
-  const map = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
-  return map[istDate.getDay()];
+  const dt = new Date(y, m - 1, d, 12, 0, 0); // noon IST
+  return dt.getDay(); // 0–6
 }
 
-function matchesRunningDay(runningDays: string | null, dateStr: string) {
+function matchesRunningDayWithOffset(
+  runningDays: string | null,
+  arrivalDate: string,
+  dayOffset: number
+): boolean {
   if (!runningDays) return true;
-  const day = dayOfWeekIST(dateStr);
-  const s = normalize(runningDays);
-  return s === "DAILY" || s === "ALL" || s.includes(day);
+
+  const arrivalIdx = weekdayIndexIST(arrivalDate);
+  const startIdx = (arrivalIdx - (dayOffset - 1) + 7) % 7;
+
+  const run = normalize(runningDays);
+  return run === "DAILY" || run === "ALL" || run.includes(WEEK[startIdx]);
 }
 
 /* ================= API ================= */
@@ -92,20 +98,15 @@ export async function GET(req: Request) {
       return NextResponse.json({ ok: false, error: "station_not_on_route" });
     }
 
-    /* =================================================
-       ✅ RUNNING DAY VALIDATION (FINAL IST LOGIC)
-    ================================================= */
+    /* ================= ✅ RUNNING DAY VALIDATION (FINAL) ================= */
 
-    let checkDate = date;
-
-    if (bookingRow.Day > 1) {
-      const [y, m, d] = date.split("-").map(Number);
-      const base = new Date(y, m - 1, d, 12, 0, 0);
-      base.setDate(base.getDate() - (bookingRow.Day - 1));
-      checkDate = `${base.getFullYear()}-${String(base.getMonth() + 1).padStart(2,"0")}-${String(base.getDate()).padStart(2,"0")}`;
-    }
-
-    if (!matchesRunningDay(runningDays, checkDate)) {
+    if (
+      !matchesRunningDayWithOffset(
+        runningDays,
+        date,
+        bookingRow.Day
+      )
+    ) {
       return NextResponse.json({
         ok: true,
         train: { trainNumber: train, trainName },
@@ -122,11 +123,9 @@ export async function GET(req: Request) {
 
     /* ================= RESTROS ================= */
 
-    const stationCodes: string[] = [];
-    for (const r of routeRows) {
-      const sc = normalize(r.StationCode);
-      if (!stationCodes.includes(sc)) stationCodes.push(sc);
-    }
+    const stationCodes = Array.from(
+      new Set(routeRows.map(r => normalize(r.StationCode)))
+    );
 
     const { data: restros } = await supa
       .from("RestroMaster")
@@ -136,7 +135,7 @@ export async function GET(req: Request) {
       `)
       .in("stationcode_norm", stationCodes);
 
-    /* ================= HOLIDAYS (UTC SOURCE OF TRUTH) ================= */
+    /* ================= HOLIDAYS (UTC SOURCE) ================= */
 
     const { data: holidays } = await supa
       .from("RestroHolidays")
@@ -145,7 +144,7 @@ export async function GET(req: Request) {
 
     const holidayMap: Record<number, any[]> = {};
     for (const h of holidays || []) {
-      if (!holidayMap[h.restro_code]) holidayMap[h.restro_code] = [];
+      holidayMap[h.restro_code] ||= [];
       holidayMap[h.restro_code].push(h);
     }
 
@@ -161,11 +160,12 @@ export async function GET(req: Request) {
       let arrivalUTC: Date | null = null;
       if (r.Arrives) {
         const [hh, mm] = r.Arrives.slice(0, 5).split(":").map(Number);
-        const ist = new Date(`${arrivalDate}T${String(hh).padStart(2,"0")}:${String(mm).padStart(2,"0")}:00+05:30`);
-        arrivalUTC = new Date(ist.toISOString());
+        arrivalUTC = new Date(
+          `${arrivalDate}T${String(hh).padStart(2,"0")}:${String(mm).padStart(2,"0")}:00+05:30`
+        );
       }
 
-      const arrivalDayName = dayOfWeekIST(arrivalDate);
+      const arrivalDay = WEEK[weekdayIndexIST(arrivalDate)];
       const arrivalMinutes = toMinutes(r.Arrives);
 
       const vendors = (restros || [])
@@ -179,23 +179,31 @@ export async function GET(req: Request) {
             reasons.push("Train already departed");
           }
 
-          if (available && x.WeeklyOff) {
-            const offs = normalize(x.WeeklyOff).split(",").map(d => d.trim());
-            if (offs[0] !== "NOOFF" && offs.includes(arrivalDayName)) {
+          if (available && x.WeeklyOff && normalize(x.WeeklyOff) !== "NOOFF") {
+            const offs = normalize(x.WeeklyOff).split(",");
+            if (offs.includes(arrivalDay)) {
               available = false;
-              reasons.push(`Closed on ${arrivalDayName}`);
+              reasons.push(`Closed on ${arrivalDay}`);
             }
           }
 
           if (available && arrivalUTC) {
             const hs = holidayMap[x.RestroCode] || [];
-            if (hs.some(h => arrivalUTC! >= new Date(h.start_at) && arrivalUTC! <= new Date(h.end_at))) {
+            if (hs.some(h =>
+              arrivalUTC! >= new Date(h.start_at) &&
+              arrivalUTC! <= new Date(h.end_at)
+            )) {
               available = false;
               reasons.push("Holiday");
             }
           }
 
-          if (available && arrivalDate === today && arrivalMinutes != null && x.CutOffTime != null) {
+          if (
+            available &&
+            arrivalDate === today &&
+            arrivalMinutes != null &&
+            x.CutOffTime != null
+          ) {
             const nowMin = now.getHours() * 60 + now.getMinutes();
             if (nowMin > arrivalMinutes - Number(x.CutOffTime)) {
               available = false;
@@ -203,7 +211,12 @@ export async function GET(req: Request) {
             }
           }
 
-          return { restroCode: x.RestroCode, restroName: x.RestroName, available, reasons };
+          return {
+            restroCode: x.RestroCode,
+            restroName: x.RestroName,
+            available,
+            reasons,
+          };
         });
 
       return {
@@ -223,13 +236,25 @@ export async function GET(req: Request) {
 
     if (station) {
       const row = mapped.find(r => normalize(r.StationCode) === normalize(station));
-      return NextResponse.json({ ok: true, train: { trainNumber: train, trainName }, rows: row ? [row] : [] });
+      return NextResponse.json({
+        ok: true,
+        train: { trainNumber: train, trainName },
+        rows: row ? [row] : [],
+      });
     }
 
-    return NextResponse.json({ ok: true, train: { trainNumber: train, trainName }, rows: mapped, meta: { date } });
+    return NextResponse.json({
+      ok: true,
+      train: { trainNumber: train, trainName },
+      rows: mapped,
+      meta: { date },
+    });
 
   } catch (e) {
-    console.error("FINAL RUNNING-DAY IST FIX error:", e);
-    return NextResponse.json({ ok: false, error: "server_error" }, { status: 500 });
+    console.error("FINAL RUNNING-DAY LOGIC error:", e);
+    return NextResponse.json(
+      { ok: false, error: "server_error" },
+      { status: 500 }
+    );
   }
 }
