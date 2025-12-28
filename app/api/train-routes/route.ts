@@ -86,38 +86,51 @@ export async function GET(req: Request) {
       return NextResponse.json({ ok: false, error: "station_not_on_route" });
     }
 
-    /* ================= RUNNING DAY VALIDATION (FINAL & CORRECT) ================= */
+    /* ================= ✅ RUNNING DAY VALIDATION (FIXED) ================= */
 
-    let trainStartDate = date;
-
-    if (bookingRow.Day > 1) {
-      trainStartDate = new Date(
+    if (bookingRow.Day === 1) {
+      // 🔑 SIMPLE CASE: start station / same day arrival
+      if (!matchesRunningDay(runningDays, date)) {
+        return NextResponse.json({
+          ok: true,
+          train: { trainNumber: train, trainName },
+          rows: [
+            {
+              StationCode: normalize(bookingRow.StationCode),
+              StationName: bookingRow.StationName,
+              arrivalDate: date,
+              restros: [],
+              restroCount: 0,
+              error: "Train does not arrive on selected date",
+            },
+          ],
+        });
+      }
+    } else {
+      // 🔁 Day > 1 → reverse calculate train start date
+      const trainStartDate = new Date(
         new Date(`${date}T00:00:00+05:30`).getTime() -
           (bookingRow.Day - 1) * 24 * 60 * 60 * 1000
       )
         .toISOString()
         .slice(0, 10);
-    }
 
-    // ✅ Day-1 → check on arrival date
-    // ✅ Day>1 → check on calculated start date
-    const checkDate = bookingRow.Day === 1 ? date : trainStartDate;
-
-    if (!matchesRunningDay(runningDays, checkDate)) {
-      return NextResponse.json({
-        ok: true,
-        train: { trainNumber: train, trainName },
-        rows: [
-          {
-            StationCode: normalize(bookingRow.StationCode),
-            StationName: bookingRow.StationName,
-            arrivalDate: date,
-            restros: [],
-            restroCount: 0,
-            error: "Train does not arrive on selected date",
-          },
-        ],
-      });
+      if (!matchesRunningDay(runningDays, trainStartDate)) {
+        return NextResponse.json({
+          ok: true,
+          train: { trainNumber: train, trainName },
+          rows: [
+            {
+              StationCode: normalize(bookingRow.StationCode),
+              StationName: bookingRow.StationName,
+              arrivalDate: date,
+              restros: [],
+              restroCount: 0,
+              error: "Train does not arrive on selected date",
+            },
+          ],
+        });
+      }
     }
 
     /* ================= RESTROS ================= */
@@ -262,7 +275,7 @@ export async function GET(req: Request) {
       ok: true,
       train: { trainNumber: train, trainName },
       rows: mapped,
-      meta: { date, trainStartDate },
+      meta: { date },
     });
 
   } catch (e) {
