@@ -76,9 +76,8 @@ export async function GET(req: Request) {
     const trainName = routeRows[0].trainName;
     const runningDays = routeRows[0].runningDays;
 
-    /* ================= TRAIN START DATE (SINGLE SOURCE OF TRUTH) ================= */
+    /* ================= BOOKING STATION ================= */
 
-    // Find booking station row
     const bookingRow = station
       ? routeRows.find(
           r => normalize(r.StationCode) === normalize(station)
@@ -92,15 +91,24 @@ export async function GET(req: Request) {
       });
     }
 
-    // Train start date = arrivalDate - (Day - 1)
-    const trainStartDate = new Date(
-      new Date(`${date}T00:00:00+05:30`).getTime() -
-        (bookingRow.Day - 1) * 24 * 60 * 60 * 1000
-    )
-      .toISOString()
-      .slice(0, 10);
+    /* ================= ✅ CORRECT TRAIN START DATE ================= */
 
-    // ❌ Train does not run on calculated start date
+    let trainStartDate: string;
+
+    if (bookingRow.Day === 1) {
+      // 🔑 Day-1 station → same day start
+      trainStartDate = date;
+    } else {
+      // Day > 1 → reverse calculation
+      trainStartDate = new Date(
+        new Date(`${date}T00:00:00+05:30`).getTime() -
+          (bookingRow.Day - 1) * 24 * 60 * 60 * 1000
+      )
+        .toISOString()
+        .slice(0, 10);
+    }
+
+    /* ❌ Train does NOT run on calculated start date */
     if (!matchesRunningDay(runningDays, trainStartDate)) {
       return NextResponse.json({
         ok: true,
