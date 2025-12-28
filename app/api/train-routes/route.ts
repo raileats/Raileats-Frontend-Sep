@@ -6,6 +6,7 @@ import { serviceClient } from "../../lib/supabaseServer";
 
 /* ================= IST HELPERS ================= */
 
+// 🔑 IST NOW (safe)
 function nowIST(): Date {
   return new Date(
     new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" })
@@ -26,15 +27,26 @@ function toMinutes(t?: string | null): number | null {
   return h * 60 + m;
 }
 
-function dayOfWeek(dateStr: string): string {
+/* =================================================
+   🔥 CRITICAL FIX — IST DAY (NO UTC CONVERSION)
+================================================= */
+function dayOfWeekIST(dateStr: string): string {
+  // dateStr = YYYY-MM-DD
+  const [y, m, d] = dateStr.split("-").map(Number);
+
+  // Noon IST to avoid UTC rollover bugs
+  const istDate = new Date(y, m - 1, d, 12, 0, 0);
+
   const map = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
-  return map[new Date(`${dateStr}T00:00:00+05:30`).getDay()];
+  return map[istDate.getDay()];
 }
 
 function matchesRunningDay(runningDays: string | null, dateStr: string) {
   if (!runningDays) return true;
-  const day = dayOfWeek(dateStr);
+
+  const day = dayOfWeekIST(dateStr); // ✅ IST SAFE
   const s = normalize(runningDays);
+
   return s === "DAILY" || s === "ALL" || s.includes(day);
 }
 
@@ -86,51 +98,38 @@ export async function GET(req: Request) {
       return NextResponse.json({ ok: false, error: "station_not_on_route" });
     }
 
-    /* ================= ✅ RUNNING DAY VALIDATION (FIXED) ================= */
+    /* =================================================
+       ✅ RUNNING DAY VALIDATION — FINAL & CORRECT
+    ================================================= */
 
-    if (bookingRow.Day === 1) {
-      // 🔑 SIMPLE CASE: start station / same day arrival
-      if (!matchesRunningDay(runningDays, date)) {
-        return NextResponse.json({
-          ok: true,
-          train: { trainNumber: train, trainName },
-          rows: [
-            {
-              StationCode: normalize(bookingRow.StationCode),
-              StationName: bookingRow.StationName,
-              arrivalDate: date,
-              restros: [],
-              restroCount: 0,
-              error: "Train does not arrive on selected date",
-            },
-          ],
-        });
-      }
-    } else {
-      // 🔁 Day > 1 → reverse calculate train start date
-      const trainStartDate = new Date(
-        new Date(`${date}T00:00:00+05:30`).getTime() -
+    let checkDate = date;
+
+    if (bookingRow.Day > 1) {
+      // reverse calculate start date ONLY if Day > 1
+      checkDate = new Date(
+        new Date(`${date}T12:00:00`).getTime() -
           (bookingRow.Day - 1) * 24 * 60 * 60 * 1000
       )
         .toISOString()
         .slice(0, 10);
+    }
 
-      if (!matchesRunningDay(runningDays, trainStartDate)) {
-        return NextResponse.json({
-          ok: true,
-          train: { trainNumber: train, trainName },
-          rows: [
-            {
-              StationCode: normalize(bookingRow.StationCode),
-              StationName: bookingRow.StationName,
-              arrivalDate: date,
-              restros: [],
-              restroCount: 0,
-              error: "Train does not arrive on selected date",
-            },
-          ],
-        });
-      }
+    // 🔑 IST-based running day check
+    if (!matchesRunningDay(runningDays, checkDate)) {
+      return NextResponse.json({
+        ok: true,
+        train: { trainNumber: train, trainName },
+        rows: [
+          {
+            StationCode: normalize(bookingRow.StationCode),
+            StationName: bookingRow.StationName,
+            arrivalDate: date,
+            restros: [],
+            restroCount: 0,
+            error: "Train does not arrive on selected date",
+          },
+        ],
+      });
     }
 
     /* ================= RESTROS ================= */
@@ -149,7 +148,7 @@ export async function GET(req: Request) {
       `)
       .in("stationcode_norm", stationCodes);
 
-    /* ================= HOLIDAYS (UTC) ================= */
+    /* ================= HOLIDAYS (UTC SOURCE OF TRUTH) ================= */
 
     const { data: holidays } = await supa
       .from("RestroHolidays")
@@ -183,7 +182,7 @@ export async function GET(req: Request) {
         arrivalUTC = new Date(ist.toISOString());
       }
 
-      const arrivalDayName = dayOfWeek(arrivalDate);
+      const arrivalDayName = dayOfWeekIST(arrivalDate);
       const arrivalMinutes = toMinutes(r.Arrives);
 
       const vendors = (restros || [])
@@ -279,7 +278,7 @@ export async function GET(req: Request) {
     });
 
   } catch (e) {
-    console.error("FINAL RUNNING-DAY FIX error:", e);
+    console.error("FINAL RUNNING-DAY IST FIX error:", e);
     return NextResponse.json(
       { ok: false, error: "server_error" },
       { status: 500 }
