@@ -135,10 +135,13 @@ export async function GET(req: Request) {
     const mapped = rows.map(r => {
       const sc = normalize(r.StationCode);
 
-      const arrivalDate =
-        typeof r.Day === "number"
-          ? addDays(boardingDate, r.Day - 1)
-          : date;
+     // ✅ Station-specific search: arrival date = user selected date
+const arrivalDate = station ? date : (
+  typeof r.Day === "number"
+    ? addDays(boardingDate, r.Day - 1)
+    : date
+);
+
 
       const arrivalDayName = dayOfWeek(arrivalDate);
       const arrivalMinutes = toMinutes(r.Arrives);
