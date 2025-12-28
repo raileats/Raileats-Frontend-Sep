@@ -106,16 +106,15 @@ export async function GET(req: Request) {
       `)
       .in("stationcode_norm", stationCodes);
 
-    /* ================= HOLIDAYS (FINAL FIX) ================= */
+    /* ================= HOLIDAYS (CORRECT SOURCE) ================= */
 
     const { data: holidays } = await supa
       .from("RestroHolidays")
       .select(`
         restro_code,
-        start_date,
-        start_time,
-        end_date,
-        end_time
+        start_at,
+        end_at,
+        is_deleted
       `)
       .eq("is_deleted", false);
 
@@ -139,11 +138,20 @@ export async function GET(req: Request) {
           ? addDays(boardingDate, r.Day - 1)
           : date;
 
-      let arrivalDateTime: Date | null = null;
+      let arrivalDateTimeIST: Date | null = null;
       if (r.Arrives) {
         const [hh, mm] = r.Arrives.slice(0, 5).split(":");
-        arrivalDateTime = new Date(
+        arrivalDateTimeIST = new Date(
           `${arrivalDate}T${hh}:${mm}:00+05:30`
+        );
+      }
+
+      // 👉 IMPORTANT: IST → UTC (for holiday compare)
+      let arrivalDateTimeUTC: Date | null = null;
+      if (arrivalDateTimeIST) {
+        arrivalDateTimeUTC = new Date(arrivalDateTimeIST);
+        arrivalDateTimeUTC.setMinutes(
+          arrivalDateTimeUTC.getMinutes() - 330
         );
       }
 
@@ -175,18 +183,17 @@ export async function GET(req: Request) {
             }
           }
 
-          /* RULE 2: HOLIDAY (DATE + TIME – ADMIN FORMAT) */
-          if (available && arrivalDateTime) {
+          /* RULE 2: HOLIDAY (UTC SAFE – FINAL FIX) */
+          if (available && arrivalDateTimeUTC) {
             const hs = holidayMap[restroKey] || [];
             if (
               hs.some(h => {
-                const start = new Date(
-                  `${h.start_date}T${h.start_time}:00+05:30`
+                const startUTC = new Date(h.start_at); // already UTC
+                const endUTC = new Date(h.end_at);     // already UTC
+                return (
+                  arrivalDateTimeUTC! >= startUTC &&
+                  arrivalDateTimeUTC! <= endUTC
                 );
-                const end = new Date(
-                  `${h.end_date}T${h.end_time}:00+05:30`
-                );
-                return arrivalDateTime! >= start && arrivalDateTime! <= end;
               })
             ) {
               available = false;
@@ -201,7 +208,8 @@ export async function GET(req: Request) {
             arrivalMinutes != null &&
             x.CutOffTime != null
           ) {
-            const nowMinutes = now.getHours() * 60 + now.getMinutes();
+            const nowMinutes =
+              now.getHours() * 60 + now.getMinutes();
             const lastOrderMinute =
               arrivalMinutes - Number(x.CutOffTime);
 
@@ -255,7 +263,7 @@ export async function GET(req: Request) {
     });
 
   } catch (e) {
-    console.error("FINAL HOLIDAY FIX error:", e);
+    console.error("FINAL HOLIDAY UTC FIX error:", e);
     return NextResponse.json(
       { ok: false, error: "server_error" },
       { status: 500 }
