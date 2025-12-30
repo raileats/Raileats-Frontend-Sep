@@ -4,7 +4,7 @@ import Slider from "react-slick";
 import Image from "next/image";
 
 const slides = [
-  { { id: 1, image: "/slides/happy-new-year.png", text: "Happy New Year • Special Offers" }, },
+{ id: 1, image: "/slides/happy-new-year.png", text: "Happy New Year • Special Offers" },
   { id: 2, image: "/slides/offer50.png", text: "Flat ₹50 OFF on Orders Above ₹500" },
   { id: 3, image: "/slides/offer20.png", text: "Flat ₹20 OFF on Orders Above ₹250" },
   { id: 4, image: "/slides/offer-combo.png", text: "Combo Deals • Fresh & Fast" },
