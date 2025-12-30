@@ -79,14 +79,12 @@ export async function GET(req: Request) {
     const firstDay = Number(routeRows[0].Day || 1);
     const boardingDate = addDays(date, 1 - firstDay);
 
-    /* ================= STATION CODES (NO SET – BUILD SAFE) ================= */
+    /* ================= STATION CODES (NO SET ❌) ================= */
 
     const stationCodes: string[] = [];
     for (const r of routeRows) {
       const sc = normalize(r.StationCode);
-      if (!stationCodes.includes(sc)) {
-        stationCodes.push(sc);
-      }
+      if (!stationCodes.includes(sc)) stationCodes.push(sc);
     }
 
     /* ================= RESTROS ================= */
@@ -100,7 +98,6 @@ export async function GET(req: Request) {
       .in("stationcode_norm", stationCodes);
 
     /* ================= HOLIDAYS ================= */
-    // deleted_at IS NULL => active holiday only
 
     const { data: holidays } = await supa
       .from("RestroHolidays")
@@ -142,49 +139,42 @@ export async function GET(req: Request) {
       const arrivalMinutes = toMinutes(r.Arrives);
 
       const vendors = (restros || [])
-        .filter(
-          x =>
-            normalize(x.StationCode) === sc &&
-            x.RaileatsStatus === 1
-        )
+        .filter(x => normalize(x.StationCode) === sc && x.RaileatsStatus === 1)
         .map(x => {
           let available = true;
           const reasons: string[] = [];
           const restroKey = String(x.RestroCode).trim();
 
-          /* RULE 0: Past date */
+          /* ❌ RULE 0: Past date */
           if (arrivalDate < today) {
             available = false;
             reasons.push("Train already departed");
           }
 
-          /* RULE 1: Weekly Off */
+          /* ❌ RULE 1: Weekly Off */
           if (available && x.WeeklyOff) {
-            const offs = normalize(x.WeeklyOff)
-              .split(",")
-              .map(d => d.trim());
+            const offs = normalize(x.WeeklyOff).split(",").map(d => d.trim());
             if (offs.includes(arrivalDayName)) {
               available = false;
               reasons.push(`Closed on ${arrivalDayName}`);
             }
           }
 
-          /* RULE 2: Holiday (arrival time based) */
+          /* ❌ RULE 2: HOLIDAY (ARRIVAL TIME BASED — FINAL FIX) */
           if (available && arrivalDateTime) {
             const hs = holidayMap[restroKey] || [];
-            if (
-              hs.some(h => {
-                const s = new Date(h.start_at);
-                const e = new Date(h.end_at);
-                return arrivalDateTime! >= s && arrivalDateTime! <= e;
-              })
-            ) {
-              available = false;
-              reasons.push("Holiday");
+            for (const h of hs) {
+              const start = new Date(h.start_at);
+              const end = new Date(h.end_at);
+              if (arrivalDateTime >= start && arrivalDateTime <= end) {
+                available = false;
+                reasons.push("Holiday");
+                break;
+              }
             }
           }
 
-          /* RULE 3: CUT-OFF (ONLY WHEN booking date = today) */
+          /* ⏰ RULE 3: CUT-OFF (ONLY IF TODAY) */
           if (
             available &&
             arrivalDate === today &&
@@ -243,7 +233,7 @@ export async function GET(req: Request) {
     });
 
   } catch (e) {
-    console.error("FINAL ROUTE ERROR:", e);
+    console.error("FINAL HOLIDAY + CUT-OFF FIX error:", e);
     return NextResponse.json(
       { ok: false, error: "server_error" },
       { status: 500 }
