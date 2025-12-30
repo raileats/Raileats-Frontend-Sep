@@ -65,7 +65,7 @@ export async function GET(req: Request) {
       .eq("trainNumber", Number(train))
       .order("StnNumber", { ascending: true });
 
-    if (!routeRows?.length) {
+    if (!routeRows || !routeRows.length) {
       return NextResponse.json(
         { ok: false, error: "train_not_found" },
         { status: 404 }
@@ -79,11 +79,17 @@ export async function GET(req: Request) {
     const firstDay = Number(routeRows[0].Day || 1);
     const boardingDate = addDays(date, 1 - firstDay);
 
-    /* ================= RESTROS ================= */
+    /* ================= STATION CODES (NO SET – BUILD SAFE) ================= */
 
-    const stationCodes = [
-      ...new Set(routeRows.map(r => normalize(r.StationCode))),
-    ];
+    const stationCodes: string[] = [];
+    for (const r of routeRows) {
+      const sc = normalize(r.StationCode);
+      if (!stationCodes.includes(sc)) {
+        stationCodes.push(sc);
+      }
+    }
+
+    /* ================= RESTROS ================= */
 
     const { data: restros } = await supa
       .from("RestroMaster")
@@ -94,6 +100,7 @@ export async function GET(req: Request) {
       .in("stationcode_norm", stationCodes);
 
     /* ================= HOLIDAYS ================= */
+    // deleted_at IS NULL => active holiday only
 
     const { data: holidays } = await supa
       .from("RestroHolidays")
@@ -103,7 +110,8 @@ export async function GET(req: Request) {
     const holidayMap: Record<string, any[]> = {};
     for (const h of holidays || []) {
       const key = String(h.restro_code).trim();
-      (holidayMap[key] ||= []).push(h);
+      if (!holidayMap[key]) holidayMap[key] = [];
+      holidayMap[key].push(h);
     }
 
     const today = todayIST();
@@ -115,7 +123,7 @@ export async function GET(req: Request) {
     const mapped = routeRows.map(r => {
       const sc = normalize(r.StationCode);
 
-      // 🔑 station search → arrivalDate = user date
+      // ✅ station search → arrivalDate = user selected date
       const arrivalDate = station
         ? date
         : typeof r.Day === "number"
@@ -134,19 +142,23 @@ export async function GET(req: Request) {
       const arrivalMinutes = toMinutes(r.Arrives);
 
       const vendors = (restros || [])
-        .filter(x => normalize(x.StationCode) === sc && x.RaileatsStatus === 1)
+        .filter(
+          x =>
+            normalize(x.StationCode) === sc &&
+            x.RaileatsStatus === 1
+        )
         .map(x => {
           let available = true;
           const reasons: string[] = [];
           const restroKey = String(x.RestroCode).trim();
 
-          /* ❌ RULE 0: Past date */
+          /* RULE 0: Past date */
           if (arrivalDate < today) {
             available = false;
             reasons.push("Train already departed");
           }
 
-          /* ❌ RULE 1: Weekly Off */
+          /* RULE 1: Weekly Off */
           if (available && x.WeeklyOff) {
             const offs = normalize(x.WeeklyOff)
               .split(",")
@@ -157,7 +169,7 @@ export async function GET(req: Request) {
             }
           }
 
-          /* ❌ RULE 2: Holiday (arrival time based) */
+          /* RULE 2: Holiday (arrival time based) */
           if (available && arrivalDateTime) {
             const hs = holidayMap[restroKey] || [];
             if (
@@ -172,7 +184,7 @@ export async function GET(req: Request) {
             }
           }
 
-          /* ⏰ RULE 3: CUT-OFF (ONLY TODAY) */
+          /* RULE 3: CUT-OFF (ONLY WHEN booking date = today) */
           if (
             available &&
             arrivalDate === today &&
@@ -231,7 +243,7 @@ export async function GET(req: Request) {
     });
 
   } catch (e) {
-    console.error("FINAL CUT-OFF FIX error:", e);
+    console.error("FINAL ROUTE ERROR:", e);
     return NextResponse.json(
       { ok: false, error: "server_error" },
       { status: 500 }
