@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+
+// ✅ FIXED IMPORTS
+import { getCart } from "@/lib/cart";
 import { useCart } from "@/lib/useCart";
 
-
-import { useRouter } from "next/navigation";
 
 export default function CartPage() {
   const router = useRouter();
