@@ -2,9 +2,7 @@
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
-import { serviceClient } from "../../lib/supabaseServer";
-
-/* ================= API ================= */
+import { serviceClient } from "@/lib/supabaseServer"; // ✅ FIXED PATH
 
 export async function POST(req: Request) {
   try {
@@ -20,7 +18,7 @@ export async function POST(req: Request) {
       stationName,
       arrivalDate,
       arrivalTime,
-      paymentMode, // PREPAID | COD
+      paymentMode,
       customerName,
       customerMobile,
       items,
@@ -40,18 +38,13 @@ export async function POST(req: Request) {
       );
     }
 
-    /* ================= CALCULATE TOTAL ================= */
-
     const totalAmount = items.reduce(
-      (sum: number, i: any) => sum + Number(i.selling_price) * Number(i.qty),
+      (sum: number, i: any) =>
+        sum + Number(i.selling_price) * Number(i.qty),
       0
     );
 
-    const supa = serviceClient;
-
-    /* ================= INSERT ORDER ================= */
-
-    const { data: order, error: orderErr } = await supa
+    const { data: order, error } = await serviceClient
       .from("Orders")
       .insert({
         pnr: pnr || null,
@@ -72,32 +65,21 @@ export async function POST(req: Request) {
       .select()
       .single();
 
-    if (orderErr || !order) {
-      console.error("ORDER INSERT ERROR:", orderErr);
+    if (error || !order) {
+      console.error("ORDER CREATE ERROR:", error);
       return NextResponse.json(
         { ok: false, error: "order_create_failed" },
         { status: 500 }
       );
     }
 
-    /* ================= STATUS HISTORY ================= */
-
-    const { error: historyErr } = await supa
-      .from("OrderStatusHistory")
-      .insert({
-        order_id: order.id,
-        old_status: null,
-        new_status: "BOOKED",
-        changed_by: "system",
-        remarks: "Order created by customer",
-      });
-
-    if (historyErr) {
-      console.error("STATUS HISTORY ERROR:", historyErr);
-      // ❗ order created ho chuka hai → block nahi karenge
-    }
-
-    /* ================= SUCCESS ================= */
+    await serviceClient.from("OrderStatusHistory").insert({
+      order_id: order.id,
+      old_status: null,
+      new_status: "BOOKED",
+      changed_by: "system",
+      remarks: "Order created",
+    });
 
     return NextResponse.json({
       ok: true,
