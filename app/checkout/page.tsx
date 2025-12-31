@@ -29,11 +29,21 @@ export default function CheckoutPage() {
 
   useEffect(() => {
     const c = getCart();
-    if (!c || !c.items?.length) {
+
+    // ❌ empty cart → back to search
+    if (!c || !c.items || c.items.length === 0) {
       router.push("/search");
       return;
     }
-    setCart(c);
+
+    // ✅ FIX: normalize cart for checkout
+    setCart({
+      restroName: c.restroName || "",
+      station: c.station || "",
+      arrivalDate: c.arrivalDate || "",
+      arrivalTime: c.arrivalTime || "",
+      items: c.items,
+    });
   }, [router]);
 
   if (!cart) {
@@ -51,10 +61,10 @@ export default function CheckoutPage() {
 
       {/* Train / Station Info */}
       <div className="border rounded p-3 bg-gray-50 text-sm">
-        <div><b>Restaurant:</b> {cart.restroName}</div>
-        <div><b>Station:</b> {cart.station}</div>
-        <div><b>Date:</b> {cart.arrivalDate}</div>
-        <div><b>Arrival:</b> {cart.arrivalTime}</div>
+        <div><b>Restaurant:</b> {cart.restroName || "-"}</div>
+        <div><b>Station:</b> {cart.station || "-"}</div>
+        <div><b>Date:</b> {cart.arrivalDate || "-"}</div>
+        <div><b>Arrival:</b> {cart.arrivalTime || "-"}</div>
       </div>
 
       {/* Items */}
