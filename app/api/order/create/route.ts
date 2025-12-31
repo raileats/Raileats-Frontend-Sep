@@ -2,13 +2,18 @@
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
-import { serviceClient } from "@/lib/supabaseServer";
+import { serviceClient } from "../../../lib/supabaseServer";
 
 /* ================= HELPERS ================= */
 
-function generateOrderId() {
-  const rnd = Math.floor(100000 + Math.random() * 900000);
-  return `RE-${rnd}`;
+// simple readable order number
+function generateOrderNumber() {
+  const d = new Date();
+  const y = d.getFullYear().toString().slice(-2);
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  const rand = Math.floor(1000 + Math.random() * 9000);
+  return `RE${y}${m}${day}${rand}`;
 }
 
 /* ================= API ================= */
@@ -21,23 +26,30 @@ export async function POST(req: Request) {
       pnr,
       trainNumber,
       trainName,
+
       restroCode,
       restroName,
+
       stationCode,
       stationName,
       arrivalDate,
       arrivalTime,
+
       customerName,
       customerMobile,
+
       items,
     } = body;
 
+    // 🔐 Basic validation
     if (
       !restroCode ||
       !stationCode ||
       !arrivalDate ||
       !arrivalTime ||
-      !items?.length
+      !items ||
+      !Array.isArray(items) ||
+      items.length === 0
     ) {
       return NextResponse.json(
         { ok: false, error: "invalid_payload" },
@@ -45,77 +57,60 @@ export async function POST(req: Request) {
       );
     }
 
-    const orderId = generateOrderId();
+    // 🔐 Server-side total calculation
+    const totalAmount = items.reduce((sum, i) => {
+      return sum + Number(i.selling_price) * Number(i.qty || 1);
+    }, 0);
 
-    const totalAmount = items.reduce(
-      (sum: number, i: any) => sum + i.selling_price * i.qty,
-      0
-    );
+    if (totalAmount <= 0) {
+      return NextResponse.json(
+        { ok: false, error: "invalid_total" },
+        { status: 400 }
+      );
+    }
+
+    const orderNumber = generateOrderNumber();
 
     const supa = serviceClient;
 
-    /* ================= INSERT ORDER ================= */
+    const { error } = await supa.from("orders").insert({
+      order_number: orderNumber,
+      order_status: "PLACED",
 
-    const { data: order, error: orderErr } = await supa
-      .from("orders")
-      .insert({
-        order_id: orderId,
-        pnr,
-        train_number: trainNumber,
-        train_name: trainName,
-        restro_code: restroCode,
-        restro_name: restroName,
-        station_code: stationCode,
-        station_name: stationName,
-        arrival_date: arrivalDate,
-        arrival_time: arrivalTime,
-        customer_name: customerName,
-        customer_mobile: customerMobile,
-        payment_mode: "COD",
-        order_status: "PLACED",
-        total_amount: totalAmount,
-      })
-      .select()
-      .single();
+      train_number: trainNumber || null,
+      train_name: trainName || null,
+      pnr: pnr || null,
 
-    if (orderErr || !order) {
-      console.error("ORDER INSERT ERROR:", orderErr);
+      restro_code: restroCode,
+      restro_name: restroName,
+
+      station_code: stationCode,
+      station_name: stationName,
+      arrival_date: arrivalDate,
+      arrival_time: arrivalTime,
+
+      customer_name: customerName || "Guest",
+      customer_mobile: customerMobile || "0000000000",
+
+      total_amount: totalAmount,
+      payment_mode: "COD",
+      payment_status: "PENDING",
+
+      items,
+    });
+
+    if (error) {
+      console.error("ORDER INSERT ERROR:", error);
       return NextResponse.json(
-        { ok: false, error: "order_create_failed" },
+        { ok: false, error: "db_insert_failed" },
         { status: 500 }
       );
     }
-
-    /* ================= INSERT ORDER ITEMS ================= */
-
-    const orderItems = items.map((i: any) => ({
-      order_id: order.id,
-      item_code: i.item_code,
-      item_name: i.item_name,
-      qty: i.qty,
-      price: i.selling_price,
-      total: i.selling_price * i.qty,
-    }));
-
-    const { error: itemsErr } = await supa
-      .from("order_items")
-      .insert(orderItems);
-
-    if (itemsErr) {
-      console.error("ITEM INSERT ERROR:", itemsErr);
-      return NextResponse.json(
-        { ok: false, error: "order_items_failed" },
-        { status: 500 }
-      );
-    }
-
-    /* ================= SUCCESS ================= */
 
     return NextResponse.json({
       ok: true,
-      orderId,
+      orderId: orderNumber,
       totalAmount,
-      message: "Order placed successfully",
     });
 
   } catch (e) {
