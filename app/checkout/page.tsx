@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { getCart } from "@/app/lib/cart";
+import { getCart } from "@/lib/cart";
 
 /* ================= TYPES ================= */
 
