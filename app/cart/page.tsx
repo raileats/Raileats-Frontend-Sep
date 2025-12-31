@@ -49,7 +49,6 @@ export default function CartPage() {
                     (i: any) => i.item_code !== item.item_code
                   );
                 }
-                saveCart(cart);
                 setCart({ ...cart });
               }}
             >
