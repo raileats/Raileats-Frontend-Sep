@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Cart } from "@/lib/cart";
+import { useCart } from "@/lib/useCart";
+
 
 import { useRouter } from "next/navigation";
 
