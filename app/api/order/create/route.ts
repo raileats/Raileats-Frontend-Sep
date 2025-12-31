@@ -2,19 +2,7 @@
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
-import { serviceClient } from "../../../lib/supabaseServer";
-
-/* ================= HELPERS ================= */
-
-// simple readable order number
-function generateOrderNumber() {
-  const d = new Date();
-  const y = d.getFullYear().toString().slice(-2);
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  const rand = Math.floor(1000 + Math.random() * 9000);
-  return `RE${y}${m}${day}${rand}`;
-}
+import { serviceClient } from "../../lib/supabaseServer";
 
 /* ================= API ================= */
 
@@ -26,91 +14,96 @@ export async function POST(req: Request) {
       pnr,
       trainNumber,
       trainName,
-
       restroCode,
       restroName,
-
       stationCode,
       stationName,
       arrivalDate,
       arrivalTime,
-
+      paymentMode, // PREPAID | COD
       customerName,
       customerMobile,
-
       items,
     } = body;
 
-    // 🔐 Basic validation
-    if (
-      !restroCode ||
-      !stationCode ||
-      !arrivalDate ||
-      !arrivalTime ||
-      !items ||
-      !Array.isArray(items) ||
-      items.length === 0
-    ) {
+    if (!restroCode || !stationCode || !arrivalDate || !arrivalTime) {
       return NextResponse.json(
-        { ok: false, error: "invalid_payload" },
+        { ok: false, error: "missing_required_fields" },
         { status: 400 }
       );
     }
 
-    // 🔐 Server-side total calculation
-    const totalAmount = items.reduce((sum, i) => {
-      return sum + Number(i.selling_price) * Number(i.qty || 1);
-    }, 0);
-
-    if (totalAmount <= 0) {
+    if (!items || !Array.isArray(items) || items.length === 0) {
       return NextResponse.json(
-        { ok: false, error: "invalid_total" },
+        { ok: false, error: "cart_empty" },
         { status: 400 }
       );
     }
 
-    const orderNumber = generateOrderNumber();
+    /* ================= CALCULATE TOTAL ================= */
+
+    const totalAmount = items.reduce(
+      (sum: number, i: any) => sum + Number(i.selling_price) * Number(i.qty),
+      0
+    );
 
     const supa = serviceClient;
 
-    const { error } = await supa.from("orders").insert({
-      order_number: orderNumber,
-      order_status: "PLACED",
+    /* ================= INSERT ORDER ================= */
 
-      train_number: trainNumber || null,
-      train_name: trainName || null,
-      pnr: pnr || null,
+    const { data: order, error: orderErr } = await supa
+      .from("Orders")
+      .insert({
+        pnr: pnr || null,
+        train_number: trainNumber || null,
+        train_name: trainName || null,
+        restro_code: restroCode,
+        restro_name: restroName,
+        station_code: stationCode,
+        station_name: stationName,
+        arrival_date: arrivalDate,
+        arrival_time: arrivalTime,
+        payment_mode: paymentMode || "COD",
+        customer_name: customerName || "Guest",
+        customer_mobile: customerMobile || "",
+        total_amount: totalAmount,
+        current_status: "BOOKED",
+      })
+      .select()
+      .single();
 
-      restro_code: restroCode,
-      restro_name: restroName,
-
-      station_code: stationCode,
-      station_name: stationName,
-      arrival_date: arrivalDate,
-      arrival_time: arrivalTime,
-
-      customer_name: customerName || "Guest",
-      customer_mobile: customerMobile || "0000000000",
-
-      total_amount: totalAmount,
-      payment_mode: "COD",
-      payment_status: "PENDING",
-
-      items,
-    });
-
-    if (error) {
-      console.error("ORDER INSERT ERROR:", error);
+    if (orderErr || !order) {
+      console.error("ORDER INSERT ERROR:", orderErr);
       return NextResponse.json(
-        { ok: false, error: "db_insert_failed" },
+        { ok: false, error: "order_create_failed" },
         { status: 500 }
       );
     }
 
+    /* ================= STATUS HISTORY ================= */
+
+    const { error: historyErr } = await supa
+      .from("OrderStatusHistory")
+      .insert({
+        order_id: order.id,
+        old_status: null,
+        new_status: "BOOKED",
+        changed_by: "system",
+        remarks: "Order created by customer",
+      });
+
+    if (historyErr) {
+      console.error("STATUS HISTORY ERROR:", historyErr);
+      // ❗ order created ho chuka hai → block nahi karenge
+    }
+
+    /* ================= SUCCESS ================= */
+
     return NextResponse.json({
       ok: true,
-      orderId: orderNumber,
+      orderId: order.id,
       totalAmount,
+      status: "BOOKED",
     });
 
   } catch (e) {
