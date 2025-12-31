@@ -46,6 +46,7 @@ export default function SearchPage() {
     async function load() {
       try {
         setLoading(true);
+
         const res = await fetch(
           `/api/train-routes?train=${train}&station=${station}&date=${date}`,
           { cache: "no-store" }
@@ -83,7 +84,7 @@ export default function SearchPage() {
     return <div className="p-4">No outlets found</div>;
   }
 
-  // station-wise search → ek hi row hoti hai
+  // station-wise search → single row
   const row = rows[0];
 
   /* ================= RENDER ================= */
@@ -91,7 +92,9 @@ export default function SearchPage() {
   return (
     <div className="p-4 space-y-4">
       <h1 className="text-xl font-bold">
-        Food at {row.StationName} ({row.Arrives})
+        Food at {row.StationName} <span className="text-sm text-gray-500">
+          (Train arrival: {row.Arrives})
+        </span>
       </h1>
 
       {row.restros.length === 0 && (
@@ -119,10 +122,9 @@ export default function SearchPage() {
             disabled={!restro.available}
             onClick={() =>
               router.push(
-                `/menu?restro=${restro.restroCode}` +
-                  `&station=${row.StationCode}` +
-                  `&date=${row.arrivalDate}` +
-                  `&arrival=${row.Arrives}`
+                `/restro/${restro.restroCode}/menu` +
+                  `?arrivalTime=${row.Arrives}` +
+                  `&date=${row.arrivalDate}`
               )
             }
             className={`px-4 py-1 rounded ${
