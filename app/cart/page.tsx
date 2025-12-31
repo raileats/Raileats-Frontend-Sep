@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getCart, saveCart } from "@/app/lib/cart";
+import { Cart } from "@/lib/cart";
+
 import { useRouter } from "next/navigation";
 
 export default function CartPage() {
