@@ -1,14 +1,8 @@
-// 🔴 IMPORTANT: force dynamic (Vercel build fix)
+// 🔴 IMPORTANT: force dynamic
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { serviceClient } from "../../lib/supabaseServer";
-
-/* ================= HELPERS ================= */
-
-function normalize(v: any) {
-  return String(v ?? "").trim().toUpperCase();
-}
 
 /* ================= API ================= */
 
@@ -16,8 +10,8 @@ export async function GET(req: Request) {
   try {
     const url = new URL(req.url);
 
-    const restroCode = (url.searchParams.get("restroCode") || "").trim();
-    const arrivalTime = (url.searchParams.get("arrivalTime") || "").trim(); // HH:mm:ss
+    const restroCode = url.searchParams.get("restro");
+    const arrivalTime = url.searchParams.get("arrivalTime"); // HH:mm:ss
 
     if (!restroCode || !arrivalTime) {
       return NextResponse.json(
@@ -34,18 +28,16 @@ export async function GET(req: Request) {
         item_code,
         item_name,
         item_description,
-        item_category,
-        item_cuisine,
         menu_type,
         menu_type_rank,
-        start_time,
-        end_time,
         base_price,
         gst_percent,
-        selling_price
+        selling_price,
+        start_time,
+        end_time
       `)
       .eq("restro_code", restroCode)
-      .eq("status", "ON")
+      .eq("menu_status", 1)
       .lte("start_time", arrivalTime)
       .gte("end_time", arrivalTime)
       .order("menu_type_rank", { ascending: true })
@@ -61,8 +53,7 @@ export async function GET(req: Request) {
 
     return NextResponse.json({
       ok: true,
-      restroCode,
-      arrivalTime,
+      count: data?.length || 0,
       items: data || [],
     });
 
