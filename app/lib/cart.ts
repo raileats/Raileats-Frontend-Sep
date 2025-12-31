@@ -1,37 +1,67 @@
-<button
-  onClick={() => {
-    const cart = getCart();
+// app/lib/cart.ts
 
-    const newItem = {
-      item_code: item.item_code,
-      item_name: item.item_name,
-      selling_price: item.selling_price,
-      qty: 1,
-    };
+export type CartItem = {
+  item_code: string;
+  item_name: string;
+  selling_price: number;
+  quantity: number;
+};
 
-    if (!cart) {
-      saveCart({
-        restroCode: Number(restro),
-        arrivalTime: arrival,
-        items: [newItem],
-      });
-    } else {
-      const existing = cart.items.find(
-        (i: any) => i.item_code === item.item_code
-      );
+export type Cart = {
+  items: CartItem[];
+};
 
-      if (existing) {
-        existing.qty += 1;
-      } else {
-        cart.items.push(newItem);
-      }
+/* ================= GET CART ================= */
 
-      saveCart(cart);
-    }
+export function getCart(): Cart {
+  if (typeof window === "undefined") {
+    return { items: [] };
+  }
 
-    alert("Added to cart");
-  }}
-  className="bg-green-600 text-white px-3 py-1 rounded"
->
-  Add
-</button>
+  try {
+    const raw = localStorage.getItem("raileats_cart");
+    if (!raw) return { items: [] };
+
+    return JSON.parse(raw);
+  } catch {
+    return { items: [] };
+  }
+}
+
+/* ================= SAVE CART ================= */
+
+function saveCart(cart: Cart) {
+  localStorage.setItem("raileats_cart", JSON.stringify(cart));
+}
+
+/* ================= ADD ITEM ================= */
+
+export function addToCart(item: CartItem) {
+  const cart = getCart();
+
+  const existing = cart.items.find(
+    i => i.item_code === item.item_code
+  );
+
+  if (existing) {
+    existing.quantity += item.quantity;
+  } else {
+    cart.items.push(item);
+  }
+
+  saveCart(cart);
+}
+
+/* ================= REMOVE ITEM ================= */
+
+export function removeFromCart(item_code: string) {
+  const cart = getCart();
+  cart.items = cart.items.filter(i => i.item_code !== item_code);
+  saveCart(cart);
+}
+
+/* ================= CLEAR CART ================= */
+
+export function clearCart() {
+  saveCart({ items: [] });
+}
