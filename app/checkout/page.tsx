@@ -14,11 +14,13 @@ type CartItem = {
 };
 
 type Cart = {
-  restroName: string;
-  station: string;
-  arrivalDate: string;
-  arrivalTime: string;
   items: CartItem[];
+
+  // optional metadata (may or may not exist)
+  restroName?: string;
+  station?: string;
+  arrivalDate?: string;
+  arrivalTime?: string;
 };
 
 /* ================= PAGE ================= */
@@ -30,20 +32,13 @@ export default function CheckoutPage() {
   useEffect(() => {
     const c = getCart();
 
-    // ❌ empty cart → back to search
     if (!c || !c.items || c.items.length === 0) {
       router.push("/search");
       return;
     }
 
-    // ✅ FIX: normalize cart for checkout
-    setCart({
-      restroName: c.restroName || "",
-      station: c.station || "",
-      arrivalDate: c.arrivalDate || "",
-      arrivalTime: c.arrivalTime || "",
-      items: c.items,
-    });
+    // ✅ NO reshaping → direct set
+    setCart(c);
   }, [router]);
 
   if (!cart) {
@@ -59,8 +54,8 @@ export default function CheckoutPage() {
     <div className="p-4 space-y-4 max-w-xl mx-auto">
       <h1 className="text-xl font-bold">Order Summary</h1>
 
-      {/* Train / Station Info */}
-      <div className="border rounded p-3 bg-gray-50 text-sm">
+      {/* Info (safe optional rendering) */}
+      <div className="border rounded p-3 bg-gray-50 text-sm space-y-1">
         <div><b>Restaurant:</b> {cart.restroName || "-"}</div>
         <div><b>Station:</b> {cart.station || "-"}</div>
         <div><b>Date:</b> {cart.arrivalDate || "-"}</div>
