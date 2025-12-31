@@ -1,90 +1,128 @@
 "use client";
-import Link from "next/link";
 
-export default function MyMenuPage() {
+import { useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
+
+/* ================= TYPES ================= */
+
+type MenuItem = {
+  item_code: string;
+  item_name: string;
+  item_description: string;
+  selling_price: number;
+  menu_type: string;
+  menu_type_rank: number;
+  status: string;
+};
+
+type MenuResponse = {
+  ok: boolean;
+  restroCode: number;
+  arrivalTime: string;
+  items: MenuItem[];
+};
+
+/* ================= PAGE ================= */
+
+export default function MenuPage() {
+  const params = useSearchParams();
+
+  const restro = params.get("restro");
+  const arrival = params.get("arrival");
+
+  const [loading, setLoading] = useState(true);
+  const [items, setItems] = useState<MenuItem[]>([]);
+  const [error, setError] = useState<string | null>(null);
+
+  /* ================= FETCH ================= */
+
+  useEffect(() => {
+    if (!restro || !arrival) {
+      setError("Missing menu parameters");
+      setLoading(false);
+      return;
+    }
+
+    async function loadMenu() {
+      try {
+        setLoading(true);
+        const res = await fetch(
+          `/api/menu?restro=${restro}&arrival=${arrival}`,
+          { cache: "no-store" }
+        );
+
+        const data: MenuResponse = await res.json();
+
+        if (!data.ok || !data.items?.length) {
+          setError("No menu available");
+          setItems([]);
+        } else {
+          setItems(data.items);
+        }
+      } catch {
+        setError("Server error");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadMenu();
+  }, [restro, arrival]);
+
+  /* ================= GROUP BY MENU TYPE ================= */
+
+  const grouped = items.reduce<Record<string, MenuItem[]>>((acc, item) => {
+    acc[item.menu_type] ||= [];
+    acc[item.menu_type].push(item);
+    return acc;
+  }, {});
+
+  /* ================= UI STATES ================= */
+
+  if (loading) return <div className="p-4">Loading menu…</div>;
+  if (error) return <div className="p-4 text-red-600">{error}</div>;
+
+  /* ================= RENDER ================= */
+
   return (
-    <main className="mx-auto w-full max-w-screen-md p-4 space-y-5">
-      <h1 className="text-xl font-semibold">My Menu</h1>
+    <div className="p-4 space-y-6">
+      <h1 className="text-xl font-bold">Menu</h1>
 
-      {/* 1) Profile */}
-      <section id="profile" className="scroll-mt-16">
-        <Card title="Profile">
-          <List>
-            <Item href="#" label="My Profile" sub="Update name, phone & address" idTarget="profile" />
-            <Item href="#" label="My Orders" sub="Track your recent orders" idTarget="orders" />
-            <Item href="#" label="Wallet Balance" sub="View & add money" idTarget="wallet" />
-          </List>
-        </Card>
-      </section>
+      {Object.entries(grouped).map(([menuType, items]) => (
+        <div key={menuType}>
+          <h2 className="text-lg font-semibold mb-2">{menuType}</h2>
 
-      {/* 2) Services */}
-      <section id="services" className="scroll-mt-16">
-        <Card title="Services">
-          <List>
-            <Item href="#" label="Bulk Order Query" idTarget="bulk" />
-          </List>
-        </Card>
-      </section>
+          <div className="space-y-2">
+            {items.map(item => (
+              <div
+                key={item.item_code}
+                className="border rounded-lg p-3 flex justify-between items-center"
+              >
+                <div>
+                  <div className="font-medium">{item.item_name}</div>
+                  <div className="text-sm text-gray-600">
+                    {item.item_description}
+                  </div>
+                  <div className="mt-1 font-semibold">
+                    ₹{item.selling_price}
+                  </div>
+                </div>
 
-      {/* 3) Help & Support */}
-      <section id="help" className="scroll-mt-16">
-        <Card title="Help & Support">
-          <List>
-            <Item href="#" label="Contact Us" idTarget="contact" />
-            <Item href="#" label="Feedback" idTarget="feedback" />
-          </List>
-        </Card>
-      </section>
-
-      {/* 4) About */}
-      <section id="about" className="scroll-mt-16">
-        <Card title="About RailEats">
-          <List>
-            <Item href="#" label="About Us" idTarget="about" />
-            <Item href="#" label="FAQ" idTarget="faq" />
-            <Item href="#" label="Terms & Conditions" idTarget="terms" />
-            <Item href="#" label="Privacy Policy" idTarget="privacy" />
-            <Item href="#" label="Cancellation Policy" idTarget="cancel" />
-          </List>
-        </Card>
-      </section>
-
-      {/* 5) Contact info */}
-      <section id="contactinfo" className="scroll-mt-16">
-        <Card title="Contact Information">
-          <div className="text-sm text-gray-700 space-y-1">
-            <p>Email: <a href="mailto:railrats@gmail.com" className="text-yellow-700">railrats@gmail.com</a></p>
-            <p>Call Center: <a href="tel:1111111111" className="text-yellow-700">1111111111</a></p>
+                <button
+                  disabled={item.status !== "ON"}
+                  className={`px-3 py-1 rounded ${
+                    item.status === "ON"
+                      ? "bg-green-600 text-white"
+                      : "bg-gray-300 text-gray-600 cursor-not-allowed"
+                  }`}
+                >
+                  Add
+                </button>
+              </div>
+            ))}
           </div>
-        </Card>
-      </section>
-    </main>
-  );
-}
-
-function Card({ title, children }: any) {
-  return (
-    <div className="rounded-xl border bg-white p-4">
-      <h2 className="mb-2 text-base font-semibold">{title}</h2>
-      {children}
-    </div>
-  );
-}
-
-function List({ children }: any) {
-  return <ul className="divide-y">{children}</ul>;
-}
-
-function Item({ label, sub, href = "#", idTarget }: any) {
-  return (
-    <li className="py-3">
-      <Link href={href} className="flex items-start justify-between hover:text-yellow-700">
-        <div>
-          <p className="text-sm font-medium">{label}</p>
-          {sub && <p className="text-xs text-gray-500">{sub}</p>}
         </div>
-        <span>›</span>
-      </Link>
-    </li>
+      ))}
+    </div>
   );
 }
