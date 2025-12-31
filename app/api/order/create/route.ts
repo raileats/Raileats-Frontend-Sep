@@ -2,7 +2,7 @@
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
-import { serviceClient } from "../../lib/supabaseServer";
+import { serviceClient } from "@/lib/supabaseServer";
 
 /* ================= HELPERS ================= */
 
@@ -86,7 +86,7 @@ export async function POST(req: Request) {
       );
     }
 
-    /* ================= INSERT ITEMS ================= */
+    /* ================= INSERT ORDER ITEMS ================= */
 
     const orderItems = items.map((i: any) => ({
       order_id: order.id,
