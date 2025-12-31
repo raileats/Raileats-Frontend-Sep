@@ -4,24 +4,10 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getCart } from "@/lib/cart";
 
-/* ================= TYPES ================= */
-
-type CartItem = {
-  item_code: string;
-  item_name: string;
-  selling_price: number;
-  qty: number;
-};
-
-type Cart = {
-  items: CartItem[];
-
-  // optional metadata (may or may not exist)
-  restroName?: string;
-  station?: string;
-  arrivalDate?: string;
-  arrivalTime?: string;
-};
+/* ✅ IMPORTANT
+   Cart & CartItem TYPES MUST COME FROM lib/cart
+*/
+import type { Cart } from "@/lib/cart";
 
 /* ================= PAGE ================= */
 
@@ -37,7 +23,7 @@ export default function CheckoutPage() {
       return;
     }
 
-    // ✅ NO reshaping → direct set
+    // ✅ SAME TYPE → no TS conflict
     setCart(c);
   }, [router]);
 
@@ -54,12 +40,12 @@ export default function CheckoutPage() {
     <div className="p-4 space-y-4 max-w-xl mx-auto">
       <h1 className="text-xl font-bold">Order Summary</h1>
 
-      {/* Info (safe optional rendering) */}
+      {/* Info */}
       <div className="border rounded p-3 bg-gray-50 text-sm space-y-1">
-        <div><b>Restaurant:</b> {cart.restroName || "-"}</div>
-        <div><b>Station:</b> {cart.station || "-"}</div>
-        <div><b>Date:</b> {cart.arrivalDate || "-"}</div>
-        <div><b>Arrival:</b> {cart.arrivalTime || "-"}</div>
+        <div><b>Restaurant:</b> {cart.restroName ?? "-"}</div>
+        <div><b>Station:</b> {cart.station ?? "-"}</div>
+        <div><b>Date:</b> {cart.arrivalDate ?? "-"}</div>
+        <div><b>Arrival:</b> {cart.arrivalTime ?? "-"}</div>
       </div>
 
       {/* Items */}
