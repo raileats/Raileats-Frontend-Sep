@@ -60,7 +60,6 @@ export default function CartPage() {
             <button
               onClick={() => {
                 item.qty += 1;
-                saveCart(cart);
                 setCart({ ...cart });
               }}
             >
