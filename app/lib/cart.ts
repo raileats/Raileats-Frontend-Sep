@@ -1,67 +1,67 @@
-// app/lib/cart.ts
+/* ================= TYPES ================= */
 
 export type CartItem = {
   item_code: string;
   item_name: string;
   selling_price: number;
-  quantity: number;
+  qty: number; // ✅ REQUIRED (THIS WAS MISSING)
 };
 
 export type Cart = {
+  restroCode?: number;
+  restroName?: string;
+  station?: string;
+  arrivalDate?: string;
+  arrivalTime?: string;
   items: CartItem[];
 };
 
-/* ================= GET CART ================= */
+/* ================= STORAGE KEY ================= */
 
-export function getCart(): Cart {
-  if (typeof window === "undefined") {
-    return { items: [] };
-  }
+const CART_KEY = "raileats_cart";
+
+/* ================= HELPERS ================= */
+
+export function getCart(): Cart | null {
+  if (typeof window === "undefined") return null;
 
   try {
-    const raw = localStorage.getItem("raileats_cart");
-    if (!raw) return { items: [] };
-
+    const raw = localStorage.getItem(CART_KEY);
+    if (!raw) return null;
     return JSON.parse(raw);
   } catch {
-    return { items: [] };
+    return null;
   }
 }
 
-/* ================= SAVE CART ================= */
+export function saveCart(cart: Cart) {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(CART_KEY, JSON.stringify(cart));
+}
 
-function saveCart(cart: Cart) {
-  localStorage.setItem("raileats_cart", JSON.stringify(cart));
+export function clearCart() {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem(CART_KEY);
 }
 
 /* ================= ADD ITEM ================= */
 
-export function addToCart(item: CartItem) {
-  const cart = getCart();
+export function addToCart(
+  meta: Omit<Cart, "items">,
+  item: Omit<CartItem, "qty">
+) {
+  const cart = getCart() || { ...meta, items: [] };
 
   const existing = cart.items.find(
     i => i.item_code === item.item_code
   );
 
   if (existing) {
-    existing.quantity += item.quantity;
+    existing.qty += 1;
   } else {
-    cart.items.push(item);
+    cart.items.push({ ...item, qty: 1 });
   }
 
   saveCart(cart);
-}
-
-/* ================= REMOVE ITEM ================= */
-
-export function removeFromCart(item_code: string) {
-  const cart = getCart();
-  cart.items = cart.items.filter(i => i.item_code !== item_code);
-  saveCart(cart);
-}
-
-/* ================= CLEAR CART ================= */
-
-export function clearCart() {
-  saveCart({ items: [] });
+  return cart;
 }
