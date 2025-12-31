@@ -1,87 +1,67 @@
-"use client";
+/* ================= TYPES ================= */
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { getCart } from "@/lib/cart";
+export type CartItem = {
+  item_code: string;
+  item_name: string;
+  selling_price: number;
+  qty: number; // ✅ REQUIRED (THIS WAS MISSING)
+};
 
-/* ✅ IMPORTANT
-   Cart & CartItem TYPES MUST COME FROM lib/cart
-*/
-import type { Cart } from "@/lib/cart";
+export type Cart = {
+  restroCode?: number;
+  restroName?: string;
+  station?: string;
+  arrivalDate?: string;
+  arrivalTime?: string;
+  items: CartItem[];
+};
 
-/* ================= PAGE ================= */
+/* ================= STORAGE KEY ================= */
 
-export default function CheckoutPage() {
-  const router = useRouter();
-  const [cart, setCart] = useState<Cart | null>(null);
+const CART_KEY = "raileats_cart";
 
-  useEffect(() => {
-    const c = getCart();
+/* ================= HELPERS ================= */
 
-    if (!c || !c.items || c.items.length === 0) {
-      router.push("/search");
-      return;
-    }
+export function getCart(): Cart | null {
+  if (typeof window === "undefined") return null;
 
-    // ✅ SAME TYPE → no TS conflict
-    setCart(c);
-  }, [router]);
+  try {
+    const raw = localStorage.getItem(CART_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
 
-  if (!cart) {
-    return <div className="p-4">Loading checkout…</div>;
+export function saveCart(cart: Cart) {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(CART_KEY, JSON.stringify(cart));
+}
+
+export function clearCart() {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem(CART_KEY);
+}
+
+/* ================= ADD ITEM ================= */
+
+export function addToCart(
+  meta: Omit<Cart, "items">,
+  item: Omit<CartItem, "qty">
+) {
+  const cart = getCart() || { ...meta, items: [] };
+
+  const existing = cart.items.find(
+    i => i.item_code === item.item_code
+  );
+
+  if (existing) {
+    existing.qty += 1;
+  } else {
+    cart.items.push({ ...item, qty: 1 });
   }
 
-  const total = cart.items.reduce(
-    (sum, i) => sum + i.selling_price * i.qty,
-    0
-  );
-
-  return (
-    <div className="p-4 space-y-4 max-w-xl mx-auto">
-      <h1 className="text-xl font-bold">Order Summary</h1>
-
-      {/* Info */}
-      <div className="border rounded p-3 bg-gray-50 text-sm space-y-1">
-        <div><b>Restaurant:</b> {cart.restroName ?? "-"}</div>
-        <div><b>Station:</b> {cart.station ?? "-"}</div>
-        <div><b>Date:</b> {cart.arrivalDate ?? "-"}</div>
-        <div><b>Arrival:</b> {cart.arrivalTime ?? "-"}</div>
-      </div>
-
-      {/* Items */}
-      <div className="border rounded">
-        {cart.items.map(item => (
-          <div
-            key={item.item_code}
-            className="flex justify-between p-3 border-b last:border-b-0"
-          >
-            <div>
-              <div className="font-medium">{item.item_name}</div>
-              <div className="text-sm text-gray-500">
-                Qty: {item.qty}
-              </div>
-            </div>
-
-            <div className="font-semibold">
-              ₹{item.selling_price * item.qty}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Total */}
-      <div className="flex justify-between text-lg font-bold">
-        <span>Total</span>
-        <span>₹{total}</span>
-      </div>
-
-      {/* Action */}
-      <button
-        className="w-full bg-green-600 text-white py-2 rounded"
-        onClick={() => router.push("/checkout/confirm")}
-      >
-        Place Order
-      </button>
-    </div>
-  );
+  saveCart(cart);
+  return cart;
 }
