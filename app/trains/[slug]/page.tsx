@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 
-/* ✅ FIXED URL */
+/* ✅ YOUR SUPABASE PROJECT URL */
 const SUPABASE_URL = "https://ygisiztmuzwxpnvhwrmr.supabase.co";
 
 export default function TrainPage() {
@@ -30,7 +30,7 @@ export default function TrainPage() {
         const json = await res.json();
         setStations(json?.stations || []);
       } catch (e) {
-        console.error(e);
+        console.error("API ERROR:", e);
       } finally {
         setLoading(false);
       }
@@ -59,7 +59,7 @@ export default function TrainPage() {
           return (
             <div key={stationCode} className="border rounded p-4 bg-gray-50">
 
-              {/* ✅ Station */}
+              {/* ✅ Station Header */}
               <div className="mb-3">
                 <h2 className="text-lg font-bold">
                   {stationName} ({stationCode})
@@ -73,31 +73,45 @@ export default function TrainPage() {
               <div className="space-y-3">
                 {vendors.map((r: any) => {
 
+                  console.log("RESTRO DATA:", r); // ✅ DEBUG (अब सही जगह)
+
                   const name = r.RestroName || "Restaurant";
 
-                  /* ✅ FIX MIN ORDER */
+                  /* ✅ MIN ORDER FIX */
                   const minOrder =
                     r.MinimumOrderValue ??
                     r.MinimumOrdermValue ??
-                    "—";
+                    0;
 
-                  /* ✅ FIX TIME */
-                  const open = r.open_time || r.OpenTime || "—";
-                  const close = r.closed_time || r.ClosedTime || "—";
+                  /* ✅ TIME FIX */
+                  const open =
+                    r.open_time || r.OpenTime || "00:00:00";
+                  const close =
+                    r.closed_time || r.ClosedTime || "23:59:00";
 
-                  /* ✅ IMAGE FIX (filename safe) */
-                  const fileName = String(r.RestroDisplayPhoto || "")
-                    .trim()
-                    .split("/")
-                    .pop();
+                  /* ✅ IMAGE FIX */
+                  let fileName = "";
+
+                  if (r.RestroDisplayPhoto) {
+                    fileName = String(r.RestroDisplayPhoto)
+                      .trim()
+                      .split("/")
+                      .pop();
+                  }
 
                   const image = fileName
                     ? `${SUPABASE_URL}/storage/v1/object/public/RestroDisplayPhoto/${fileName}`
                     : null;
 
-                  /* ✅ VEG FIX (100% accurate) */
-                 const isVeg =
-  Number(r.IsPureVeg ?? r.isPureVeg ?? r.is_pure_veg) === 1;
+                  /* ✅ VEG FIX (FINAL) */
+                  const isVeg =
+                    String(
+                      r.IsPureVeg ??
+                      r.isPureVeg ??
+                      r.is_pure_veg ??
+                      "0"
+                    ) === "1";
+
                   return (
                     <div
                       key={r.RestroCode}
