@@ -414,7 +414,7 @@ export async function GET(req: Request) {
   ClosedTime: cv.ClosedTime,
   MinimumOrdermValue: cv.MinimumOrdermValue,
   RestroDisplayPhoto: cv.RestroDisplayPhoto,
-  IsPureVeg: cv.IsPureVeg ?? 0, // ✅ FIX
+  IsPureVeg: cv.IsPureVeg ?? 0,
   source: "restromaster",
   raw: cv.raw
 };
