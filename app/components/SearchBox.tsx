@@ -28,6 +28,17 @@ export default function SearchBox() {
   const [modalDate, setModalDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [modalBoarding, setModalBoarding] = useState("");
 
+  const extractStationCode = (val: string) => {
+    const m = val.match(/\(([^)]+)\)$/);
+    if (m && m[1]) return m[1].trim();
+    const hyphenMatch = val.match(/- *([A-Za-z0-9]+)/);
+    if (hyphenMatch && hyphenMatch[1]) return hyphenMatch[1].trim();
+    const parts = val.trim().split(/\s+/);
+    const last = parts[parts.length - 1];
+    if (last && last.length <= 6) return last.trim();
+    return val.trim();
+  };
+
   async function fetchTrainRoute(digits: string) {
     setModalLoading(true);
     setModalError(null);
@@ -35,26 +46,54 @@ export default function SearchBox() {
 
     try {
       const res = await fetch(`/api/train-routes?train=${encodeURIComponent(digits)}`, { cache: "no-store" });
-      const j = await res.json();
+      const j = await res.json().catch(() => null);
 
+      if (!res.ok || !j?.ok) {
+        const r2 = await fetch(`/api/home/train-search?train=${encodeURIComponent(digits)}`, { cache: "no-store" });
+        const j2 = await r2.json().catch(() => null);
+
+        if (!r2.ok || !j2?.ok) {
+          setModalError(j?.error || j2?.error || "Train not found");
+          setModalStations([]);
+          return;
+        } else {
+          const stationsRaw = Array.isArray(j2.stations) ? j2.stations : [];
+
+          const stations = stationsRaw.map((s: any) => ({
+            stationCode: (s.stationCode || s.StationCode || "").toUpperCase(),
+            stationName: s.stationName || s.StationName || "",
+            state: s.state || s.State || null,
+            arrivalTime: (s.arrivalTime || s.Arrives || s.Arrival || "").slice(0,5) || null,
+            restroCount: s.restroCount || 0 // ✅ ADD
+          }));
+
+          setModalStations(stations);
+          setModalTrainName((j2.train && (j2.train.trainName || j2.trainName)) ?? null);
+
+          if (stations.length) setModalBoarding((prev) => prev || stations[0].stationCode);
+          return;
+        }
+      }
+
+      const trainName = j.trainName || j.train?.trainName || j.train?.name || j.trainNameRaw || null;
       const rows = j.rows || [];
 
       const stations = rows.map((r: any) => ({
-        stationCode: r.StationCode,
-        stationName: r.StationName,
-        state: r.state,
-        arrivalTime: r.Arrives,
-        restroCount: r.restroCount || 0, // 🔥 IMPORTANT
+        stationCode: (r.StationCode || "").toUpperCase(),
+        stationName: r.StationName || "",
+        state: r.State || null,
+        arrivalTime: (r.Arrives || "").slice(0,5),
+        restroCount: r.restroCount || 0 // ✅ ADD
       }));
 
+      setModalTrainName(trainName ?? null);
       setModalStations(stations);
-      setModalTrainName(j.train?.trainName || null);
 
-      if (stations.length) setModalBoarding(stations[0].stationCode);
+      if (stations.length) setModalBoarding((prev) => prev || stations[0].stationCode);
 
     } catch (err) {
       console.error(err);
-      setModalError("Failed to fetch train");
+      setModalError("Failed to search train");
     } finally {
       setModalLoading(false);
     }
@@ -95,33 +134,17 @@ export default function SearchBox() {
   return (
     <div className="mt-4 w-full max-w-xl mx-auto bg-white rounded-lg shadow p-4">
 
-      {/* SEARCH TYPE */}
-      <div className="flex justify-center gap-6 mb-4">
-        {["pnr", "train", "station"].map((type) => (
-          <label key={type}>
-            <input
-              type="radio"
-              checked={searchType === type}
-              onChange={() => setSearchType(type)}
-            />
-            {type}
-          </label>
-        ))}
+      {/* TRAIN */}
+      <div className="flex gap-2">
+        <TrainAutocomplete
+          value={inputValue}
+          onChange={setInputValue}
+        />
+
+        <button onClick={handleSearch} className="bg-black text-white px-4">
+          Search
+        </button>
       </div>
-
-      {/* TRAIN SEARCH */}
-      {searchType === "train" && (
-        <div className="flex gap-2">
-          <TrainAutocomplete
-            value={inputValue}
-            onChange={setInputValue}
-          />
-
-          <button onClick={handleSearch} className="bg-black text-white px-4">
-            Search
-          </button>
-        </div>
-      )}
 
       {/* MODAL */}
       {showTrainModal && (
@@ -142,8 +165,8 @@ export default function SearchBox() {
               onChange={(e) => setModalBoarding(e.target.value)}
             >
               {modalStations
-                .filter((s) => s.restroCount > 0) // ✅ MAIN LOGIC
-                .map((s) => (
+                .filter((s: any) => (s.restroCount ?? 0) > 0)
+                .map((s: any) => (
                   <option key={s.stationCode} value={s.stationCode}>
                     {s.stationName} ({s.stationCode}) - {s.restroCount} outlets
                   </option>
