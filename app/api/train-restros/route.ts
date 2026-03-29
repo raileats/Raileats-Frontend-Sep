@@ -293,7 +293,8 @@ export async function GET(req: Request) {
         const { data, error } = await serviceClient
           .from("RestroMaster")
           .select(
-            "RestroCode,RestroName,StationCode,StationName,0penTime,ClosedTime,WeeklyOff,MinimumOrdermValue,CutOffTime,IsActive,RestroDisplayPhoto",
+  "RestroCode,RestroName,StationCode,StationName,0penTime,ClosedTime,WeeklyOff,MinimumOrdermValue,CutOffTime,IsActive,IsPureVeg,RestroDisplayPhoto",
+)
           )
           .in("StationCode", b)
           .limit(20000);
@@ -383,14 +384,15 @@ export async function GET(req: Request) {
           const candidateVendors = grouped[sc]
             .filter((r: any) => isActiveValue(r.IsActive ?? r.isActive ?? r.active))
             .map((r: any) => ({
-              RestroCode: r.RestroCode ?? r.restroCode ?? r.id ?? null,
-              RestroName: r.RestroName ?? r.restroName ?? r.name ?? null,
-              OpenTime: r["0penTime"] ?? r.openTime ?? null,
-              ClosedTime: r.ClosedTime ?? r.closeTime ?? null,
-              MinimumOrdermValue: r.MinimumOrdermValue ?? r.minOrder ?? null,
-              RestroDisplayPhoto: r.RestroDisplayPhoto ?? null,
-              raw: r,
-            }));
+  RestroCode: r.RestroCode ?? r.restroCode ?? r.id ?? null,
+  RestroName: r.RestroName ?? r.restroName ?? r.name ?? null,
+  OpenTime: r["0penTime"] ?? r.openTime ?? null,
+  ClosedTime: r.ClosedTime ?? r.closeTime ?? null,
+  MinimumOrdermValue: r.MinimumOrdermValue ?? r.minOrder ?? null,
+  RestroDisplayPhoto: r.RestroDisplayPhoto ?? null,
+  IsPureVeg: r.IsPureVeg ?? 0, // ✅ ADD THIS
+  raw: r,
+}));
 
           // run holiday filter but using cached holiday lists (Upstash)
           const checked = await pMap(
