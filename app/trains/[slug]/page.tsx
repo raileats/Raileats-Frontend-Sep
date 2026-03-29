@@ -10,21 +10,6 @@ function extractTrainNumberFromSlug(slug?: string | null) {
   return m ? m[1] : slug.replace(/[^0-9]/g, "");
 }
 
-function slugifyName(name?: string | null) {
-  if (!name) return "";
-  return String(name)
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-}
-
-function makeStationSlug(code: string, name?: string) {
-  const clean = slugifyName(name || "");
-  return clean
-    ? `${code.toUpperCase()}-${clean}-food-delivery-in-train`
-    : `${code.toUpperCase()}-food-delivery-in-train`;
-}
-
 /* component */
 export default function TrainRedirectPage() {
   const params = useParams();
@@ -47,18 +32,15 @@ export default function TrainRedirectPage() {
       return;
     }
 
-    // 👉 IMPORTANT: station name abhi nahi hai, to code se hi slug banayenge
-    const stationSlug = makeStationSlug(boarding, boarding);
-
-    // 👉 redirect
-    const url = `/Stations/${stationSlug}?train=${trainNumber}&date=${date}&boarding=${boarding}`;
+    // ✅ FIX: अब /trains पर redirect करेंगे (NOT /Stations)
+    const url = `/trains/${trainNumber}?date=${date}&boarding=${boarding}`;
 
     window.location.href = url;
   }, []);
 
   return (
     <div className="p-6 text-center">
-      Redirecting to stations...
+      Loading train restaurants...
     </div>
   );
 }
