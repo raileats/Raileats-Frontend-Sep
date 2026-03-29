@@ -312,7 +312,7 @@ export async function GET(req: Request) {
         const { data: allRestros } = await serviceClient
           .from("RestroMaster")
           .select(
-            "RestroCode,RestroName,StationCode,StationName,0penTime,ClosedTime,WeeklyOff,MinimumOrdermValue,CutOffTime,IsActive,RestroDisplayPhoto",
+            "RestroCode,RestroName,StationCode,StationName,0penTime,ClosedTime,WeeklyOff,MinimumOrdermValue,CutOffTime,IsActive,IsPureVeg,RestroDisplayPhoto",
           )
           .limit(20000);
         if (Array.isArray(allRestros)) {
