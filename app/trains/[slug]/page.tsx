@@ -10,7 +10,6 @@ function extractTrainNumberFromSlug(slug?: string | null) {
   return m ? m[1] : slug.replace(/[^0-9]/g, "");
 }
 
-/* component */
 export default function TrainRedirectPage() {
   const params = useParams();
   const searchParams = useSearchParams();
@@ -22,25 +21,21 @@ export default function TrainRedirectPage() {
     const date = searchParams.get("date");
     const boarding = searchParams.get("boarding");
 
-    if (!trainNumber) {
-      alert("Train number missing");
+    // 🚨 LOOP PREVENTION
+    if (window.location.pathname.startsWith("/trains/")) {
       return;
     }
 
-    if (!boarding) {
-      alert("Please select boarding station");
-      return;
-    }
+    if (!trainNumber || !boarding) return;
 
-    // ✅ FIX: अब /trains पर redirect करेंगे (NOT /Stations)
     const url = `/trains/${trainNumber}?date=${date}&boarding=${boarding}`;
 
-    window.location.href = url;
+    window.location.replace(url); // replace instead of href
   }, []);
 
   return (
     <div className="p-6 text-center">
-      Loading train restaurants...
+      Redirecting...
     </div>
   );
 }
