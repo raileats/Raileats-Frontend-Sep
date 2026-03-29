@@ -3,6 +3,9 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 
+/* ✅ YOUR SUPABASE PROJECT URL */
+const SUPABASE_URL = "https://ygisiztmuzwxpnvhwmr.supabase.co";
+
 export default function TrainPage() {
   const params = useParams();
   const searchParams = useSearchParams();
@@ -72,27 +75,18 @@ export default function TrainPage() {
               {/* ✅ Restaurants */}
               <div className="space-y-3">
                 {vendors.map((r: any) => {
-                  const name = r.RestroName || r.restroName;
-                  const minOrder =
-                    r.MinimumOrderValue ||
-                    r.MinimumOrdermValue ||
-                    "—";
+                  const name = r.RestroName;
+                  const minOrder = r.MinimumOrderValue || "—";
+                  const open = r.open_time || "—";
+                  const close = r.closed_time || "—";
 
-                  const open =
-                    r.open_time || r.OpenTime || "—";
-                  const close =
-                    r.closed_time || r.ClosedTime || "—";
+                  /* ✅ IMAGE FIX */
+                  const image = r.RestroDisplayPhoto
+                    ? `${SUPABASE_URL}/storage/v1/object/public/RestroDisplayPhoto/${r.RestroDisplayPhoto}`
+                    : null;
 
-                  const image = r.RestroDisplayPhoto;
-
-                  /* ✅ Veg Logic */
-                  const items = r.menu_items || r.items || [];
-                  const hasNonVeg = items.some(
-                    (i: any) =>
-                      String(i.item_category || "")
-                        .toLowerCase()
-                        .includes("non")
-                  );
+                  /* ✅ VEG LOGIC */
+                  const isVeg = Number(r.IsPureVeg) === 1;
 
                   return (
                     <div
@@ -108,7 +102,7 @@ export default function TrainPage() {
                             className="w-full h-full object-cover"
                           />
                         ) : (
-                          <div className="w-full h-full flex items-center justify-center text-xs text-gray-400">
+                          <div className="flex items-center justify-center h-full text-xs text-gray-400">
                             No Image
                           </div>
                         )}
@@ -122,12 +116,12 @@ export default function TrainPage() {
                           ₹{minOrder} • {open} - {close}
                         </div>
 
-                        {/* ✅ Veg Label */}
+                        {/* ✅ Veg Tag */}
                         <div className="text-sm mt-1">
-                          {hasNonVeg ? (
-                            <span className="text-red-600">Veg + Non-Veg</span>
-                          ) : (
+                          {isVeg ? (
                             <span className="text-green-600">Pure Veg</span>
+                          ) : (
+                            <span className="text-red-600">Non Veg</span>
                           )}
                         </div>
 
