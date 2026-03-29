@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 
-/* ✅ YOUR SUPABASE PROJECT URL */
+/* ✅ Supabase URL */
 const SUPABASE_URL = "https://ygisiztmuzwxpnvhwmr.supabase.co";
 
 export default function TrainPage() {
@@ -79,12 +79,12 @@ export default function TrainPage() {
                   const open = r.open_time || "—";
                   const close = r.closed_time || "—";
 
-                  /* ✅ IMAGE FIX (Supabase Storage) */
+                  /* ✅ IMAGE FIX */
                   const image = r.RestroDisplayPhoto
                     ? `${SUPABASE_URL}/storage/v1/object/public/RestroDisplayPhoto/${r.RestroDisplayPhoto}`
                     : null;
 
-                  /* ✅ VEG LOGIC (DB BASED) */
+                  /* ✅ VEG LOGIC */
                   const isVeg = Number(r.IsPureVeg) === 1;
 
                   return (
@@ -115,7 +115,6 @@ export default function TrainPage() {
                           ₹{minOrder} • {open} - {close}
                         </div>
 
-                        {/* ✅ Veg Label */}
                         <div className="text-sm mt-1">
                           {isVeg ? (
                             <span className="text-green-600">Pure Veg</span>
