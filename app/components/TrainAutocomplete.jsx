@@ -1,77 +1,78 @@
 "use client";
 
-import React, { useEffect, useState, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 
-export default function TrainAutocomplete({ value, onChange, onSelect = () => {} }) {
-  const [suggestions, setSuggestions] = useState([]);
+export default function TrainAutocomplete({
+  value,
+  onChange,
+  onSelect,
+}) {
+  const [list, setList] = useState([]);
   const [open, setOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
   const ref = useRef();
 
   useEffect(() => {
-    const delay = setTimeout(() => {
-      if (!value || value.length < 1) {
-        setSuggestions([]);
+    if (!value) {
+      setList([]);
+      setOpen(false);
+      return;
+    }
+
+    const t = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/trains?search=${value}`);
+        const data = await res.json();
+
+        setList(data || []);
+        setOpen((data || []).length > 0);
+      } catch {
+        setList([]);
         setOpen(false);
-        return;
       }
-
-      fetch(`/api/trains?search=${value}`)
-        .then((res) => res.json())
-        .then((data) => {
-          const trains = (data || []).map((t) => ({
-            trainNumber: t.train_no,
-            trainName: t.train_name,
-          }));
-
-          setSuggestions(trains);
-          setOpen(trains.length > 0);
-        })
-        .catch(() => {
-          setSuggestions([]);
-          setOpen(false);
-        });
     }, 300);
 
-    return () => clearTimeout(delay);
+    return () => clearTimeout(t);
   }, [value]);
 
   function handleSelect(item) {
-    const display = `${item.trainNumber} - ${item.trainName}`;
+    const display = `${item.train_no} - ${item.train_name}`;
     onChange(display);
-    onSelect(item);
+
+    // ✅ FIX: pass parameter
+    if (onSelect) onSelect(item);
+
     setOpen(false);
   }
 
+  // close on outside click
   useEffect(() => {
-    function handleClickOutside(e) {
+    function handleClick(e) {
       if (ref.current && !ref.current.contains(e.target)) {
         setOpen(false);
       }
     }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
   return (
     <div ref={ref} className="relative w-full">
       <input
-        type="text"
         value={value}
-        placeholder="Enter train number or train name"
         onChange={(e) => onChange(e.target.value)}
-        className="w-full border px-3 py-2 rounded"
+        placeholder="Enter train number or name"
+        className="w-full border p-2"
       />
 
       {open && (
-        <div className="absolute w-full bg-white border shadow max-h-60 overflow-auto z-50">
-          {suggestions.map((item, idx) => (
+        <div className="absolute bg-white border w-full z-50 max-h-60 overflow-auto">
+          {list.map((t, i) => (
             <div
-              key={idx}
-              onClick={() => handleSelect(item)}
-              className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+              key={i}
+              onClick={() => handleSelect(t)}
+              className="p-2 hover:bg-gray-200 cursor-pointer"
             >
-              {item.trainNumber} — {item.trainName}
+              {t.train_no} - {t.train_name}
             </div>
           ))}
         </div>
