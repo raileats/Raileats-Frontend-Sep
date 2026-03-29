@@ -398,27 +398,36 @@ export async function GET(req: Request) {
 
           // run holiday filter but using cached holiday lists (Upstash)
           const checked = await pMap(
-            candidateVendors,
-            async (cv) => {
-              try {
-                const restroId = cv.RestroCode ?? null;
-                if (!restroId) return null;
-                const rows = await getVendorHolidaysCached(restroId);
-                const blocked = isHolidayRowsBlocking(rows, arrivalDate);
-                if (blocked) return null;
-                return { 
-  RestroCode: cv.RestroCode,
-  RestroName: cv.RestroName,
-  isActive: true,
-  OpenTime: cv.OpenTime,
-  ClosedTime: cv.ClosedTime,
-  MinimumOrdermValue: cv.MinimumOrdermValue,
-  RestroDisplayPhoto: cv.RestroDisplayPhoto,
-  IsPureVeg: cv.IsPureVeg ?? 0,
-  source: "restromaster",
-  raw: cv.raw
-};
+  candidateVendors,
+  async (cv) => {
+    try {
+      const restroId = cv.RestroCode ?? null;
+      if (!restroId) return null;
 
+      const rows = await getVendorHolidaysCached(restroId);
+      const blocked = isHolidayRowsBlocking(rows, arrivalDate);
+      if (blocked) return null;
+
+      return {
+        RestroCode: cv.RestroCode,
+        RestroName: cv.RestroName,
+        isActive: true,
+        OpenTime: cv.OpenTime,
+        ClosedTime: cv.ClosedTime,
+        MinimumOrdermValue: cv.MinimumOrdermValue,
+        RestroDisplayPhoto: cv.RestroDisplayPhoto,
+        IsPureVeg: cv.IsPureVeg ?? 0,
+        source: "restromaster",
+        raw: cv.raw,
+      };
+    } catch {
+      return null;
+    }
+  },
+  12
+);
+
+vendors = (checked || []).filter(Boolean);
           vendors = (checked || []).filter(Boolean);
         } else {
           const adminJson = adminFetchMap[sc] ?? null;
