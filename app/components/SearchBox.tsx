@@ -22,6 +22,8 @@ export default function SearchBox() {
     new Date().toISOString().slice(0, 10)
   );
 
+  const [showStationList, setShowStationList] = useState(false);
+
   // 🚀 FETCH STATIONS
   async function fetchStations(trainNo: string) {
     try {
@@ -49,7 +51,7 @@ export default function SearchBox() {
     }
   }
 
-  // 🔥 IMPORTANT: TRAIN SELECT HANDLER
+  // 🔥 TRAIN SELECT
   function handleTrainSelect(t: any) {
     setSelectedTrain(t);
     setInputValue(`${t.train_no} - ${t.train_name}`);
@@ -94,6 +96,7 @@ export default function SearchBox() {
                 setInputValue("");
                 setSelectedTrain(null);
                 setStations([]);
+                setBoarding("");
               }}
             />
             {type}
@@ -106,7 +109,7 @@ export default function SearchBox() {
         <TrainAutocomplete
           value={inputValue}
           onChange={setInputValue}
-          onSelect={handleTrainSelect}   // ✅ FIX HERE
+          onSelect={handleTrainSelect}
         />
       ) : searchType === "station" ? (
         <StationSearchBox
@@ -121,10 +124,11 @@ export default function SearchBox() {
         />
       )}
 
-      {/* EXPAND PANEL */}
+      {/* 🔥 TRAIN EXTRA UI */}
       {searchType === "train" && selectedTrain && (
-        <div className="mt-4 border p-3 rounded">
+        <div className="mt-4">
 
+          {/* DATE */}
           <input
             type="date"
             value={date}
@@ -132,26 +136,42 @@ export default function SearchBox() {
             className="border p-2 w-full mb-2"
           />
 
-          <div className="max-h-40 overflow-y-auto border">
-            {stations.map((s) => (
-              <div
-                key={s.code}
-                onClick={() => setBoarding(s.code)}
-                className={`p-2 cursor-pointer ${
-                  boarding === s.code ? "bg-black text-white" : ""
-                }`}
-              >
-                {s.name} ({s.code}) - {s.restro} outlets
+          {/* 🔥 STATION SELECT */}
+          <div className="relative">
+            <div
+              onClick={() => setShowStationList(!showStationList)}
+              className="border p-2 cursor-pointer bg-white"
+            >
+              {boarding
+                ? `Selected: ${boarding}`
+                : "Select Station"}
+            </div>
+
+            {showStationList && (
+              <div className="absolute w-full bg-white border max-h-48 overflow-auto z-50">
+                {stations.map((s) => (
+                  <div
+                    key={s.code}
+                    onClick={() => {
+                      setBoarding(s.code);
+                      setShowStationList(false);
+                    }}
+                    className="p-2 hover:bg-gray-200 cursor-pointer"
+                  >
+                    {s.name} ({s.code}) - {s.restro} outlets
+                  </div>
+                ))}
               </div>
-            ))}
+            )}
           </div>
 
         </div>
       )}
 
+      {/* SEARCH BUTTON */}
       <button
         onClick={handleSearch}
-        className="bg-black text-white px-4 py-2 mt-2 w-full"
+        className="bg-black text-white px-4 py-2 mt-3 w-full"
       >
         Search
       </button>
