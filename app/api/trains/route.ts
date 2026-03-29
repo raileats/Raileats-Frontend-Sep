@@ -11,11 +11,11 @@ export async function GET(req: Request) {
 
   const supa = serviceClient;
 
-  // 🔥 ONLY trainName pe ilike (text field)
+  // Search both trainName and trainNumber using OR
   const { data, error } = await supa
     .from("TrainRoute")
     .select("trainNumber, trainName")
-    .ilike("trainName", `%${search}%`)
+    .or(`trainName.ilike.%${search}%,trainNumber.eq.${isNaN(Number(search)) ? -1 : Number(search)}`)
     .limit(50);
 
   if (error) {
@@ -23,16 +23,11 @@ export async function GET(req: Request) {
     return NextResponse.json([]);
   }
 
-  // 🔥 NUMBER filter manually (IMPORTANT)
-  const filtered = (data || []).filter((t: any) =>
-    String(t.trainNumber).includes(search)
-  );
-
-  // 🔥 REMOVE DUPLICATES
+  // Remove duplicates
   const seen = new Set();
   const result = [];
 
-  for (const row of filtered) {
+  for (const row of (data || [])) {
     const key = `${row.trainNumber}-${row.trainName}`;
     if (!seen.has(key)) {
       seen.add(key);
