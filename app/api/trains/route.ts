@@ -11,22 +11,28 @@ export async function GET(req: Request) {
 
   const supa = serviceClient;
 
+  // 🔥 ONLY trainName pe ilike (text field)
   const { data, error } = await supa
     .from("TrainRoute")
     .select("trainNumber, trainName")
-    .or(`trainNumber.ilike.%${search}%,trainName.ilike.%${search}%`)
-    .limit(10);
+    .ilike("trainName", `%${search}%`)
+    .limit(50);
 
   if (error) {
     console.error(error);
     return NextResponse.json([]);
   }
 
-  // remove duplicates
+  // 🔥 NUMBER filter manually (IMPORTANT)
+  const filtered = (data || []).filter((t: any) =>
+    String(t.trainNumber).includes(search)
+  );
+
+  // 🔥 REMOVE DUPLICATES
   const seen = new Set();
   const result = [];
 
-  for (const row of data || []) {
+  for (const row of filtered) {
     const key = `${row.trainNumber}-${row.trainName}`;
     if (!seen.has(key)) {
       seen.add(key);
