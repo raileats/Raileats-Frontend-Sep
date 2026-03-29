@@ -128,17 +128,18 @@ async function upstashSet(key: string, value: any, exSeconds = CACHE_TTL) {
 
 /* ------------ map admin restro shape ------------- */
 function mapAdminRestroToCommon(adminR: any) {
-  return {
-    RestroCode: adminR.RestroCode ?? adminR.id ?? adminR.code ?? null,
-    RestroName: adminR.RestroName ?? adminR.name ?? adminR.restro_name ?? null,
-    isActive: isActiveValue(adminR.IsActive ?? adminR.is_active ?? adminR.active),
-    OpenTime: adminR.OpenTime ?? adminR.open_time ?? adminR.openTime ?? null,
-    ClosedTime: adminR.ClosedTime ?? adminR.closed_time ?? adminR.closeTime ?? null,
-    MinimumOrdermValue: adminR.MinimumOrdermValue ?? adminR.minOrder ?? adminR.minimum_order ?? null,
-    RestroDisplayPhoto: adminR.RestroDisplayPhoto ?? adminR.display_photo ?? null,
-    raw: adminR,
-  };
-}
+ return {
+  RestroCode: cv.RestroCode,
+  RestroName: cv.RestroName,
+  isActive: true,
+  OpenTime: cv.OpenTime,
+  ClosedTime: cv.ClosedTime,
+  MinimumOrdermValue: cv.MinimumOrdermValue,
+  RestroDisplayPhoto: cv.RestroDisplayPhoto,
+  IsPureVeg: cv.IsPureVeg ?? 0, // ✅ ADD THIS
+  source: "restromaster",
+  raw: cv.raw
+};
 
 /* ------------ holiday fetch & cache per-restro ------------- */
 async function fetchVendorHolidays(restroCode: string | number) {
