@@ -3,7 +3,6 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 
-/* ✅ Supabase URL */
 const SUPABASE_URL = "https://ygisiztmuzwxpnvhwmr.supabase.co";
 
 export default function TrainPage() {
@@ -28,11 +27,9 @@ export default function TrainPage() {
         );
         const json = await res.json();
 
-        if (json?.stations) {
-          setStations(json.stations);
-        }
+        setStations(json?.stations || []);
       } catch (e) {
-        console.error("Fetch error:", e);
+        console.error(e);
       } finally {
         setLoading(false);
       }
@@ -61,7 +58,7 @@ export default function TrainPage() {
           return (
             <div key={stationCode} className="border rounded p-4 bg-gray-50">
               
-              {/* ✅ Station Header */}
+              {/* Station */}
               <div className="mb-3">
                 <h2 className="text-lg font-bold">
                   {stationName} ({stationCode})
@@ -71,28 +68,45 @@ export default function TrainPage() {
                 )}
               </div>
 
-              {/* ✅ Restaurants */}
+              {/* Restaurants */}
               <div className="space-y-3">
                 {vendors.map((r: any) => {
-                  const name = r.RestroName;
-                  const minOrder = r.MinimumOrderValue || "—";
-                  const open = r.open_time || "—";
-                  const close = r.closed_time || "—";
+                  
+                  /* ✅ SAFE FIELD MAPPING */
+                  const name = r.RestroName || r.restroName || "Restaurant";
+
+                  const minOrder =
+                    r.MinimumOrderValue ??
+                    r.MinimumOrdermValue ??
+                    "—";
+
+                  const open =
+                    r.open_time ||
+                    r.OpenTime ||
+                    r.openTime ||
+                    "—";
+
+                  const close =
+                    r.closed_time ||
+                    r.ClosedTime ||
+                    r.closedTime ||
+                    "—";
 
                   /* ✅ IMAGE FIX */
                   const image = r.RestroDisplayPhoto
                     ? `${SUPABASE_URL}/storage/v1/object/public/RestroDisplayPhoto/${r.RestroDisplayPhoto}`
                     : null;
 
-                  /* ✅ VEG LOGIC */
-                  const isVeg = Number(r.IsPureVeg) === 1;
+                  /* ✅ VEG FIX (string + number both) */
+                  const isVeg =
+                    r.IsPureVeg == 1 || r.IsPureVeg === "1";
 
                   return (
                     <div
                       key={r.RestroCode}
                       className="bg-white p-3 rounded border flex gap-3"
                     >
-                      {/* ✅ IMAGE */}
+                      {/* IMAGE */}
                       <div className="w-24 h-20 bg-gray-100 rounded overflow-hidden flex-shrink-0">
                         {image ? (
                           <img
@@ -107,7 +121,7 @@ export default function TrainPage() {
                         )}
                       </div>
 
-                      {/* ✅ DETAILS */}
+                      {/* DETAILS */}
                       <div className="flex-1">
                         <div className="font-semibold">{name}</div>
 
@@ -123,7 +137,7 @@ export default function TrainPage() {
                           )}
                         </div>
 
-                        {/* ✅ Button */}
+                        {/* BUTTON */}
                         <div className="mt-2">
                           <a
                             href={`/Stations/${stationCode}/${r.RestroCode}-${name}`}
