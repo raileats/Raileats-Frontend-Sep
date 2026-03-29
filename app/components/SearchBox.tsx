@@ -1,4 +1,3 @@
-// app/components/SearchBox.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -17,25 +16,18 @@ export default function SearchBox() {
   const [searchType, setSearchType] = useState("pnr");
   const [inputValue, setInputValue] = useState("");
   const [selectedStation, setSelectedStation] = useState<any>(null);
-  const [loading, setLoading] = useState(false);
 
   const [showTrainModal, setShowTrainModal] = useState(false);
   const [modalTrainNo, setModalTrainNo] = useState("");
   const [modalTrainName, setModalTrainName] = useState<string | null>(null);
   const [modalStations, setModalStations] = useState<any[]>([]);
-  const [modalLoading, setModalLoading] = useState(false);
-  const [modalError, setModalError] = useState<string | null>(null);
-  const [modalDate, setModalDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [modalBoarding, setModalBoarding] = useState("");
+  const [modalDate, setModalDate] = useState(() =>
+    new Date().toISOString().slice(0, 10)
+  );
 
-  const extractStationCode = (val: string) => {
-    const m = val.match(/\(([^)]+)\)$/);
-    if (m && m[1]) return m[1].trim();
-    return val.trim();
-  };
-
+  // 🔥 FETCH TRAIN ROUTE
   async function fetchTrainRoute(digits: string) {
-    setModalLoading(true);
     setModalStations([]);
 
     try {
@@ -45,19 +37,29 @@ export default function SearchBox() {
       const stations = (j.rows || []).map((r: any) => ({
         stationCode: r.StationCode,
         stationName: r.StationName,
-        restroCount: r.restroCount || 0
+        restroCount: r.restroCount || 0,
       }));
 
-      setModalStations(stations);
       setModalTrainName(j.train?.trainName || null);
+      setModalStations(stations);
+
+      // ✅ ONLY VALID STATIONS (WITH OUTLETS)
+      const validStations = stations.filter(
+        (s: any) => (s.restroCount ?? 0) > 0
+      );
+
+      if (validStations.length > 0) {
+        setModalBoarding(validStations[0].stationCode);
+      } else {
+        setModalBoarding("");
+      }
 
     } catch (err) {
       console.error(err);
-    } finally {
-      setModalLoading(false);
     }
   }
 
+  // 🔍 SEARCH HANDLER
   const handleSearch = async () => {
     if (!inputValue.trim()) return alert("Enter value");
 
@@ -67,26 +69,41 @@ export default function SearchBox() {
     }
 
     if (searchType === "station") {
-      const code = extractStationCode(inputValue);
-      window.location.href = `/Stations/${code}`;
+      window.location.href = `/stations/${inputValue}`;
       return;
     }
 
     if (searchType === "train") {
       const digits = inputValue.replace(/\D+/g, "");
+      if (!digits) return alert("Invalid train");
+
       setModalTrainNo(digits);
       setShowTrainModal(true);
       await fetchTrainRoute(digits);
     }
   };
 
+  // 🚀 FINAL SUBMIT
+  const handleFinalSearch = () => {
+    if (!modalBoarding) return alert("Select station");
+
+    const slug = makeTrainSlug(modalTrainNo);
+
+    const qs = new URLSearchParams({
+      date: modalDate,
+      boarding: modalBoarding,
+    }).toString();
+
+    window.location.href = `/trains/${slug}?${qs}`;
+  };
+
   return (
     <div className="mt-4 w-full max-w-xl mx-auto bg-white rounded-lg shadow p-4">
 
-      {/* 🔥 RADIO BUTTONS BACK */}
+      {/* 🔥 RADIO */}
       <div className="flex justify-center gap-6 mb-4">
         {["pnr", "train", "station"].map((type) => (
-          <label key={type} className="flex items-center gap-2">
+          <label key={type}>
             <input
               type="radio"
               checked={searchType === type}
@@ -100,11 +117,13 @@ export default function SearchBox() {
         ))}
       </div>
 
-      {/* INPUT SWITCH */}
-      {searchType === "station" ? (
-        <StationSearchBox onSelect={(s: any) => setInputValue(s?.StationCode || "")} />
-      ) : searchType === "train" ? (
+      {/* 🔍 INPUT */}
+      {searchType === "train" ? (
         <TrainAutocomplete value={inputValue} onChange={setInputValue} />
+      ) : searchType === "station" ? (
+        <StationSearchBox
+          onSelect={(s: any) => setInputValue(s?.StationCode)}
+        />
       ) : (
         <input
           value={inputValue}
@@ -114,29 +133,50 @@ export default function SearchBox() {
         />
       )}
 
-      <button onClick={handleSearch} className="bg-black text-white px-4 py-2 mt-2">
+      <button
+        onClick={handleSearch}
+        className="bg-black text-white px-4 py-2 mt-2"
+      >
         Search
       </button>
 
-      {/* MODAL */}
+      {/* 🔥 MODAL */}
       {showTrainModal && (
         <div className="fixed inset-0 bg-black/40 flex justify-center items-center">
-          <div className="bg-white p-4">
+          <div className="bg-white p-4 w-[400px]">
 
-            <h3>{modalTrainNo} {modalTrainName}</h3>
+            <h3 className="mb-2">
+              {modalTrainNo} {modalTrainName}
+            </h3>
 
+            <input
+              type="date"
+              value={modalDate}
+              onChange={(e) => setModalDate(e.target.value)}
+              className="border p-2 w-full mb-2"
+            />
+
+            {/* ✅ ONLY VALID STATIONS */}
             <select
               value={modalBoarding}
               onChange={(e) => setModalBoarding(e.target.value)}
+              className="border p-2 w-full mb-2"
             >
               {modalStations
                 .filter((s) => s.restroCount > 0)
                 .map((s) => (
                   <option key={s.stationCode} value={s.stationCode}>
-                    {s.stationName} ({s.stationCode}) - {s.restroCount}
+                    {s.stationName} ({s.stationCode}) - {s.restroCount} outlets
                   </option>
                 ))}
             </select>
+
+            <button
+              onClick={handleFinalSearch}
+              className="bg-black text-white px-4 py-2 w-full"
+            >
+              Show Restaurants
+            </button>
 
           </div>
         </div>
