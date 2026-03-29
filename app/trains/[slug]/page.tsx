@@ -71,9 +71,8 @@ export default function TrainPage() {
               {/* Restaurants */}
               <div className="space-y-3">
                 {vendors.map((r: any) => {
-                  
-                  /* ✅ SAFE FIELD MAPPING */
-                  const name = r.RestroName || r.restroName || "Restaurant";
+
+                  const name = r.RestroName || "Restaurant";
 
                   const minOrder =
                     r.MinimumOrderValue ??
@@ -83,23 +82,27 @@ export default function TrainPage() {
                   const open =
                     r.open_time ||
                     r.OpenTime ||
-                    r.openTime ||
                     "—";
 
                   const close =
                     r.closed_time ||
                     r.ClosedTime ||
-                    r.closedTime ||
                     "—";
 
-                  /* ✅ IMAGE FIX */
-                  const image = r.RestroDisplayPhoto
-                    ? `${SUPABASE_URL}/storage/v1/object/public/RestroDisplayPhoto/${r.RestroDisplayPhoto}`
-                    : null;
+                  /* ✅ IMAGE FIX (TRIM + SAFE) */
+                  const fileName = String(r.RestroDisplayPhoto || "").trim();
 
-                  /* ✅ VEG FIX (string + number both) */
+                  const image =
+                    fileName !== ""
+                      ? `${SUPABASE_URL}/storage/v1/object/public/RestroDisplayPhoto/${fileName}`
+                      : null;
+
+                  /* ✅ VEG FIX (ALL CASES HANDLE) */
                   const isVeg =
-                    r.IsPureVeg == 1 || r.IsPureVeg === "1";
+                    r.IsPureVeg == 1 ||
+                    r.IsPureVeg === "1" ||
+                    r.IsPureVeg === true ||
+                    r.IsPureVeg === "true";
 
                   return (
                     <div
@@ -113,6 +116,10 @@ export default function TrainPage() {
                             src={image}
                             alt={name}
                             className="w-full h-full object-cover"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src =
+                                "https://via.placeholder.com/100x80?text=No+Image";
+                            }}
                           />
                         ) : (
                           <div className="flex items-center justify-center h-full text-xs text-gray-400">
@@ -131,9 +138,13 @@ export default function TrainPage() {
 
                         <div className="text-sm mt-1">
                           {isVeg ? (
-                            <span className="text-green-600">Pure Veg</span>
+                            <span className="text-green-600 font-medium">
+                              Pure Veg
+                            </span>
                           ) : (
-                            <span className="text-red-600">Non Veg</span>
+                            <span className="text-red-600 font-medium">
+                              Non Veg
+                            </span>
                           )}
                         </div>
 
