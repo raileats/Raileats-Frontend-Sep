@@ -31,69 +31,28 @@ export default function SearchBox() {
   const extractStationCode = (val: string) => {
     const m = val.match(/\(([^)]+)\)$/);
     if (m && m[1]) return m[1].trim();
-    const hyphenMatch = val.match(/- *([A-Za-z0-9]+)/);
-    if (hyphenMatch && hyphenMatch[1]) return hyphenMatch[1].trim();
-    const parts = val.trim().split(/\s+/);
-    const last = parts[parts.length - 1];
-    if (last && last.length <= 6) return last.trim();
     return val.trim();
   };
 
   async function fetchTrainRoute(digits: string) {
     setModalLoading(true);
-    setModalError(null);
     setModalStations([]);
 
     try {
-      const res = await fetch(`/api/train-routes?train=${encodeURIComponent(digits)}`, { cache: "no-store" });
-      const j = await res.json().catch(() => null);
+      const res = await fetch(`/api/train-routes?train=${digits}`);
+      const j = await res.json();
 
-      if (!res.ok || !j?.ok) {
-        const r2 = await fetch(`/api/home/train-search?train=${encodeURIComponent(digits)}`, { cache: "no-store" });
-        const j2 = await r2.json().catch(() => null);
-
-        if (!r2.ok || !j2?.ok) {
-          setModalError(j?.error || j2?.error || "Train not found");
-          setModalStations([]);
-          return;
-        } else {
-          const stationsRaw = Array.isArray(j2.stations) ? j2.stations : [];
-
-          const stations = stationsRaw.map((s: any) => ({
-            stationCode: (s.stationCode || s.StationCode || "").toUpperCase(),
-            stationName: s.stationName || s.StationName || "",
-            state: s.state || s.State || null,
-            arrivalTime: (s.arrivalTime || s.Arrives || s.Arrival || "").slice(0,5) || null,
-            restroCount: s.restroCount || 0 // ✅ ADD
-          }));
-
-          setModalStations(stations);
-          setModalTrainName((j2.train && (j2.train.trainName || j2.trainName)) ?? null);
-
-          if (stations.length) setModalBoarding((prev) => prev || stations[0].stationCode);
-          return;
-        }
-      }
-
-      const trainName = j.trainName || j.train?.trainName || j.train?.name || j.trainNameRaw || null;
-      const rows = j.rows || [];
-
-      const stations = rows.map((r: any) => ({
-        stationCode: (r.StationCode || "").toUpperCase(),
-        stationName: r.StationName || "",
-        state: r.State || null,
-        arrivalTime: (r.Arrives || "").slice(0,5),
-        restroCount: r.restroCount || 0 // ✅ ADD
+      const stations = (j.rows || []).map((r: any) => ({
+        stationCode: r.StationCode,
+        stationName: r.StationName,
+        restroCount: r.restroCount || 0
       }));
 
-      setModalTrainName(trainName ?? null);
       setModalStations(stations);
-
-      if (stations.length) setModalBoarding((prev) => prev || stations[0].stationCode);
+      setModalTrainName(j.train?.trainName || null);
 
     } catch (err) {
       console.error(err);
-      setModalError("Failed to search train");
     } finally {
       setModalLoading(false);
     }
@@ -102,80 +61,82 @@ export default function SearchBox() {
   const handleSearch = async () => {
     if (!inputValue.trim()) return alert("Enter value");
 
-    setLoading(true);
+    if (searchType === "pnr") {
+      window.location.href = `/pnr/${inputValue}`;
+      return;
+    }
+
+    if (searchType === "station") {
+      const code = extractStationCode(inputValue);
+      window.location.href = `/Stations/${code}`;
+      return;
+    }
 
     if (searchType === "train") {
       const digits = inputValue.replace(/\D+/g, "");
-
-      if (!digits) {
-        alert("Enter valid train");
-        setLoading(false);
-        return;
-      }
-
       setModalTrainNo(digits);
       setShowTrainModal(true);
       await fetchTrainRoute(digits);
-      setLoading(false);
     }
-  };
-
-  const onModalSearchSubmit = () => {
-    const slug = makeTrainSlug(modalTrainNo);
-
-    const qs = new URLSearchParams({
-      date: modalDate,
-      boarding: modalBoarding,
-    }).toString();
-
-    window.location.href = `/trains/${slug}?${qs}`;
   };
 
   return (
     <div className="mt-4 w-full max-w-xl mx-auto bg-white rounded-lg shadow p-4">
 
-      {/* TRAIN */}
-      <div className="flex gap-2">
-        <TrainAutocomplete
-          value={inputValue}
-          onChange={setInputValue}
-        />
-
-        <button onClick={handleSearch} className="bg-black text-white px-4">
-          Search
-        </button>
+      {/* 🔥 RADIO BUTTONS BACK */}
+      <div className="flex justify-center gap-6 mb-4">
+        {["pnr", "train", "station"].map((type) => (
+          <label key={type} className="flex items-center gap-2">
+            <input
+              type="radio"
+              checked={searchType === type}
+              onChange={() => {
+                setSearchType(type);
+                setInputValue("");
+              }}
+            />
+            {type}
+          </label>
+        ))}
       </div>
+
+      {/* INPUT SWITCH */}
+      {searchType === "station" ? (
+        <StationSearchBox onSelect={(s: any) => setInputValue(s?.StationCode || "")} />
+      ) : searchType === "train" ? (
+        <TrainAutocomplete value={inputValue} onChange={setInputValue} />
+      ) : (
+        <input
+          value={inputValue}
+          onChange={(e) => setInputValue(e.target.value)}
+          placeholder="Enter PNR"
+          className="w-full border p-2"
+        />
+      )}
+
+      <button onClick={handleSearch} className="bg-black text-white px-4 py-2 mt-2">
+        Search
+      </button>
 
       {/* MODAL */}
       {showTrainModal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center">
-          <div className="bg-white p-4 w-[500px]">
+        <div className="fixed inset-0 bg-black/40 flex justify-center items-center">
+          <div className="bg-white p-4">
 
-            <h2>{modalTrainNo} {modalTrainName}</h2>
+            <h3>{modalTrainNo} {modalTrainName}</h3>
 
-            <input
-              type="date"
-              value={modalDate}
-              onChange={(e) => setModalDate(e.target.value)}
-            />
-
-            {/* 🔥 FILTERED STATIONS */}
             <select
               value={modalBoarding}
               onChange={(e) => setModalBoarding(e.target.value)}
             >
               {modalStations
-                .filter((s: any) => (s.restroCount ?? 0) > 0)
-                .map((s: any) => (
+                .filter((s) => s.restroCount > 0)
+                .map((s) => (
                   <option key={s.stationCode} value={s.stationCode}>
-                    {s.stationName} ({s.stationCode}) - {s.restroCount} outlets
+                    {s.stationName} ({s.stationCode}) - {s.restroCount}
                   </option>
                 ))}
             </select>
-
-            <button onClick={onModalSearchSubmit}>
-              Search
-            </button>
 
           </div>
         </div>
