@@ -96,7 +96,8 @@ export default function TrainPage() {
                     : null;
 
                   /* ✅ VEG FIX (100% accurate) */
-                  const isVeg = Number(r.IsPureVeg) === 1;
+                 const isVeg =
+  Number(r.IsPureVeg ?? r.isPureVeg ?? r.is_pure_veg) === 1;
                   return (
                     <div
                       key={r.RestroCode}
