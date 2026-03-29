@@ -295,10 +295,9 @@ export async function GET(req: Request) {
       try {
         const { data, error } = await serviceClient
           .from("RestroMaster")
-          .select(
-  "RestroCode,RestroName,StationCode,StationName,0penTime,ClosedTime,WeeklyOff,MinimumOrdermValue,CutOffTime,IsActive,IsPureVeg,RestroDisplayPhoto",
+         .select(
+  "RestroCode,RestroName,StationCode,StationName,0penTime,ClosedTime,WeeklyOff,MinimumOrdermValue,CutOffTime,IsActive,IsPureVeg,RestroDisplayPhoto"
 )
-          )
           .in("StationCode", b)
           .limit(20000);
         if (!error && Array.isArray(data) && data.length) restroRows.push(...data);
