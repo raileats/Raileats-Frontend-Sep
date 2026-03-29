@@ -32,7 +32,7 @@ export default function TrainPage() {
           setStations(json.stations);
         }
       } catch (e) {
-        console.error(e);
+        console.error("Fetch error:", e);
       } finally {
         setLoading(false);
       }
@@ -56,7 +56,6 @@ export default function TrainPage() {
           const state = st.state || st.State || "";
 
           const vendors = st.vendors || [];
-
           if (!vendors.length) return null;
 
           return (
@@ -80,12 +79,12 @@ export default function TrainPage() {
                   const open = r.open_time || "—";
                   const close = r.closed_time || "—";
 
-                  /* ✅ IMAGE FIX */
+                  /* ✅ IMAGE FIX (Supabase Storage) */
                   const image = r.RestroDisplayPhoto
                     ? `${SUPABASE_URL}/storage/v1/object/public/RestroDisplayPhoto/${r.RestroDisplayPhoto}`
                     : null;
 
-                  /* ✅ VEG LOGIC */
+                  /* ✅ VEG LOGIC (DB BASED) */
                   const isVeg = Number(r.IsPureVeg) === 1;
 
                   return (
@@ -116,7 +115,7 @@ export default function TrainPage() {
                           ₹{minOrder} • {open} - {close}
                         </div>
 
-                        {/* ✅ Veg Tag */}
+                        {/* ✅ Veg Label */}
                         <div className="text-sm mt-1">
                           {isVeg ? (
                             <span className="text-green-600">Pure Veg</span>
