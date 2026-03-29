@@ -24,39 +24,41 @@ export default function SearchBox() {
 
   const [showStationList, setShowStationList] = useState(false);
 
+  // 🚀 FETCH STATIONS (NO FILTER)
   async function fetchStations(trainNo: string) {
-    console.log("Fetching stations for:", trainNo);
+    try {
+      const res = await fetch(`/api/train-routes?train=${trainNo}`);
+      const j = await res.json();
 
-    const res = await fetch(`/api/train-routes?train=${trainNo}`);
-    const j = await res.json();
-
-    console.log("API DATA:", j);
-
-    const list = (j.rows || [])
-      .map((r: any) => ({
+      const list = (j.rows || []).map((r: any) => ({
         code: r.StationCode,
         name: r.StationName,
-        restro: r.restroCount || 0,
-      }))
-      .filter((s: any) => s.restro > 0);
+      }));
 
-    setStations(list);
+      setStations(list);
+
+      if (list.length > 0) {
+        setBoarding(list[0].code);
+      } else {
+        setBoarding("");
+      }
+
+    } catch (err) {
+      console.error(err);
+    }
   }
 
-  // 🔥 FIX HERE (IMPORTANT)
+  // 🔥 TRAIN SELECT
   function handleTrainSelect(t: any) {
-    console.log("Selected train:", t);
-
-    setSelectedTrain(t);
-
-    // ✅ support both formats
     const trainNo = t.train_no || t.trainNumber;
 
+    setSelectedTrain(t);
     setInputValue(`${trainNo} - ${t.train_name || t.trainName}`);
 
     fetchStations(trainNo);
   }
 
+  // 🔍 SEARCH
   const handleSearch = () => {
     if (searchType === "pnr") {
       window.location.href = `/pnr/${inputValue}`;
@@ -85,6 +87,7 @@ export default function SearchBox() {
   return (
     <div className="mt-4 w-full max-w-xl mx-auto bg-white rounded-lg shadow p-4">
 
+      {/* RADIO */}
       <div className="flex justify-center gap-6 mb-4">
         {["pnr", "train", "station"].map((type) => (
           <label key={type}>
@@ -104,6 +107,7 @@ export default function SearchBox() {
         ))}
       </div>
 
+      {/* INPUT */}
       {searchType === "train" ? (
         <TrainAutocomplete
           value={inputValue}
@@ -123,9 +127,11 @@ export default function SearchBox() {
         />
       )}
 
+      {/* TRAIN EXTRA UI */}
       {searchType === "train" && selectedTrain && (
         <div className="mt-4">
 
+          {/* DATE */}
           <input
             type="date"
             value={date}
@@ -133,6 +139,7 @@ export default function SearchBox() {
             className="border p-2 w-full mb-2"
           />
 
+          {/* STATION SELECT */}
           <div className="relative">
             <div
               onClick={() => setShowStationList(!showStationList)}
@@ -145,9 +152,10 @@ export default function SearchBox() {
 
             {showStationList && (
               <div className="absolute w-full bg-white border max-h-48 overflow-auto z-50">
+
                 {stations.length === 0 && (
                   <div className="p-2 text-gray-500">
-                    No stations available
+                    No stations found
                   </div>
                 )}
 
@@ -160,9 +168,10 @@ export default function SearchBox() {
                     }}
                     className="p-2 hover:bg-gray-200 cursor-pointer"
                   >
-                    {s.name} ({s.code}) - {s.restro} outlets
+                    {s.name} ({s.code})
                   </div>
                 ))}
+
               </div>
             )}
           </div>
@@ -170,6 +179,7 @@ export default function SearchBox() {
         </div>
       )}
 
+      {/* SEARCH BUTTON */}
       <button
         onClick={handleSearch}
         className="bg-black text-white px-4 py-2 mt-3 w-full"
