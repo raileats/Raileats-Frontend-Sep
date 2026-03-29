@@ -83,35 +83,63 @@ export default function TrainPage() {
                   const close =
                     r.closed_time || r.ClosedTime || "—";
 
-                  const isVeg = r.IsPureVeg === 1;
+                  const image = r.RestroDisplayPhoto;
+
+                  /* ✅ Veg Logic */
+                  const items = r.menu_items || r.items || [];
+                  const hasNonVeg = items.some(
+                    (i: any) =>
+                      String(i.item_category || "")
+                        .toLowerCase()
+                        .includes("non")
+                  );
 
                   return (
                     <div
                       key={r.RestroCode}
-                      className="bg-white p-3 rounded border"
+                      className="bg-white p-3 rounded border flex gap-3"
                     >
-                      <div className="font-semibold">{name}</div>
-
-                      <div className="text-sm text-gray-600 mt-1">
-                        ₹{minOrder} • {open} - {close}
-                      </div>
-
-                      <div className="text-sm mt-1">
-                        {isVeg ? (
-                          <span className="text-green-600">Veg</span>
+                      {/* ✅ IMAGE */}
+                      <div className="w-24 h-20 bg-gray-100 rounded overflow-hidden flex-shrink-0">
+                        {image ? (
+                          <img
+                            src={image}
+                            alt={name}
+                            className="w-full h-full object-cover"
+                          />
                         ) : (
-                          <span className="text-red-600">Non-Veg</span>
+                          <div className="w-full h-full flex items-center justify-center text-xs text-gray-400">
+                            No Image
+                          </div>
                         )}
                       </div>
 
-                      {/* ✅ Button */}
-                      <div className="mt-2">
-                        <a
-                          href={`/Stations/${stationCode}/${r.RestroCode}-${name}`}
-                          className="inline-block bg-green-600 text-white px-3 py-1 rounded"
-                        >
-                          Order Now
-                        </a>
+                      {/* ✅ DETAILS */}
+                      <div className="flex-1">
+                        <div className="font-semibold">{name}</div>
+
+                        <div className="text-sm text-gray-600 mt-1">
+                          ₹{minOrder} • {open} - {close}
+                        </div>
+
+                        {/* ✅ Veg Label */}
+                        <div className="text-sm mt-1">
+                          {hasNonVeg ? (
+                            <span className="text-red-600">Veg + Non-Veg</span>
+                          ) : (
+                            <span className="text-green-600">Pure Veg</span>
+                          )}
+                        </div>
+
+                        {/* ✅ Button */}
+                        <div className="mt-2">
+                          <a
+                            href={`/Stations/${stationCode}/${r.RestroCode}-${name}`}
+                            className="inline-block bg-green-600 text-white px-3 py-1 rounded"
+                          >
+                            Order Now
+                          </a>
+                        </div>
                       </div>
                     </div>
                   );
