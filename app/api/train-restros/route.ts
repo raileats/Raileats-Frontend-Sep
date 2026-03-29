@@ -128,18 +128,20 @@ async function upstashSet(key: string, value: any, exSeconds = CACHE_TTL) {
 
 /* ------------ map admin restro shape ------------- */
 function mapAdminRestroToCommon(adminR: any) {
- return {
-  RestroCode: cv.RestroCode,
-  RestroName: cv.RestroName,
-  isActive: true,
-  OpenTime: cv.OpenTime,
-  ClosedTime: cv.ClosedTime,
-  MinimumOrdermValue: cv.MinimumOrdermValue,
-  RestroDisplayPhoto: cv.RestroDisplayPhoto,
-  IsPureVeg: cv.IsPureVeg ?? 0, // ✅ ADD THIS
-  source: "restromaster",
-  raw: cv.raw
-};
+  return {
+    RestroCode: adminR.RestroCode ?? adminR.id ?? null,
+    RestroName: adminR.RestroName ?? adminR.name ?? null,
+    isActive: true,
+    OpenTime: adminR.OpenTime ?? adminR.open_time ?? null,
+    ClosedTime: adminR.ClosedTime ?? adminR.closed_time ?? null,
+    MinimumOrdermValue:
+      adminR.MinimumOrdermValue ?? adminR.minOrder ?? null,
+    RestroDisplayPhoto:
+      adminR.RestroDisplayPhoto ?? adminR.display_photo ?? null,
+    IsPureVeg: adminR.IsPureVeg ?? 0, // ✅ FIX
+    raw: adminR,
+  };
+}
 
 /* ------------ holiday fetch & cache per-restro ------------- */
 async function fetchVendorHolidays(restroCode: string | number) {
@@ -405,13 +407,18 @@ export async function GET(req: Request) {
                 const rows = await getVendorHolidaysCached(restroId);
                 const blocked = isHolidayRowsBlocking(rows, arrivalDate);
                 if (blocked) return null;
-                return { RestroCode: cv.RestroCode, RestroName: cv.RestroName, isActive: true, OpenTime: cv.OpenTime, ClosedTime: cv.ClosedTime, MinimumOrdermValue: cv.MinimumOrdermValue, RestroDisplayPhoto: cv.RestroDisplayPhoto, source: "restromaster", raw: cv.raw };
-              } catch {
-                return null;
-              }
-            },
-            10,
-          );
+                return { 
+  RestroCode: cv.RestroCode,
+  RestroName: cv.RestroName,
+  isActive: true,
+  OpenTime: cv.OpenTime,
+  ClosedTime: cv.ClosedTime,
+  MinimumOrdermValue: cv.MinimumOrdermValue,
+  RestroDisplayPhoto: cv.RestroDisplayPhoto,
+  IsPureVeg: cv.IsPureVeg ?? 0, // ✅ FIX
+  source: "restromaster",
+  raw: cv.raw
+};
 
           vendors = (checked || []).filter(Boolean);
         } else {
