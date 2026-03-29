@@ -3,7 +3,8 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 
-const SUPABASE_URL = "https://ygisiztmuzwxpnvhwmr.supabase.co";
+/* ✅ FIXED URL */
+const SUPABASE_URL = "https://ygisiztmuzwxpnvhwrmr.supabase.co";
 
 export default function TrainPage() {
   const params = useParams();
@@ -25,8 +26,8 @@ export default function TrainPage() {
           `/api/train-restros?train=${trainNumber}&date=${date}&boarding=${boarding}&full=1`,
           { cache: "no-store" }
         );
-        const json = await res.json();
 
+        const json = await res.json();
         setStations(json?.stations || []);
       } catch (e) {
         console.error(e);
@@ -57,8 +58,8 @@ export default function TrainPage() {
 
           return (
             <div key={stationCode} className="border rounded p-4 bg-gray-50">
-              
-              {/* Station */}
+
+              {/* ✅ Station */}
               <div className="mb-3">
                 <h2 className="text-lg font-bold">
                   {stationName} ({stationCode})
@@ -68,48 +69,43 @@ export default function TrainPage() {
                 )}
               </div>
 
-              {/* Restaurants */}
+              {/* ✅ Restaurants */}
               <div className="space-y-3">
                 {vendors.map((r: any) => {
 
                   const name = r.RestroName || "Restaurant";
 
+                  /* ✅ FIX MIN ORDER */
                   const minOrder =
                     r.MinimumOrderValue ??
                     r.MinimumOrdermValue ??
                     "—";
 
-                  const open =
-                    r.open_time ||
-                    r.OpenTime ||
-                    "—";
+                  /* ✅ FIX TIME */
+                  const open = r.open_time || r.OpenTime || "—";
+                  const close = r.closed_time || r.ClosedTime || "—";
 
-                  const close =
-                    r.closed_time ||
-                    r.ClosedTime ||
-                    "—";
+                  /* ✅ IMAGE FIX (filename safe) */
+                  const fileName = String(r.RestroDisplayPhoto || "")
+                    .trim()
+                    .split("/")
+                    .pop();
 
-                  /* ✅ IMAGE FIX (TRIM + SAFE) */
-                  const fileName = String(r.RestroDisplayPhoto || "").trim();
+                  const image = fileName
+                    ? `${SUPABASE_URL}/storage/v1/object/public/RestroDisplayPhoto/${fileName}`
+                    : null;
 
-                  const image =
-                    fileName !== ""
-                      ? `${SUPABASE_URL}/storage/v1/object/public/RestroDisplayPhoto/${fileName}`
-                      : null;
-
-                  /* ✅ VEG FIX (ALL CASES HANDLE) */
+                  /* ✅ VEG FIX (100% accurate) */
                   const isVeg =
-                    r.IsPureVeg == 1 ||
-                    r.IsPureVeg === "1" ||
-                    r.IsPureVeg === true ||
-                    r.IsPureVeg === "true";
+                    String(r.IsPureVeg) === "1" ||
+                    String(r.IsPureVeg).toLowerCase() === "true";
 
                   return (
                     <div
                       key={r.RestroCode}
                       className="bg-white p-3 rounded border flex gap-3"
                     >
-                      {/* IMAGE */}
+                      {/* ✅ IMAGE */}
                       <div className="w-24 h-20 bg-gray-100 rounded overflow-hidden flex-shrink-0">
                         {image ? (
                           <img
@@ -117,8 +113,7 @@ export default function TrainPage() {
                             alt={name}
                             className="w-full h-full object-cover"
                             onError={(e) => {
-                              (e.target as HTMLImageElement).src =
-                                "https://via.placeholder.com/100x80?text=No+Image";
+                              (e.target as HTMLImageElement).style.display = "none";
                             }}
                           />
                         ) : (
@@ -128,7 +123,7 @@ export default function TrainPage() {
                         )}
                       </div>
 
-                      {/* DETAILS */}
+                      {/* ✅ DETAILS */}
                       <div className="flex-1">
                         <div className="font-semibold">{name}</div>
 
@@ -148,7 +143,7 @@ export default function TrainPage() {
                           )}
                         </div>
 
-                        {/* BUTTON */}
+                        {/* ✅ BUTTON */}
                         <div className="mt-2">
                           <a
                             href={`/Stations/${stationCode}/${r.RestroCode}-${name}`}
