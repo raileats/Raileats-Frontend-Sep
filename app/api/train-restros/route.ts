@@ -296,7 +296,7 @@ export async function GET(req: Request) {
         const { data, error } = await serviceClient
           .from("RestroMaster")
          .select(
-  "RestroCode,RestroName,StationCode,StationName,0penTime,ClosedTime,WeeklyOff,MinimumOrdermValue,CutOffTime,IsActive,IsPureVeg,RestroDisplayPhoto"
+  "RestroCode,RestroName,StationCode,StationName,OpenTime,ClosedTime,WeeklyOff,MinimumOrdermValue,CutOffTime,IsActive,IsPureVeg,RestroDisplayPhoto"
 )
           .in("StationCode", b)
           .limit(20000);
@@ -312,7 +312,7 @@ export async function GET(req: Request) {
         const { data: allRestros } = await serviceClient
           .from("RestroMaster")
           .select(
-            "RestroCode,RestroName,StationCode,StationName,0penTime,ClosedTime,WeeklyOff,MinimumOrdermValue,CutOffTime,IsActive,IsPureVeg,RestroDisplayPhoto",
+            "RestroCode,RestroName,StationCode,StationName,OpenTime,ClosedTime,WeeklyOff,MinimumOrdermValue,CutOffTime,IsActive,IsPureVeg,RestroDisplayPhoto",
           )
           .limit(20000);
         if (Array.isArray(allRestros)) {
@@ -388,7 +388,7 @@ export async function GET(req: Request) {
             .map((r: any) => ({
   RestroCode: r.RestroCode ?? r.restroCode ?? r.id ?? null,
   RestroName: r.RestroName ?? r.restroName ?? r.name ?? null,
-  OpenTime: r["0penTime"] ?? r.openTime ?? null,
+  OpenTime: r["OpenTime"] ?? r.openTime ?? null,
   ClosedTime: r.ClosedTime ?? r.closeTime ?? null,
   MinimumOrdermValue: r.MinimumOrdermValue ?? r.minOrder ?? null,
   RestroDisplayPhoto: r.RestroDisplayPhoto ?? null,
