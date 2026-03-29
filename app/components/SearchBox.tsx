@@ -1,80 +1,184 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useState } from "react";
+import StationSearchBox from "./StationSearchBox";
+import { makeStationSlug } from "../lib/stationSlug";
+import TrainAutocomplete from "./TrainAutocomplete";
 
-export default function TrainAutocomplete({
-  value,
-  onChange,
-  onSelect,
-}) {
-  const [list, setList] = useState([]);
-  const [open, setOpen] = useState(false);
-  const ref = useRef();
+function makeTrainSlug(trainNoRaw: string) {
+  const clean = String(trainNoRaw || "").trim();
+  if (!clean) return "";
+  const digitsOnly = clean.replace(/\D+/g, "") || clean;
+  return `${digitsOnly}-train-food-delivery-in-train`;
+}
 
-  useEffect(() => {
-    if (!value) {
-      setList([]);
-      setOpen(false);
+export default function SearchBox() {
+  const [searchType, setSearchType] = useState("pnr");
+  const [inputValue, setInputValue] = useState("");
+  const [selectedStation, setSelectedStation] = useState<any>(null);
+
+  const [showTrainModal, setShowTrainModal] = useState(false);
+  const [modalTrainNo, setModalTrainNo] = useState("");
+  const [modalTrainName, setModalTrainName] = useState<string | null>(null);
+  const [modalStations, setModalStations] = useState<any[]>([]);
+  const [modalBoarding, setModalBoarding] = useState("");
+  const [modalDate, setModalDate] = useState(() =>
+    new Date().toISOString().slice(0, 10)
+  );
+
+  // 🔥 FETCH TRAIN ROUTE
+  async function fetchTrainRoute(digits: string) {
+    setModalStations([]);
+
+    try {
+      const res = await fetch(`/api/train-routes?train=${digits}`);
+      const j = await res.json();
+
+      const stations = (j.rows || []).map((r: any) => ({
+        stationCode: r.StationCode,
+        stationName: r.StationName,
+        restroCount: r.restroCount || 0,
+      }));
+
+      setModalTrainName(j.train?.trainName || null);
+      setModalStations(stations);
+
+      // ✅ ONLY VALID STATIONS (WITH OUTLETS)
+      const validStations = stations.filter(
+        (s: any) => (s.restroCount ?? 0) > 0
+      );
+
+      if (validStations.length > 0) {
+        setModalBoarding(validStations[0].stationCode);
+      } else {
+        setModalBoarding("");
+      }
+
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  // 🔍 SEARCH HANDLER
+  const handleSearch = async () => {
+    if (!inputValue.trim()) return alert("Enter value");
+
+    if (searchType === "pnr") {
+      window.location.href = `/pnr/${inputValue}`;
       return;
     }
 
-    const t = setTimeout(async () => {
-      try {
-        const res = await fetch(`/api/trains?search=${value}`);
-        const data = await res.json();
-
-        setList(data || []);
-        setOpen((data || []).length > 0);
-      } catch {
-        setList([]);
-        setOpen(false);
-      }
-    }, 300);
-
-    return () => clearTimeout(t);
-  }, [value]);
-
-  function handleSelect(item) {
-    const display = `${item.train_no} - ${item.train_name}`;
-    onChange(display);
-
-    // ✅ FIX: pass parameter
-    if (onSelect) onSelect(item);
-
-    setOpen(false);
-  }
-
-  // close on outside click
-  useEffect(() => {
-    function handleClick(e) {
-      if (ref.current && !ref.current.contains(e.target)) {
-        setOpen(false);
-      }
+    if (searchType === "station") {
+      window.location.href = `/stations/${inputValue}`;
+      return;
     }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, []);
+
+    if (searchType === "train") {
+      const digits = inputValue.replace(/\D+/g, "");
+      if (!digits) return alert("Invalid train");
+
+      setModalTrainNo(digits);
+      setShowTrainModal(true);
+      await fetchTrainRoute(digits);
+    }
+  };
+
+  // 🚀 FINAL SUBMIT
+  const handleFinalSearch = () => {
+    if (!modalBoarding) return alert("Select station");
+
+    const slug = makeTrainSlug(modalTrainNo);
+
+    const qs = new URLSearchParams({
+      date: modalDate,
+      boarding: modalBoarding,
+    }).toString();
+
+    window.location.href = `/trains/${slug}?${qs}`;
+  };
 
   return (
-    <div ref={ref} className="relative w-full">
-      <input
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder="Enter train number or name"
-        className="w-full border p-2"
-      />
+    <div className="mt-4 w-full max-w-xl mx-auto bg-white rounded-lg shadow p-4">
 
-      {open && (
-        <div className="absolute bg-white border w-full z-50 max-h-60 overflow-auto">
-          {list.map((t, i) => (
-            <div
-              key={i}
-              onClick={() => handleSelect(t)}
-              className="p-2 hover:bg-gray-200 cursor-pointer"
+      {/* 🔥 RADIO */}
+      <div className="flex justify-center gap-6 mb-4">
+        {["pnr", "train", "station"].map((type) => (
+          <label key={type}>
+            <input
+              type="radio"
+              checked={searchType === type}
+              onChange={() => {
+                setSearchType(type);
+                setInputValue("");
+              }}
+            />
+            {type}
+          </label>
+        ))}
+      </div>
+
+      {/* 🔍 INPUT */}
+      {searchType === "train" ? (
+        <TrainAutocomplete value={inputValue} onChange={setInputValue} />
+      ) : searchType === "station" ? (
+        <StationSearchBox
+          onSelect={(s: any) => setInputValue(s?.StationCode)}
+        />
+      ) : (
+        <input
+          value={inputValue}
+          onChange={(e) => setInputValue(e.target.value)}
+          placeholder="Enter PNR"
+          className="w-full border p-2"
+        />
+      )}
+
+      <button
+        onClick={handleSearch}
+        className="bg-black text-white px-4 py-2 mt-2"
+      >
+        Search
+      </button>
+
+      {/* 🔥 MODAL */}
+      {showTrainModal && (
+        <div className="fixed inset-0 bg-black/40 flex justify-center items-center">
+          <div className="bg-white p-4 w-[400px]">
+
+            <h3 className="mb-2">
+              {modalTrainNo} {modalTrainName}
+            </h3>
+
+            <input
+              type="date"
+              value={modalDate}
+              onChange={(e) => setModalDate(e.target.value)}
+              className="border p-2 w-full mb-2"
+            />
+
+            {/* ✅ ONLY VALID STATIONS */}
+            <select
+              value={modalBoarding}
+              onChange={(e) => setModalBoarding(e.target.value)}
+              className="border p-2 w-full mb-2"
             >
-              {t.train_no} - {t.train_name}
-            </div>
-          ))}
+              {modalStations
+                .filter((s) => s.restroCount > 0)
+                .map((s) => (
+                  <option key={s.stationCode} value={s.stationCode}>
+                    {s.stationName} ({s.stationCode}) - {s.restroCount} outlets
+                  </option>
+                ))}
+            </select>
+
+            <button
+              onClick={handleFinalSearch}
+              className="bg-black text-white px-4 py-2 w-full"
+            >
+              Show Restaurants
+            </button>
+
+          </div>
         </div>
       )}
     </div>
