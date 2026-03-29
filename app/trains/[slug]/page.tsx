@@ -1,41 +1,73 @@
 "use client";
 
-import { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 
-/* helpers */
-function extractTrainNumberFromSlug(slug?: string | null) {
-  if (!slug) return "";
-  const m = slug.match(/^(\d+)/);
-  return m ? m[1] : slug.replace(/[^0-9]/g, "");
-}
-
-export default function TrainRedirectPage() {
+export default function TrainPage() {
   const params = useParams();
   const searchParams = useSearchParams();
 
+  const slug = (params as any)?.slug || "";
+  const trainNumber = slug.match(/^(\d+)/)?.[1] || "";
+
+  const date = searchParams.get("date") || "";
+  const boarding = (searchParams.get("boarding") || "").toUpperCase();
+
+  const [data, setData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
   useEffect(() => {
-    const slug = (params as any)?.slug || "";
-    const trainNumber = extractTrainNumberFromSlug(slug);
+    async function fetchData() {
+      try {
+        const res = await fetch(
+          `/api/train-restros?train=${trainNumber}&date=${date}&boarding=${boarding}&full=1`,
+          { cache: "no-store" }
+        );
+        const json = await res.json();
 
-    const date = searchParams.get("date");
-    const boarding = searchParams.get("boarding");
-
-    // 🚨 LOOP PREVENTION
-    if (window.location.pathname.startsWith("/trains/")) {
-      return;
+        if (json?.stations) {
+          setData(json.stations);
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoading(false);
+      }
     }
 
-    if (!trainNumber || !boarding) return;
+    if (trainNumber) fetchData();
+  }, [trainNumber, date, boarding]);
 
-    const url = `/trains/${trainNumber}?date=${date}&boarding=${boarding}`;
-
-    window.location.replace(url); // replace instead of href
-  }, []);
+  if (loading) {
+    return (
+      <div className="p-6 text-center">
+        Loading train restaurants...
+      </div>
+    );
+  }
 
   return (
-    <div className="p-6 text-center">
-      Redirecting...
+    <div className="p-4 space-y-4">
+      {data.length === 0 ? (
+        <div>No restaurants found</div>
+      ) : (
+        data.map((station: any) => (
+          <div key={station.stationCode} className="border p-3 rounded">
+            <h2 className="font-bold mb-2">
+              {station.stationName} ({station.stationCode})
+            </h2>
+
+            {station.vendors.map((r: any) => (
+              <div key={r.RestroCode} className="p-2 border mb-2 rounded">
+                <div className="font-medium">{r.RestroName}</div>
+                <div className="text-sm text-gray-500">
+                  Min Order ₹{r.MinimumOrderValue}
+                </div>
+              </div>
+            ))}
+          </div>
+        ))
+      )}
     </div>
   );
 }
