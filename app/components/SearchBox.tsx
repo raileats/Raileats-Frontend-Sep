@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import StationSearchBox from "./StationSearchBox";
-import { makeStationSlug } from "../lib/stationSlug";
 import TrainAutocomplete from "./TrainAutocomplete";
 
 function makeTrainSlug(trainNoRaw: string) {
@@ -15,43 +14,34 @@ function makeTrainSlug(trainNoRaw: string) {
 export default function SearchBox() {
   const [searchType, setSearchType] = useState("pnr");
   const [inputValue, setInputValue] = useState("");
-  const [selectedStation, setSelectedStation] = useState<any>(null);
+  const [selectedTrain, setSelectedTrain] = useState<any>(null);
 
-  const [showTrainModal, setShowTrainModal] = useState(false);
-  const [modalTrainNo, setModalTrainNo] = useState("");
-  const [modalTrainName, setModalTrainName] = useState<string | null>(null);
-  const [modalStations, setModalStations] = useState<any[]>([]);
-  const [modalBoarding, setModalBoarding] = useState("");
-  const [modalDate, setModalDate] = useState(() =>
+  const [stations, setStations] = useState<any[]>([]);
+  const [boarding, setBoarding] = useState("");
+  const [date, setDate] = useState(
     new Date().toISOString().slice(0, 10)
   );
 
-  // 🔥 FETCH TRAIN ROUTE
-  async function fetchTrainRoute(digits: string) {
-    setModalStations([]);
-
+  // 🚀 FETCH STATIONS
+  async function fetchStations(trainNo: string) {
     try {
-      const res = await fetch(`/api/train-routes?train=${digits}`);
+      const res = await fetch(`/api/train-routes?train=${trainNo}`);
       const j = await res.json();
 
-      const stations = (j.rows || []).map((r: any) => ({
-        stationCode: r.StationCode,
-        stationName: r.StationName,
-        restroCount: r.restroCount || 0,
-      }));
+      const list = (j.rows || [])
+        .map((r: any) => ({
+          code: r.StationCode,
+          name: r.StationName,
+          restro: r.restroCount || 0,
+        }))
+        .filter((s: any) => s.restro > 0);
 
-      setModalTrainName(j.train?.trainName || null);
-      setModalStations(stations);
+      setStations(list);
 
-      // ✅ ONLY VALID STATIONS (WITH OUTLETS)
-      const validStations = stations.filter(
-        (s: any) => (s.restroCount ?? 0) > 0
-      );
-
-      if (validStations.length > 0) {
-        setModalBoarding(validStations[0].stationCode);
+      if (list.length > 0) {
+        setBoarding(list[0].code);
       } else {
-        setModalBoarding("");
+        setBoarding("");
       }
 
     } catch (err) {
@@ -59,10 +49,15 @@ export default function SearchBox() {
     }
   }
 
-  // 🔍 SEARCH HANDLER
-  const handleSearch = async () => {
-    if (!inputValue.trim()) return alert("Enter value");
+  // 🔥 IMPORTANT: TRAIN SELECT HANDLER
+  function handleTrainSelect(t: any) {
+    setSelectedTrain(t);
+    setInputValue(`${t.train_no} - ${t.train_name}`);
+    fetchStations(t.train_no);
+  }
 
+  // 🔍 SEARCH
+  const handleSearch = () => {
     if (searchType === "pnr") {
       window.location.href = `/pnr/${inputValue}`;
       return;
@@ -74,33 +69,20 @@ export default function SearchBox() {
     }
 
     if (searchType === "train") {
-      const digits = inputValue.replace(/\D+/g, "");
-      if (!digits) return alert("Invalid train");
+      if (!selectedTrain) return alert("Select train first");
+      if (!boarding) return alert("Select station");
 
-      setModalTrainNo(digits);
-      setShowTrainModal(true);
-      await fetchTrainRoute(digits);
+      const slug = makeTrainSlug(selectedTrain.train_no);
+
+      window.location.href =
+        `/trains/${slug}?date=${date}&boarding=${boarding}`;
     }
-  };
-
-  // 🚀 FINAL SUBMIT
-  const handleFinalSearch = () => {
-    if (!modalBoarding) return alert("Select station");
-
-    const slug = makeTrainSlug(modalTrainNo);
-
-    const qs = new URLSearchParams({
-      date: modalDate,
-      boarding: modalBoarding,
-    }).toString();
-
-    window.location.href = `/trains/${slug}?${qs}`;
   };
 
   return (
     <div className="mt-4 w-full max-w-xl mx-auto bg-white rounded-lg shadow p-4">
 
-      {/* 🔥 RADIO */}
+      {/* RADIO */}
       <div className="flex justify-center gap-6 mb-4">
         {["pnr", "train", "station"].map((type) => (
           <label key={type}>
@@ -110,6 +92,8 @@ export default function SearchBox() {
               onChange={() => {
                 setSearchType(type);
                 setInputValue("");
+                setSelectedTrain(null);
+                setStations([]);
               }}
             />
             {type}
@@ -117,9 +101,13 @@ export default function SearchBox() {
         ))}
       </div>
 
-      {/* 🔍 INPUT */}
+      {/* INPUT */}
       {searchType === "train" ? (
-        <TrainAutocomplete value={inputValue} onChange={setInputValue} />
+        <TrainAutocomplete
+          value={inputValue}
+          onChange={setInputValue}
+          onSelect={handleTrainSelect}   // ✅ FIX HERE
+        />
       ) : searchType === "station" ? (
         <StationSearchBox
           onSelect={(s: any) => setInputValue(s?.StationCode)}
@@ -133,54 +121,41 @@ export default function SearchBox() {
         />
       )}
 
+      {/* EXPAND PANEL */}
+      {searchType === "train" && selectedTrain && (
+        <div className="mt-4 border p-3 rounded">
+
+          <input
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            className="border p-2 w-full mb-2"
+          />
+
+          <div className="max-h-40 overflow-y-auto border">
+            {stations.map((s) => (
+              <div
+                key={s.code}
+                onClick={() => setBoarding(s.code)}
+                className={`p-2 cursor-pointer ${
+                  boarding === s.code ? "bg-black text-white" : ""
+                }`}
+              >
+                {s.name} ({s.code}) - {s.restro} outlets
+              </div>
+            ))}
+          </div>
+
+        </div>
+      )}
+
       <button
         onClick={handleSearch}
-        className="bg-black text-white px-4 py-2 mt-2"
+        className="bg-black text-white px-4 py-2 mt-2 w-full"
       >
         Search
       </button>
 
-      {/* 🔥 MODAL */}
-      {showTrainModal && (
-        <div className="fixed inset-0 bg-black/40 flex justify-center items-center">
-          <div className="bg-white p-4 w-[400px]">
-
-            <h3 className="mb-2">
-              {modalTrainNo} {modalTrainName}
-            </h3>
-
-            <input
-              type="date"
-              value={modalDate}
-              onChange={(e) => setModalDate(e.target.value)}
-              className="border p-2 w-full mb-2"
-            />
-
-            {/* ✅ ONLY VALID STATIONS */}
-            <select
-              value={modalBoarding}
-              onChange={(e) => setModalBoarding(e.target.value)}
-              className="border p-2 w-full mb-2"
-            >
-              {modalStations
-                .filter((s) => s.restroCount > 0)
-                .map((s) => (
-                  <option key={s.stationCode} value={s.stationCode}>
-                    {s.stationName} ({s.stationCode}) - {s.restroCount} outlets
-                  </option>
-                ))}
-            </select>
-
-            <button
-              onClick={handleFinalSearch}
-              className="bg-black text-white px-4 py-2 w-full"
-            >
-              Show Restaurants
-            </button>
-
-          </div>
-        </div>
-      )}
     </div>
   );
 }
