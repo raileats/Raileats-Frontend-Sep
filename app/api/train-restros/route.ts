@@ -78,7 +78,7 @@ export async function GET(req: Request) {
     const grouped: Record<string, any[]> = {};
 
     for (const r of restroRows || []) {
-      const sc = normalizeCode(r.StationCode || r.stationcode); // ✅ FIX
+      const sc = normalizeCode(r.StationCode); // ✅ FIX
 
       if (!grouped[sc]) grouped[sc] = [];
       grouped[sc].push(r);
@@ -88,7 +88,7 @@ export async function GET(req: Request) {
     const stations: any[] = [];
 
     for (const s of route) {
-      const sc = normalizeCode(s.StationCode || s.stationcode);
+      const sc = normalizeCode(s.StationCode);
 
       const vendorsRaw = grouped[sc] || [];
 
