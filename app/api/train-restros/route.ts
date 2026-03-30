@@ -421,31 +421,38 @@ export async function GET(req: Request) {
   raw: cv.raw
 };
 
+const checked = await pMap(
+  candidateVendors,
+  async (cv) => {
+    try {
+      const restroId = cv.RestroCode ?? null;
+      if (!restroId) return null;
+
+      const rows = await getVendorHolidaysCached(restroId);
+      const blocked = isHolidayRowsBlocking(rows, arrivalDate);
+      if (blocked) return null;
+
+      return {
+        RestroCode: cv.RestroCode,
+        RestroName: cv.RestroName,
+        isActive: true,
+        OpenTime: cv.OpenTime,
+        ClosedTime: cv.ClosedTime,
+        MinimumOrdermValue: cv.MinimumOrdermValue,
+        RestroDisplayPhoto: cv.RestroDisplayPhoto,
+        IsPureVeg: cv.IsPureVeg ?? 0,
+        source: "restromaster",
+        raw: cv.raw,
+      };
+    } catch {
+      return null;
+    }
+  },
+  12
+);
+
+// ✅ IMPORTANT: ये यहीं होना चाहिए
 vendors = (checked || []).filter(Boolean);
-        } else {
-          const adminJson = adminFetchMap[sc] ?? null;
-          const adminRows = adminJson?.restaurants ?? adminJson?.data ?? adminJson?.rows ?? adminJson ?? null;
-          if (Array.isArray(adminRows) && adminRows.length) {
-            const candidate = adminRows.map((ar: any) => ({ mapped: mapAdminRestroToCommon(ar), rawA: ar })).filter((x: any) => x.mapped.isActive !== false);
-            const checked = await pMap(
-              candidate,
-              async (cv) => {
-                try {
-                  const restroId = cv.mapped.RestroCode ?? null;
-                  if (!restroId) return null;
-                  const rows = await getVendorHolidaysCached(restroId);
-                  const blocked = isHolidayRowsBlocking(rows, arrivalDate);
-                  if (blocked) return null;
-                  return { ...cv.mapped, source: "admin", raw: cv.rawA };
-                } catch {
-                  return null;
-                }
-              },
-              8,
-            );
-            vendors = (checked || []).filter(Boolean);
-          }
-        }
 
         if (vendors && vendors.length) {
           return {
