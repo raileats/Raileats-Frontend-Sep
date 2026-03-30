@@ -396,31 +396,7 @@ export async function GET(req: Request) {
   raw: r,
 }));
 
-          // run holiday filter but using cached holiday lists (Upstash)
-          const checked = await pMap(
-  candidateVendors,
-  async (cv) => {
-    try {
-      const restroId = cv.RestroCode ?? null;
-      if (!restroId) return null;
-
-      const rows = await getVendorHolidaysCached(restroId);
-      const blocked = isHolidayRowsBlocking(rows, arrivalDate);
-      if (blocked) return null;
-
-     return {
-  RestroCode: cv.RestroCode,
-  RestroName: cv.RestroName,
-  isActive: true,
-  OpenTime: cv.OpenTime,
-  ClosedTime: cv.ClosedTime,
-  MinimumOrdermValue: cv.MinimumOrdermValue,
-  RestroDisplayPhoto: cv.RestroDisplayPhoto,
-  IsPureVeg: cv.IsPureVeg ?? 0,   // ✅ FINAL FIX
-  source: "restromaster",
-  raw: cv.raw
-};
-
+// run holiday filter but using cached holiday lists (Upstash)
 const checked = await pMap(
   candidateVendors,
   async (cv) => {
@@ -451,24 +427,23 @@ const checked = await pMap(
   12
 );
 
-// ✅ IMPORTANT: ये यहीं होना चाहिए
+// ✅ vendors assign
 vendors = (checked || []).filter(Boolean);
 
-        if (vendors && vendors.length) {
-          return {
-            StationCode: sc,
-            StationName: stationName,
-            arrival_time,
-            halt_time,
-            Day: typeof s.Day === "number" ? s.Day : s.Day ? Number(s.Day) : null,
-            arrival_date: arrivalDate,
-            vendors,
-          };
-        }
-        return null;
-      },
-      12,
-    );
+// ✅ station return
+if (vendors && vendors.length) {
+  return {
+    StationCode: sc,
+    StationName: stationName,
+    arrival_time,
+    halt_time,
+    Day: typeof s.Day === "number" ? s.Day : s.Day ? Number(s.Day) : null,
+    arrival_date: arrivalDate,
+    vendors,
+  };
+}
+
+return null;
 
     for (const r of stationResults) if (r) finalStations.push(r);
 
