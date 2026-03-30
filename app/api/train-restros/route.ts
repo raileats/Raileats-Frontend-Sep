@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { serviceClient } from "../../lib/supabaseServer";
 
-// ---------- Helpers ----------
 function normalize(val: any) {
   return String(val ?? "").toUpperCase().trim();
 }
@@ -12,18 +11,16 @@ function isTrue(val: any) {
   return ["true", "1", "active", "yes"].includes(s);
 }
 
-// Seconds to Human Readable (Halt time ke liye)
-function secondsToHuman(sec: number | null) {
-  if (sec === null || sec < 0) return "0m";
-  const m = Math.floor(sec / 60);
-  return m < 60 ? `${m}m` : `${Math.floor(m / 60)}h ${m % 60}m`;
-}
-
-// Time "03:00:00" to Seconds
 function timeToSeconds(t: string | null | undefined) {
   if (!t) return 0;
   const parts = String(t).trim().split(":").map(Number);
   return (parts[0] ?? 0) * 3600 + (parts[1] ?? 0) * 60 + (parts[2] ?? 0);
+}
+
+function secondsToHuman(sec: number | null) {
+  if (sec === null || sec < 0) return "0m";
+  const m = Math.floor(sec / 60);
+  return m < 60 ? `${m}m` : `${Math.floor(m / 60)}h ${m % 60}m`;
 }
 
 export async function GET(req: Request) {
@@ -33,30 +30,29 @@ export async function GET(req: Request) {
   const boarding = searchParams.get("boarding")?.trim() || "";
 
   if (!trainParam || !startDateParam || !boarding) {
-    return NextResponse.json({ ok: false, error: "Missing params" }, { status: 400 });
+    return NextResponse.json({ ok: false, error: "Params missing" }, { status: 400 });
   }
 
   try {
     const now = new Date();
     const istNow = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
 
-    // 1. Train Route Fetch
-    const { data: stopsRows, error: trErr } = await serviceClient
+    // 1. Fetch Train Route
+    const { data: stopsRows } = await serviceClient
       .from("TrainRoute")
       .select("*")
       .or(`trainNumber.eq.${trainParam},trainNumber.eq.${parseInt(trainParam) || 0}`)
       .order("StnNumber", { ascending: true });
 
-    if (trErr || !stopsRows?.length) return NextResponse.json({ ok: true, stations: [] });
+    if (!stopsRows?.length) return NextResponse.json({ ok: true, stations: [] });
 
-    // 2. Filter from Boarding Point
     const normBoard = normalize(boarding);
     const bIdx = stopsRows.findIndex(s => normalize(s.StationCode) === normBoard);
     const baseDay = Number(stopsRows[0].Day || 1);
     const activeRoute = bIdx !== -1 ? stopsRows.slice(bIdx) : stopsRows;
     const stationCodes = Array.from(new Set(activeRoute.map(s => normalize(s.StationCode))));
 
-    // 3. Fetch State & Restros
+    // 2. Fetch State & Restros
     const [stationsData, restrosData] = await Promise.all([
       serviceClient.from("Stations").select("StationCode, State").in("StationCode", stationCodes),
       serviceClient.from("RestroMaster").select("*").in("StationCode", stationCodes)
@@ -76,21 +72,18 @@ export async function GET(req: Request) {
       }
     });
 
-    // 4. Final Processing
+    // 3. Process Stations
     const finalStations = activeRoute.map(s => {
       const code = normalize(s.StationCode);
       const vendorsRaw = groupedRestros[code] || [];
       if (vendorsRaw.length === 0) return null;
 
-      // Station Date Calculation
       const sDate = new Date(startDateParam + "T00:00:00");
       sDate.setDate(sDate.getDate() + (Number(s.Day || 1) - baseDay));
-      
       const arrivalDateTime = new Date(sDate);
       const [h, m, sec] = (s.Arrives || "00:00:00").split(":").map(Number);
       arrivalDateTime.setHours(h, m, sec || 0);
 
-      // Past Station Filter
       if (arrivalDateTime <= istNow) return null;
 
       const validVendors = vendorsRaw.map(v => {
@@ -102,7 +95,10 @@ export async function GET(req: Request) {
           RestroCode: v.RestroCode,
           RestroName: v.RestroName,
           RestroRating: v.RestroRating || "4.2",
-          MinimumOrdermValue: v.MinimumOrderValue || 0,
+          // ✅ FIXED: Using exact database columns from your CSV
+          open_time: v.open_time || v.OpenTime || "N/A",
+          closed_time: v.closed_time || v.ClosedTime || "N/A",
+          MinimumOrderValue: v.MinimumOrderValue || 0,
           RestroDisplayPhoto: v.RestroDisplayPhoto,
           IsPureVeg: isTrue(v.IsPureVeg) ? 1 : 0
         };
@@ -110,7 +106,6 @@ export async function GET(req: Request) {
 
       if (validVendors.length === 0) return null;
 
-      // Halt calculation
       const aSec = timeToSeconds(s.Arrives);
       const dSec = timeToSeconds(s.Departs);
       const halt = (aSec > 0 && dSec > 0) ? secondsToHuman(dSec - aSec) : (s.Stoptime || "0m");
@@ -119,8 +114,7 @@ export async function GET(req: Request) {
         StationCode: code,
         StationName: s.StationName,
         State: stateMap[code] || "",
-        // ✅ Seedha database column ka data bhej rahe hain
-        Arrives: s.Arrives, 
+        Arrives: s.Arrives,
         Departs: s.Departs,
         arrival_date: sDate.toISOString().split("T")[0],
         halt_time: halt,
