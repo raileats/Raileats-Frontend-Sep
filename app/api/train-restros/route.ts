@@ -1,134 +1,27 @@
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
+// Frontend mapping loop ke andar:
+{vendors.map((r: any) => {
+  const name = r.RestroName || "Restaurant";
 
-import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+  // ✅ Isko dhyan se dekhiye: Backend 'open_time' bhej raha hai
+  const displayOpen = r.open_time || r.OpenTime || "00:00:00";
+  const displayClose = r.closed_time || r.ClosedTime || "23:59:00";
+  
+  const minOrder = r.MinimumOrderValue || 0;
 
-/* ================= SUPABASE ================= */
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
-
-/* ================= HELPERS ================= */
-
-function normalizeCode(val: any) {
-  return String(val || "").trim().toUpperCase();
-}
-
-/* ================= API ================= */
-
-export async function GET(req: Request) {
-  try {
-    const { searchParams } = new URL(req.url);
-
-    const trainNumber = searchParams.get("train");
-    const date = searchParams.get("date");
-    const boarding = searchParams.get("boarding");
-
-    if (!trainNumber || !date || !boarding) {
-      return NextResponse.json(
-        { ok: false, error: "missing_params" },
-        { status: 400 }
-      );
-    }
-
-    /* ================= FETCH ROUTE ================= */
-
-    const { data: routeRows } = await supabase
-      .from("TrainRoute")
-      .select("*")
-      .eq("TrainNo", trainNumber);
-
-    if (!routeRows?.length) {
-      return NextResponse.json({ ok: true, stations: [] });
-    }
-
-    /* ================= FETCH RESTRO ================= */
-
-    const { data: restroRows } = await supabase
-      .from("RestroMaster")
-      .select(`
-        RestroCode,
-        RestroName,
-        StationCode,
-        open_time,
-        closed_time,
-        MinimumOrdermValue,
-        IsActive,
-        IsPureVeg,
-        RestroDisplayPhoto
-      `)
-      .eq("IsActive", true);
-
-    /* ================= GROUP RESTROS ================= */
-
-    const grouped: Record<string, any[]> = {};
-
-    for (const r of restroRows || []) {
-      const sc = normalizeCode(r.StationCode);
-
-      if (!grouped[sc]) grouped[sc] = [];
-
-      grouped[sc].push({
-        RestroCode: r.RestroCode,
-        RestroName: r.RestroName,
-        isActive: true,
-
-        // ✅ FINAL FIX (IMPORTANT)
-        OpenTime: r.open_time ?? "00:00:00",
-        ClosedTime: r.closed_time ?? "23:59:00",
-
-        MinimumOrdermValue: r.MinimumOrdermValue,
-        RestroDisplayPhoto: r.RestroDisplayPhoto,
-        IsPureVeg: r.IsPureVeg ?? 0,
-      });
-    }
-
-    /* ================= BUILD STATIONS ================= */
-
-    const stations: any[] = [];
-
-    for (const s of routeRows) {
-      const sc = normalizeCode(
-        s.StationCode || s.stationcode || s.station
-      );
-
-      const vendors = grouped[sc] || [];
-
-      if (!vendors.length) continue;
-
-      stations.push({
-        StationCode: sc,
-        StationName: s.StationName || s.stationname,
-
-        arrival_time: s.ArrivalTime || s.arrival_time,
-        departure_time: s.DepartureTime || s.departure_time,
-
-        // ✅ HALT TIME FIX
-        halt_time: s.StopTime || s.stoptime || "0m",
-
-        vendors,
-      });
-    }
-
-    /* ================= RESPONSE ================= */
-
-    return NextResponse.json({
-      ok: true,
-      train: {
-        trainNumber,
-      },
-      stations,
-    });
-
-  } catch (err) {
-    console.error("train-restros error", err);
-
-    return NextResponse.json(
-      { ok: false, error: "server_error" },
-      { status: 500 }
-    );
-  }
-}
+  return (
+    <div key={r.RestroCode} className="bg-white p-3 rounded border flex gap-3">
+      {/* ... image code ... */}
+      <div className="flex-1">
+        <div className="font-semibold text-gray-900">{name}</div>
+        
+        {/* ✅ YE LINE timing dikhayegi */}
+        <div className="text-sm text-gray-600 mt-1 font-medium">
+          Timing: {displayOpen.substring(0, 5)} - {displayClose.substring(0, 5)}
+        </div>
+        
+        <div className="text-xs text-gray-500">Min. Order: ₹{minOrder}</div>
+        {/* ... baki button code ... */}
+      </div>
+    </div>
+  );
+})}
