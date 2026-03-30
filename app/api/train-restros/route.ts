@@ -45,7 +45,7 @@ export async function GET(req: Request) {
     const now = new Date();
     const istNow = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
 
-    // 1. Fetch Train Route
+    // 1. Fetch Train Route (TrainRoute Table)
     const { data: stopsRows, error: trErr } = await serviceClient
       .from("TrainRoute")
       .select("*")
@@ -61,17 +61,19 @@ export async function GET(req: Request) {
     const activeRoute = bIdx !== -1 ? stopsRows.slice(bIdx) : stopsRows;
     const stationCodes = Array.from(new Set(activeRoute.map(s => normalize(s.StationCode))));
 
-    // 3. Fetch State and Vendors
+    // 3. Fetch State (Stations Table) and Vendors (RestroMaster Table)
     const [stationsData, restrosData] = await Promise.all([
       serviceClient.from("Stations").select("StationCode, State").in("StationCode", stationCodes),
       serviceClient.from("RestroMaster").select("*").in("StationCode", stationCodes)
     ]);
 
+    // Map State for quick access
     const stateMap: Record<string, string> = {};
     stationsData.data?.forEach(st => {
       stateMap[normalize(st.StationCode)] = st.State || "";
     });
 
+    // Group Restaurants
     const groupedRestros: Record<string, any[]> = {};
     restrosData.data?.forEach(r => {
       if (isTrue(r.RaileatsStatus ?? r.IsActive)) {
@@ -87,12 +89,16 @@ export async function GET(req: Request) {
       const vendorsRaw = groupedRestros[code] || [];
       if (vendorsRaw.length === 0) return null;
 
+      // ✅ Extract exact Arrives/Departs from DB row 's'
+      const rawArrives = s.Arrives || "00:00:00";
+      const rawDeparts = s.Departs || "00:00:00";
+
       const stationDateObj = getStationDate(startDateParam, Number(s.Day || 1), baseDay);
       const arrivalDateTime = new Date(stationDateObj);
-      const [h, m, sec] = (s.Arrives || "00:00:00").split(":").map(Number);
+      const [h, m, sec] = rawArrives.split(":").map(Number);
       arrivalDateTime.setHours(h, m, sec || 0);
 
-      // Past Time Filter
+      // Current Time Filter (Show only future stations)
       if (arrivalDateTime <= istNow) return null;
 
       const validVendors = vendorsRaw.map(v => {
@@ -112,24 +118,18 @@ export async function GET(req: Request) {
 
       if (validVendors.length === 0) return null;
 
-      const aSec = timeToSeconds(s.Arrives);
-      const dSec = timeToSeconds(s.Departs);
+      const aSec = timeToSeconds(rawArrives);
+      const dSec = timeToSeconds(rawDeparts);
       const halt = (aSec !== null && dSec !== null) ? secondsToHuman(dSec - aSec) : (s.Stoptime || "0m");
 
+      // ✅ Final Return Object
       return {
         StationCode: code,
         StationName: s.StationName,
-        State: stateMap[code] || "",
-        
-        // ✅ [DOUBLY FIXED KEYS] 
-        // Humne har tarike se keys bhej di hain taaki UI koi bhi utha sake
-        Arrives: s.Arrives,            // Database Spelling
-        Departs: s.Departs,            // Database Spelling
-        arrival_time: s.Arrives,       // Standard Camel Case
-        departure_time: s.Departs,     // Standard Camel Case
-        arrivalTime: s.Arrives,        // React Style
-        departureTime: s.Departs,      // React Style
-        
+        State: stateMap[code] || "N/A",
+        // In dono keys ko dhyan se dekho, yahi UI mein show honi chahiye
+        Arrives: rawArrives, 
+        Departs: rawDeparts,
         arrival_date: stationDateObj.toISOString().split("T")[0],
         halt_time: halt,
         Day: s.Day,
