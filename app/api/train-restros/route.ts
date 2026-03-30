@@ -1,17 +1,18 @@
 import { NextResponse } from "next/server";
 import { serviceClient } from "../../lib/supabaseServer";
 
-const ADMIN_BASE = process.env.NEXT_PUBLIC_ADMIN_APP_URL || "https://admin.raileats.in";
-const UPSTASH_URL = process.env.UPSTASH_REDIS_REST_URL || "";
-const UPSTASH_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || "";
-
-// ---------- Helpers ----------
+// Helpers
 function normalize(val: any) {
   return String(val ?? "").toUpperCase().trim();
 }
 
-function isTrue(val: any): boolean {
-  if (val === true || val === "true" || val === 1 || val === "1") return true;
+/**
+ * Robust Boolean Check: Handles TRUE, "true", 1, "1", etc.
+ */
+function parseBool(val: any): boolean {
+  if (val === true || val === 1 || String(val).toLowerCase() === "true" || String(val) === "1") {
+    return true;
+  }
   return false;
 }
 
@@ -25,114 +26,102 @@ function secondsToHuman(sec: number | null) {
   if (sec === null || sec < 0) return "0m";
   const m = Math.floor(sec / 60);
   if (m < 60) return `${m}m`;
-  return `${Math.floor(m / 60)}h ${m % 60}m`;
+  const h = Math.floor(m / 60);
+  return `${h}h ${m % 60}m`;
 }
 
 export async function GET(req: Request) {
-  const { searchParams } = new URL(req.url);
-  const train = searchParams.get("train")?.trim() || "";
-  const date = searchParams.get("date")?.trim() || "";
-  const boarding = searchParams.get("boarding")?.trim() || "";
-
-  console.log(`--- Debug: Fetching for Train: ${train}, Boarding: ${boarding} ---`);
-
   try {
-    // 1. Get Train Route - Sabse pehle train check karte hain
+    const { searchParams } = new URL(req.url);
+    const trainParam = searchParams.get("train")?.trim() || "";
+    const date = searchParams.get("date")?.trim() || "";
+    const boarding = searchParams.get("boarding")?.trim() || "";
+
+    if (!trainParam || !date || !boarding) {
+      return NextResponse.json({ ok: false, error: "Missing required params" }, { status: 400 });
+    }
+
+    // 1. Fetch Train Route
+    // Hum integer aur string dono check kar rahe hain taaki column type ka issue na ho
     const { data: stopsRows, error: trainErr } = await serviceClient
       .from("TrainRoute")
       .select("*")
-      .or(`trainNumber.eq.${train},trainNumber.eq.${parseInt(train) || 0}`)
+      .or(`trainNumber.eq.${trainParam},trainNumber.eq.${parseInt(trainParam) || 0}`)
       .order("StnNumber", { ascending: true });
 
     if (trainErr || !stopsRows || stopsRows.length === 0) {
-      console.log("❌ Error: Train not found in TrainRoute table");
-      return NextResponse.json({ ok: true, stations: [], debug: "Train not found" });
+      return NextResponse.json({ ok: true, train: { trainNumber: trainParam }, stations: [] });
     }
 
-    console.log(`✅ Success: Found ${stopsRows.length} stops for train ${train}`);
-
-    // 2. Filter from Boarding Station
-    const normBoard = normalize(boarding);
-    const startIdx = stopsRows.findIndex(s => normalize(s.StationCode) === normBoard);
+    // 2. Slice Route from Boarding Station
+    const normBoarding = normalize(boarding);
+    const boardingIdx = stopsRows.findIndex(s => normalize(s.StationCode) === normBoarding);
     
-    if (startIdx === -1) {
-       console.log(`⚠️ Warning: Boarding station ${normBoard} not found in route. Using full route.`);
-    }
+    // Agar boarding station nahi mila toh full route dikhayenge (Safety Fallback)
+    const activeRoute = boardingIdx !== -1 ? stopsRows.slice(boardingIdx) : stopsRows;
+    const stationCodes = Array.from(new Set(activeRoute.map(s => normalize(s.StationCode))));
 
-    const slicedStops = stopsRows.slice(startIdx >= 0 ? startIdx : 0);
-    const stationCodes = slicedStops.map(s => normalize(s.StationCode)).filter(Boolean);
-
-    // 3. Fetch All Restaurants for these stations
+    // 3. Fetch Restaurants (Using exact columns from your CSV)
     const { data: restroRows, error: restroErr } = await serviceClient
       .from("RestroMaster")
-      .select("*")
+      .select("RestroCode,RestroName,StationCode,StationName,open_time,closed_time,MinimumOrdermValue,IsActive,IsPureVeg,RestroDisplayPhoto")
       .in("StationCode", stationCodes);
 
-    if (restroErr) {
-      console.log("❌ Error fetching RestroMaster:", restroErr);
-      return NextResponse.json({ ok: false, error: "Database error" });
-    }
+    if (restroErr) throw restroErr;
 
-    console.log(`✅ Success: Found ${restroRows?.length || 0} total restaurants for these stations`);
-
-    // 4. Grouping & Filtering (Active only)
-    const groupedRestros: Record<string, any[]> = {};
+    // 4. Group Restaurants by Station and Filter Active
+    const groupedVendors: Record<string, any[]> = {};
     restroRows?.forEach(r => {
-      // CSV ke according PascalCase use kar rahe hain
-      const active = r.IsActive ?? r.is_active; 
-      const code = normalize(r.StationCode);
-
-      if (isTrue(active)) {
-        if (!groupedRestros[code]) groupedRestros[code] = [];
-        groupedRestros[code].push(r);
+      if (parseBool(r.IsActive)) { // ✅ Sirf Active restaurants hi jayenge
+        const code = normalize(r.StationCode);
+        if (!groupedVendors[code]) groupedVendors[code] = [];
+        
+        groupedVendors[code].push({
+          RestroCode: r.RestroCode,
+          RestroName: r.RestroName,
+          OpenTime: r.open_time || r.OpenTime, // CSV supports lowercase
+          ClosedTime: r.closed_time || r.ClosedTime,
+          MinimumOrdermValue: r.MinimumOrdermValue || 0,
+          RestroDisplayPhoto: r.RestroDisplayPhoto,
+          IsPureVeg: parseBool(r.IsPureVeg) ? 1 : 0, // ✅ 1 for Veg, 0 for Non-Veg
+          isActive: true
+        });
       }
     });
 
-    // 5. Final Output Assembly
-    const finalStations = slicedStops.map(s => {
-      const sc = normalize(s.StationCode);
-      const vendorsRaw = groupedRestros[sc] || [];
+    // 5. Assemble Final Response
+    const finalStations = activeRoute.map(s => {
+      const code = normalize(s.StationCode);
+      const vendors = groupedVendors[code] || [];
 
-      if (vendorsRaw.length === 0) return null;
-
-      const vendors = vendorsRaw.map(v => ({
-        RestroCode: v.RestroCode || v.id,
-        RestroName: v.RestroName || v.name,
-        OpenTime: v.OpenTime || v.open_time,
-        ClosedTime: v.ClosedTime || v.closed_time,
-        MinimumOrdermValue: v.MinimumOrdermValue || 0,
-        RestroDisplayPhoto: v.RestroDisplayPhoto,
-        IsPureVeg: isTrue(v.IsPureVeg ?? v.is_pure_veg) ? 1 : 0,
-        isActive: true
-      }));
+      if (vendors.length === 0) return null;
 
       // Halt calculation
-      const aSec = timeToSeconds(s.Arrives), dSec = timeToSeconds(s.Departs);
+      const aSec = timeToSeconds(s.Arrives);
+      const dSec = timeToSeconds(s.Departs);
       const halt = (aSec !== null && dSec !== null) ? secondsToHuman(dSec - aSec) : "0m";
 
       return {
-        StationCode: sc,
+        StationCode: code,
         StationName: s.StationName,
         arrival_time: s.Arrives,
         halt_time: halt,
         Day: s.Day,
         vendors: vendors
       };
-    }).filter(Boolean);
-
-    console.log(`🚀 Final: Returning ${finalStations.length} stations with restaurants`);
+    }).filter(Boolean); // Remove stations with no active vendors
 
     return NextResponse.json({
       ok: true,
-      train: { 
-        trainNumber: stopsRows[0].trainNumber, 
-        trainName: stopsRows[0].trainName 
+      train: {
+        trainNumber: stopsRows[0].trainNumber,
+        trainName: stopsRows[0].trainName
       },
       stations: finalStations
     });
 
-  } catch (err: any) {
-    console.error("🔥 Crash Error:", err.message);
-    return NextResponse.json({ ok: false, error: err.message }, { status: 500 });
+  } catch (error: any) {
+    console.error("API Error:", error.message);
+    return NextResponse.json({ ok: false, error: "Internal Server Error" }, { status: 500 });
   }
 }
