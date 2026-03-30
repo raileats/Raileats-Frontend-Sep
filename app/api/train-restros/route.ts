@@ -422,7 +422,6 @@ export async function GET(req: Request) {
 };
 
 vendors = (checked || []).filter(Boolean);
-          vendors = (checked || []).filter(Boolean);
         } else {
           const adminJson = adminFetchMap[sc] ?? null;
           const adminRows = adminJson?.restaurants ?? adminJson?.data ?? adminJson?.rows ?? adminJson ?? null;
