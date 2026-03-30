@@ -27,8 +27,14 @@ type MenuResponse = {
 export default function MenuPage() {
   const params = useSearchParams();
 
+  /* ✅ EXISTING PARAMS */
   const restro = params.get("restro");
   const arrival = params.get("arrival");
+
+  /* ✅ NEW PARAMS (HEADER KE LIYE) */
+  const stationName = params.get("stationName") || "";
+  const halt = params.get("halt") || "";
+  const train = params.get("train") || "";
 
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<MenuItem[]>([]);
@@ -46,6 +52,7 @@ export default function MenuPage() {
     async function loadMenu() {
       try {
         setLoading(true);
+
         const res = await fetch(
           `/api/menu?restro=${restro}&arrival=${arrival}`,
           { cache: "no-store" }
@@ -69,7 +76,7 @@ export default function MenuPage() {
     loadMenu();
   }, [restro, arrival]);
 
-  /* ================= GROUP BY MENU TYPE ================= */
+  /* ================= GROUP ================= */
 
   const grouped = items.reduce<Record<string, MenuItem[]>>((acc, item) => {
     acc[item.menu_type] ||= [];
@@ -77,7 +84,7 @@ export default function MenuPage() {
     return acc;
   }, {});
 
-  /* ================= UI STATES ================= */
+  /* ================= UI ================= */
 
   if (loading) return <div className="p-4">Loading menu…</div>;
   if (error) return <div className="p-4 text-red-600">{error}</div>;
@@ -85,44 +92,61 @@ export default function MenuPage() {
   /* ================= RENDER ================= */
 
   return (
-    <div className="p-4 space-y-6">
-      <h1 className="text-xl font-bold">Menu</h1>
+    <div className="max-w-3xl mx-auto">
 
-      {Object.entries(grouped).map(([menuType, items]) => (
-        <div key={menuType}>
-          <h2 className="text-lg font-semibold mb-2">{menuType}</h2>
+      {/* ✅ HEADER FIX */}
+      <div className="p-4 border-b bg-white sticky top-0 z-10">
+        <div className="text-lg font-bold">{stationName}</div>
 
-          <div className="space-y-2">
-            {items.map(item => (
-              <div
-                key={item.item_code}
-                className="border rounded-lg p-3 flex justify-between items-center"
-              >
-                <div>
-                  <div className="font-medium">{item.item_name}</div>
-                  <div className="text-sm text-gray-600">
-                    {item.item_description}
-                  </div>
-                  <div className="mt-1 font-semibold">
-                    ₹{item.selling_price}
-                  </div>
-                </div>
-
-                <button
-                  disabled={item.status !== "ON"}
-                  className={`px-3 py-1 rounded ${
-                    item.status === "ON"
-                      ? "bg-green-600 text-white"
-                      : "bg-gray-300 text-gray-600 cursor-not-allowed"
-                  }`}
-                >
-                  Add
-                </button>
-              </div>
-            ))}
-          </div>
+        <div className="text-sm text-gray-600 mt-1">
+          {train && <>Train {train} • </>}
+          Arrival: {arrival}
+          {halt && <> • Halt: {halt}</>}
         </div>
-      ))}
+      </div>
+
+      {/* ✅ MENU */}
+      <div className="p-4 space-y-6">
+
+        {Object.entries(grouped).map(([menuType, items]) => (
+          <div key={menuType}>
+            <h2 className="text-lg font-semibold mb-2">{menuType}</h2>
+
+            <div className="space-y-2">
+              {items.map(item => (
+                <div
+                  key={item.item_code}
+                  className="border rounded-lg p-3 flex justify-between items-center"
+                >
+                  <div>
+                    <div className="font-medium">{item.item_name}</div>
+
+                    <div className="text-sm text-gray-600">
+                      {item.item_description}
+                    </div>
+
+                    <div className="mt-1 font-semibold">
+                      ₹{item.selling_price}
+                    </div>
+                  </div>
+
+                  <button
+                    disabled={item.status !== "ON"}
+                    className={`px-3 py-1 rounded ${
+                      item.status === "ON"
+                        ? "bg-green-600 text-white"
+                        : "bg-gray-300 text-gray-600 cursor-not-allowed"
+                    }`}
+                  >
+                    Add
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+
+      </div>
     </div>
   );
 }
