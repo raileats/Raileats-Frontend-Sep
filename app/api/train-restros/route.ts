@@ -54,23 +54,22 @@ export async function GET(req: Request) {
 
     if (trErr || !stopsRows?.length) return NextResponse.json({ ok: true, stations: [] });
 
-    // 2. Slicing & Station Codes
+    // 2. Slicing
     const normBoard = normalize(boarding);
     const bIdx = stopsRows.findIndex(s => normalize(s.StationCode) === normBoard);
     const baseDay = Number(stopsRows[0].Day || 1);
     const activeRoute = bIdx !== -1 ? stopsRows.slice(bIdx) : stopsRows;
     const stationCodes = Array.from(new Set(activeRoute.map(s => normalize(s.StationCode))));
 
-    // 3. Fetch Data from Stations Table (For State) & RestroMaster (For Vendors)
+    // 3. Dual Fetch (Stations State & Restro Vendors)
     const [stationsData, restrosData] = await Promise.all([
       serviceClient.from("Stations").select("StationCode, State").in("StationCode", stationCodes),
       serviceClient.from("RestroMaster").select("*").in("StationCode", stationCodes)
     ]);
 
-    // Create a Map for State lookup
     const stateMap: Record<string, string> = {};
     stationsData.data?.forEach(st => {
-      stateMap[normalize(st.StationCode)] = st.State || "N/A";
+      stateMap[normalize(st.StationCode)] = st.State || "";
     });
 
     const groupedRestros: Record<string, any[]> = {};
@@ -93,7 +92,7 @@ export async function GET(req: Request) {
       const [h, m, sec] = (s.Arrives || "00:00:00").split(":").map(Number);
       arrivalDateTime.setHours(h, m, sec || 0);
 
-      // Past Time Filter
+      // Future check
       if (arrivalDateTime <= istNow) return null;
 
       const validVendors = vendorsRaw.map(v => {
@@ -120,9 +119,10 @@ export async function GET(req: Request) {
       return {
         StationCode: code,
         StationName: s.StationName,
-        state: stateMap[code] || "", // ✅ Added State from Stations table
-        arrival_time: s.Arrives,      // ✅ From TrainRoute
-        departure_time: s.Departs,    // ✅ From TrainRoute
+        State: stateMap[code] || "", // ✅ State
+        // ✅ UI Fixed Keys: Inhe waisa hi rakha hai jaisa TrainRoute table mein hai
+        Arrives: s.Arrives || "--:--", 
+        Departs: s.Departs || "--:--",
         arrival_date: stationDateObj.toISOString().split("T")[0],
         halt_time: halt,
         Day: s.Day,
