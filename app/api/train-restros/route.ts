@@ -1,86 +1,134 @@
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 import { NextResponse } from "next/server";
-import { serviceClient } from "../../lib/supabaseServer";
+import { createClient } from "@supabase/supabase-js";
 
-function normalize(val: any) {
-  return String(val ?? "").toUpperCase().trim();
+/* ================= SUPABASE ================= */
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
+
+/* ================= HELPERS ================= */
+
+function normalizeCode(val: any) {
+  return String(val || "").trim().toUpperCase();
 }
 
-function isTrue(val: any) {
-  if (val === undefined || val === null) return true;
-  const s = String(val).toLowerCase();
-  return ["true", "1", "active", "yes"].includes(s);
-}
+/* ================= API ================= */
 
 export async function GET(req: Request) {
-  const { searchParams } = new URL(req.url);
-  const trainParam = searchParams.get("train")?.trim() || "";
-  const startDateParam = searchParams.get("date")?.trim() || "";
-  const boarding = searchParams.get("boarding")?.trim() || "";
-
   try {
-    const { data: stopsRows } = await serviceClient
+    const { searchParams } = new URL(req.url);
+
+    const trainNumber = searchParams.get("train");
+    const date = searchParams.get("date");
+    const boarding = searchParams.get("boarding");
+
+    if (!trainNumber || !date || !boarding) {
+      return NextResponse.json(
+        { ok: false, error: "missing_params" },
+        { status: 400 }
+      );
+    }
+
+    /* ================= FETCH ROUTE ================= */
+
+    const { data: routeRows } = await supabase
       .from("TrainRoute")
       .select("*")
-      .or(`trainNumber.eq.${trainParam},trainNumber.eq.${parseInt(trainParam) || 0}`)
-      .order("StnNumber", { ascending: true });
+      .eq("TrainNo", trainNumber);
 
-    if (!stopsRows?.length) return NextResponse.json({ ok: true, stations: [] });
+    if (!routeRows?.length) {
+      return NextResponse.json({ ok: true, stations: [] });
+    }
 
-    const normBoard = normalize(boarding);
-    const bIdx = stopsRows.findIndex(s => normalize(s.StationCode) === normBoard);
-    const baseDay = Number(stopsRows[0].Day || 1);
-    const activeRoute = bIdx !== -1 ? stopsRows.slice(bIdx) : stopsRows;
-    const stationCodes = Array.from(new Set(activeRoute.map(s => normalize(s.StationCode))));
+    /* ================= FETCH RESTRO ================= */
 
-    const [stationsData, restrosData] = await Promise.all([
-      serviceClient.from("Stations").select("StationCode, State").in("StationCode", stationCodes),
-      serviceClient.from("RestroMaster").select("*").in("StationCode", stationCodes)
-    ]);
+    const { data: restroRows } = await supabase
+      .from("RestroMaster")
+      .select(`
+        RestroCode,
+        RestroName,
+        StationCode,
+        open_time,
+        closed_time,
+        MinimumOrdermValue,
+        IsActive,
+        IsPureVeg,
+        RestroDisplayPhoto
+      `)
+      .eq("IsActive", true);
 
-    const stateMap: Record<string, string> = {};
-    stationsData.data?.forEach(st => {
-      stateMap[normalize(st.StationCode)] = st.State || "";
+    /* ================= GROUP RESTROS ================= */
+
+    const grouped: Record<string, any[]> = {};
+
+    for (const r of restroRows || []) {
+      const sc = normalizeCode(r.StationCode);
+
+      if (!grouped[sc]) grouped[sc] = [];
+
+      grouped[sc].push({
+        RestroCode: r.RestroCode,
+        RestroName: r.RestroName,
+        isActive: true,
+
+        // ✅ FINAL FIX (IMPORTANT)
+        OpenTime: r.open_time ?? "00:00:00",
+        ClosedTime: r.closed_time ?? "23:59:00",
+
+        MinimumOrdermValue: r.MinimumOrdermValue,
+        RestroDisplayPhoto: r.RestroDisplayPhoto,
+        IsPureVeg: r.IsPureVeg ?? 0,
+      });
+    }
+
+    /* ================= BUILD STATIONS ================= */
+
+    const stations: any[] = [];
+
+    for (const s of routeRows) {
+      const sc = normalizeCode(
+        s.StationCode || s.stationcode || s.station
+      );
+
+      const vendors = grouped[sc] || [];
+
+      if (!vendors.length) continue;
+
+      stations.push({
+        StationCode: sc,
+        StationName: s.StationName || s.stationname,
+
+        arrival_time: s.ArrivalTime || s.arrival_time,
+        departure_time: s.DepartureTime || s.departure_time,
+
+        // ✅ HALT TIME FIX
+        halt_time: s.StopTime || s.stoptime || "0m",
+
+        vendors,
+      });
+    }
+
+    /* ================= RESPONSE ================= */
+
+    return NextResponse.json({
+      ok: true,
+      train: {
+        trainNumber,
+      },
+      stations,
     });
 
-    const groupedRestros: Record<string, any[]> = {};
-    restrosData.data?.forEach(r => {
-      if (isTrue(r.RaileatsStatus ?? r.IsActive)) {
-        const sc = normalize(r.StationCode);
-        if (!groupedRestros[sc]) groupedRestros[sc] = [];
-        groupedRestros[sc].push(r);
-      }
-    });
+  } catch (err) {
+    console.error("train-restros error", err);
 
-    const finalStations = activeRoute.map(s => {
-      const code = normalize(s.StationCode);
-      const vendorsRaw = groupedRestros[code] || [];
-      if (vendorsRaw.length === 0) return null;
-
-      const sDate = new Date(startDateParam + "T00:00:00");
-      sDate.setDate(sDate.getDate() + (Number(s.Day || 1) - baseDay));
-
-      return {
-        StationCode: code,
-        StationName: s.StationName,
-        State: stateMap[code] || "",
-        Arrives: s.Arrives,
-        Departs: s.Departs,
-        vendors: vendorsRaw.map(v => ({
-          RestroCode: v.RestroCode,
-          RestroName: v.RestroName,
-          RestroRating: v.RestroRating || "4.2",
-          // ✅ Backend se asli data bhej rahe hain
-          db_open: v.open_time, 
-          db_close: v.closed_time,
-          MinimumOrderValue: v.MinimumOrderValue || 0,
-          RestroDisplayPhoto: v.RestroDisplayPhoto,
-          IsPureVeg: isTrue(v.IsPureVeg) ? 1 : 0
-        }))
-      };
-    }).filter(Boolean);
-
-    return NextResponse.json({ ok: true, stations: finalStations });
-  } catch (err: any) {
-    return NextResponse.json({ ok: false, error: err.message }, { status: 500 });
+    return NextResponse.json(
+      { ok: false, error: "server_error" },
+      { status: 500 }
+    );
   }
 }
