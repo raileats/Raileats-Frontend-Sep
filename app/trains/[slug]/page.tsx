@@ -157,8 +157,7 @@ export default function TrainPage() {
 
                         {/* ✅ BUTTON */}
                         <div className="mt-2">
-                          <a
-                           <a
+                         <a
   href={`/Stations/${stationCode}/${r.RestroCode}-${name}` +
     `?stationName=${encodeURIComponent(stationName)}` +
     `&arrival=${st.arrival_time}` +
