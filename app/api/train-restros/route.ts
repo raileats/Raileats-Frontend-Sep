@@ -24,7 +24,7 @@ function secondsToHuman(sec: number | null) {
   return m < 60 ? `${m}m` : `${Math.floor(m / 60)}h ${m % 60}m`;
 }
 
-// ✅ Correct station date
+// ✅ FIXED station date logic
 function getStationDate(startDateStr: string, stationDay: number, baseDay: number) {
   const d = new Date(startDateStr + "T00:00:00");
   const diff = stationDay - baseDay;
@@ -44,21 +44,15 @@ export async function GET(req: Request) {
   }
 
   try {
-    // ✅ CURRENT IST TIME (CORRECT)
+    // ✅ IST TIME
     const now = new Date();
     const istNow = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
 
-    // ✅ PAST DATE BLOCK
-    const selectedDate = new Date(startDateParam);
+    const selectedDate = new Date(startDateParam + "T00:00:00");
     const today = new Date(istNow.toDateString());
 
-    if (selectedDate < today) {
-      return NextResponse.json({
-        ok: true,
-        train: null,
-        stations: []
-      });
-    }
+    // ❌ REMOVE HARD BLOCK (THIS WAS YOUR MAIN BUG)
+    // if (selectedDate < today) return []
 
     // 1. Train Route
     const { data: stopsRows, error: trErr } = await serviceClient
@@ -95,7 +89,6 @@ export async function GET(req: Request) {
       if (isTrue(status)) {
         const sc = normalize(r.StationCode);
         if (!grouped[sc]) grouped[sc] = [];
-
         grouped[sc].push(r);
       }
     });
@@ -112,24 +105,30 @@ export async function GET(req: Request) {
       const [h, m, sec] = (s.Arrives || "00:00:00").split(":").map(Number);
       arrivalDateTime.setHours(h, m, sec || 0);
 
-      // ❌ PAST STATION FILTER (ONLY TODAY)
-      if (selectedDate.getTime() === today.getTime()) {
-        if (arrivalDateTime <= istNow) return null;
+      // ✅ FIXED LOGIC (IMPORTANT)
+      const stationDateOnly = new Date(stationDateObj.toDateString());
+      const todayOnly = new Date(istNow.toDateString());
+
+      const isTodayStation = stationDateOnly.getTime() === todayOnly.getTime();
+
+      // ❌ only hide if already passed today
+      if (isTodayStation && arrivalDateTime <= istNow) {
+        return null;
       }
 
       const validVendors = vendorsRaw.map(v => {
         const cutOff = Number(v.CutOffTime || 0);
         const diffMin = (arrivalDateTime.getTime() - istNow.getTime()) / (1000 * 60);
 
-        // ❌ CUTOFF FILTER
-        if (selectedDate.getTime() === today.getTime()) {
-          if (diffMin < cutOff) return null;
+        // ❌ cutoff only for today's station
+        if (isTodayStation && diffMin < cutOff) {
+          return null;
         }
 
         return {
           RestroCode: v.RestroCode,
           RestroName: v.RestroName,
-          RestroRating: Number(v.RestroRating || 4), // ✅ FIXED
+          RestroRating: Number(v.RestroRating || 4),
           OpenTime: v.open_time || v.OpenTime || "00:00",
           ClosedTime: v.closed_time || v.ClosedTime || "23:59",
           MinimumOrdermValue: v.MinimumOrderValue || v.MinimumOrdermValue || 0,
