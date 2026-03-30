@@ -158,11 +158,17 @@ export default function TrainPage() {
                         {/* ✅ BUTTON */}
                         <div className="mt-2">
                           <a
-                            href={`/Stations/${stationCode}/${r.RestroCode}-${name}`}
-                            className="inline-block bg-green-600 text-white px-3 py-1 rounded"
-                          >
-                            Order Now
-                          </a>
+                           <a
+  href={`/Stations/${stationCode}/${r.RestroCode}-${name}` +
+    `?stationName=${encodeURIComponent(stationName)}` +
+    `&arrival=${st.arrival_time}` +
+    `&halt=${st.halt_time}` +
+    `&train=${trainNumber}`
+  }
+  className="inline-block bg-green-600 text-white px-3 py-1 rounded"
+>
+  Order Now
+</a>
                         </div>
                       </div>
                     </div>
