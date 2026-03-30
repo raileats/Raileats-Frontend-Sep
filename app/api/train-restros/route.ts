@@ -31,9 +31,19 @@ function secondsToHuman(sec: number | null) {
 function isPastStation(arrivalTime: string, date: string, day: number = 1) {
   try {
     const now = new Date();
-    const d = new Date(`${date}T${arrivalTime}`);
-    d.setDate(d.getDate() + (day - 1));
-    return d < now;
+
+    const selectedDate = new Date(date);
+    const today = new Date();
+
+    // ✅ अगर selected date future है → kuch skip mat karo
+    if (selectedDate > new Date(today.toDateString())) {
+      return false;
+    }
+
+    const stationTime = new Date(`${date}T${arrivalTime}`);
+    stationTime.setDate(stationTime.getDate() + (day - 1));
+
+    return stationTime < now;
   } catch {
     return false;
   }
