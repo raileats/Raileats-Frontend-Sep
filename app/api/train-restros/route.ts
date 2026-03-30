@@ -296,7 +296,7 @@ export async function GET(req: Request) {
         const { data, error } = await serviceClient
           .from("RestroMaster")
          .select(
-  "RestroCode,RestroName,StationCode,StationName,OpenTime,ClosedTime,WeeklyOff,MinimumOrdermValue,CutOffTime,IsActive,IsPureVeg,RestroDisplayPhoto"
+  "RestroCode,RestroName,StationCode,StationName,open_time,closed_time,WeeklyOff,MinimumOrdermValue,CutOffTime,IsActive,IsPureVeg,RestroDisplayPhoto"
 )
           .in("StationCode", b)
           .limit(20000);
@@ -312,7 +312,7 @@ export async function GET(req: Request) {
         const { data: allRestros } = await serviceClient
           .from("RestroMaster")
           .select(
-            "RestroCode,RestroName,StationCode,StationName,OpenTime,ClosedTime,WeeklyOff,MinimumOrdermValue,CutOffTime,IsActive,IsPureVeg,RestroDisplayPhoto",
+            "RestroCode,RestroName,StationCode,StationName,open_time,closed_time,WeeklyOff,MinimumOrdermValue,CutOffTime,IsActive,IsPureVeg,RestroDisplayPhoto",
           )
           .limit(20000);
         if (Array.isArray(allRestros)) {
@@ -388,8 +388,8 @@ export async function GET(req: Request) {
             .map((r: any) => ({
   RestroCode: r.RestroCode ?? r.restroCode ?? r.id ?? null,
   RestroName: r.RestroName ?? r.restroName ?? r.name ?? null,
-  OpenTime: r["OpenTime"] ?? r.openTime ?? null,
-  ClosedTime: r.ClosedTime ?? r.closeTime ?? null,
+  OpenTime: r["OpenTime"] ?? r.open_time ?? null,
+  ClosedTime: r.ClosedTime ?? r.close_time ?? null,
   MinimumOrdermValue: r.MinimumOrdermValue ?? r.minOrder ?? null,
   RestroDisplayPhoto: r.RestroDisplayPhoto ?? null,
   IsPureVeg: r.IsPureVeg ?? 0, // ✅ ADD THIS
@@ -412,8 +412,8 @@ export async function GET(req: Request) {
         RestroCode: cv.RestroCode,
         RestroName: cv.RestroName,
         isActive: true,
-        OpenTime: cv.OpenTime,
-        ClosedTime: cv.ClosedTime,
+        OpenTime: cv.open_time,
+        ClosedTime: cv.closed_time,
         MinimumOrdermValue: cv.MinimumOrdermValue,
         RestroDisplayPhoto: cv.RestroDisplayPhoto,
         IsPureVeg: cv.IsPureVeg ?? 0,
