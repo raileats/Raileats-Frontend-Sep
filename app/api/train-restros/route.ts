@@ -8,7 +8,6 @@ function normalize(val: any) {
 
 function isTrue(val: any) {
   if (val === undefined || val === null) return true;
-  if (typeof val === "boolean") return val;
   const s = String(val).toLowerCase();
   return ["true", "1", "active", "yes"].includes(s);
 }
@@ -16,7 +15,6 @@ function isTrue(val: any) {
 function timeToSeconds(t: string | null | undefined) {
   if (!t) return null;
   const parts = String(t).trim().split(":").map(Number);
-  // HH:mm:ss ya HH:mm ko seconds mein convert karta hai
   return (parts[0] ?? 0) * 3600 + (parts[1] ?? 0) * 60 + (parts[2] ?? 0);
 }
 
@@ -26,23 +24,21 @@ function secondsToHuman(sec: number | null) {
   return m < 60 ? `${m}m` : `${Math.floor(m / 60)}h ${m % 60}m`;
 }
 
-// Har station ki date calculate karne ke liye
-function addDaysToIso(iso: string, days: number) {
-  const d = new Date(iso + "T00:00:00");
-  d.setDate(d.getDate() + days);
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const dd = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${dd}`;
+// Har station ki date calculate karne ke liye (Boarding Date + (Day - BaseDay))
+function getStationDate(startDateStr: string, stationDay: number, baseDay: number) {
+  const d = new Date(startDateStr + "T00:00:00");
+  const diff = stationDay - baseDay;
+  d.setDate(d.getDate() + diff);
+  return d.toISOString().split("T")[0]; // YYYY-MM-DD
 }
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const trainParam = searchParams.get("train")?.trim() || "";
-  const startDate = searchParams.get("date")?.trim() || ""; // Format: YYYY-MM-DD (Train Start Date)
+  const startDateParam = searchParams.get("date")?.trim() || ""; // E.g. 2026-03-28
   const boarding = searchParams.get("boarding")?.trim() || "";
 
-  if (!trainParam || !startDate || !boarding) {
+  if (!trainParam || !startDateParam || !boarding) {
     return NextResponse.json({ ok: false, error: "Missing params" }, { status: 400 });
   }
 
@@ -58,19 +54,22 @@ export async function GET(req: Request) {
       return NextResponse.json({ ok: true, stations: [] });
     }
 
-    // Current Time in IST (Indian Standard Time)
+    // --- IST TIME CALCULATION ---
     const now = new Date();
-    const utcTime = now.getTime() + (now.getTimezoneOffset() * 60000);
-    const istNow = new Date(utcTime + (3600000 * 5.5)); // Current IST Time
+    const istOffset = 5.5 * 60 * 60 * 1000;
+    const istNow = new Date(now.getTime() + (now.getTimezoneOffset() * 60000) + istOffset);
+    console.log("Current IST Time:", istNow.toISOString());
 
-    // 2. Slice route from boarding station
+    // 2. Filter Route from Boarding
     const normBoard = normalize(boarding);
     const bIdx = stopsRows.findIndex(s => normalize(s.StationCode) === normBoard);
     const baseDay = Number(stopsRows[0].Day || 1);
+    
+    // Agar boarding point se aage ka data chahiye
     const activeRoute = bIdx !== -1 ? stopsRows.slice(bIdx) : stopsRows;
-
-    // 3. Fetch Restaurants for all stations in route
     const stationCodes = Array.from(new Set(activeRoute.map(s => normalize(s.StationCode))));
+
+    // 3. Fetch Restaurants
     const { data: restroRows, error: rsErr } = await serviceClient
       .from("RestroMaster")
       .select("*")
@@ -80,50 +79,47 @@ export async function GET(req: Request) {
 
     const grouped: Record<string, any[]> = {};
     restroRows?.forEach(r => {
-      const active = r.IsActive ?? r.is_active ?? r.RaileatsStatus ?? "Active";
-      if (isTrue(active)) {
+      const status = r.RaileatsStatus ?? r.IsActive ?? "Active";
+      if (isTrue(status)) {
         const sc = normalize(r.StationCode);
         if (!grouped[sc]) grouped[sc] = [];
         grouped[sc].push(r);
       }
     });
 
-    // 4. Process Stations with strict Time & CutOff filters
+    // 4. Processing with Strict Past-Time Filter
     const finalStations = activeRoute.map(s => {
       const code = normalize(s.StationCode);
       const vendorsRaw = grouped[code] || [];
       if (vendorsRaw.length === 0) return null;
 
-      // Station ki actual date (Start Date + Day offset)
-      const stationDate = addDaysToIso(startDate, Number(s.Day || 1) - baseDay);
-      // Station arrival time object
-      const arrivalDateTime = new Date(`${stationDate}T${s.Arrives || "00:00:00"}`);
+      // Station ki date aur exact arrival time nikalna
+      const sDate = getStationDate(startDateParam, Number(s.Day || 1), baseDay);
+      const arrivalDateTime = new Date(`${sDate}T${s.Arrives || "00:00:00"}`);
 
-      // Filter vendors based on Current Time and CutOff
+      // --- FILTER: Agar Arrival Time IST Now se peeche hai toh station skip ---
+      if (arrivalDateTime.getTime() <= istNow.getTime()) {
+        return null; 
+      }
+
       const validVendors = vendorsRaw.map(v => {
         const cutOffMins = Number(v.CutOffTime || 0);
-        
-        // Time difference in milliseconds
-        const timeDiffMs = arrivalDateTime.getTime() - istNow.getTime();
-        const timeDiffMins = timeDiffMs / (1000 * 60);
+        const timeDiffMins = (arrivalDateTime.getTime() - istNow.getTime()) / (1000 * 60);
 
-        // CONDITION 1: Agar train ka arrival time nikal gaya hai
-        if (timeDiffMs <= 0) return null;
-
-        // CONDITION 2: Agar CutOffTime ka samay nikal gaya hai
+        // --- FILTER: CutOff Time Check ---
         if (timeDiffMins < cutOffMins) return null;
 
         return {
           RestroCode: v.RestroCode,
           RestroName: v.RestroName,
-          RestroRating: v.RestroRating || "0.0", // Rating added
+          // UI Fix: Rating ko float mein convert karke bhejna safe rehta hai
+          RestroRating: v.RestroRating ? String(v.RestroRating) : "4.0", 
           OpenTime: v.open_time || v.OpenTime || "00:00",
           ClosedTime: v.closed_time || v.ClosedTime || "23:59",
           MinimumOrdermValue: v.MinimumOrderValue || v.MinimumOrdermValue || 0,
           RestroDisplayPhoto: v.RestroDisplayPhoto,
           IsPureVeg: isTrue(v.IsPureVeg) ? 1 : 0,
-          isActive: true,
-          CutOffTime: cutOffMins
+          isActive: true
         };
       }).filter(Boolean);
 
@@ -136,7 +132,7 @@ export async function GET(req: Request) {
         StationCode: code,
         StationName: s.StationName,
         arrival_time: s.Arrives,
-        arrival_date: stationDate, // Har station ki apni date
+        arrival_date: sDate, // Updated station wise date
         halt_time: halt,
         Day: s.Day,
         vendors: validVendors
