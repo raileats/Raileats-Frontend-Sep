@@ -1,4 +1,3 @@
-// app/Stations/[slug]/page.tsx
 import React from "react";
 import type { Metadata } from "next";
 import { redirect, permanentRedirect } from "next/navigation";
@@ -11,8 +10,8 @@ type Restro = {
   RestroRating?: number | null;
   isPureVeg?: boolean;
   RestroDisplayPhoto?: string | null;
-  open_time?: string | null;   // ✅ FIXED
-  closed_time?: string | null; // ✅ FIXED
+  open_time?: string | null;   
+  closed_time?: string | null; 
   MinimumOrdermValue?: number | null;
 };
 
@@ -91,10 +90,20 @@ export async function generateMetadata({
 }
 
 /* ---------------- page ---------------- */
-export default async function Page({ params }: { params: { slug: string } }) {
+export default async function Page({ 
+  params, 
+  searchParams 
+}: { 
+  params: { slug: string };
+  searchParams: { [key: string]: string | string[] | undefined };
+}) {
   const raw = params.slug || "";
   const stationCode = extractStationCode(raw);
   const code = stationCode.toUpperCase();
+
+  // Search Flow Params
+  const queryDate = searchParams.date as string; // E.g. "12 Oct 2026"
+  const arrivalTime = searchParams.arrival as string; // E.g. "14:30:00"
 
   let stationResp: StationResp | null = null;
 
@@ -124,46 +133,65 @@ export default async function Page({ params }: { params: { slug: string } }) {
   return (
     <main className="max-w-5xl mx-auto px-3 py-6">
 
+      {/* ✅ NEW DATE & TIME HEADER (Only shows if coming from search) */}
+      {queryDate && (
+        <div className="mb-2">
+           <span className="text-orange-600 font-bold text-xs uppercase tracking-wider">
+             Delivery Date: {queryDate}
+           </span>
+           {arrivalTime && (
+             <span className="text-gray-400 text-xs ml-2">
+               | Arrival: {arrivalTime.slice(0, 5)}
+             </span>
+           )}
+        </div>
+      )}
+
       {/* HEADER */}
-      <h1 className="text-2xl font-bold mb-4">
-        {station?.StationName} ({station?.StationCode})
+      <h1 className="text-2xl font-bold mb-6 text-gray-900">
+        Food Delivery at {station?.StationName} ({station?.StationCode})
       </h1>
 
       {/* RESTAURANTS */}
       {restaurants.length === 0 ? (
-        <div>No restaurants available</div>
+        <div className="py-10 text-center text-gray-400 border-2 border-dashed rounded-xl">
+          No restaurants available at this station.
+        </div>
       ) : (
-        <div className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {restaurants.map((r) => {
             const openTime = r.open_time ?? "—";
             const closeTime = r.closed_time ?? "—";
 
             return (
-              <div key={String(r.RestroCode)} className="border p-4 rounded">
+              <div key={String(r.RestroCode)} className="border border-gray-100 p-4 rounded-xl shadow-sm bg-white hover:shadow-md transition-shadow">
 
-                <div className="font-semibold text-lg">
-                  {r.RestroName}
+                <div className="flex justify-between items-start">
+                  <div className="font-bold text-lg text-gray-800">
+                    {r.RestroName}
+                  </div>
+                  <div className="bg-green-50 text-green-700 text-xs font-bold px-2 py-1 rounded">
+                    ★ {r.RestroRating ?? "4.2"}
+                  </div>
                 </div>
 
-                <div className="text-sm text-gray-600">
-                  Rating: {r.RestroRating ?? "—"}
+                <div className="flex flex-col gap-1 mt-2 text-sm text-gray-600">
+                  <div className="flex items-center gap-1">
+                    <span>⏰</span> {formatTimeRange(openTime, closeTime)}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span>💰</span> Min Order: ₹{r.MinimumOrdermValue ?? "0"}
+                  </div>
                 </div>
 
-                <div className="text-sm mt-1">
-                  ⏰ {formatTimeRange(openTime, closeTime)}
-                </div>
-
-                <div className="text-sm mt-1">
-                  Min Order: ₹{r.MinimumOrdermValue ?? "—"}
-                </div>
-
+                {/* ✅ Link Pass Logic: Carrying Date & Arrival to Menu Page */}
                 <a
                   href={`/Stations/${raw}/${encodeURIComponent(
-                    `${r.RestroCode}-${r.RestroName ?? "Restaurant"}`
-                  )}`}
-                  className="inline-block mt-3 bg-green-600 text-white px-3 py-1 rounded"
+                    `${r.RestroCode}-${(r.RestroName ?? "Restaurant").replace(/\s+/g, '-')}`
+                  )}?date=${queryDate || ""}&arrival=${arrivalTime || ""}`}
+                  className="w-full text-center block mt-4 bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 rounded-lg transition-colors"
                 >
-                  Order Now
+                  View Menu & Order
                 </a>
 
               </div>
