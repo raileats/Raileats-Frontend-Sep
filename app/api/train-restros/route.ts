@@ -457,14 +457,20 @@ return null;
     const trainName = (stopsRows[0]?.trainName ?? stopsRows[0]?.train_name ?? null) || null;
     const result = { ok: true, train: { trainNumber: trainParam, trainName }, stations: finalStations };
 
-    // cache final result
-    try {
-      await upstashSet(cacheKey, result, CACHE_TTL);
-    } catch {}
+   // cache final result
+try {
+  await upstashSet(cacheKey, result, CACHE_TTL);
+} catch (e) {
+  console.warn("cache set failed", e);
+}
 
-    return NextResponse.json(result);
-  } catch (e) {
-    console.error("train-restros error", e);
-    return NextResponse.json({ ok: false, error: "server_error" }, { status: 500 });
-  }
+// ✅ correct return
+return NextResponse.json(result);
+
+} catch (e) {
+  console.error("train-restros error", e);
+  return NextResponse.json(
+    { ok: false, error: "server_error" },
+    { status: 500 }
+  );
 }
