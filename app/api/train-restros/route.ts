@@ -408,24 +408,18 @@ export async function GET(req: Request) {
       const blocked = isHolidayRowsBlocking(rows, arrivalDate);
       if (blocked) return null;
 
-      return {
-        RestroCode: cv.RestroCode,
-        RestroName: cv.RestroName,
-        isActive: true,
-        OpenTime: cv.OpenTime,
-        ClosedTime: cv.ClosedTime,
-        MinimumOrdermValue: cv.MinimumOrdermValue,
-        RestroDisplayPhoto: cv.RestroDisplayPhoto,
-        IsPureVeg: cv.ispureveg ?? 0,
-        source: "restromaster",
-        raw: cv.raw,
-      };
-    } catch {
-      return null;
-    }
-  },
-  12
-);
+     return {
+  RestroCode: cv.RestroCode,
+  RestroName: cv.RestroName,
+  isActive: true,
+  OpenTime: cv.OpenTime,
+  ClosedTime: cv.ClosedTime,
+  MinimumOrdermValue: cv.MinimumOrdermValue,
+  RestroDisplayPhoto: cv.RestroDisplayPhoto,
+  IsPureVeg: cv.IsPureVeg ?? 0,   // ✅ FINAL FIX
+  source: "restromaster",
+  raw: cv.raw
+};
 
 vendors = (checked || []).filter(Boolean);
           vendors = (checked || []).filter(Boolean);
