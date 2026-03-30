@@ -427,10 +427,10 @@ const checked = await pMap(
   12
 );
 
-// ✅ vendors assign
+// vendors assign
 vendors = (checked || []).filter(Boolean);
 
-// ✅ station return
+// return station
 if (vendors && vendors.length) {
   return {
     StationCode: sc,
@@ -444,36 +444,41 @@ if (vendors && vendors.length) {
 }
 
 return null;
+},
+12 // ✅ THIS WAS MISSING
+);
 
-    for (const r of stationResults) if (r) finalStations.push(r);
+// ✅ NOW CONTINUE NORMAL FLOW
+for (const r of stationResults) if (r) finalStations.push(r);
 
-    // sort finalStations
-    const indexByCode = new Map<string, number>();
-    routeFromBoarding.forEach((r: any, idx: number) =>
-      indexByCode.set(normalizeCode(r.StationCode ?? r.stationcode ?? r.Station ?? r.station), idx),
-    );
-    finalStations.sort((a: any, b: any) => (indexByCode.get(a.StationCode) ?? 0) - (indexByCode.get(b.StationCode) ?? 0));
+// sort finalStations
+const indexByCode = new Map<string, number>();
+routeFromBoarding.forEach((r: any, idx: number) =>
+  indexByCode.set(normalizeCode(r.StationCode ?? r.stationcode ?? r.Station ?? r.station), idx),
+);
 
-    const trainName = (stopsRows[0]?.trainName ?? stopsRows[0]?.train_name ?? null) || null;
-    const result = { ok: true, train: { trainNumber: trainParam, trainName }, stations: finalStations };
+finalStations.sort(
+  (a: any, b: any) =>
+    (indexByCode.get(a.StationCode) ?? 0) -
+    (indexByCode.get(b.StationCode) ?? 0)
+);
 
-   // cache final result
+const trainName =
+  (stopsRows[0]?.trainName ??
+    stopsRows[0]?.train_name ??
+    null) || null;
+
+const result = {
+  ok: true,
+  train: { trainNumber: trainParam, trainName },
+  stations: finalStations,
+};
+
+// cache
 try {
   await upstashSet(cacheKey, result, CACHE_TTL);
 } catch (e) {
   console.warn("cache set failed", e);
 }
 
-// ✅ return success
 return NextResponse.json(result);
-
-} catch (e) {
-  console.error("train-restros error", e);
-  return NextResponse.json(
-    { ok: false, error: "server_error" },
-    { status: 500 }
-  );
-}
-
-// ✅ VERY IMPORTANT (last closing)
-}
