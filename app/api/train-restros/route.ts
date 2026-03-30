@@ -65,6 +65,7 @@ export async function GET(req: Request) {
 
     const groupedRestros: Record<string, any[]> = {};
     restrosData.data?.forEach(r => {
+      // Check for active status
       if (isTrue(r.RaileatsStatus ?? r.IsActive)) {
         const sc = normalize(r.StationCode);
         if (!groupedRestros[sc]) groupedRestros[sc] = [];
@@ -95,9 +96,9 @@ export async function GET(req: Request) {
           RestroCode: v.RestroCode,
           RestroName: v.RestroName,
           RestroRating: v.RestroRating || "4.2",
-          // ✅ FIXED: Using exact database columns from your CSV
-          open_time: v.open_time || v.OpenTime || "N/A",
-          closed_time: v.closed_time || v.ClosedTime || "N/A",
+          // ✅ FORCE FETCH: Exact column names from RestroMaster CSV
+          open_time: v.open_time || v.OpenTime || "00:00:00",
+          closed_time: v.closed_time || v.ClosedTime || "23:59:00",
           MinimumOrderValue: v.MinimumOrderValue || 0,
           RestroDisplayPhoto: v.RestroDisplayPhoto,
           IsPureVeg: isTrue(v.IsPureVeg) ? 1 : 0
@@ -125,7 +126,6 @@ export async function GET(req: Request) {
 
     return NextResponse.json({
       ok: true,
-      train: { trainNumber: stopsRows[0].trainNumber, trainName: stopsRows[0].trainName },
       stations: finalStations
     });
 
