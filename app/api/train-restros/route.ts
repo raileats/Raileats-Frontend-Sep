@@ -54,14 +54,14 @@ export async function GET(req: Request) {
 
     if (trErr || !stopsRows?.length) return NextResponse.json({ ok: true, stations: [] });
 
-    // 2. Slicing
+    // 2. Slicing logic
     const normBoard = normalize(boarding);
     const bIdx = stopsRows.findIndex(s => normalize(s.StationCode) === normBoard);
     const baseDay = Number(stopsRows[0].Day || 1);
     const activeRoute = bIdx !== -1 ? stopsRows.slice(bIdx) : stopsRows;
     const stationCodes = Array.from(new Set(activeRoute.map(s => normalize(s.StationCode))));
 
-    // 3. Dual Fetch (Stations State & Restro Vendors)
+    // 3. Fetch State and Vendors
     const [stationsData, restrosData] = await Promise.all([
       serviceClient.from("Stations").select("StationCode, State").in("StationCode", stationCodes),
       serviceClient.from("RestroMaster").select("*").in("StationCode", stationCodes)
@@ -92,7 +92,7 @@ export async function GET(req: Request) {
       const [h, m, sec] = (s.Arrives || "00:00:00").split(":").map(Number);
       arrivalDateTime.setHours(h, m, sec || 0);
 
-      // Future check
+      // Past Time Filter
       if (arrivalDateTime <= istNow) return null;
 
       const validVendors = vendorsRaw.map(v => {
@@ -119,10 +119,17 @@ export async function GET(req: Request) {
       return {
         StationCode: code,
         StationName: s.StationName,
-        State: stateMap[code] || "", // ✅ State
-        // ✅ UI Fixed Keys: Inhe waisa hi rakha hai jaisa TrainRoute table mein hai
-        Arrives: s.Arrives || "--:--", 
-        Departs: s.Departs || "--:--",
+        State: stateMap[code] || "",
+        
+        // ✅ [DOUBLY FIXED KEYS] 
+        // Humne har tarike se keys bhej di hain taaki UI koi bhi utha sake
+        Arrives: s.Arrives,            // Database Spelling
+        Departs: s.Departs,            // Database Spelling
+        arrival_time: s.Arrives,       // Standard Camel Case
+        departure_time: s.Departs,     // Standard Camel Case
+        arrivalTime: s.Arrives,        // React Style
+        departureTime: s.Departs,      // React Style
+        
         arrival_date: stationDateObj.toISOString().split("T")[0],
         halt_time: halt,
         Day: s.Day,
