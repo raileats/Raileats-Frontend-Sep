@@ -57,8 +57,7 @@ export async function GET(req: Request) {
       .select(
         "RestroCode,RestroName,StationCode,StationName,open_time,closed_time,MinimumOrdermValue,IsActive,IsPureVeg,RestroDisplayPhoto"
       )
-      .in("StationCode", codes);
-
+     .in("StationCode", codes.map(c => c.toLowerCase()))
     const grouped: any = {};
     for (const r of restroRows || []) {
       const sc = normalizeCode(r.StationCode);
