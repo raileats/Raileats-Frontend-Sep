@@ -18,9 +18,6 @@ export async function GET(req: Request) {
   const boarding = searchParams.get("boarding")?.trim() || "";
 
   try {
-    const now = new Date();
-    const istNow = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
-
     const { data: stopsRows } = await serviceClient
       .from("TrainRoute")
       .select("*")
@@ -61,28 +58,6 @@ export async function GET(req: Request) {
 
       const sDate = new Date(startDateParam + "T00:00:00");
       sDate.setDate(sDate.getDate() + (Number(s.Day || 1) - baseDay));
-      const arrivalDateTime = new Date(sDate);
-      const [h, m] = (s.Arrives || "00:00").split(":").map(Number);
-      arrivalDateTime.setHours(h, m, 0);
-
-      if (arrivalDateTime <= istNow) return null;
-
-      const validVendors = vendorsRaw.map(v => {
-        // ✅ DEBUG: Check open_time in your console/terminal
-        console.log(`Restro: ${v.RestroName}, Open: ${v.open_time}, Closed: ${v.closed_time}`);
-
-        return {
-          RestroCode: v.RestroCode,
-          RestroName: v.RestroName,
-          RestroRating: v.RestroRating || "4.2",
-          // ✅ Strict Mapping from CSV columns
-          open_time: v.open_time || v.OpenTime || "NA", 
-          closed_time: v.closed_time || v.ClosedTime || "NA",
-          MinimumOrderValue: v.MinimumOrderValue || 0,
-          RestroDisplayPhoto: v.RestroDisplayPhoto,
-          IsPureVeg: isTrue(v.IsPureVeg) ? 1 : 0
-        };
-      }).filter(v => v !== null);
 
       return {
         StationCode: code,
@@ -90,7 +65,17 @@ export async function GET(req: Request) {
         State: stateMap[code] || "",
         Arrives: s.Arrives,
         Departs: s.Departs,
-        vendors: validVendors
+        vendors: vendorsRaw.map(v => ({
+          RestroCode: v.RestroCode,
+          RestroName: v.RestroName,
+          RestroRating: v.RestroRating || "4.2",
+          // ✅ Backend se asli data bhej rahe hain
+          db_open: v.open_time, 
+          db_close: v.closed_time,
+          MinimumOrderValue: v.MinimumOrderValue || 0,
+          RestroDisplayPhoto: v.RestroDisplayPhoto,
+          IsPureVeg: isTrue(v.IsPureVeg) ? 1 : 0
+        }))
       };
     }).filter(Boolean);
 
