@@ -1,8 +1,26 @@
-// app/api/train-restros/route.ts
 import { NextResponse } from "next/server";
 import { serviceClient } from "../../lib/supabaseServer";
 
+/**
+ * Optimized + Upstash caching version
+ * - Caches final response per train/date/boarding in Upstash
+ * - Caches per-restro holiday lists in Upstash
+ * - Batched RestroMaster queries + parallel admin fallback
+ * - Computes arrival_time and halt_time accurately
+ */
+
 const ADMIN_BASE = process.env.NEXT_PUBLIC_ADMIN_APP_URL || "https://admin.raileats.in";
+const UPSTASH_URL = process.env.UPSTASH_REDIS_REST_URL || "";
+const UPSTASH_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || "";
+const CACHE_TTL = Number(process.env.TRAIN_RESTROS_CACHE_TTL_SEC || "30");
+const HOLIDAY_TTL = Number(process.env.TRAIN_RESTROS_HOLIDAY_TTL_SEC || "86400"); // 1 day
+
+// ---------- Utils ----------
+function normalizeToLower(obj: Record<string, any>) {
+  const lower: Record<string, any> = {};
+  for (const k of Object.keys(obj)) lower[k.toLowerCase()] = obj[k];
+  return lower;
+}
 
 function normalizeCode(val: any) {
   return String(val ?? "").toUpperCase().trim();
@@ -13,96 +31,346 @@ function isActiveValue(val: any) {
   if (typeof val === "number") return val !== 0;
   if (typeof val === "string") {
     const t = val.trim().toLowerCase();
-    return !["0", "false", "no", "n", ""].includes(t);
+    if (["0", "false", "no", "n", ""].includes(t)) return false;
+    return true;
   }
   return true;
 }
 
-async function pMap(items: any[], mapper: any) {
-  const results: any[] = [];
-  for (const item of items) {
-    results.push(await mapper(item));
+function chunk<T>(arr: T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+  return out;
+}
+
+/**
+ * fetchJson with AbortController timeout
+ */
+async function fetchJson(url: string, opts?: RequestInit, timeoutMs = 6000): Promise<any | null> {
+  try {
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeoutMs);
+
+    const merged: RequestInit = {
+      cache: "no-store",
+      signal: controller.signal,
+      ...(opts || {}),
+    };
+
+    const r = await fetch(url, merged);
+    clearTimeout(id);
+
+    if (!r.ok) return null;
+    return await r.json().catch(() => null);
+  } catch (err) {
+    return null;
   }
+}
+
+/** Time Helpers */
+function timeToSeconds(t: string | null | undefined) {
+  if (!t) return null;
+  const s = String(t).trim();
+  if (!s) return null;
+  const parts = s.split(":").map((x) => Number(x));
+  if (parts.some((p) => Number.isNaN(p))) return null;
+  const hh = parts[0] ?? 0;
+  const mm = parts[1] ?? 0;
+  const ss = parts[2] ?? 0;
+  return hh * 3600 + mm * 60 + ss;
+}
+
+function secondsToHuman(sec: number | null) {
+  if (sec === null || !Number.isFinite(sec)) return null;
+  if (sec < 60) return `${sec}s`;
+  const m = Math.floor(sec / 60);
+  if (m < 60) return `${m}m`;
+  const h = Math.floor(m / 60);
+  const mm = m % 60;
+  return `${h}h ${mm}m`;
+}
+
+function addDaysToIso(iso: string, days: number) {
+  const d = new Date(iso + "T00:00:00");
+  d.setDate(d.getDate() + days);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${dd}`;
+}
+
+/* ---------------- Upstash REST helpers ---------------- */
+async function upstashGet(key: string) {
+  if (!UPSTASH_URL || !UPSTASH_TOKEN) return null;
+  try {
+    const url = `${UPSTASH_URL.replace(/\/$/, "")}/get/${encodeURIComponent(key)}`;
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${UPSTASH_TOKEN}`, Accept: "application/json" } });
+    if (!res.ok) return null;
+    const j = await res.json().catch(() => null);
+    if (!j || !("result" in j)) return null;
+    return j.result === null ? null : JSON.parse(j.result);
+  } catch (e) {
+    console.warn("upstashGet failed", e);
+    return null;
+  }
+}
+
+async function upstashSet(key: string, value: any, exSeconds = CACHE_TTL) {
+  if (!UPSTASH_URL || !UPSTASH_TOKEN) return false;
+  try {
+    const encoded = encodeURIComponent(JSON.stringify(value));
+    const url = `${UPSTASH_URL.replace(/\/$/, "")}/set/${encodeURIComponent(key)}/${encoded}?ex=${Number(exSeconds)}`;
+    const res = await fetch(url, { method: "POST", headers: { Authorization: `Bearer ${UPSTASH_TOKEN}`, Accept: "application/json" } });
+    return res.ok;
+  } catch (e) {
+    console.warn("upstashSet failed", e);
+    return false;
+  }
+}
+
+/* ------------ Holiday Fetch & Cache ------------- */
+async function fetchVendorHolidays(restroCode: string | number) {
+  try {
+    if (!restroCode) return [];
+    const url = `${ADMIN_BASE.replace(/\/$/, "")}/api/restros/${encodeURIComponent(String(restroCode))}/holidays`;
+    const res = await fetch(url, { cache: "no-store" });
+    if (!res.ok) return [];
+    const j = await res.json().catch(() => null);
+    const rows = j?.rows ?? j?.data ?? (Array.isArray(j) ? j : []);
+    return Array.isArray(rows) ? rows : [];
+  } catch (e) {
+    console.warn("fetchVendorHolidays failed", e);
+    return [];
+  }
+}
+
+async function getVendorHolidaysCached(restroCode: string | number) {
+  if (!restroCode) return [];
+  const key = `hols:${String(restroCode)}`;
+  const cached = await upstashGet(key);
+  if (Array.isArray(cached)) return cached;
+  const rows = await fetchVendorHolidays(restroCode);
+  try {
+    await upstashSet(key, rows, HOLIDAY_TTL);
+  } catch {}
+  return rows;
+}
+
+function isHolidayRowsBlocking(rows: any[], isoDate: string) {
+  if (!Array.isArray(rows) || !rows.length) return false;
+  const target = Date.parse(isoDate + "T00:00:00");
+  if (!Number.isFinite(target)) return false;
+  for (const r of rows) {
+    const deletedAt = r?.deleted_at ? Date.parse(r.deleted_at) : null;
+    if (deletedAt) continue;
+    const start = r?.start_at ? Date.parse(r.start_at) : NaN;
+    const end = r?.end_at ? Date.parse(r.end_at) : NaN;
+    if (!Number.isFinite(start) || !Number.isFinite(end)) continue;
+    if (start <= target && target <= end) return true;
+  }
+  return false;
+}
+
+/* ---------------- Limited Concurrency Mapper ---------------- */
+async function pMap<T, R>(items: T[], mapper: (t: T) => Promise<R>, concurrency = 12): Promise<R[]> {
+  const results: R[] = new Array(items.length) as R[];
+  let i = 0;
+  const workers: Promise<void>[] = [];
+  const run = async () => {
+    while (true) {
+      const idx = i++;
+      if (idx >= items.length) return;
+      try {
+        results[idx] = await mapper(items[idx]);
+      } catch (e) {
+        results[idx] = undefined as unknown as R;
+      }
+    }
+  };
+  for (let w = 0; w < Math.min(concurrency, items.length); w++) workers.push(run());
+  await Promise.all(workers);
   return results;
 }
 
+/* ---------------- Main Handler ---------------- */
 export async function GET(req: Request) {
+  const url = new URL(req.url);
+  const trainParam = (url.searchParams.get("train") || "").trim();
+  const date = (url.searchParams.get("date") || "").trim();
+  const boarding = (url.searchParams.get("boarding") || "").trim();
+
+  if (!trainParam || !date || !boarding) {
+    return NextResponse.json({ ok: false, error: "missing params: train/date/boarding" }, { status: 400 });
+  }
+
+  const cacheKey = `train:${trainParam}::date:${date}::board:${boarding}`;
+
+  // 1) Try Redis cache
   try {
-    const url = new URL(req.url);
-    const trainParam = url.searchParams.get("train");
-    const date = url.searchParams.get("date");
-    const boarding = url.searchParams.get("boarding");
+    const cached = await upstashGet(cacheKey);
+    if (cached) return NextResponse.json(cached);
+  } catch (e) {}
 
-    if (!trainParam || !date || !boarding) {
-      return NextResponse.json({ ok: false, error: "missing params" });
+  try {
+    // 2) Load full route stops
+    const q = trainParam;
+    const isDigits = /^[0-9]+$/.test(q);
+    let stopsRows: any[] = [];
+    const selectCols = "StnNumber,StationCode,StationName,Arrives,Departs,Day,Platform,Distance,Stoptime,trainNumber,trainName,runningDays";
+
+    if (isDigits) {
+      const { data: exactData, error: exactErr } = await serviceClient
+        .from("TrainRoute")
+        .select(selectCols)
+        .eq("trainNumber", Number(q))
+        .order("StnNumber", { ascending: true })
+        .limit(2000);
+      if (!exactErr && Array.isArray(exactData) && exactData.length) stopsRows = exactData;
     }
 
-    const { data: stopsRows } = await serviceClient
-      .from("TrainRoute")
-      .select("*")
-      .eq("trainNumber", Number(trainParam));
-
-    if (!stopsRows || !stopsRows.length) {
-      return NextResponse.json({ ok: true, stations: [] });
+    if (!stopsRows.length) {
+      const ilikeQ = `%${q}%`;
+      const { data: partialData } = await serviceClient
+        .from("TrainRoute")
+        .select(selectCols)
+        .or(`trainName.ilike.${ilikeQ},trainNumber_text.ilike.${ilikeQ}`)
+        .order("StnNumber", { ascending: true })
+        .limit(2000);
+      if (Array.isArray(partialData) && partialData.length) stopsRows = partialData;
     }
 
-    const stationCodes = stopsRows.map((s: any) =>
-      normalizeCode(s.StationCode)
+    if (!stopsRows.length) {
+      const result = { ok: true, train: { trainNumber: trainParam, trainName: null }, stations: [] };
+      await upstashSet(cacheKey, result, CACHE_TTL).catch(() => {});
+      return NextResponse.json(result);
+    }
+
+    // 3) Slice route from boarding station
+    const normBoard = normalizeCode(boarding);
+    const startIdx = stopsRows.findIndex((r: any) =>
+      normalizeCode(r.StationCode ?? r.stationcode ?? r.Station ?? r.station) === normBoard
     );
+    const sliceStart = startIdx >= 0 ? startIdx : 0;
+    const routeFromBoarding = stopsRows.slice(sliceStart);
 
-    const { data: restroRows } = await serviceClient
-      .from("RestroMaster")
-      .select("*")
-      .in("StationCode", stationCodes);
-
-    const grouped: Record<string, any[]> = {};
-
-    for (const r of restroRows || []) {
-      const sc = normalizeCode(r.StationCode);
-      if (!grouped[sc]) grouped[sc] = [];
-      grouped[sc].push(r);
-    }
-
-    const stations: any[] = [];
-
-    for (const s of stopsRows) {
-      const sc = normalizeCode(s.StationCode);
-      const vendorsRaw = grouped[sc] || [];
-
-      const candidateVendors = vendorsRaw
-        .filter((r: any) => isActiveValue(r.IsActive))
-        .map((r: any) => ({
-          RestroCode: r.RestroCode,
-          RestroName: r.RestroName,
-          OpenTime: r.OpenTime ?? r.open_time ?? null,
-          ClosedTime: r.ClosedTime ?? r.closed_time ?? null,
-          MinimumOrdermValue: r.MinimumOrdermValue,
-          RestroDisplayPhoto: r.RestroDisplayPhoto,
-          IsPureVeg: r.IsPureVeg ?? 0,
-          raw: r,
-        }));
-
-      const checked = await pMap(candidateVendors, async (cv: any) => cv);
-
-      const vendors = (checked || []).filter(Boolean);
-
-      if (vendors.length) {
-        stations.push({
-          StationCode: sc,
-          StationName: s.StationName,
-          vendors,
-        });
+    const baseDay = typeof stopsRows[0]?.Day === "number" ? Number(stopsRows[0].Day) : 1;
+    const stopsWithArrival = routeFromBoarding.map((s: any) => {
+      let arrivalDate = date;
+      if (typeof s.Day === "number") {
+        const diff = Number(s.Day) - baseDay;
+        arrivalDate = addDaysToIso(date, diff);
       }
-    }
-
-    return NextResponse.json({
-      ok: true,
-      train: { trainNumber: trainParam },
-      stations,
+      return { ...s, arrivalDate };
     });
 
+    const stationCodesAll = Array.from(
+      new Set(stopsWithArrival.map((s: any) => normalizeCode(s.StationCode ?? s.stationcode ?? s.Station ?? s.station)).filter(Boolean))
+    );
+
+    // 4) Batched RestroMaster fetch
+    const BATCH = 200;
+    const batches = chunk(stationCodesAll, BATCH);
+    let restroRows: any[] = [];
+    for (const b of batches) {
+      const { data, error } = await serviceClient
+        .from("RestroMaster")
+        .select("RestroCode,RestroName,StationCode,StationName,open_time,closed_time,WeeklyOff,MinimumOrdermValue,CutOffTime,IsActive,IsPureVeg,RestroDisplayPhoto")
+        .in("StationCode", b)
+        .limit(20000);
+      if (!error && Array.isArray(data)) restroRows.push(...data);
+    }
+
+    // Group by station code
+    const grouped: Record<string, any[]> = {};
+    for (const r of restroRows) {
+      const sc = normalizeCode(r.StationCode ?? r.stationcode ?? r.Station ?? r.station ?? null);
+      if (!sc) continue;
+      (grouped[sc] = grouped[sc] || []).push(r);
+    }
+
+    // 5) Assemble final stations in parallel with holiday checks
+    const stationResults = await pMap(
+      stopsWithArrival,
+      async (s) => {
+        const sc = normalizeCode(s.StationCode ?? s.stationcode ?? s.Station ?? s.station ?? "");
+        if (!sc) return null;
+        const stationName = s.StationName ?? s.stationName ?? s.station_name ?? s.station ?? sc;
+        const arrivalDate = s.arrivalDate;
+
+        const arrival_time = s.Arrives ?? s.Arrival ?? s.arrival_time ?? null;
+        let halt_time: string | null = null;
+        if (s.Stoptime ?? s.stoptime ?? s.StopTime) {
+          halt_time = secondsToHuman(timeToSeconds(s.Stoptime ?? s.stoptime ?? s.StopTime));
+        } else if (s.Arrives && s.Departs) {
+          const aSec = timeToSeconds(s.Arrives);
+          const dSec = timeToSeconds(s.Departs);
+          if (aSec !== null && dSec !== null && dSec >= aSec) halt_time = secondsToHuman(dSec - aSec);
+        }
+
+        const candidateVendors = (grouped[sc] || [])
+          .filter((r: any) => isActiveValue(r.IsActive ?? r.isActive ?? r.active))
+          .map((r: any) => ({
+            RestroCode: r.RestroCode ?? r.id ?? null,
+            RestroName: r.RestroName ?? r.name ?? null,
+            OpenTime: r.OpenTime ?? r.open_time ?? null,
+            ClosedTime: r.ClosedTime ?? r.close_time ?? null,
+            MinimumOrdermValue: r.MinimumOrdermValue ?? r.minOrder ?? null,
+            RestroDisplayPhoto: r.RestroDisplayPhoto ?? null,
+            IsPureVeg: r.IsPureVeg ?? 0,
+            raw: r,
+          }));
+
+        // Parallel holiday filtering per station
+        const checked = await pMap(
+          candidateVendors,
+          async (cv) => {
+            if (!cv.RestroCode) return null;
+            const rows = await getVendorHolidaysCached(cv.RestroCode);
+            if (isHolidayRowsBlocking(rows, arrivalDate)) return null;
+            return { ...cv, isActive: true, source: "restromaster" };
+          },
+          12
+        );
+
+        const vendors = checked.filter(Boolean);
+        if (vendors.length) {
+          return {
+            StationCode: sc,
+            StationName: stationName,
+            arrival_time,
+            halt_time,
+            Day: typeof s.Day === "number" ? s.Day : s.Day ? Number(s.Day) : null,
+            arrival_date: arrivalDate,
+            vendors,
+          };
+        }
+        return null;
+      },
+      12
+    );
+
+    const finalStations = stationResults.filter(Boolean);
+
+    // Maintain route order
+    const indexByCode = new Map<string, number>();
+    routeFromBoarding.forEach((r: any, idx: number) =>
+      indexByCode.set(normalizeCode(r.StationCode ?? r.stationcode ?? r.Station ?? r.station), idx)
+    );
+    finalStations.sort((a: any, b: any) => (indexByCode.get(a.StationCode) ?? 0) - (indexByCode.get(b.StationCode) ?? 0));
+
+    const trainName = (stopsRows[0]?.trainName ?? stopsRows[0]?.train_name) || null;
+    const result = {
+      ok: true,
+      train: { trainNumber: trainParam, trainName },
+      stations: finalStations,
+    };
+
+    // Cache final result
+    await upstashSet(cacheKey, result, CACHE_TTL).catch(() => {});
+
+    return NextResponse.json(result);
   } catch (e) {
     console.error("train-restros error", e);
-    return NextResponse.json({ ok: false, error: "server_error" });
+    return NextResponse.json({ ok: false, error: "server_error" }, { status: 500 });
   }
 }
