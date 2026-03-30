@@ -2,17 +2,14 @@ import { NextResponse } from "next/server";
 import { serviceClient } from "../../lib/supabaseServer";
 
 const ADMIN_BASE = process.env.NEXT_PUBLIC_ADMIN_APP_URL || "https://admin.raileats.in";
-const UPSTASH_URL = process.env.UPSTASH_REDIS_REST_URL || "";
-const UPSTASH_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || "";
 
 // ---------- Helpers ----------
 function normalize(val: any) {
   return String(val ?? "").toUpperCase().trim();
 }
 
-// Flexible boolean check for IsActive/IsPureVeg
 function isTrue(val: any) {
-  if (val === undefined || val === null) return true; // Default to true if column missing
+  if (val === undefined || val === null) return true;
   if (typeof val === "boolean") return val;
   const s = String(val).toLowerCase();
   return ["true", "1", "active", "yes"].includes(s);
@@ -21,6 +18,7 @@ function isTrue(val: any) {
 function timeToSeconds(t: string | null | undefined) {
   if (!t) return null;
   const parts = String(t).trim().split(":").map(Number);
+  // Expected format HH:mm:ss or HH:mm
   return (parts[0] ?? 0) * 3600 + (parts[1] ?? 0) * 60 + (parts[2] ?? 0);
 }
 
@@ -30,18 +28,25 @@ function secondsToHuman(sec: number | null) {
   return m < 60 ? `${m}m` : `${Math.floor(m / 60)}h ${m % 60}m`;
 }
 
+// Date calculation helper
+function addDaysToIso(iso: string, days: number) {
+  const d = new Date(iso + "T00:00:00");
+  d.setDate(d.getDate() + days);
+  return d.toISOString().split("T")[0];
+}
+
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const trainParam = searchParams.get("train")?.trim() || "";
-  const date = searchParams.get("date")?.trim() || "";
+  const startDate = searchParams.get("date")?.trim() || ""; // Format: YYYY-MM-DD
   const boarding = searchParams.get("boarding")?.trim() || "";
 
-  if (!trainParam || !date || !boarding) {
+  if (!trainParam || !startDate || !boarding) {
     return NextResponse.json({ ok: false, error: "Missing params" }, { status: 400 });
   }
 
   try {
-    // 1. Train Route Fetch (Flexible for ID or Number)
+    // 1. Train Route Fetch
     const { data: stopsRows, error: trErr } = await serviceClient
       .from("TrainRoute")
       .select("*")
@@ -52,58 +57,95 @@ export async function GET(req: Request) {
       return NextResponse.json({ ok: true, stations: [] });
     }
 
-    // 2. Slice route from boarding station
+    // 2. Filter logic for Boarding and Current Time
     const normBoard = normalize(boarding);
     const bIdx = stopsRows.findIndex(s => normalize(s.StationCode) === normBoard);
-    const activeRoute = bIdx !== -1 ? stopsRows.slice(bIdx) : stopsRows;
-    const stationCodes = Array.from(new Set(activeRoute.map(s => normalize(s.StationCode))));
+    const baseDay = Number(stopsRows[0].Day || 1);
+    
+    // Current Indian Time (assuming server is synced or use offset)
+    const now = new Date(); 
+    // IST Adjustment (Optional: Adjust based on your server location)
+    // const nowIST = new Date(new Date().getTime() + (5.5 * 60 * 60 * 1000)); 
 
-    // 3. Fetch Restaurants (Exact CSV Column Names)
+    const activeRoute = bIdx !== -1 ? stopsRows.slice(bIdx) : stopsRows;
+
+    // 3. Prepare Station Codes and Date-Time info
+    const stationCodes: string[] = [];
+    const routeWithTimestamps = activeRoute.map(s => {
+      const code = normalize(s.StationCode);
+      stationCodes.push(code);
+
+      // Calculate the actual arrival date at this station
+      const stationArrivalDate = addDaysToIso(startDate, Number(s.Day || 1) - baseDay);
+      
+      // Combine Date + Arrival Time (Arrives format: "HH:mm:ss")
+      const arrivalDateTime = new Date(`${stationArrivalDate}T${s.Arrives || "00:00:00"}`);
+
+      return { ...s, stationArrivalDate, arrivalDateTime, code };
+    });
+
+    // 4. Fetch Restaurants
     const { data: restroRows, error: rsErr } = await serviceClient
       .from("RestroMaster")
-      .select("*") // Fetch all first to avoid column mismatch errors
-      .in("StationCode", stationCodes);
+      .select("*")
+      .in("StationCode", Array.from(new Set(stationCodes)));
 
     if (rsErr) throw rsErr;
 
-    // 4. Grouping logic
     const grouped: Record<string, any[]> = {};
     restroRows?.forEach(r => {
-      // Check if active (flexible check)
       const active = r.IsActive ?? r.is_active ?? r.RaileatsStatus ?? "Active";
       if (isTrue(active)) {
         const sc = normalize(r.StationCode);
         if (!grouped[sc]) grouped[sc] = [];
-        
-        grouped[sc].push({
-          RestroCode: r.RestroCode,
-          RestroName: r.RestroName,
-          OpenTime: r.open_time || r.OpenTime || "00:00",
-          ClosedTime: r.closed_time || r.ClosedTime || "23:59",
-          MinimumOrdermValue: r.MinimumOrderValue || r.MinimumOrdermValue || 0, // Fixed 'm' typo
-          RestroDisplayPhoto: r.RestroDisplayPhoto,
-          IsPureVeg: isTrue(r.IsPureVeg) ? 1 : 0,
-          isActive: true
-        });
+        grouped[sc].push(r);
       }
     });
 
-    // 5. Final Assembly
-    const finalStations = activeRoute.map(s => {
-      const code = normalize(s.StationCode);
-      const vendors = grouped[code] || [];
-      if (vendors.length === 0) return null;
+    // 5. Final Assembly with Time & CutOff Logic
+    const finalStations = routeWithTimestamps.map(s => {
+      const vendorsRaw = grouped[s.code] || [];
+      if (vendorsRaw.length === 0) return null;
+
+      // Filter vendors based on CutOffTime and Past Time
+      const validVendors = vendorsRaw.map(v => {
+        const cutOffMins = Number(v.CutOffTime || 0);
+        const arrivalTime = s.arrivalDateTime.getTime();
+        const currentTime = now.getTime();
+
+        // Check 1: Agar train nikal chuki hai (Current Time > Arrival Time)
+        if (currentTime >= arrivalTime) return null;
+
+        // Check 2: CutOffTime logic (Difference in minutes)
+        const diffInMins = (arrivalTime - currentTime) / (1000 * 60);
+        if (diffInMins < cutOffMins) return null;
+
+        return {
+          RestroCode: v.RestroCode,
+          RestroName: v.RestroName,
+          RestroRating: v.RestroRating || v.rating || "0.0", // Added Rating
+          OpenTime: v.open_time || v.OpenTime || "00:00",
+          ClosedTime: v.closed_time || v.ClosedTime || "23:59",
+          MinimumOrdermValue: v.MinimumOrderValue || v.MinimumOrdermValue || 0,
+          RestroDisplayPhoto: v.RestroDisplayPhoto,
+          IsPureVeg: isTrue(v.IsPureVeg) ? 1 : 0,
+          isActive: true
+        };
+      }).filter(Boolean);
+
+      if (validVendors.length === 0) return null;
 
       const aSec = timeToSeconds(s.Arrives), dSec = timeToSeconds(s.Departs);
       const halt = (aSec !== null && dSec !== null) ? secondsToHuman(dSec - aSec) : (s.Stoptime || "0m");
 
       return {
-        StationCode: code,
+        StationCode: s.code,
         StationName: s.StationName,
         arrival_time: s.Arrives,
         halt_time: halt,
         Day: s.Day,
-        vendors
+        arrival_date: s.stationArrivalDate, // Dynamic date per station
+        vendors: validVendors
       };
     }).filter(Boolean);
 
