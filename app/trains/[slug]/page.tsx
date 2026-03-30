@@ -77,8 +77,8 @@ export default function TrainPage() {
                 {vendors.map((r: any) => {
                   const name = r.RestroName || "Restaurant";
                   const minOrder = r.MinimumOrderValue || r.MinimumOrdermValue || 0;
-                  const open = r.OpenTime ? r.OpenTime.slice(0, 5) : "00:00";
-const close = r.ClosedTime ? r.ClosedTime.slice(0, 5) : "23:59";
+                  const open = r.OpenTime?.slice(0, 5) || "00:00";
+const close = r.ClosedTime?.slice(0, 5) || "23:59";
 
                   // Image Logic
                   let fileName = r.RestroDisplayPhoto ? String(r.RestroDisplayPhoto).split("/").pop() : "";
