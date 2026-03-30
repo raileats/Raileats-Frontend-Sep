@@ -464,7 +464,7 @@ try {
   console.warn("cache set failed", e);
 }
 
-// ✅ correct return
+// ✅ return success
 return NextResponse.json(result);
 
 } catch (e) {
@@ -473,4 +473,7 @@ return NextResponse.json(result);
     { ok: false, error: "server_error" },
     { status: 500 }
   );
+}
+
+// ✅ VERY IMPORTANT (last closing)
 }
