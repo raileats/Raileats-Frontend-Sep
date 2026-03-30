@@ -1,7 +1,9 @@
+// app/api/train-restros/route.ts
 import { NextResponse } from "next/server";
 import { serviceClient } from "../../lib/supabaseServer";
 
-/* utils */
+const ADMIN_BASE = process.env.NEXT_PUBLIC_ADMIN_APP_URL || "https://admin.raileats.in";
+
 function normalizeCode(val: any) {
   return String(val ?? "").toUpperCase().trim();
 }
@@ -16,117 +18,91 @@ function isActiveValue(val: any) {
   return true;
 }
 
+async function pMap(items: any[], mapper: any) {
+  const results: any[] = [];
+  for (const item of items) {
+    results.push(await mapper(item));
+  }
+  return results;
+}
+
 export async function GET(req: Request) {
   try {
     const url = new URL(req.url);
+    const trainParam = url.searchParams.get("train");
+    const date = url.searchParams.get("date");
+    const boarding = url.searchParams.get("boarding");
 
-    const train = (url.searchParams.get("train") || "").trim();
-    const date = (url.searchParams.get("date") || "").trim();
-    const boarding = normalizeCode(url.searchParams.get("boarding"));
-
-    if (!train || !date || !boarding) {
+    if (!trainParam || !date || !boarding) {
       return NextResponse.json({ ok: false, error: "missing params" });
     }
 
-    /* 1️⃣ TRAIN ROUTE (FIXED) */
     const { data: stopsRows } = await serviceClient
       .from("TrainRoute")
       .select("*")
-      .eq("trainNumber", train) // ✅ FIX (no Number)
-      .order("StnNumber", { ascending: true });
+      .eq("trainNumber", Number(trainParam));
 
-    if (!stopsRows || stopsRows.length === 0) {
+    if (!stopsRows || !stopsRows.length) {
       return NextResponse.json({ ok: true, stations: [] });
     }
 
-    /* 2️⃣ START FROM BOARDING */
-    const startIdx = stopsRows.findIndex(
-      (r: any) =>
-        normalizeCode(r.StationCode || r.stationcode) === boarding
+    const stationCodes = stopsRows.map((s: any) =>
+      normalizeCode(s.StationCode)
     );
 
-    const route =
-      startIdx >= 0 ? stopsRows.slice(startIdx) : stopsRows;
-
-    /* 3️⃣ STATION CODES */
-    const codes = Array.from(
-      new Set(
-        route
-          .map((r: any) =>
-            normalizeCode(r.StationCode || r.stationcode)
-          )
-          .filter(Boolean)
-      )
-    );
-
-    /* 4️⃣ RESTRO FETCH (FIXED CASE) */
     const { data: restroRows } = await serviceClient
       .from("RestroMaster")
-      .select(
-        "RestroCode,RestroName,StationCode,open_time,closed_time,MinimumOrdermValue,IsActive,IsPureVeg,RestroDisplayPhoto"
-      )
-      .in(
-        "StationCode",
-        codes.map((c) => c.toLowerCase()) // ✅ FIX
-      );
+      .select("*")
+      .in("StationCode", stationCodes);
 
-    /* DEBUG */
-    console.log("CODES:", codes);
-    console.log("RESTROS:", restroRows);
-
-    /* 5️⃣ GROUP BY STATION */
     const grouped: Record<string, any[]> = {};
 
     for (const r of restroRows || []) {
-      const sc = normalizeCode(r.StationCode); // ✅ FIX
-
+      const sc = normalizeCode(r.StationCode);
       if (!grouped[sc]) grouped[sc] = [];
       grouped[sc].push(r);
     }
 
-    /* 6️⃣ BUILD RESPONSE */
     const stations: any[] = [];
 
-    for (const s of route) {
+    for (const s of stopsRows) {
       const sc = normalizeCode(s.StationCode);
-
       const vendorsRaw = grouped[sc] || [];
 
-      const vendors = vendorsRaw
+      const candidateVendors = vendorsRaw
         .filter((r: any) => isActiveValue(r.IsActive))
         .map((r: any) => ({
           RestroCode: r.RestroCode,
           RestroName: r.RestroName,
-          OpenTime: r.open_time, // ✅ FIX
-          ClosedTime: r.closed_time, // ✅ FIX
+          OpenTime: r.OpenTime ?? r.open_time ?? null,
+          ClosedTime: r.ClosedTime ?? r.closed_time ?? null,
           MinimumOrdermValue: r.MinimumOrdermValue,
           RestroDisplayPhoto: r.RestroDisplayPhoto,
           IsPureVeg: r.IsPureVeg ?? 0,
+          raw: r,
         }));
 
-      if (!vendors.length) continue;
+      const checked = await pMap(candidateVendors, async (cv: any) => cv);
 
-      stations.push({
-        StationCode: sc,
-        StationName: s.StationName,
-        arrival_time: s.Arrives || null,
-        halt_time: null,
-        vendors,
-      });
+      const vendors = (checked || []).filter(Boolean);
+
+      if (vendors.length) {
+        stations.push({
+          StationCode: sc,
+          StationName: s.StationName,
+          vendors,
+        });
+      }
     }
 
     return NextResponse.json({
       ok: true,
-      train: { trainNumber: train },
+      train: { trainNumber: trainParam },
       stations,
     });
 
   } catch (e) {
-    console.error("ERROR:", e);
-
-    return NextResponse.json(
-      { ok: false, error: "server_error" },
-      { status: 500 }
-    );
+    console.error("train-restros error", e);
+    return NextResponse.json({ ok: false, error: "server_error" });
   }
 }
