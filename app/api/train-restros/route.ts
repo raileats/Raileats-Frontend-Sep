@@ -24,18 +24,19 @@ function secondsToHuman(sec: number | null) {
   return m < 60 ? `${m}m` : `${Math.floor(m / 60)}h ${m % 60}m`;
 }
 
-// Har station ki date calculate karne ke liye (Boarding Date + (Day - BaseDay))
+// ✅ Correct station date
 function getStationDate(startDateStr: string, stationDay: number, baseDay: number) {
   const d = new Date(startDateStr + "T00:00:00");
   const diff = stationDay - baseDay;
   d.setDate(d.getDate() + diff);
-  return d.toISOString().split("T")[0]; // YYYY-MM-DD
+  return d;
 }
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
+
   const trainParam = searchParams.get("train")?.trim() || "";
-  const startDateParam = searchParams.get("date")?.trim() || ""; // E.g. 2026-03-28
+  const startDateParam = searchParams.get("date")?.trim() || "";
   const boarding = searchParams.get("boarding")?.trim() || "";
 
   if (!trainParam || !startDateParam || !boarding) {
@@ -43,7 +44,23 @@ export async function GET(req: Request) {
   }
 
   try {
-    // 1. Train Route Fetch
+    // ✅ CURRENT IST TIME (CORRECT)
+    const now = new Date();
+    const istNow = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
+
+    // ✅ PAST DATE BLOCK
+    const selectedDate = new Date(startDateParam);
+    const today = new Date(istNow.toDateString());
+
+    if (selectedDate < today) {
+      return NextResponse.json({
+        ok: true,
+        train: null,
+        stations: []
+      });
+    }
+
+    // 1. Train Route
     const { data: stopsRows, error: trErr } = await serviceClient
       .from("TrainRoute")
       .select("*")
@@ -54,22 +71,15 @@ export async function GET(req: Request) {
       return NextResponse.json({ ok: true, stations: [] });
     }
 
-    // --- IST TIME CALCULATION ---
-    const now = new Date();
-    const istOffset = 5.5 * 60 * 60 * 1000;
-    const istNow = new Date(now.getTime() + (now.getTimezoneOffset() * 60000) + istOffset);
-    console.log("Current IST Time:", istNow.toISOString());
-
-    // 2. Filter Route from Boarding
+    // 2. Boarding slice
     const normBoard = normalize(boarding);
     const bIdx = stopsRows.findIndex(s => normalize(s.StationCode) === normBoard);
     const baseDay = Number(stopsRows[0].Day || 1);
-    
-    // Agar boarding point se aage ka data chahiye
+
     const activeRoute = bIdx !== -1 ? stopsRows.slice(bIdx) : stopsRows;
     const stationCodes = Array.from(new Set(activeRoute.map(s => normalize(s.StationCode))));
 
-    // 3. Fetch Restaurants
+    // 3. Restaurants
     const { data: restroRows, error: rsErr } = await serviceClient
       .from("RestroMaster")
       .select("*")
@@ -78,42 +88,48 @@ export async function GET(req: Request) {
     if (rsErr) throw rsErr;
 
     const grouped: Record<string, any[]> = {};
+
     restroRows?.forEach(r => {
       const status = r.RaileatsStatus ?? r.IsActive ?? "Active";
+
       if (isTrue(status)) {
         const sc = normalize(r.StationCode);
         if (!grouped[sc]) grouped[sc] = [];
+
         grouped[sc].push(r);
       }
     });
 
-    // 4. Processing with Strict Past-Time Filter
+    // 4. FINAL PROCESS
     const finalStations = activeRoute.map(s => {
       const code = normalize(s.StationCode);
       const vendorsRaw = grouped[code] || [];
       if (vendorsRaw.length === 0) return null;
 
-      // Station ki date aur exact arrival time nikalna
-      const sDate = getStationDate(startDateParam, Number(s.Day || 1), baseDay);
-      const arrivalDateTime = new Date(`${sDate}T${s.Arrives || "00:00:00"}`);
+      const stationDateObj = getStationDate(startDateParam, Number(s.Day || 1), baseDay);
 
-      // --- FILTER: Agar Arrival Time IST Now se peeche hai toh station skip ---
-      if (arrivalDateTime.getTime() <= istNow.getTime()) {
-        return null; 
+      const arrivalDateTime = new Date(stationDateObj);
+      const [h, m, sec] = (s.Arrives || "00:00:00").split(":").map(Number);
+      arrivalDateTime.setHours(h, m, sec || 0);
+
+      // ❌ PAST STATION FILTER (ONLY TODAY)
+      if (selectedDate.getTime() === today.getTime()) {
+        if (arrivalDateTime <= istNow) return null;
       }
 
       const validVendors = vendorsRaw.map(v => {
-        const cutOffMins = Number(v.CutOffTime || 0);
-        const timeDiffMins = (arrivalDateTime.getTime() - istNow.getTime()) / (1000 * 60);
+        const cutOff = Number(v.CutOffTime || 0);
+        const diffMin = (arrivalDateTime.getTime() - istNow.getTime()) / (1000 * 60);
 
-        // --- FILTER: CutOff Time Check ---
-        if (timeDiffMins < cutOffMins) return null;
+        // ❌ CUTOFF FILTER
+        if (selectedDate.getTime() === today.getTime()) {
+          if (diffMin < cutOff) return null;
+        }
 
         return {
           RestroCode: v.RestroCode,
           RestroName: v.RestroName,
-          // UI Fix: Rating ko float mein convert karke bhejna safe rehta hai
-          RestroRating: v.RestroRating ? String(v.RestroRating) : "4.0", 
+          RestroRating: Number(v.RestroRating || 4), // ✅ FIXED
           OpenTime: v.open_time || v.OpenTime || "00:00",
           ClosedTime: v.closed_time || v.ClosedTime || "23:59",
           MinimumOrdermValue: v.MinimumOrderValue || v.MinimumOrdermValue || 0,
@@ -125,25 +141,29 @@ export async function GET(req: Request) {
 
       if (validVendors.length === 0) return null;
 
-      const aSec = timeToSeconds(s.Arrives), dSec = timeToSeconds(s.Departs);
-      const halt = (aSec !== null && dSec !== null) ? secondsToHuman(dSec - aSec) : (s.Stoptime || "0m");
+      const aSec = timeToSeconds(s.Arrives);
+      const dSec = timeToSeconds(s.Departs);
+      const halt = (aSec !== null && dSec !== null)
+        ? secondsToHuman(dSec - aSec)
+        : (s.Stoptime || "0m");
 
       return {
         StationCode: code,
         StationName: s.StationName,
         arrival_time: s.Arrives,
-        arrival_date: sDate, // Updated station wise date
+        arrival_date: stationDateObj.toISOString().split("T")[0],
         halt_time: halt,
         Day: s.Day,
         vendors: validVendors
       };
+
     }).filter(Boolean);
 
     return NextResponse.json({
       ok: true,
-      train: { 
-        trainNumber: stopsRows[0].trainNumber, 
-        trainName: stopsRows[0].trainName 
+      train: {
+        trainNumber: stopsRows[0].trainNumber,
+        trainName: stopsRows[0].trainName
       },
       stations: finalStations
     });
