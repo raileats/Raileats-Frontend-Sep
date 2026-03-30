@@ -53,10 +53,20 @@ function isPastStation(arrivalTime: string, date: string, day: number = 1) {
 function isCutoffPassed(arrivalTime: string, cutoffMin: number, date: string, day: number = 1) {
   try {
     const now = new Date();
+
+    const selectedDate = new Date(date);
+    const today = new Date();
+
+    // ✅ future date → cutoff ignore
+    if (selectedDate > new Date(today.toDateString())) {
+      return false;
+    }
+
     const arrival = new Date(`${date}T${arrivalTime}`);
     arrival.setDate(arrival.getDate() + (day - 1));
 
     const diffMin = (arrival.getTime() - now.getTime()) / (1000 * 60);
+
     return diffMin < cutoffMin;
   } catch {
     return false;
