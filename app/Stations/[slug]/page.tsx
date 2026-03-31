@@ -9,25 +9,28 @@ function formatTime(t?: string | null) {
   return t.slice(0, 5);
 }
 
-function getCalculatedDate(...) {
-  const months = ...
-  let d: Date;
+function getCalculatedDate(urlDate: string, bDay: number, cDay: number) {
+  if (!urlDate) return "";
 
-  if (urlDate.includes(" ")) {
-    ...
-  } else {
-    ...
-  }
+  try {
+    const base = new Date(urlDate + "T00:00:00");
 
-  if (isNaN(d.getTime())) {
+    if (isNaN(base.getTime())) return urlDate;
+
+    const diff = (Number(cDay) || 1) - (Number(bDay) || 1);
+
+    base.setDate(base.getDate() + diff);
+
+    return base.toLocaleDateString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+
+  } catch (e) {
+    console.error("DATE ERROR:", e);
     return urlDate;
   }
-
-  const diff = ...
-  d.setDate(...);
-
-  const result = ...
-  return result;
 }
 
 /* ---------------- Page ---------------- */
