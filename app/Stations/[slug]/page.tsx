@@ -10,33 +10,34 @@ function formatTime(t?: string | null) {
   return t.slice(0, 5);
 }
 
-// Deep Date Calculation Logic
+// 100% Manual Date Calculation (No dependency on new Date() parsing)
 function getFinalDate(searchDate: string, boardingDay: number, currentDay: number) {
   if (!searchDate) return "";
   
   try {
-    // Agar date "1 Apr 2026" format mein hai
-    const dateParts = searchDate.split(" ");
-    let d: Date;
+    const parts = searchDate.split(" "); // ["1", "Apr", "2026"]
+    if (parts.length !== 3) return searchDate;
 
-    if (dateParts.length === 3) {
-      // Manual parsing for "1 Apr 2026"
-      const day = parseInt(dateParts[0]);
-      const monthStr = dateParts[1].toLowerCase();
-      const year = parseInt(dateParts[2]);
-      const months: any = { jan:0, feb:1, mar:2, apr:3, may:4, jun:5, jul:6, aug:7, sep:8, oct:9, nov:10, dec:11 };
-      d = new Date(year, months[monthStr.slice(0,3)], day);
-    } else {
-      d = new Date(searchDate);
-    }
+    let day = parseInt(parts[0]);
+    const monthStr = parts[1];
+    const year = parseInt(parts[2]);
 
-    if (isNaN(d.getTime())) return searchDate;
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    let monthIdx = months.findIndex(m => m.toLowerCase() === monthStr.toLowerCase().slice(0, 3));
 
-    // Train Route Day Logic
+    // Train Route Day Difference
     const diff = (currentDay || 1) - (boardingDay || 1);
+    
+    // Manual Day Addition logic
+    const d = new Date(year, monthIdx, day);
     d.setDate(d.getDate() + diff);
 
-    return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    // Format back to "01 Apr 2026"
+    const finalDay = String(d.getDate()).padStart(2, '0');
+    const finalMonth = months[d.getMonth()];
+    const finalYear = d.getFullYear();
+
+    return `${finalDay} ${finalMonth} ${finalYear}`;
   } catch (e) {
     return searchDate;
   }
@@ -49,15 +50,15 @@ export default async function Page({ params, searchParams }: any) {
 
   const trainNum = searchParams.train || "";
   const boarding = searchParams.boarding || "";
-  const inputDate = searchParams.date || "";
+  const inputDate = searchParams.date || ""; // e.g. "1 Apr 2026"
 
-  let displayDate = inputDate;
+  let finalDisplayDate = inputDate;
   let arrivalTime = "--:--";
   let stationName = stationCode;
   let restaurants: any[] = [];
 
   try {
-    // 1. Fetch Train Route (The Source of Truth)
+    // 1. Fetch Train Route Logic
     const { data: route } = await serviceClient
       .from("TrainRoute")
       .select("StationCode, StationName, Day, Arrives")
@@ -71,12 +72,12 @@ export default async function Page({ params, searchParams }: any) {
       if (cStn) {
         stationName = cStn.StationName;
         arrivalTime = formatTime(cStn.Arrives);
-        // Calculate date using Train Route Day difference
-        displayDate = getFinalDate(inputDate, bStn?.Day || 1, cStn.Day || 1);
+        // Essential: Calculate exact date from Train Route Day
+        finalDisplayDate = getFinalDate(inputDate, bStn?.Day || 1, cStn.Day || 1);
       }
     }
 
-    // 2. Fetch Restaurants directly
+    // 2. Fetch Restaurants
     const { data: restros } = await serviceClient
       .from("RestroMaster")
       .select("*")
@@ -85,61 +86,63 @@ export default async function Page({ params, searchParams }: any) {
 
     restaurants = restros || [];
   } catch (err) {
-    console.error("Critical Error:", err);
+    console.error("Fetch Error:", err);
   }
 
   return (
-    <main className="max-w-5xl mx-auto px-4 py-6">
+    <main className="max-w-5xl mx-auto px-4 py-6 font-sans">
       
-      {/* ✅ HEADER SECTION - Ab ye kabhi khali nahi aayega */}
-      <div className="bg-orange-50 border border-orange-200 p-5 rounded-2xl mb-8 flex justify-between items-center shadow-sm">
-        <div className="flex flex-col">
-          <span className="text-[10px] text-orange-600 font-black uppercase tracking-widest mb-1">Delivery Date</span>
-          <span className="text-xl font-black text-gray-900">{displayDate || "Date Missing"}</span>
+      {/* ✅ HEADER: Fixed Calculation */}
+      <div className="bg-[#FFF4F2] border border-orange-100 p-5 rounded-3xl mb-8 flex justify-between items-center">
+        <div>
+          <p className="text-[10px] text-orange-500 font-black uppercase tracking-widest mb-1">Delivery Date</p>
+          <p className="text-xl font-black text-gray-900">{finalDisplayDate || inputDate}</p>
         </div>
         <div className="text-right border-l border-orange-200 pl-6">
-          <span className="text-[10px] text-gray-400 font-black uppercase tracking-widest mb-1">Arrival At {stationCode}</span>
-          <span className="text-xl font-black text-gray-900">{arrivalTime}</span>
+          <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mb-1">Arrival at {stationCode}</p>
+          <p className="text-xl font-black text-gray-900">{arrivalTime}</p>
         </div>
       </div>
 
-      <h1 className="text-3xl font-black mb-2 text-gray-900">
-        Restaurants at {stationName}
-      </h1>
-      <p className="text-gray-500 mb-8 font-medium">Fresh food delivery in train at your seat</p>
+      <div className="mb-8">
+        <h1 className="text-3xl font-black text-gray-900 leading-none">
+          Restaurants at <span className="text-orange-500">{stationName}</span>
+        </h1>
+        <p className="text-sm text-gray-500 mt-2 font-bold">Showing active vendors for your journey</p>
+      </div>
 
-      {/* RESTAURANT CARDS */}
+      {/* RESTAURANTS */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {restaurants.length > 0 ? (
           restaurants.map((r) => (
-            <div key={r.RestroCode} className="border border-gray-100 bg-white p-6 rounded-3xl shadow-sm hover:shadow-xl transition-all">
+            <div key={r.RestroCode} className="bg-white border border-gray-100 p-6 rounded-[2rem] shadow-sm hover:shadow-xl transition-all border-b-4 hover:border-orange-500">
               <div className="flex justify-between items-start mb-4">
-                <h3 className="text-xl font-extrabold text-gray-800">{r.RestroName}</h3>
-                <span className="bg-green-600 text-white text-[10px] font-bold px-2 py-1 rounded-lg">★ {r.RestroRating || "4.2"}</span>
+                <h3 className="text-xl font-bold text-gray-800 leading-tight">{r.RestroName}</h3>
+                <span className="bg-green-600 text-white text-[10px] font-black px-2 py-1 rounded-lg shadow-sm">★ {r.RestroRating || "4.2"}</span>
               </div>
 
-              <div className="flex items-center gap-6 mb-6">
+              <div className="flex items-center gap-6 mb-6 py-4 border-y border-gray-50">
                 <div>
-                  <p className="text-[10px] text-gray-400 font-bold uppercase">Open Hours</p>
+                  <p className="text-[10px] text-gray-400 font-black uppercase mb-1">Delivery Hours</p>
                   <p className="text-sm font-bold text-gray-700">{formatTime(r.open_time)} - {formatTime(r.closed_time)}</p>
                 </div>
                 <div className="border-l pl-6">
-                  <p className="text-[10px] text-gray-400 font-bold uppercase">Min Order</p>
+                  <p className="text-[10px] text-gray-400 font-black uppercase mb-1">Min Order</p>
                   <p className="text-sm font-bold text-gray-700">₹{r.MinimumOrderValue || r.MinimumOrdermValue || "0"}</p>
                 </div>
               </div>
 
               <a
-                href={`/Stations/${rawSlug}/${r.RestroCode}-${(r.RestroName || "").replace(/\s+/g, "-")}?date=${displayDate}&train=${trainNum}&boarding=${boarding}`}
-                className="w-full inline-block text-center bg-orange-500 hover:bg-orange-600 text-white font-black py-4 rounded-2xl transition-all shadow-lg shadow-orange-100"
+                href={`/Stations/${rawSlug}/${r.RestroCode}-${(r.RestroName || "").replace(/\s+/g, "-")}?date=${finalDisplayDate}&train=${trainNum}&boarding=${boarding}`}
+                className="w-full inline-block text-center bg-gray-900 hover:bg-orange-600 text-white font-black py-4 rounded-2xl transition-all shadow-lg active:scale-95"
               >
-                SELECT & ORDER
+                SELECT ITEMS
               </a>
             </div>
           ))
         ) : (
-          <div className="col-span-full py-20 text-center bg-gray-50 rounded-3xl border-2 border-dashed border-gray-200">
-            <p className="text-gray-400 font-bold text-lg">No active restaurants found at this station.</p>
+          <div className="col-span-full py-20 text-center bg-gray-50 rounded-[2rem] border-2 border-dashed border-gray-200">
+            <p className="text-gray-400 font-black text-lg uppercase tracking-widest">No Active Restaurants</p>
           </div>
         )}
       </div>
