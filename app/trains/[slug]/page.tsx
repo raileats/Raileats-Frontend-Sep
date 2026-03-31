@@ -125,20 +125,11 @@ export default function TrainPage() {
                               `&arrival=${arrives}` + 
                               `&halt=${halt}`
                             }
-                            className="inline-block bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold px-4 py-1.5 rounded-lg transition-colors"
-                          >
-                            Order Now
-                          </a>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })
-      )}
-    </div>
-  );
-}
+                            <div className="mt-2 text-right">
+  <a
+    href={`/Stations/${stationCode}?date=${date}&train=${trainNumber}&boarding=${boarding}&stationName=${encodeURIComponent(stationName)}&arrival=${arrives}&halt=${halt}`}
+    className="inline-block bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold px-4 py-1.5 rounded-lg transition-colors"
+  >
+    Order Now
+  </a>
+</div>
