@@ -47,7 +47,6 @@ export default function TrainPage() {
           const stationName = st.StationName || st.stationName || "";
           const state = st.State || st.state || "";
           
-          // ✅ FIX: Inhe use kijiye jo Backend se aa rahe hain
           const arrives = st.Arrives || "--:--";
           const departs = st.Departs || "--:--";
           const halt = st.halt_time || "0m";
@@ -58,7 +57,6 @@ export default function TrainPage() {
           return (
             <div key={stationCode} className="border rounded-xl p-4 bg-gray-50 shadow-sm">
               
-              {/* ✅ Station Header with Arrives/Departs */}
               <div className="mb-4 border-b pb-2 flex justify-between items-start">
                 <div>
                   <h2 className="text-lg font-bold text-gray-800">
@@ -72,15 +70,13 @@ export default function TrainPage() {
                 </div>
               </div>
 
-              {/* ✅ Restaurants List */}
               <div className="space-y-3">
                 {vendors.map((r: any) => {
                   const name = r.RestroName || "Restaurant";
                   const minOrder = r.MinimumOrderValue || r.MinimumOrdermValue || 0;
                   const open = r.OpenTime?.slice(0, 5) || "00:00";
-const close = r.ClosedTime?.slice(0, 5) || "23:59";
+                  const close = r.ClosedTime?.slice(0, 5) || "23:59";
 
-                  // Image Logic
                   let fileName = r.RestroDisplayPhoto ? String(r.RestroDisplayPhoto).split("/").pop() : "";
                   const image = fileName ? `${SUPABASE_URL}/storage/v1/object/public/RestroDisplayPhoto/${fileName}` : null;
                   const isVeg = String(r.IsPureVeg) === "1";
@@ -121,11 +117,13 @@ const close = r.ClosedTime?.slice(0, 5) || "23:59";
 
                         <div className="mt-2 text-right">
                           <a
-                            href={`/Stations/${stationCode}/${r.RestroCode}-${name.replace(/\s+/g, '-')}` +
-                              `?stationName=${encodeURIComponent(stationName)}` +
-                              `&arrival=${arrives}` + // ✅ Pass fixed timing
-                              `&halt=${halt}` +
-                              `&train=${trainNumber}`
+                            href={`/Stations/${stationCode}-${stationName.replace(/\s+/g, '-')}/${r.RestroCode}-${name.replace(/\s+/g, '-')}` +
+                              `?date=${date}` +        // ✅ Date pass kiya
+                              `&train=${trainNumber}` + // ✅ Train pass kiya
+                              `&boarding=${boarding}` + // ✅ Boarding pass kiya
+                              `&stationName=${encodeURIComponent(stationName)}` +
+                              `&arrival=${arrives}` + 
+                              `&halt=${halt}`
                             }
                             className="inline-block bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold px-4 py-1.5 rounded-lg transition-colors"
                           >
