@@ -13,27 +13,27 @@ function getCalculatedDate(urlDate: string, bDay: number, cDay: number) {
   if (!urlDate) return "";
 
   try {
-    // ✅ Always ISO safe parsing
     const base = new Date(urlDate + "T00:00:00");
 
     if (isNaN(base.getTime())) return urlDate;
 
-    // ✅ CORE LOGIC
     const diff = (Number(cDay) || 1) - (Number(bDay) || 1);
 
     base.setDate(base.getDate() + diff);
 
-    return base.toLocaleDateString("en-IN", {
+    const result = base.toLocaleDateString("en-IN", {
       day: "2-digit",
       month: "short",
       year: "numeric",
     });
 
-  } catch {
+    return result; // ✅ AB SAHI JAGAH HAI
+
+  } catch (e) {
+    console.error("❌ DATE CALCULATION ERROR:", e);
     return urlDate;
   }
 }
-
     const diff = (cDay || 1) - (bDay || 1);
     d.setDate(d.getDate() + diff);
 
