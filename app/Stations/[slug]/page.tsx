@@ -9,41 +9,25 @@ function formatTime(t?: string | null) {
   return t.slice(0, 5);
 }
 
-function getCalculatedDate(urlDate: string, bDay: number, cDay: number) {
-  if (!urlDate) return "";
+function getCalculatedDate(...) {
+  const months = ...
+  let d: Date;
 
-  try {
-    const base = new Date(urlDate + "T00:00:00");
+  if (urlDate.includes(" ")) {
+    ...
+  } else {
+    ...
+  }
 
-    if (isNaN(base.getTime())) return urlDate;
-
-    const diff = (Number(cDay) || 1) - (Number(bDay) || 1);
-
-    base.setDate(base.getDate() + diff);
-
-    const result = base.toLocaleDateString("en-IN", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    });
-
-    return result; // ✅ AB SAHI JAGAH HAI
-
-  } catch (e) {
-    console.error("❌ DATE CALCULATION ERROR:", e);
+  if (isNaN(d.getTime())) {
     return urlDate;
   }
-}
-    const diff = (cDay || 1) - (bDay || 1);
-    d.setDate(d.getDate() + diff);
 
-    const result = `${String(d.getDate()).padStart(2, '0')} ${months[d.getMonth()]} ${d.getFullYear()}`;
-    console.log("✅ CALCULATION SUCCESS: Result:", result);
-    return result;
-  } catch (e) { 
-    console.error("❌ DATE CALCULATION ERROR:", e);
-    return urlDate; 
-  }
+  const diff = ...
+  d.setDate(...);
+
+  const result = ...
+  return result;
 }
 
 /* ---------------- Page ---------------- */
