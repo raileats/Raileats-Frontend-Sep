@@ -1,139 +1,156 @@
 import React from "react";
-import type { Metadata } from "next";
-import { redirect, permanentRedirect } from "next/navigation";
-import { makeStationSlug, extractStationCode } from "../../lib/stationSlug";
-import { serviceClient } from "../../lib/supabaseServer"; // Direct Supabase use for calculation
-
-/* ---------------- types ---------------- */
-type Restro = {
-  RestroCode: string | number;
-  RestroName?: string;
-  RestroRating?: number | null;
-  open_time?: string | null;
-  closed_time?: string | null;
-  MinimumOrdermValue?: number | null;
-};
-
-type StationResp = {
-  station: { StationCode: string; StationName: string | null; State?: string | null; } | null;
-  restaurants: Restro[];
-};
+import { serviceClient } from "../../lib/supabaseServer";
 
 export const dynamic = "force-dynamic";
 
-/* ---------------- helpers ---------------- */
-function formatTimeRange(open?: string | null, close?: string | null) {
-  if (!open && !close) return "—";
-  return `${open?.slice(0,5)} to ${close?.slice(0,5)}`;
+/* ---------------- Helpers ---------------- */
+function formatTime(t?: string | null) {
+  if (!t) return "--:--";
+  return t.slice(0, 5);
 }
 
-const ADMIN_BASE = process.env.NEXT_PUBLIC_ADMIN_APP_URL || "https://admin.raileats.in";
+function getCalculatedDate(urlDate: string, bDay: number, cDay: number) {
+  console.log("🛠️ CALCULATION START: InputDate:", urlDate, "BoardDay:", bDay, "StationDay:", cDay);
+  if (!urlDate) return "";
+  try {
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    let d: Date;
 
-// 1. Fetch Station & Restros
-async function fetchStation(code: string): Promise<StationResp> {
-  const url = `${ADMIN_BASE.replace(/\/$/, "")}/api/stations/${encodeURIComponent(code)}`;
-  const resp = await fetch(url, { cache: "no-store" });
-  return (await resp.json()) as StationResp;
-}
+    if (urlDate.includes(" ")) {
+      const parts = urlDate.split(" ");
+      const day = parseInt(parts[0]);
+      const monthIdx = months.findIndex(m => m.toLowerCase().startsWith(parts[1].toLowerCase().slice(0, 3)));
+      const year = parseInt(parts[2]);
+      d = new Date(year, monthIdx, day);
+    } else {
+      d = new Date(urlDate);
+    }
 
-// 2. ✅ NEW: Logic to calculate Date from TrainRoute (Deep Logic)
-async function calculateArrivalInfo(trainNum: string, boardingCode: string, stationCode: string, startDate: string) {
-  if (!trainNum || !boardingCode || !startDate) return null;
+    if (isNaN(d.getTime())) {
+      console.error("❌ INVALID DATE OBJECT CREATED");
+      return urlDate;
+    }
 
-  const { data: route } = await serviceClient
-    .from("TrainRoute")
-    .select("StationCode, Day, Arrives")
-    .eq("trainNumber", trainNum)
-    .order("StnNumber", { ascending: true });
+    const diff = (cDay || 1) - (bDay || 1);
+    d.setDate(d.getDate() + diff);
 
-  if (!route) return null;
-
-  const bStation = route.find(r => r.StationCode.toUpperCase() === boardingCode.toUpperCase());
-  const cStation = route.find(r => r.StationCode.toUpperCase() === stationCode.toUpperCase());
-
-  if (!bStation || !cStation) return null;
-
-  const baseDay = Number(bStation.Day || 1);
-  const currentDay = Number(cStation.Day || 1);
-  const dayDiff = currentDay - baseDay;
-
-  const d = new Date(startDate + "T00:00:00");
-  d.setDate(d.getDate() + dayDiff);
-
-  return {
-    date: d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
-    arrival: cStation.Arrives
-  };
+    const result = `${String(d.getDate()).padStart(2, '0')} ${months[d.getMonth()]} ${d.getFullYear()}`;
+    console.log("✅ CALCULATION SUCCESS: Result:", result);
+    return result;
+  } catch (e) { 
+    console.error("❌ DATE CALCULATION ERROR:", e);
+    return urlDate; 
+  }
 }
 
 /* ---------------- Page ---------------- */
-export default async function Page({ params, searchParams }: any) {
-  const raw = params.slug || "";
-  const stationCode = extractStationCode(raw);
-  const code = stationCode.toUpperCase();
+export default async function Page(props: { params: Promise<any>, searchParams: Promise<any> }) {
+  // Await params
+  const resolvedParams = await props.params;
+  const resolvedSearchParams = await props.searchParams;
 
-  // URL se zaroori cheezein nikaalna
-  const trainNum = searchParams.train as string;
-  const boarding = searchParams.boarding as string;
-  const startDate = searchParams.date as string; // format: YYYY-MM-DD
+  // --- DEBUG LOGS ---
+  console.log("-----------------------------------------");
+  console.log("🔍 DEBUG: URL PARAMS RECEIVED:");
+  console.log("Slug:", resolvedParams.slug);
+  console.log("Train:", resolvedSearchParams.train);
+  console.log("Date from URL:", resolvedSearchParams.date);
+  console.log("Boarding:", resolvedSearchParams.boarding);
+  console.log("-----------------------------------------");
 
-  // Parallel Fetching: Station Data + Route Calculation
-  const [stationResp, routeInfo] = await Promise.all([
-    fetchStation(code),
-    calculateArrivalInfo(trainNum, boarding, code, startDate)
-  ]);
+  const slug = resolvedParams.slug || "";
+  const stationCode = slug.split('-')[0].toUpperCase();
 
-  const station = stationResp?.station;
-  const restaurants = stationResp?.restaurants ?? [];
+  const trainNum = resolvedSearchParams.train || "";
+  const boarding = (resolvedSearchParams.boarding || "").toUpperCase();
+  const inputDate = resolvedSearchParams.date || ""; 
 
-  // Agar user ne train select ki hai, toh routeInfo se date milegi, warna URL params se check karenge
-  const finalDate = routeInfo?.date || (searchParams.date as string);
-  const finalArrival = routeInfo?.arrival || (searchParams.arrival as string);
+  let finalDisplayDate = "";
+  let arrivalTime = resolvedSearchParams.arrival || "--:--";
+  let stationName = resolvedSearchParams.stationName || stationCode;
+  let restaurants: any[] = [];
+
+  try {
+    if (trainNum && inputDate && boarding) {
+      console.log("📡 FETCHING DATA FROM SUPABASE FOR TRAIN:", trainNum);
+      const { data: route, error: routeError } = await serviceClient
+        .from("TrainRoute")
+        .select("StationCode, StationName, Day, Arrives")
+        .eq("trainNumber", trainNum);
+
+      if (routeError) console.error("❌ SUPABASE ROUTE ERROR:", routeError);
+
+      if (route && route.length > 0) {
+        const bStn = route.find(r => r.StationCode.toUpperCase() === boarding);
+        const cStn = route.find(r => r.StationCode.toUpperCase() === stationCode);
+
+        console.log("📍 FOUND BOARDING STN:", bStn ? "YES" : "NO");
+        console.log("📍 FOUND CURRENT STN:", cStn ? "YES" : "NO");
+
+        if (cStn) {
+          stationName = cStn.StationName;
+          if (cStn.Arrives) arrivalTime = formatTime(cStn.Arrives);
+          finalDisplayDate = getCalculatedDate(inputDate, bStn?.Day || 1, cStn.Day || 1);
+        }
+      } else {
+        console.warn("⚠️ NO ROUTE DATA FOUND IN DB");
+      }
+    } else {
+      console.warn("⚠️ MISSING URL PARAMS FOR CALCULATION");
+    }
+
+    // Restaurants fetch
+    const { data: restros } = await serviceClient
+      .from("RestroMaster")
+      .select("*")
+      .eq("StationCode", stationCode)
+      .or('RaileatsStatus.eq.Active,IsActive.eq.true');
+
+    restaurants = restros || [];
+  } catch (err) { 
+    console.error("❌ CRITICAL PAGE ERROR:", err); 
+  }
 
   return (
-    <main className="max-w-5xl mx-auto px-3 py-6">
-      
-      {/* ✅ DYNAMIC HEADER */}
-      {finalDate && (
-        <div className="bg-blue-50 border border-blue-100 p-4 rounded-2xl mb-6 flex justify-between items-center shadow-sm">
-          <div>
-            <p className="text-[10px] text-blue-600 font-black uppercase tracking-widest mb-1">Delivery Date</p>
-            <p className="text-base font-bold text-gray-800">{finalDate}</p>
-          </div>
-          {finalArrival && (
-            <div className="text-right">
-              <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mb-1">Train Arrival</p>
-              <p className="text-base font-bold text-gray-800">{finalArrival.slice(0, 5)}</p>
-            </div>
-          )}
-        </div>
-      )}
+    <main className="max-w-5xl mx-auto px-4 py-8">
+      {/* Visual Debugger for you - Ise baad me hata sakte hain */}
+      <div className="bg-black text-green-400 p-4 mb-4 rounded-xl text-xs font-mono overflow-auto">
+         <p>// DEBUG INFO (Only for development)</p>
+         <p>URL Date: {inputDate || "NULL"}</p>
+         <p>Calc Date: {finalDisplayDate || "FAILED"}</p>
+         <p>Train: {trainNum || "NULL"}</p>
+         <p>Boarding: {boarding || "NULL"}</p>
+      </div>
 
-      <h1 className="text-2xl font-black mb-6 text-gray-900">
-        Order Food at {station?.StationName || code}
+      <div className="bg-orange-50 border-2 border-orange-100 p-6 rounded-[2rem] mb-10 flex justify-between items-center shadow-sm">
+        <div>
+          <p className="text-[10px] text-orange-600 font-black uppercase mb-1">Delivery Date</p>
+          <p className="text-2xl font-black text-gray-900">
+            {/* AGAR CALCULATION FAIL HUI TOH PURANI DATE DIKHAO */}
+            {finalDisplayDate || inputDate || "Date Pending"}
+          </p>
+        </div>
+        <div className="text-right border-l-2 border-orange-200 pl-8">
+          <p className="text-[10px] text-gray-400 font-black uppercase mb-1">Arrival at {stationCode}</p>
+          <p className="text-2xl font-black text-gray-900">{arrivalTime}</p>
+        </div>
+      </div>
+
+      <h1 className="text-4xl font-black mb-8">
+        Food at <span className="text-orange-500">{stationName}</span>
       </h1>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {restaurants.map((r) => (
-          <div key={r.RestroCode} className="border p-5 rounded-2xl bg-white shadow-sm hover:shadow-md transition-all">
-            <div className="flex justify-between items-start">
-              <h3 className="font-bold text-lg">{r.RestroName}</h3>
-              <span className="text-xs font-bold bg-green-50 text-green-700 px-2 py-1 rounded">★ {r.RestroRating || "4.2"}</span>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        {restaurants.length > 0 ? (
+          restaurants.map((r) => (
+            <div key={r.RestroCode} className="bg-white border-2 p-8 rounded-[2.5rem] shadow-sm hover:shadow-xl transition-all border-b-8 hover:border-orange-500">
+              <h3 className="text-2xl font-black mb-4">{r.RestroName}</h3>
+              <button className="w-full bg-gray-900 text-white font-black py-4 rounded-2xl">VIEW MENU</button>
             </div>
-            
-            <div className="mt-3 space-y-1 text-sm text-gray-600 font-medium">
-              <p>⏰ {formatTimeRange(r.open_time, r.closed_time)}</p>
-              <p>💰 Min Order: ₹{r.MinimumOrdermValue || 0}</p>
-            </div>
-
-            <a
-              href={`/Stations/${raw}/${r.RestroCode}-${(r.RestroName || "").replace(/\s+/g, "-")}?date=${finalDate}&train=${trainNum}`}
-              className="mt-5 block w-full text-center bg-orange-500 text-white font-bold py-3 rounded-xl hover:bg-orange-600 transition-colors"
-            >
-              Select Items
-            </a>
-          </div>
-        ))}
+          ))
+        ) : (
+          <p>No vendors found.</p>
+        )}
       </div>
     </main>
   );
