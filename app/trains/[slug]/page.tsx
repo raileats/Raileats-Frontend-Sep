@@ -1,160 +1,144 @@
-import { NextResponse } from "next/server";
-import { serviceClient } from "../../lib/supabaseServer";
+"use client";
 
-/* ================= HELPERS ================= */
+import React, { useEffect, useState } from "react";
+import { useParams, useSearchParams } from "next/navigation";
 
-function formatHaltTime(val: any) {
-  if (!val) return "0m";
-  const parts = String(val).split(":").map(Number);
-  const hh = parts[0] || 0;
-  const mm = parts[1] || 0;
-  const totalMin = hh * 60 + mm;
-  return `${totalMin}m`;
-}
+const SUPABASE_URL = "https://ygisiztmuzwxpnvhwrmr.supabase.co";
 
-function normalize(val: any) {
-  return String(val ?? "").toUpperCase().trim();
-}
+export default function TrainPage() {
+  const params = useParams();
+  const searchParams = useSearchParams();
 
-function isTrue(val: any) {
-  if (val === undefined || val === null) return true;
-  const s = String(val).toLowerCase();
-  return ["true", "1", "active", "yes"].includes(s);
-}
+  const slug = (params as any)?.slug || "";
+  const trainNumber = slug.match(/^(\d+)/)?.[1] || "";
+  const date = searchParams.get("date") || "";
+  const boarding = (searchParams.get("boarding") || "").toUpperCase();
 
-function formatTime(val: any) {
-  if (!val) return "00:00";
-  const str = String(val);
-  return str.length >= 5 ? str.slice(0, 5) : str;
-}
+  const [stations, setStations] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-/* ================= MAIN API HANDLER ================= */
-
-export async function GET(req: Request) {
-  const { searchParams } = new URL(req.url);
-  const trainParam = searchParams.get("train")?.trim() || "";
-  const startDateParam = searchParams.get("date")?.trim() || ""; // Format: YYYY-MM-DD
-  const boarding = searchParams.get("boarding")?.trim() || "";
-
-  try {
-    const now = new Date();
-    const istNow = new Date(
-      now.toLocaleString("en-US", { timeZone: "Asia/Kolkata" })
-    );
-
-    /* 1. Fetch Train Route Data */
-    const { data: stopsRows } = await serviceClient
-      .from("TrainRoute")
-      .select("*")
-      .or(`trainNumber.eq.${trainParam},trainNumber.eq.${parseInt(trainParam) || 0}`)
-      .order("StnNumber", { ascending: true });
-
-    if (!stopsRows?.length) {
-      return NextResponse.json({ ok: true, stations: [] });
-    }
-
-    /* 2. Boarding Station & Base Day Calculation */
-    const normBoard = normalize(boarding);
-    const boardingStation = stopsRows.find((s) => normalize(s.StationCode) === normBoard);
-    
-    // Agar boarding station nahi milta toh pehle stop ko base maante hain
-    const baseDay = boardingStation ? Number(boardingStation.Day || 1) : Number(stopsRows[0].Day || 1);
-    
-    // Sirf boarding station ke baad wale stops dikhane ke liye
-    const bIdx = stopsRows.findIndex((s) => normalize(s.StationCode) === normBoard);
-    const activeRoute = bIdx !== -1 ? stopsRows.slice(bIdx) : stopsRows;
-
-    const stationCodes = Array.from(
-      new Set(activeRoute.map((s) => normalize(s.StationCode)))
-    );
-
-    /* 3. Parallel Fetch: Station Details & Restaurant Details */
-    const [stationsData, restrosData] = await Promise.all([
-      serviceClient
-        .from("Stations")
-        .select("StationCode, State")
-        .in("StationCode", stationCodes),
-
-      serviceClient
-        .from("RestroMaster")
-        .select("*")
-        .in("StationCode", stationCodes),
-    ]);
-
-    const stateMap: Record<string, string> = {};
-    stationsData.data?.forEach((st) => {
-      stateMap[normalize(st.StationCode)] = st.State || "";
-    });
-
-    const groupedRestros: Record<string, any[]> = {};
-    restrosData.data?.forEach((r) => {
-      if (isTrue(r.RaileatsStatus ?? r.IsActive)) {
-        const sc = normalize(r.StationCode);
-        if (!groupedRestros[sc]) groupedRestros[sc] = [];
-        groupedRestros[sc].push(r);
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const res = await fetch(
+          `/api/train-restros?train=${trainNumber}&date=${date}&boarding=${boarding}&full=1`,
+          { cache: "no-store" }
+        );
+        const json = await res.json();
+        setStations(json?.stations || []);
+      } catch (e) {
+        console.error("API ERROR:", e);
+      } finally {
+        setLoading(false);
       }
-    });
+    }
+    if (trainNumber) fetchData();
+  }, [trainNumber, date, boarding]);
 
-    /* 4. FINAL BUILD: Stations with Calculated Dates & Restaurants */
-    const finalStations = activeRoute
-      .map((s) => {
-        const code = normalize(s.StationCode);
-        const vendorsRaw = groupedRestros[code] || [];
+  if (loading) return <div className="p-6 text-center">Loading train restaurants...</div>;
 
-        if (!vendorsRaw.length) return null;
+  return (
+    <div className="max-w-3xl mx-auto p-4 space-y-6">
+      {stations.length === 0 ? (
+        <div className="text-center py-10 font-medium">No restaurants found for this route/date.</div>
+      ) : (
+        stations.map((st: any) => {
+          const stationCode = st.StationCode || st.stationCode;
+          const stationName = st.StationName || st.stationName || "";
+          const state = st.State || st.state || "";
+          
+          const arrives = st.Arrives || "--:--";
+          const departs = st.Departs || "--:--";
+          const halt = st.halt_time || "0m";
 
-        /* ===== DEEP DATE CALCULATION ===== */
-        // User ki selected date (startDateParam) par utne din add karo jitna boarding se difference hai
-        const sDate = new Date(startDateParam + "T00:00:00");
-        const currentStnDay = Number(s.Day || 1);
-        const dayDiff = currentStnDay - baseDay;
-        
-        sDate.setDate(sDate.getDate() + dayDiff);
+          const vendors = st.vendors || [];
+          if (!vendors.length) return null;
 
-        const arrivalDateTime = new Date(sDate);
-        const [h, m] = (s.Arrives || "00:00").split(":").map(Number);
-        arrivalDateTime.setHours(h, m, 0);
+          return (
+            <div key={stationCode} className="border rounded-xl p-4 bg-gray-50 shadow-sm">
+              
+              <div className="mb-4 border-b pb-2 flex justify-between items-start">
+                <div>
+                  <h2 className="text-lg font-bold text-gray-800">
+                    {stationName} ({stationCode})
+                  </h2>
+                  {state && <div className="text-xs text-gray-500 uppercase font-semibold">{state}</div>}
+                </div>
+                <div className="text-right">
+                  <div className="text-sm font-bold text-blue-600">Arrives: {arrives}</div>
+                  <div className="text-xs text-gray-600">Departs: {departs} | Halt: {halt}</div>
+                </div>
+              </div>
 
-        // Jo stations nikal chuke hain unhe filter out karein
-        if (arrivalDateTime <= istNow) return null;
+              <div className="space-y-3">
+                {vendors.map((r: any) => {
+                  const name = r.RestroName || "Restaurant";
+                  const minOrder = r.MinimumOrderValue || r.MinimumOrdermValue || 0;
+                  const open = r.OpenTime?.slice(0, 5) || "00:00";
+                  const close = r.ClosedTime?.slice(0, 5) || "23:59";
 
-        /* ===== VENDORS MAPPING ===== */
-        const validVendors = vendorsRaw.map((v) => ({
-          RestroCode: v.RestroCode,
-          RestroName: v.RestroName,
-          RestroRating: v.RestroRating || "4.2",
-          OpenTime: formatTime(v.open_time ?? v.OpenTime),
-          ClosedTime: formatTime(v.closed_time ?? v.ClosedTime),
-          MinimumOrderValue: v.MinimumOrderValue || v.MinimumOrdermValue || 0,
-          RestroDisplayPhoto: v.RestroDisplayPhoto,
-          IsPureVeg: isTrue(v.IsPureVeg) ? 1 : 0,
-        }));
+                  let fileName = r.RestroDisplayPhoto ? String(r.RestroDisplayPhoto).split("/").pop() : "";
+                  const image = fileName ? `${SUPABASE_URL}/storage/v1/object/public/RestroDisplayPhoto/${fileName}` : null;
+                  const isVeg = String(r.IsPureVeg) === "1";
 
-        return {
-          StationCode: code,
-          StationName: s.StationName,
-          State: stateMap[code] || "",
-          Arrives: s.Arrives,
-          Departs: s.Departs,
-          HaltTime: formatHaltTime(s.Stoptime || s.StopTime),
-          // Ye do fields slug page par date dikhane ke liye zaroori hain
-          display_date: sDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
-          day_count: currentStnDay,
-          vendors: validVendors,
-        };
-      })
-      .filter(Boolean);
+                  return (
+                    <div key={r.RestroCode} className="bg-white p-3 rounded-lg border flex gap-3 hover:shadow-md transition-shadow">
+                      <div className="w-24 h-24 bg-gray-100 rounded-md overflow-hidden flex-shrink-0 border">
+                        {image ? (
+                          <img src={image} alt={name} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="flex items-center justify-center h-full text-[10px] text-gray-400">No Image</div>
+                        )}
+                      </div>
 
-    return NextResponse.json({
-      ok: true,
-      stations: finalStations,
-    });
+                      <div className="flex-1 flex flex-col justify-between">
+                        <div>
+                          <div className="flex justify-between items-start">
+                            <span className="font-bold text-gray-900">{name}</span>
+                            <span className="bg-yellow-100 text-yellow-800 text-[10px] px-1.5 py-0.5 rounded font-bold">
+                              ★ {r.RestroRating || "4.2"}
+                            </span>
+                          </div>
+                          <div className="text-xs text-gray-600 mt-1">
+                            Min. Order: ₹{minOrder} | {open} - {close}
+                          </div>
+                          <div className="mt-1">
+                            {isVeg ? (
+                              <span className="text-green-600 text-xs font-bold flex items-center gap-1">
+                                <span className="w-2 h-2 rounded-full bg-green-600"></span> Pure Veg
+                              </span>
+                            ) : (
+                              <span className="text-red-600 text-xs font-bold flex items-center gap-1">
+                                <span className="w-2 h-2 rounded-full bg-red-600"></span> Non Veg
+                              </span>
+                            )}
+                          </div>
+                        </div>
 
-  } catch (err: any) {
-    console.error("train-restros error", err);
-    return NextResponse.json(
-      { ok: false, error: err.message },
-      { status: 500 }
-    );
-  }
+                        <div className="mt-2 text-right">
+                          <a
+                            href={`/Stations/${stationCode}-${stationName.replace(/\s+/g, '-')}/${r.RestroCode}-${name.replace(/\s+/g, '-')}` +
+                              `?date=${date}` +        // ✅ Date pass kiya
+                              `&train=${trainNumber}` + // ✅ Train pass kiya
+                              `&boarding=${boarding}` + // ✅ Boarding pass kiya
+                              `&stationName=${encodeURIComponent(stationName)}` +
+                              `&arrival=${arrives}` + 
+                              `&halt=${halt}`
+                            }
+                            className="inline-block bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold px-4 py-1.5 rounded-lg transition-colors"
+                          >
+                            Order Now
+                          </a>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })
+      )}
+    </div>
+  );
 }
