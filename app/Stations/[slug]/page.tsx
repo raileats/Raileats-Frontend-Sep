@@ -1,9 +1,7 @@
-"use client";
+import React from "react";
+import { serviceClient } from "../../lib/supabaseServer";
 
-import React, { useEffect, useState } from "react";
-import { useParams, useSearchParams } from "next/navigation";
-
-/* ✅ DATE FORMAT FUNCTION */
+/* helper function */
 function formatDate(d: string) {
   if (!d) return "";
   return new Date(d).toLocaleDateString("en-IN", {
