@@ -1,3 +1,14 @@
+function formatHaltTime(val: any) {
+  if (!val) return "0m";
+
+  const parts = String(val).split(":").map(Number);
+  const hh = parts[0] || 0;
+  const mm = parts[1] || 0;
+
+  const totalMin = hh * 60 + mm;
+
+  return `${totalMin}m`;
+}
 import { NextResponse } from "next/server";
 import { serviceClient } from "../../lib/supabaseServer";
 
@@ -156,7 +167,7 @@ export async function GET(req: Request) {
           Arrives: s.Arrives,
           Departs: s.Departs,
 
-          HaltTime: s.StopTime || s.HaltTime || "0m", // ✅ added
+          HaltTime: formatHaltTime(s.Stoptime),
 
           vendors: validVendors,
         };
