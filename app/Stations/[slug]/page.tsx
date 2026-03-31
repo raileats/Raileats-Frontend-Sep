@@ -155,3 +155,36 @@ export default async function Page(props: { params: Promise<any>, searchParams: 
     </main>
   );
 }
+import React from "react";
+import { serviceClient } from "../../lib/supabaseServer";
+
+export const dynamic = "force-dynamic";
+
+export default async function Page(props: { params: Promise<any>, searchParams: Promise<any> }) {
+  const resolvedParams = await props.params;
+  const resolvedSearchParams = await props.searchParams;
+
+  const inputDate = resolvedSearchParams.date || ""; 
+  const trainNum = resolvedSearchParams.train || "";
+  const stationCode = (resolvedParams.slug || "").split('-')[0].toUpperCase();
+
+  return (
+    <main className="p-10">
+      {/* YE RAHA KALA DABBA - Agar ye nahi dikh raha toh file save nahi hui */}
+      <div className="bg-black text-green-400 p-6 rounded-xl font-mono text-sm mb-10 shadow-2xl border-4 border-green-900">
+        <h2 className="text-white border-b border-green-900 mb-2 pb-1">🛠️ SYSTEM DEBUGGER</h2>
+        <p>1. URL DATE: <span className="text-yellow-400">"{inputDate || "KHALI HAI / MISSING"}"</span></p>
+        <p>2. TRAIN NO: <span className="text-yellow-400">{trainNum || "MISSING"}</span></p>
+        <p>3. STATION: <span className="text-yellow-400">{stationCode}</span></p>
+        <p className="mt-4 text-[10px] text-gray-500 italic">Agar Date "KHALI" hai, toh pichle page ka Link theek karo.</p>
+      </div>
+
+      <div className="bg-orange-100 p-6 rounded-2xl">
+        <p className="font-bold text-gray-600">Final Delivery Date:</p>
+        <h1 className="text-4xl font-black text-orange-600">
+          {inputDate || "ABHI BHI DATE NAHI MILI"}
+        </h1>
+      </div>
+    </main>
+  );
+}
