@@ -167,7 +167,14 @@ export async function GET(req: Request) {
           Arrives: s.Arrives,
           Departs: s.Departs,
 
-          HaltTime: formatHaltTime(s.Stoptime),
+          const haltRaw =
+  s["Stoptime"] ||
+  s["stoptime"] ||
+  s["StopTime"] ||
+  s["stop_time"] ||
+  null;
+
+HaltTime: formatHaltTime(haltRaw),
 
           vendors: validVendors,
         };
