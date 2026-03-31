@@ -76,8 +76,7 @@ export default async function Page(props: { params: Promise<any>, searchParams: 
       const { data: route, error: routeError } = await serviceClient
         .from("TrainRoute")
         .select("StationCode, StationName, Day, Arrives")
-        .eq("trainNumber", trainNum);
-
+        .or(`trainNumber.eq.${trainNum},trainNumber.eq.${parseInt(trainNum) || 0}`)
       if (routeError) console.error("❌ SUPABASE ROUTE ERROR:", routeError);
 
       if (route && route.length > 0) {
