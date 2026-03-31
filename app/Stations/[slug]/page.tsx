@@ -71,11 +71,11 @@ export default async function Page(props: { params: Promise<any>, searchParams: 
 
       if (route && route.length > 0) {
         const bStn = route.find(
-  r => String(r.StationCode).toUpperCase() === boarding
+  r => String(r.StationCode || "").toUpperCase().trim() === boarding
 );
 
 const cStn = route.find(
-  r => String(r.StationCode).toUpperCase() === stationCode
+  r => String(r.StationCode || "").toUpperCase().trim() === stationCode
 );
 
         console.log("📍 FOUND BOARDING STN:", bStn ? "YES" : "NO");
