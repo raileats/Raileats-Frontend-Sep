@@ -89,9 +89,6 @@ const cStn = route.find(
       } else {
         console.warn("⚠️ NO ROUTE DATA FOUND IN DB");
       }
-    } else {
-      console.warn("⚠️ MISSING URL PARAMS FOR CALCULATION");
-    }
 
     // Restaurants fetch
     const { data: restros } = await serviceClient
