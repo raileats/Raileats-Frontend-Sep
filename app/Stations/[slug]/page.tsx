@@ -121,6 +121,14 @@ const cStn = route.find(
             {finalDisplayDate || inputDate || "Date Pending"}
           </p>
         </div>
+        function formatDate(d: string) {
+  if (!d) return "";
+  return new Date(d).toLocaleDateString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+}
         <div className="text-right border-l-2 border-orange-200 pl-8">
           <p className="text-[10px] text-gray-400 font-black uppercase mb-1">Arrival at {stationCode}</p>
           <p className="text-2xl font-black text-gray-900">{arrivalTime}</p>
