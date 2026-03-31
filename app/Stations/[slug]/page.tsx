@@ -10,26 +10,29 @@ function formatTime(t?: string | null) {
 }
 
 function getCalculatedDate(urlDate: string, bDay: number, cDay: number) {
-  console.log("🛠️ CALCULATION START: InputDate:", urlDate, "BoardDay:", bDay, "StationDay:", cDay);
   if (!urlDate) return "";
+
   try {
-    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-    let d: Date;
+    // ✅ Always ISO safe parsing
+    const base = new Date(urlDate + "T00:00:00");
 
-    if (urlDate.includes(" ")) {
-      const parts = urlDate.split(" ");
-      const day = parseInt(parts[0]);
-      const monthIdx = months.findIndex(m => m.toLowerCase().startsWith(parts[1].toLowerCase().slice(0, 3)));
-      const year = parseInt(parts[2]);
-      d = new Date(year, monthIdx, day);
-    } else {
-      d = new Date(urlDate);
-    }
+    if (isNaN(base.getTime())) return urlDate;
 
-    if (isNaN(d.getTime())) {
-      console.error("❌ INVALID DATE OBJECT CREATED");
-      return urlDate;
-    }
+    // ✅ CORE LOGIC
+    const diff = (Number(cDay) || 1) - (Number(bDay) || 1);
+
+    base.setDate(base.getDate() + diff);
+
+    return base.toLocaleDateString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+
+  } catch {
+    return urlDate;
+  }
+}
 
     const diff = (cDay || 1) - (bDay || 1);
     d.setDate(d.getDate() + diff);
