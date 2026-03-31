@@ -6,7 +6,28 @@ export const dynamic = "force-dynamic";
 
 /* ---------------- Helpers ---------------- */
 function formatTime(t?: string | null) {
-  return t ? t.slice(0, 5) : "--:--";
+  if (!t) return "--:--";
+  return t.slice(0, 5);
+}
+
+// Function to calculate delivery date based on Day difference
+function calculateDeliveryDate(baseDateStr: string, boardingDay: number, currentDay: number) {
+  try {
+    // Agar date "1 Apr 2026" format mein hai, toh use parse karne ki koshish karein
+    const d = new Date(baseDateStr);
+    if (isNaN(d.getTime())) return baseDateStr; // Fallback if parsing fails
+
+    const dayDiff = currentDay - boardingDay;
+    d.setDate(d.getDate() + dayDiff);
+
+    return d.toLocaleDateString('en-GB', { 
+      day: '2-digit', 
+      month: 'short', 
+      year: 'numeric' 
+    });
+  } catch (e) {
+    return baseDateStr;
+  }
 }
 
 /* ---------------- Page ---------------- */
@@ -14,38 +35,44 @@ export default async function Page({ params, searchParams }: any) {
   const rawSlug = params.slug || "";
   const stationCode = extractStationCode(rawSlug).toUpperCase();
 
-  // URL se basic info nikalna
+  // URL Params
   const trainNum = searchParams.train || "";
   const boarding = searchParams.boarding || "";
-  const urlDate = searchParams.date || ""; // Ye formatted bhi ho sakti hai (1 Apr 2026)
+  const dateFromUrl = searchParams.date || ""; 
 
-  let displayDate = urlDate; 
+  let finalDisplayDate = dateFromUrl;
   let arrivalTime = "--:--";
-  let restaurants: any[] = [];
   let stationName = stationCode;
+  let restaurants: any[] = [];
 
   try {
-    // 1. Sabse pehle Train Route se exact Day aur Arrival nikalna
-    const { data: route } = await serviceClient
+    // 1. Fetch Train Route to get Day and Arrival Time
+    const { data: routeData } = await serviceClient
       .from("TrainRoute")
-      .select("StationName, Day, Arrives, StationCode")
+      .select("StationCode, StationName, Day, Arrives")
       .eq("trainNumber", trainNum)
       .order("StnNumber", { ascending: true });
 
-    if (route && route.length > 0) {
-      const bStn = route.find(r => r.StationCode === boarding.toUpperCase());
-      const cStn = route.find(r => r.StationCode === stationCode);
+    if (routeData && routeData.length > 0) {
+      const boardingStn = routeData.find(r => r.StationCode.toUpperCase() === boarding.toUpperCase());
+      const currentStn = routeData.find(r => r.StationCode.toUpperCase() === stationCode);
 
-      if (cStn) {
-        stationName = cStn.StationName;
-        arrivalTime = formatTime(cStn.Arrives);
-
-        // Agar humein boarding station mil gaya, toh hum date confirm kar sakte hain
-        // Note: Agar date already formatted hai toh hum use hi dikhayenge
+      if (currentStn) {
+        stationName = currentStn.StationName;
+        arrivalTime = formatTime(currentStn.Arrives);
+        
+        // 2. Logic: Date Calculation from Train Route Slug
+        if (boardingStn && dateFromUrl) {
+          finalDisplayDate = calculateDeliveryDate(
+            dateFromUrl, 
+            Number(boardingStn.Day || 1), 
+            Number(currentStn.Day || 1)
+          );
+        }
       }
     }
 
-    // 2. Restaurants fetch karna (Directly from Supabase for speed)
+    // 3. Fetch Restaurants
     const { data: restros } = await serviceClient
       .from("RestroMaster")
       .select("*")
@@ -55,72 +82,66 @@ export default async function Page({ params, searchParams }: any) {
     restaurants = restros || [];
 
   } catch (err) {
-    console.error("Data Fetch Error:", err);
+    console.error("Error in Station Page:", err);
   }
 
   return (
-    <main className="max-w-5xl mx-auto px-4 py-6 font-sans">
+    <main className="max-w-5xl mx-auto px-4 py-6">
       
-      {/* ✅ FIX: Solid Date Header */}
-      <div className="bg-[#fdf2f0] border border-orange-100 p-4 rounded-2xl mb-8 flex justify-between items-center shadow-sm">
-        <div className="flex flex-col">
-          <span className="text-[10px] text-orange-500 font-bold uppercase tracking-wider mb-1">Delivery Date</span>
-          <span className="text-lg font-extrabold text-gray-800">{displayDate || "Select Date"}</span>
+      {/* ✅ FIXED HEADER: Date calculated from Train Route */}
+      <div className="bg-orange-50 border border-orange-200 p-5 rounded-2xl mb-8 flex justify-between items-center shadow-sm">
+        <div className="border-l-4 border-orange-500 pl-4">
+          <p className="text-[10px] text-orange-600 font-black uppercase tracking-tighter mb-1">Delivery Date</p>
+          <p className="text-xl font-extrabold text-gray-900">{finalDisplayDate}</p>
         </div>
-        <div className="flex flex-col text-right border-l border-orange-200 pl-4">
-          <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-1">Train Arrival</span>
-          <span className="text-lg font-extrabold text-gray-800">{arrivalTime}</span>
+        <div className="text-right">
+          <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-1">Train Arrival</p>
+          <p className="text-xl font-extrabold text-gray-900">{arrivalTime}</p>
         </div>
       </div>
 
-      <div className="mb-8">
-        <h1 className="text-2xl font-black text-gray-900 leading-tight">
-          Restaurants at <span className="text-orange-500">{stationName}</span>
+      <div className="mb-6">
+        <h1 className="text-3xl font-black text-gray-900">
+          Order Food at <span className="text-orange-500">{stationName}</span>
         </h1>
-        <p className="text-sm text-gray-500 mt-1 font-medium">Choose your favorite meal for the journey</p>
+        <p className="text-gray-500 font-medium">Get fresh meal delivered at your train seat</p>
       </div>
 
-      {restaurants.length === 0 ? (
-        <div className="text-center py-20 bg-gray-50 rounded-3xl border-2 border-dashed border-gray-200">
-          <p className="text-gray-400 font-bold">No active restaurants found at this station.</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {restaurants.map((r: any) => (
-            <div key={r.RestroCode} className="group bg-white border border-gray-100 p-5 rounded-3xl shadow-sm hover:shadow-xl hover:border-orange-200 transition-all duration-300">
-              <div className="flex justify-between items-start mb-4">
-                <div>
-                  <h3 className="font-bold text-xl text-gray-800 group-hover:text-orange-600 transition-colors">{r.RestroName}</h3>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="bg-green-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
-                      ★ {r.RestroRating || "4.2"}
-                    </span>
-                    {r.IsPureVeg && <span className="text-[10px] text-green-600 font-bold border border-green-200 px-2 py-0.5 rounded-full">PURE VEG</span>}
-                  </div>
-                </div>
+      {/* RESTAURANTS GRID */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {restaurants.length > 0 ? (
+          restaurants.map((r) => (
+            <div key={r.RestroCode} className="bg-white border border-gray-100 p-6 rounded-3xl shadow-sm hover:shadow-xl transition-all">
+              <div className="flex justify-between items-start">
+                <h3 className="font-bold text-xl">{r.RestroName}</h3>
+                <span className="bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded-lg">★ {r.RestroRating || "4.2"}</span>
               </div>
               
-              <div className="grid grid-cols-2 gap-4 py-4 border-t border-gray-50 mt-2">
-                <div className="flex flex-col">
-                  <span className="text-[10px] text-gray-400 uppercase font-bold">Service Hours</span>
-                  <span className="text-xs font-bold text-gray-700">{formatTime(r.open_time)} - {formatTime(r.closed_time)}</span>
+              <div className="flex gap-4 mt-4 py-3 border-y border-gray-50">
+                <div>
+                  <p className="text-[10px] text-gray-400 font-bold uppercase">Time</p>
+                  <p className="text-sm font-bold">{formatTime(r.open_time)} - {formatTime(r.closed_time)}</p>
                 </div>
-                <div className="flex flex-col">
-                  <span className="text-[10px] text-gray-400 uppercase font-bold">Min. Order</span>
-                  <span className="text-xs font-bold text-gray-700">₹{r.MinimumOrderValue || r.MinimumOrdermValue || "0"}</span>
+                <div className="border-l pl-4">
+                  <p className="text-[10px] text-gray-400 font-bold uppercase">Min Order</p>
+                  <p className="text-sm font-bold">₹{r.MinimumOrderValue || r.MinimumOrdermValue || "0"}</p>
                 </div>
               </div>
 
               <a
-                href={`/Stations/${rawSlug}/${r.RestroCode}-${(r.RestroName || "").replace(/\s+/g, "-")}?date=${encodeURIComponent(displayDate)}&train=${trainNum}&boarding=${boarding}`}
-                className="mt-4 w-full inline-flex justify-center items-center bg-gray-900 hover:bg-orange-600 text-white font-bold py-4 rounded-2xl transition-all active:scale-95 shadow-lg shadow-gray-200"
+                href={`/Stations/${rawSlug}/${r.RestroCode}-${(r.RestroName || "").replace(/\s+/g, "-")}?date=${finalDisplayDate}&train=${trainNum}&boarding=${boarding}`}
+                className="mt-6 block w-full text-center bg-gray-900 text-white font-bold py-4 rounded-2xl hover:bg-orange-600 transition-colors shadow-lg"
               >
-                View Menu & Order
+                View Menu
               </a>
             </div>
-          ))}
-        </div>
-      )}
+          ))
+        ) : (
+          <div className="col-span-full py-20 text-center text-gray-400 font-bold">
+            No active restaurants found at this station.
+          </div>
+        )}
+      </div>
     </main>
   );
 }
