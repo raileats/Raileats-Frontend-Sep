@@ -1,16 +1,16 @@
+import { NextResponse } from "next/server";
+import { serviceClient } from "../../lib/supabaseServer";
+
+/* ================= HELPERS ================= */
+
 function formatHaltTime(val: any) {
   if (!val) return "0m";
-
   const parts = String(val).split(":").map(Number);
   const hh = parts[0] || 0;
   const mm = parts[1] || 0;
-
   const totalMin = hh * 60 + mm;
-
   return `${totalMin}m`;
 }
-import { NextResponse } from "next/server";
-import { serviceClient } from "../../lib/supabaseServer";
 
 function normalize(val: any) {
   return String(val ?? "").toUpperCase().trim();
@@ -28,6 +28,8 @@ function formatTime(val: any) {
   return str.length >= 5 ? str.slice(0, 5) : str;
 }
 
+/* ================= MAIN API HANDLER ================= */
+
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const trainParam = searchParams.get("train")?.trim() || "";
@@ -40,59 +42,38 @@ export async function GET(req: Request) {
       now.toLocaleString("en-US", { timeZone: "Asia/Kolkata" })
     );
 
-    /* ================= TRAIN ROUTE ================= */
-
+    /* 1. Fetch Train Route */
     const { data: stopsRows } = await serviceClient
       .from("TrainRoute")
       .select("*")
-      .or(
-        `trainNumber.eq.${trainParam},trainNumber.eq.${
-          parseInt(trainParam) || 0
-        }`
-      )
+      .or(`trainNumber.eq.${trainParam},trainNumber.eq.${parseInt(trainParam) || 0}`)
       .order("StnNumber", { ascending: true });
 
-    if (!stopsRows?.length) {
-      return NextResponse.json({ ok: true, stations: [] });
-    }
+    if (!stopsRows?.length) return NextResponse.json({ ok: true, stations: [] });
 
+    /* 2. Logic for Boarding & Base Day */
     const normBoard = normalize(boarding);
-    const bIdx = stopsRows.findIndex(
-      (s) => normalize(s.StationCode) === normBoard
-    );
-
-    const baseDay = Number(stopsRows[0].Day || 1);
+    const bIdx = stopsRows.findIndex((s) => normalize(s.StationCode) === normBoard);
+    
+    // Boarding point se base day nikalna (important for date calculation)
+    const boardingStation = bIdx !== -1 ? stopsRows[bIdx] : stopsRows[0];
+    const baseDay = Number(boardingStation.Day || 1);
+    
     const activeRoute = bIdx !== -1 ? stopsRows.slice(bIdx) : stopsRows;
+    const stationCodes = Array.from(new Set(activeRoute.map((s) => normalize(s.StationCode))));
 
-    const stationCodes = Array.from(
-      new Set(activeRoute.map((s) => normalize(s.StationCode)))
-    );
-
-    /* ================= FETCH DATA ================= */
-
+    /* 3. Fetch Station & Restaurant Data */
     const [stationsData, restrosData] = await Promise.all([
-      serviceClient
-        .from("Stations")
-        .select("StationCode, State")
-        .in("StationCode", stationCodes),
-
-      serviceClient
-        .from("RestroMaster")
-        .select("*")
-        .in("StationCode", stationCodes),
+      serviceClient.from("Stations").select("StationCode, State").in("StationCode", stationCodes),
+      serviceClient.from("RestroMaster").select("*").in("StationCode", stationCodes),
     ]);
-
-    /* ================= STATE MAP ================= */
 
     const stateMap: Record<string, string> = {};
     stationsData.data?.forEach((st) => {
       stateMap[normalize(st.StationCode)] = st.State || "";
     });
 
-    /* ================= GROUP RESTAURANTS ================= */
-
     const groupedRestros: Record<string, any[]> = {};
-
     restrosData.data?.forEach((r) => {
       if (isTrue(r.RaileatsStatus ?? r.IsActive)) {
         const sc = normalize(r.StationCode);
@@ -101,89 +82,57 @@ export async function GET(req: Request) {
       }
     });
 
-    /* ================= FINAL BUILD ================= */
-
+    /* 4. Final Build with Date & Day Logic */
     const finalStations = activeRoute
       .map((s) => {
         const code = normalize(s.StationCode);
         const vendorsRaw = groupedRestros[code] || [];
-
         if (!vendorsRaw.length) return null;
 
-        /* ===== DATE CALCULATION ===== */
-
+        /* DATE CALCULATION */
         const sDate = new Date(startDateParam + "T00:00:00");
-        sDate.setDate(
-          sDate.getDate() + (Number(s.Day || 1) - baseDay)
-        );
+        const currentStnDay = Number(s.Day || 1);
+        const dayDifference = currentStnDay - baseDay;
+        
+        sDate.setDate(sDate.getDate() + dayDifference);
 
         const arrivalDateTime = new Date(sDate);
-
-        const [h, m] = (s.Arrives || "00:00")
-          .split(":")
-          .map(Number);
-
+        const [h, m] = (s.Arrives || "00:00").split(":").map(Number);
         arrivalDateTime.setHours(h, m, 0);
 
-        // ❌ past remove
+        // Past remove logic
         if (arrivalDateTime <= istNow) return null;
 
-        /* ===== VENDORS ===== */
-
-        const validVendors = vendorsRaw
-          .map((v) => {
-            const openRaw =
-              v.open_time ?? v.OpenTime ?? null;
-
-            const closeRaw =
-              v.closed_time ?? v.ClosedTime ?? null;
-
-            return {
-              RestroCode: v.RestroCode,
-              RestroName: v.RestroName,
-              RestroRating: v.RestroRating || "4.2",
-
-              // ✅ FINAL FIX (IMPORTANT)
-              OpenTime: formatTime(openRaw),
-              ClosedTime: formatTime(closeRaw),
-
-              MinimumOrderValue:
-                v.MinimumOrderValue ||
-                v.MinimumOrdermValue ||
-                0,
-
-              RestroDisplayPhoto: v.RestroDisplayPhoto,
-
-              IsPureVeg: isTrue(v.IsPureVeg) ? 1 : 0,
-            };
-          })
-          .filter(Boolean);
+        const validVendors = vendorsRaw.map((v) => ({
+          RestroCode: v.RestroCode,
+          RestroName: v.RestroName,
+          RestroRating: v.RestroRating || "4.2",
+          OpenTime: formatTime(v.open_time ?? v.OpenTime),
+          ClosedTime: formatTime(v.closed_time ?? v.ClosedTime),
+          MinimumOrderValue: v.MinimumOrderValue || v.MinimumOrdermValue || 0,
+          RestroDisplayPhoto: v.RestroDisplayPhoto,
+          IsPureVeg: isTrue(v.IsPureVeg) ? 1 : 0,
+        }));
 
         return {
           StationCode: code,
           StationName: s.StationName,
           State: stateMap[code] || "",
-
           Arrives: s.Arrives,
           Departs: s.Departs,
-
           HaltTime: formatHaltTime(s.Stoptime),
-
+          // ✅ Naye fields jo Slug Page ko chahiye
+          display_date: sDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+          day_count: currentStnDay,
           vendors: validVendors,
         };
       })
       .filter(Boolean);
 
-    return NextResponse.json({
-      ok: true,
-      stations: finalStations,
-    });
+    return NextResponse.json({ ok: true, stations: finalStations });
+
   } catch (err: any) {
     console.error("train-restros error", err);
-
-    return NextResponse.json(
-      { ok: false, error: err.message },
-      { status: 500 }
-    );
+    return NextResponse.json({ ok: false, error: err.message }, { status: 500 });
   }
 }
