@@ -33,7 +33,7 @@ function formatTime(val: any) {
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const trainParam = searchParams.get("train")?.trim() || "";
-  const startDateParam = searchParams.get("date")?.trim() || "";
+  const startDateParam = searchParams.get("date")?.trim() || ""; // Format: YYYY-MM-DD
   const boarding = searchParams.get("boarding")?.trim() || "";
 
   try {
@@ -42,30 +42,43 @@ export async function GET(req: Request) {
       now.toLocaleString("en-US", { timeZone: "Asia/Kolkata" })
     );
 
-    /* 1. Fetch Train Route */
+    /* 1. Fetch Train Route Data */
     const { data: stopsRows } = await serviceClient
       .from("TrainRoute")
       .select("*")
       .or(`trainNumber.eq.${trainParam},trainNumber.eq.${parseInt(trainParam) || 0}`)
       .order("StnNumber", { ascending: true });
 
-    if (!stopsRows?.length) return NextResponse.json({ ok: true, stations: [] });
+    if (!stopsRows?.length) {
+      return NextResponse.json({ ok: true, stations: [] });
+    }
 
-    /* 2. Logic for Boarding & Base Day */
+    /* 2. Boarding Station & Base Day Calculation */
     const normBoard = normalize(boarding);
+    const boardingStation = stopsRows.find((s) => normalize(s.StationCode) === normBoard);
+    
+    // Agar boarding station nahi milta toh pehle stop ko base maante hain
+    const baseDay = boardingStation ? Number(boardingStation.Day || 1) : Number(stopsRows[0].Day || 1);
+    
+    // Sirf boarding station ke baad wale stops dikhane ke liye
     const bIdx = stopsRows.findIndex((s) => normalize(s.StationCode) === normBoard);
-    
-    // Boarding point se base day nikalna (important for date calculation)
-    const boardingStation = bIdx !== -1 ? stopsRows[bIdx] : stopsRows[0];
-    const baseDay = Number(boardingStation.Day || 1);
-    
     const activeRoute = bIdx !== -1 ? stopsRows.slice(bIdx) : stopsRows;
-    const stationCodes = Array.from(new Set(activeRoute.map((s) => normalize(s.StationCode))));
 
-    /* 3. Fetch Station & Restaurant Data */
+    const stationCodes = Array.from(
+      new Set(activeRoute.map((s) => normalize(s.StationCode)))
+    );
+
+    /* 3. Parallel Fetch: Station Details & Restaurant Details */
     const [stationsData, restrosData] = await Promise.all([
-      serviceClient.from("Stations").select("StationCode, State").in("StationCode", stationCodes),
-      serviceClient.from("RestroMaster").select("*").in("StationCode", stationCodes),
+      serviceClient
+        .from("Stations")
+        .select("StationCode, State")
+        .in("StationCode", stationCodes),
+
+      serviceClient
+        .from("RestroMaster")
+        .select("*")
+        .in("StationCode", stationCodes),
     ]);
 
     const stateMap: Record<string, string> = {};
@@ -82,27 +95,30 @@ export async function GET(req: Request) {
       }
     });
 
-    /* 4. Final Build with Date & Day Logic */
+    /* 4. FINAL BUILD: Stations with Calculated Dates & Restaurants */
     const finalStations = activeRoute
       .map((s) => {
         const code = normalize(s.StationCode);
         const vendorsRaw = groupedRestros[code] || [];
+
         if (!vendorsRaw.length) return null;
 
-        /* DATE CALCULATION */
+        /* ===== DEEP DATE CALCULATION ===== */
+        // User ki selected date (startDateParam) par utne din add karo jitna boarding se difference hai
         const sDate = new Date(startDateParam + "T00:00:00");
         const currentStnDay = Number(s.Day || 1);
-        const dayDifference = currentStnDay - baseDay;
+        const dayDiff = currentStnDay - baseDay;
         
-        sDate.setDate(sDate.getDate() + dayDifference);
+        sDate.setDate(sDate.getDate() + dayDiff);
 
         const arrivalDateTime = new Date(sDate);
         const [h, m] = (s.Arrives || "00:00").split(":").map(Number);
         arrivalDateTime.setHours(h, m, 0);
 
-        // Past remove logic
+        // Jo stations nikal chuke hain unhe filter out karein
         if (arrivalDateTime <= istNow) return null;
 
+        /* ===== VENDORS MAPPING ===== */
         const validVendors = vendorsRaw.map((v) => ({
           RestroCode: v.RestroCode,
           RestroName: v.RestroName,
@@ -120,8 +136,8 @@ export async function GET(req: Request) {
           State: stateMap[code] || "",
           Arrives: s.Arrives,
           Departs: s.Departs,
-          HaltTime: formatHaltTime(s.Stoptime),
-          // ✅ Naye fields jo Slug Page ko chahiye
+          HaltTime: formatHaltTime(s.Stoptime || s.StopTime),
+          // Ye do fields slug page par date dikhane ke liye zaroori hain
           display_date: sDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
           day_count: currentStnDay,
           vendors: validVendors,
@@ -129,10 +145,16 @@ export async function GET(req: Request) {
       })
       .filter(Boolean);
 
-    return NextResponse.json({ ok: true, stations: finalStations });
+    return NextResponse.json({
+      ok: true,
+      stations: finalStations,
+    });
 
   } catch (err: any) {
     console.error("train-restros error", err);
-    return NextResponse.json({ ok: false, error: err.message }, { status: 500 });
+    return NextResponse.json(
+      { ok: false, error: err.message },
+      { status: 500 }
+    );
   }
 }
