@@ -80,8 +80,13 @@ export default async function Page(props: { params: Promise<any>, searchParams: 
       if (routeError) console.error("❌ SUPABASE ROUTE ERROR:", routeError);
 
       if (route && route.length > 0) {
-        const bStn = route.find(r => r.StationCode.toUpperCase() === boarding);
-        const cStn = route.find(r => r.StationCode.toUpperCase() === stationCode);
+        const bStn = route.find(
+  r => String(r.StationCode).toUpperCase() === boarding
+);
+
+const cStn = route.find(
+  r => String(r.StationCode).toUpperCase() === stationCode
+);
 
         console.log("📍 FOUND BOARDING STN:", bStn ? "YES" : "NO");
         console.log("📍 FOUND CURRENT STN:", cStn ? "YES" : "NO");
