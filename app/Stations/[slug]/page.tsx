@@ -61,7 +61,7 @@ export default async function Page(props: { params: Promise<any>, searchParams: 
   let restaurants: any[] = [];
 
   try {
-    if (trainNum && inputDate && boarding) {
+    let finalDisplayDate = inputDate || "";
       console.log("📡 FETCHING DATA FROM SUPABASE FOR TRAIN:", trainNum);
       const { data: route, error: routeError } = await serviceClient
         .from("TrainRoute")
