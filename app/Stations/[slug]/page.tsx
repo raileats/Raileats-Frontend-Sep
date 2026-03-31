@@ -10,12 +10,10 @@ function formatTime(t?: string | null) {
 }
 
 function getCalculatedDate(urlDate: string, bDay: number, cDay: number) {
-  console.log("🛠️ CALCULATION START: InputDate:", urlDate, "BoardDay:", bDay, "StationDay:", cDay);
   if (!urlDate) return "";
   try {
     const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     let d: Date;
-
     if (urlDate.includes(" ")) {
       const parts = urlDate.split(" ");
       const day = parseInt(parts[0]);
@@ -25,42 +23,22 @@ function getCalculatedDate(urlDate: string, bDay: number, cDay: number) {
     } else {
       d = new Date(urlDate);
     }
-
-    if (isNaN(d.getTime())) {
-      console.error("❌ INVALID DATE OBJECT CREATED");
-      return urlDate;
-    }
-
+    if (isNaN(d.getTime())) return urlDate;
     const diff = (cDay || 1) - (bDay || 1);
     d.setDate(d.getDate() + diff);
-
-    const result = `${String(d.getDate()).padStart(2, '0')} ${months[d.getMonth()]} ${d.getFullYear()}`;
-    console.log("✅ CALCULATION SUCCESS: Result:", result);
-    return result;
+    return `${String(d.getDate()).padStart(2, '0')} ${months[d.getMonth()]} ${d.getFullYear()}`;
   } catch (e) { 
-    console.error("❌ DATE CALCULATION ERROR:", e);
     return urlDate; 
   }
 }
 
 /* ---------------- Page ---------------- */
 export default async function Page(props: { params: Promise<any>, searchParams: Promise<any> }) {
-  // Await params
   const resolvedParams = await props.params;
   const resolvedSearchParams = await props.searchParams;
 
-  // --- DEBUG LOGS ---
-  console.log("-----------------------------------------");
-  console.log("🔍 DEBUG: URL PARAMS RECEIVED:");
-  console.log("Slug:", resolvedParams.slug);
-  console.log("Train:", resolvedSearchParams.train);
-  console.log("Date from URL:", resolvedSearchParams.date);
-  console.log("Boarding:", resolvedSearchParams.boarding);
-  console.log("-----------------------------------------");
-
   const slug = resolvedParams.slug || "";
   const stationCode = slug.split('-')[0].toUpperCase();
-
   const trainNum = resolvedSearchParams.train || "";
   const boarding = (resolvedSearchParams.boarding || "").toUpperCase();
   const inputDate = resolvedSearchParams.date || ""; 
@@ -72,34 +50,21 @@ export default async function Page(props: { params: Promise<any>, searchParams: 
 
   try {
     if (trainNum && inputDate && boarding) {
-      console.log("📡 FETCHING DATA FROM SUPABASE FOR TRAIN:", trainNum);
-      const { data: route, error: routeError } = await serviceClient
+      const { data: route } = await serviceClient
         .from("TrainRoute")
         .select("StationCode, StationName, Day, Arrives")
         .eq("trainNumber", trainNum);
 
-      if (routeError) console.error("❌ SUPABASE ROUTE ERROR:", routeError);
-
       if (route && route.length > 0) {
         const bStn = route.find(r => r.StationCode.toUpperCase() === boarding);
         const cStn = route.find(r => r.StationCode.toUpperCase() === stationCode);
-
-        console.log("📍 FOUND BOARDING STN:", bStn ? "YES" : "NO");
-        console.log("📍 FOUND CURRENT STN:", cStn ? "YES" : "NO");
-
         if (cStn) {
           stationName = cStn.StationName;
           if (cStn.Arrives) arrivalTime = formatTime(cStn.Arrives);
           finalDisplayDate = getCalculatedDate(inputDate, bStn?.Day || 1, cStn.Day || 1);
         }
-      } else {
-        console.warn("⚠️ NO ROUTE DATA FOUND IN DB");
       }
-    } else {
-      console.warn("⚠️ MISSING URL PARAMS FOR CALCULATION");
     }
-
-    // Restaurants fetch
     const { data: restros } = await serviceClient
       .from("RestroMaster")
       .select("*")
@@ -108,82 +73,37 @@ export default async function Page(props: { params: Promise<any>, searchParams: 
 
     restaurants = restros || [];
   } catch (err) { 
-    console.error("❌ CRITICAL PAGE ERROR:", err); 
+    console.error(err); 
   }
 
   return (
     <main className="max-w-5xl mx-auto px-4 py-8">
-      {/* Visual Debugger for you - Ise baad me hata sakte hain */}
-      <div className="bg-black text-green-400 p-4 mb-4 rounded-xl text-xs font-mono overflow-auto">
-         <p>// DEBUG INFO (Only for development)</p>
+      <div className="bg-black text-green-400 p-4 mb-4 rounded-xl text-xs font-mono">
+         <p>// DEBUG INFO</p>
          <p>URL Date: {inputDate || "NULL"}</p>
          <p>Calc Date: {finalDisplayDate || "FAILED"}</p>
-         <p>Train: {trainNum || "NULL"}</p>
-         <p>Boarding: {boarding || "NULL"}</p>
       </div>
 
       <div className="bg-orange-50 border-2 border-orange-100 p-6 rounded-[2rem] mb-10 flex justify-between items-center shadow-sm">
         <div>
-          <p className="text-[10px] text-orange-600 font-black uppercase mb-1">Delivery Date</p>
-          <p className="text-2xl font-black text-gray-900">
-            {/* AGAR CALCULATION FAIL HUI TOH PURANI DATE DIKHAO */}
-            {finalDisplayDate || inputDate || "Date Pending"}
-          </p>
+          <p className="text-[10px] text-orange-600 font-black uppercase mb-1 tracking-widest">Delivery Date</p>
+          <p className="text-2xl font-black text-gray-900">{finalDisplayDate || inputDate || "Date Pending"}</p>
         </div>
         <div className="text-right border-l-2 border-orange-200 pl-8">
-          <p className="text-[10px] text-gray-400 font-black uppercase mb-1">Arrival at {stationCode}</p>
+          <p className="text-[10px] text-gray-400 font-black uppercase mb-1 tracking-widest">Arrival at {stationCode}</p>
           <p className="text-2xl font-black text-gray-900">{arrivalTime}</p>
         </div>
       </div>
 
-      <h1 className="text-4xl font-black mb-8">
-        Food at <span className="text-orange-500">{stationName}</span>
-      </h1>
+      <h1 className="text-4xl font-black mb-8">Restaurants at <span className="text-orange-500">{stationName}</span></h1>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        {restaurants.length > 0 ? (
-          restaurants.map((r) => (
-            <div key={r.RestroCode} className="bg-white border-2 p-8 rounded-[2.5rem] shadow-sm hover:shadow-xl transition-all border-b-8 hover:border-orange-500">
-              <h3 className="text-2xl font-black mb-4">{r.RestroName}</h3>
-              <button className="w-full bg-gray-900 text-white font-black py-4 rounded-2xl">VIEW MENU</button>
-            </div>
-          ))
-        ) : (
-          <p>No vendors found.</p>
-        )}
-      </div>
-    </main>
-  );
-}
-import React from "react";
-import { serviceClient } from "../../lib/supabaseServer";
-
-export const dynamic = "force-dynamic";
-
-export default async function Page(props: { params: Promise<any>, searchParams: Promise<any> }) {
-  const resolvedParams = await props.params;
-  const resolvedSearchParams = await props.searchParams;
-
-  const inputDate = resolvedSearchParams.date || ""; 
-  const trainNum = resolvedSearchParams.train || "";
-  const stationCode = (resolvedParams.slug || "").split('-')[0].toUpperCase();
-
-  return (
-    <main className="p-10">
-      {/* YE RAHA KALA DABBA - Agar ye nahi dikh raha toh file save nahi hui */}
-      <div className="bg-black text-green-400 p-6 rounded-xl font-mono text-sm mb-10 shadow-2xl border-4 border-green-900">
-        <h2 className="text-white border-b border-green-900 mb-2 pb-1">🛠️ SYSTEM DEBUGGER</h2>
-        <p>1. URL DATE: <span className="text-yellow-400">"{inputDate || "KHALI HAI / MISSING"}"</span></p>
-        <p>2. TRAIN NO: <span className="text-yellow-400">{trainNum || "MISSING"}</span></p>
-        <p>3. STATION: <span className="text-yellow-400">{stationCode}</span></p>
-        <p className="mt-4 text-[10px] text-gray-500 italic">Agar Date "KHALI" hai, toh pichle page ka Link theek karo.</p>
-      </div>
-
-      <div className="bg-orange-100 p-6 rounded-2xl">
-        <p className="font-bold text-gray-600">Final Delivery Date:</p>
-        <h1 className="text-4xl font-black text-orange-600">
-          {inputDate || "ABHI BHI DATE NAHI MILI"}
-        </h1>
+        {restaurants.map((r) => (
+          <div key={r.RestroCode} className="bg-white border-2 p-8 rounded-[2.5rem] shadow-sm">
+            <h3 className="text-2xl font-black mb-4">{r.RestroName}</h3>
+            <button className="w-full bg-gray-900 text-white font-black py-4 rounded-2xl">VIEW MENU</button>
+          </div>
+        ))}
       </div>
     </main>
   );
