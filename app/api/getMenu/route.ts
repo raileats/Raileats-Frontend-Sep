@@ -19,33 +19,34 @@ function formatTime(t: string) {
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
-
   const arrival = searchParams.get("arrival") || "00:00";
 
   try {
     const filePath = path.join(process.cwd(), "public/data/dummyMenus.json");
     const jsonData = fs.readFileSync(filePath, "utf-8");
+
     const data = JSON.parse(jsonData);
 
-const arrivalMin = timeToMinutes(arrival);
+    const arrivalMin = timeToMinutes(arrival);
 
-/* ================= FILTER MENU ITEMS ================= */
+    /* ================= FIX STRUCTURE ================= */
+    const menuItems = Array.isArray(data) ? data : data.items || [];
 
-const menuItems = Array.isArray(data) ? data : data.items || [];
+    // ✅ DEBUG (remove later)
+    console.log("ITEM SAMPLE:", menuItems[0]);
 
-// ✅ 👉 YAHAN ADD KARO
-console.log("ITEM SAMPLE:", menuItems[0]);
-
-const filteredItems = menuItems.filter((item: any) => {
-
-const filteredItems = menuItems.filter((item: any) => {
-      const start = formatTime(item.start_time || "00:00");
-      const end = formatTime(item.end_time || "23:59");
+    /* ================= FILTER ================= */
+    const filteredItems = menuItems.filter((item: any) => {
+      const start = formatTime(
+        item.start_time || item.startTime || "00:00"
+      );
+      const end = formatTime(
+        item.end_time || item.endTime || "23:59"
+      );
 
       const startMin = timeToMinutes(start);
       const endMin = timeToMinutes(end);
 
-      // ✅ ONLY show if train time is inside item time range
       return arrivalMin >= startMin && arrivalMin <= endMin;
     });
 
@@ -53,6 +54,7 @@ const filteredItems = menuItems.filter((item: any) => {
       ok: true,
       items: filteredItems,
     });
+
   } catch (err: any) {
     return NextResponse.json(
       { ok: false, error: err.message },
