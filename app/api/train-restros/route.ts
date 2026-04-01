@@ -118,7 +118,7 @@ export async function GET(req: Request) {
         // Jo stations nikal chuke hain unhe filter out karein
         if (arrivalDateTime <= istNow) return null;
 
-        /* ===== VENDORS MAPPING ===== */
+       /* ===== VENDORS MAPPING ===== */
         const validVendors = vendorsRaw.map((v: any) => ({
           RestroCode: v.RestroCode,
           RestroName: v.RestroName,
@@ -137,20 +137,15 @@ export async function GET(req: Request) {
           Arrives: s.Arrives,
           Departs: s.Departs,
           HaltTime: formatHaltTime(s.Stoptime || s.StopTime),
-          // Frontend ke liye fixed key 'date'
+          // Frontend ko isi 'date' key ki zaroorat hai
           date: sDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
           day_count: currentStnDay,
           vendors: validVendors,
         };
       })
-      .filter(Boolean); // <--- Yahan bracket aur dot ka dhyaan rakhein
+      .filter(Boolean); // <--- Sirf ek baar hona chahiye
 
-    return NextResponse.json({
-      ok: true,
-      stations: finalStations,
-    });
-      .filter(Boolean);
-
+    // Final response bhi sirf EK baar hona chahiye
     return NextResponse.json({
       ok: true,
       stations: finalStations,
