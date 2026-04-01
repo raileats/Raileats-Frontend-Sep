@@ -48,11 +48,13 @@ export default function MenuPage() {
 
         const data: MenuResponse = await res.json();
 
-        if (!data.ok || !data.items?.length) {
-          setError("No menu");
-        } else {
-          setItems(data.items);
-        }
+        if (!data.ok) {
+  setError("Server error");
+  setItems([]);
+} else {
+  setItems(data.items || []);
+  setError(null);
+}
       } catch {
         setError("Server error");
       } finally {
