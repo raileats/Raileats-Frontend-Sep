@@ -59,7 +59,22 @@ export default function MenuPage() {
   setError("Server error");
   setItems([]);
 } else {
-  setItems(data.items || []);
+  const filtered = (data.items || []).filter(item => {
+  if (!arrival) return true;
+
+  const [h, m] = arrival.split(":").map(Number);
+  const arrivalMin = h * 60 + m;
+
+  const [sh, sm] = (item.start_time || "00:00").split(":").map(Number);
+  const [eh, em] = (item.end_time || "23:59").split(":").map(Number);
+
+  const startMin = sh * 60 + sm;
+  const endMin = eh * 60 + em;
+
+  return arrivalMin >= startMin && arrivalMin <= endMin;
+});
+
+setItems(filtered);
   setError(null);
 }
       } catch {
