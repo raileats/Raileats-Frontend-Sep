@@ -27,11 +27,16 @@ export async function GET(req: Request) {
     const jsonData = fs.readFileSync(filePath, "utf-8");
     const data = JSON.parse(jsonData);
 
-    const arrivalMin = timeToMinutes(arrival);
+const arrivalMin = timeToMinutes(arrival);
 
-    /* ================= FILTER MENU ITEMS ================= */
+/* ================= FILTER MENU ITEMS ================= */
 
-    const menuItems = Array.isArray(data) ? data : data.items || [];
+const menuItems = Array.isArray(data) ? data : data.items || [];
+
+// ✅ 👉 YAHAN ADD KARO
+console.log("ITEM SAMPLE:", menuItems[0]);
+
+const filteredItems = menuItems.filter((item: any) => {
 
 const filteredItems = menuItems.filter((item: any) => {
       const start = formatTime(item.start_time || "00:00");
