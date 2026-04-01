@@ -119,16 +119,38 @@ export async function GET(req: Request) {
         if (arrivalDateTime <= istNow) return null;
 
        /* ===== VENDORS MAPPING ===== */
-        const validVendors = vendorsRaw.map((v: any) => ({
-          RestroCode: v.RestroCode,
-          RestroName: v.RestroName,
-          RestroRating: v.RestroRating || "4.2",
-          OpenTime: formatTime(v.open_time ?? v.OpenTime),
-          ClosedTime: formatTime(v.closed_time ?? v.ClosedTime),
-          MinimumOrderValue: v.MinimumOrderValue || v.MinimumOrdermValue || 0,
-          RestroDisplayPhoto: v.RestroDisplayPhoto,
-          IsPureVeg: isTrue(v.IsPureVeg) ? 1 : 0,
-        }));
+       const validVendors = vendorsRaw
+  .map((v: any) => {
+    const open = formatTime(v.open_time ?? v.OpenTime);
+    const close = formatTime(v.closed_time ?? v.ClosedTime);
+    const arrival = formatTime(s.Arrives);
+
+    // ⏱ Convert to minutes
+    const [ah, am] = arrival.split(":").map(Number);
+    const [oh, om] = open.split(":").map(Number);
+    const [ch, cm] = close.split(":").map(Number);
+
+    const arrivalMin = ah * 60 + am;
+    const openMin = oh * 60 + om;
+    const closeMin = ch * 60 + cm;
+
+    // ❌ Agar restaurant band hai to hata do
+    if (arrivalMin < openMin || arrivalMin > closeMin) {
+      return null;
+    }
+
+    return {
+      RestroCode: v.RestroCode,
+      RestroName: v.RestroName,
+      RestroRating: v.RestroRating || "4.2",
+      OpenTime: open,
+      ClosedTime: close,
+      MinimumOrderValue: v.MinimumOrderValue || v.MinimumOrdermValue || 0,
+      RestroDisplayPhoto: v.RestroDisplayPhoto,
+      IsPureVeg: isTrue(v.IsPureVeg) ? 1 : 0,
+    };
+  })
+  .filter(Boolean);
 
         return {
           StationCode: code,
