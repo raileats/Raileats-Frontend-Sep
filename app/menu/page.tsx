@@ -2,7 +2,6 @@
 
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
-
 type MenuItem = {
   item_code: string;
   item_name: string;
@@ -10,6 +9,10 @@ type MenuItem = {
   selling_price: number;
   menu_type: string;
   status: string;
+
+  // ✅ ADD THIS
+  start_time?: string;
+  end_time?: string;
 };
 
 type MenuResponse = {
