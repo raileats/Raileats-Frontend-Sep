@@ -41,7 +41,11 @@ export default function MenuPage() {
 
     async function load() {
       try {
-        const res = await fetch(
+  // ✅ ADD THIS (VERY IMPORTANT)
+  setItems([]);
+  setError(null);
+
+  const res = await fetch(
   `/api/getMenu?restro=${restro}&arrival=${arrival}`,
   { cache: "no-store" }
 );
