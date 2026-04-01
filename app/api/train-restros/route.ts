@@ -130,19 +130,21 @@ export async function GET(req: Request) {
           IsPureVeg: isTrue(v.IsPureVeg) ? 1 : 0,
         }));
 
-        return {
-          StationCode: code,
-          StationName: s.StationName,
-          State: stateMap[code] || "",
-          Arrives: s.Arrives,
-          Departs: s.Departs,
-          HaltTime: formatHaltTime(s.Stoptime || s.StopTime),
-          // Ye do fields slug page par date dikhane ke liye zaroori hain
-          display_date: sDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
-          day_count: currentStnDay,
-          vendors: validVendors,
-        };
-      })
+        // Is part ko find karein aur aise update karein:
+return {
+  StationCode: code,
+  StationName: s.StationName,
+  State: stateMap[code] || "",
+  Arrives: s.Arrives,
+  Departs: s.Departs,
+  HaltTime: formatHaltTime(s.Stoptime || s.StopTime),
+  
+  // BADLAV YAHAN HAI: display_date ki jagah 'date' likhein
+  date: sDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }), 
+  
+  day_count: currentStnDay,
+  vendors: validVendors,
+};
       .filter(Boolean);
 
     return NextResponse.json({
