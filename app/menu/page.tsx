@@ -42,9 +42,9 @@ export default function MenuPage() {
     async function load() {
       try {
         const res = await fetch(
-          `/api/menu?restro=${restro}&arrival=${arrival}`,
-          { cache: "no-store" }
-        );
+  `/api/getMenu?restro=${restro}&arrival=${arrival}`,
+  { cache: "no-store" }
+);
 
         const data: MenuResponse = await res.json();
 
