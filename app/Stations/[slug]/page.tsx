@@ -147,7 +147,12 @@ const cStn = route.find(
           restaurants.map((r) => (
             <div key={r.RestroCode} className="bg-white border-2 p-8 rounded-[2.5rem] shadow-sm hover:shadow-xl transition-all border-b-8 hover:border-orange-500">
               <h3 className="text-2xl font-black mb-4">{r.RestroName}</h3>
-              <button className="w-full bg-gray-900 text-white font-black py-4 rounded-2xl">VIEW MENU</button>
+              <a
+  href={`/menu?restro=${r.RestroCode}&arrival=${arrivalTime}&stationName=${stationName}&train=${trainNum}&halt=--`}
+  className="block w-full text-center bg-gray-900 text-white font-black py-4 rounded-2xl"
+>
+  VIEW MENU
+</a>
             </div>
           ))
         ) : (
