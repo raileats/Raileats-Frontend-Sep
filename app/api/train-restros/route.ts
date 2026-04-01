@@ -119,7 +119,7 @@ export async function GET(req: Request) {
         if (arrivalDateTime <= istNow) return null;
 
         /* ===== VENDORS MAPPING ===== */
-        const validVendors = vendorsRaw.map((v) => ({
+        const validVendors = vendorsRaw.map((v: any) => ({
           RestroCode: v.RestroCode,
           RestroName: v.RestroName,
           RestroRating: v.RestroRating || "4.2",
@@ -130,21 +130,25 @@ export async function GET(req: Request) {
           IsPureVeg: isTrue(v.IsPureVeg) ? 1 : 0,
         }));
 
-        // Is part ko find karein aur aise update karein:
-return {
-  StationCode: code,
-  StationName: s.StationName,
-  State: stateMap[code] || "",
-  Arrives: s.Arrives,
-  Departs: s.Departs,
-  HaltTime: formatHaltTime(s.Stoptime || s.StopTime),
-  
-  // BADLAV YAHAN HAI: display_date ki jagah 'date' likhein
-  date: sDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }), 
-  
-  day_count: currentStnDay,
-  vendors: validVendors,
-};
+        return {
+          StationCode: code,
+          StationName: s.StationName,
+          State: stateMap[code] || "",
+          Arrives: s.Arrives,
+          Departs: s.Departs,
+          HaltTime: formatHaltTime(s.Stoptime || s.StopTime),
+          // Frontend ke liye fixed key 'date'
+          date: sDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+          day_count: currentStnDay,
+          vendors: validVendors,
+        };
+      })
+      .filter(Boolean); // <--- Yahan bracket aur dot ka dhyaan rakhein
+
+    return NextResponse.json({
+      ok: true,
+      stations: finalStations,
+    });
       .filter(Boolean);
 
     return NextResponse.json({
