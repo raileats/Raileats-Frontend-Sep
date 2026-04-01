@@ -31,7 +31,9 @@ export async function GET(req: Request) {
 
     /* ================= FILTER MENU ITEMS ================= */
 
-    const filteredItems = data.items.filter((item: any) => {
+    const menuItems = Array.isArray(data) ? data : data.items || [];
+
+const filteredItems = menuItems.filter((item: any) => {
       const start = formatTime(item.start_time || "00:00");
       const end = formatTime(item.end_time || "23:59");
 
