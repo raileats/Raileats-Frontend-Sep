@@ -1,22 +1,19 @@
 import React from "react";
 import { serviceClient } from "../../lib/supabaseServer";
 
-/* helper function */
-function formatDate(d: string) {
-  if (!d) return "";
-  return new Date(d).toLocaleDateString("en-IN", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
-}
-
 export const dynamic = "force-dynamic";
 
-/* ---------------- Helpers ---------------- */
+/* ================= HELPERS ================= */
+
 function formatTime(t?: string | null) {
   if (!t) return "--:--";
   return t.slice(0, 5);
+}
+
+function timeToMinutes(t: string) {
+  if (!t) return 0;
+  const [h, m] = t.split(":").map(Number);
+  return h * 60 + m;
 }
 
 function getCalculatedDate(urlDate: string, bDay: number, cDay: number) {
@@ -37,157 +34,136 @@ function getCalculatedDate(urlDate: string, bDay: number, cDay: number) {
       year: "numeric",
     });
 
-  } catch (e) {
-    console.error("DATE ERROR:", e);
+  } catch {
     return urlDate;
   }
 }
 
-/* ---------------- Page ---------------- */
-export default async function Page(props: { params: Promise<any>, searchParams: Promise<any> }) {
-  // Await params
+/* ================= PAGE ================= */
+
+export default async function Page(props: {
+  params: Promise<any>;
+  searchParams: Promise<any>;
+}) {
+
   const resolvedParams = await props.params;
   const resolvedSearchParams = await props.searchParams;
 
-  // --- DEBUG LOGS ---
-  console.log("-----------------------------------------");
-  console.log("🔍 DEBUG: URL PARAMS RECEIVED:");
-  console.log("Slug:", resolvedParams.slug);
-  console.log("Train:", resolvedSearchParams.train);
-  console.log("Date from URL:", resolvedSearchParams.date);
-  console.log("Boarding:", resolvedSearchParams.boarding);
-  console.log("-----------------------------------------");
-
   const slug = resolvedParams.slug || "";
-  const stationCode = slug.split('-')[0].toUpperCase();
+  const stationCode = slug.split("-")[0].toUpperCase();
 
   const trainNum = resolvedSearchParams.train || "";
   const boarding = (resolvedSearchParams.boarding || "").toUpperCase();
-  const inputDate = resolvedSearchParams.date || ""; 
+  const inputDate = resolvedSearchParams.date || "";
 
-  let finalDisplayDate = "";
   let arrivalTime = resolvedSearchParams.arrival || "--:--";
   let stationName = resolvedSearchParams.stationName || stationCode;
   let restaurants: any[] = [];
+  let finalDisplayDate = inputDate || "";
 
   try {
-    let finalDisplayDate = inputDate || "";
-      console.log("📡 FETCHING DATA FROM SUPABASE FOR TRAIN:", trainNum);
-      const { data: route, error: routeError } = await serviceClient
-        .from("TrainRoute")
-        .select("StationCode, StationName, Day, Arrives")
-        .or(`trainNumber.eq.${trainNum},trainNumber.eq.${parseInt(trainNum) || 0}`)
-      if (routeError) console.error("❌ SUPABASE ROUTE ERROR:", routeError);
+    /* ================= TRAIN ROUTE ================= */
 
-      if (route && route.length > 0) {
-        const bStn = route.find(
-  r => String(r.StationCode || "").toUpperCase().trim() === boarding
-);
+    const { data: route } = await serviceClient
+      .from("TrainRoute")
+      .select("StationCode, StationName, Day, Arrives")
+      .or(`trainNumber.eq.${trainNum},trainNumber.eq.${parseInt(trainNum) || 0}`);
 
-const cStn = route.find(
-  r => String(r.StationCode || "").toUpperCase().trim() === stationCode
-);
+    if (route && route.length > 0) {
+      const bStn = route.find(
+        (r) => String(r.StationCode).toUpperCase().trim() === boarding
+      );
 
-        console.log("📍 FOUND BOARDING STN:", bStn ? "YES" : "NO");
-        console.log("📍 FOUND CURRENT STN:", cStn ? "YES" : "NO");
+      const cStn = route.find(
+        (r) => String(r.StationCode).toUpperCase().trim() === stationCode
+      );
 
-        if (cStn) {
-          stationName = cStn.StationName;
-          if (cStn.Arrives) arrivalTime = formatTime(cStn.Arrives);
-          finalDisplayDate = getCalculatedDate(inputDate, bStn?.Day || 1, cStn.Day || 1);
+      if (cStn) {
+        stationName = cStn.StationName;
+
+        if (cStn.Arrives) {
+          arrivalTime = formatTime(cStn.Arrives);
         }
-      } else {
-        console.warn("⚠️ NO ROUTE DATA FOUND IN DB");
-      }
 
-    // Restaurants fetch
+        finalDisplayDate = getCalculatedDate(
+          inputDate,
+          bStn?.Day || 1,
+          cStn.Day || 1
+        );
+      }
+    }
+
+    /* ================= RESTAURANTS ================= */
+
     const { data: restros } = await serviceClient
       .from("RestroMaster")
       .select("*")
       .eq("StationCode", stationCode)
-      .or('RaileatsStatus.eq.Active,IsActive.eq.true');
+      .or("RaileatsStatus.eq.Active,IsActive.eq.true");
 
-   const arrivalMin = timeToMinutes(arrivalTime);
-console.log("🚆 ARRIVAL TIME:", arrivalTime);
-console.log("🚆 ARRIVAL MIN:", arrivalMin);
-restaurants = (restros || []).filter((r: any) => {
-  const start = r.open_time?.slice(0, 5) || "00:00";
-  const end = r.closed_time?.slice(0, 5) || "23:59";
+    const arrivalMin = timeToMinutes(arrivalTime || "00:00");
 
-  const startMin = timeToMinutes(start);
-  const endMin = timeToMinutes(end);
+    restaurants = (restros || []).filter((r: any) => {
+      const start = r.open_time?.slice(0, 5) || "00:00";
+      const end = r.closed_time?.slice(0, 5) || "23:59";
 
-  console.log("🏪 RESTRO:", r.RestroCode);
-  console.log("⏰ OPEN:", start, startMin);
-  console.log("⏰ CLOSE:", end, endMin);
-  console.log("🚆 ARRIVAL:", arrivalTime, arrivalMin);
+      const startMin = timeToMinutes(start);
+      const endMin = timeToMinutes(end);
 
-  const isOpen = arrivalMin >= startMin && arrivalMin <= endMin;
+      return arrivalMin >= startMin && arrivalMin <= endMin;
+    });
 
-  console.log("✅ SHOW?", isOpen);
-  console.log("-------------------");
+  } catch (err) {
+    console.error("PAGE ERROR:", err);
+  }
 
-  return isOpen;
-});
+  /* ================= UI ================= */
 
   return (
     <main className="max-w-5xl mx-auto px-4 py-8">
-      {/* Visual Debugger for you - Ise baad me hata sakte hain */}
-      <div className="bg-black text-green-400 p-4 mb-4 rounded-xl text-xs font-mono overflow-auto">
-         <p>// DEBUG INFO (Only for development)</p>
-         <p>URL Date: {inputDate || "NULL"}</p>
-         <p>Calc Date: {finalDisplayDate || "FAILED"}</p>
-         <p>Train: {trainNum || "NULL"}</p>
-         <p>Boarding: {boarding || "NULL"}</p>
-      </div>
 
-      <div className="bg-orange-50 border-2 border-orange-100 p-6 rounded-[2rem] mb-10 flex justify-between items-center shadow-sm">
+      <div className="bg-orange-50 border p-6 rounded-xl mb-8 flex justify-between">
         <div>
-          <p className="text-[10px] text-orange-600 font-black uppercase mb-1">Delivery Date</p>
-          <p className="text-2xl font-black text-gray-900">
-            {/* AGAR CALCULATION FAIL HUI TOH PURANI DATE DIKHAO */}
+          <p className="text-sm text-gray-500">Delivery Date</p>
+          <p className="text-xl font-bold">
             {finalDisplayDate || inputDate || "Date Pending"}
           </p>
         </div>
-       
-        <div className="text-right border-l-2 border-orange-200 pl-8">
-          <p className="text-[10px] text-gray-400 font-black uppercase mb-1">Arrival at {stationCode}</p>
-          <p className="text-2xl font-black text-gray-900">{arrivalTime}</p>
+
+        <div>
+          <p className="text-sm text-gray-500">Arrival</p>
+          <p className="text-xl font-bold">{arrivalTime}</p>
         </div>
       </div>
 
-      <h1 className="text-4xl font-black mb-8">
-        Food at <span className="text-orange-500">{stationName}</span>
+      <h1 className="text-2xl font-bold mb-6">
+        Food at {stationName}
       </h1>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {restaurants.length > 0 ? (
           restaurants.map((r) => (
-            <div key={r.RestroCode} className="bg-white border-2 p-8 rounded-[2.5rem] shadow-sm hover:shadow-xl transition-all border-b-8 hover:border-orange-500">
-              <h3 className="text-2xl font-black mb-4">{r.RestroName}</h3>
+            <div
+              key={r.RestroCode}
+              className="border p-5 rounded-xl shadow-sm"
+            >
+              <h3 className="text-lg font-semibold mb-3">
+                {r.RestroName}
+              </h3>
+
               <a
-  href={`/menu?restro=${r.RestroCode}&arrival=${arrivalTime}&stationName=${stationName}&train=${trainNum}&halt=--`}
-  className="block w-full text-center bg-gray-900 text-white font-black py-4 rounded-2xl"
->
-  "use client";
+                href={`/menu?restro=${r.RestroCode}&arrival=${arrivalTime}&stationName=${stationName}&train=${trainNum}&halt=--`}
+                className="block text-center bg-black text-white py-2 rounded"
+              >
+                Order Now
+              </a>
+            </div>
+          ))
+        ) : (
+          <div>No restaurants available for this time</div>
+        )}
+      </div>
 
-import ...
-
-// ✅ 👇 YAHAN ADD KARO (TOP PE)
-function timeToMinutes(t: string) {
-  if (!t) return 0;
-  const [h, m] = t.split(":").map(Number);
-  return h * 60 + m;
-}
-
-export default function Page() {
-
-  // tumhara sara code
-
-  return (
-    <main>
-      ...
     </main>
   );
-}
 }
