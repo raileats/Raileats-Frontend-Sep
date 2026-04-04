@@ -117,12 +117,18 @@ restaurants = (restros || []).filter((r: any) => {
   const startMin = timeToMinutes(start);
   const endMin = timeToMinutes(end);
 
-  // ✅ ONLY show if train arrives between open-close time
-  return arrivalMin >= startMin && arrivalMin <= endMin;
+  console.log("🏪 RESTRO:", r.RestroCode);
+  console.log("⏰ OPEN:", start, startMin);
+  console.log("⏰ CLOSE:", end, endMin);
+  console.log("🚆 ARRIVAL:", arrivalTime, arrivalMin);
+
+  const isOpen = arrivalMin >= startMin && arrivalMin <= endMin;
+
+  console.log("✅ SHOW?", isOpen);
+  console.log("-------------------");
+
+  return isOpen;
 });
-  } catch (err) { 
-    console.error("❌ CRITICAL PAGE ERROR:", err); 
-  }
 
   return (
     <main className="max-w-5xl mx-auto px-4 py-8">
