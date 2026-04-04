@@ -93,29 +93,24 @@ export default async function Page(props: {
       }
     }
 
-    /* ================= RESTAURANTS ================= */
+   /* ================= MENU ITEMS ================= */
 
-    const { data: restros } = await serviceClient
-      .from("RestroMaster")
-      .select("*")
-      .eq("StationCode", stationCode)
-      .or("RaileatsStatus.eq.Active,IsActive.eq.true");
+const { data: items } = await serviceClient
+  .from("RestroMenuItems")
+  .select("*")
+  .eq("restro_code", "1004"); // 👈 dynamic kar sakte baad me
 
-    const arrivalMin = timeToMinutes(arrivalTime || "00:00");
+const arrivalMin = timeToMinutes(arrivalTime || "00:00");
 
-    restaurants = (restros || []).filter((r: any) => {
-      const start = r.open_time?.slice(0, 5) || "00:00";
-      const end = r.closed_time?.slice(0, 5) || "23:59";
+const filteredItems = (items || []).filter((item: any) => {
+  const start = item.start_time?.slice(0, 5) || "00:00";
+  const end = item.end_time?.slice(0, 5) || "23:59";
 
-      const startMin = timeToMinutes(start);
-      const endMin = timeToMinutes(end);
+  const startMin = timeToMinutes(start);
+  const endMin = timeToMinutes(end);
 
-      return arrivalMin >= startMin && arrivalMin <= endMin;
-    });
-
-  } catch (err) {
-    console.error("PAGE ERROR:", err);
-  }
+  return arrivalMin >= startMin && arrivalMin <= endMin;
+});
 
   /* ================= UI ================= */
 
