@@ -169,19 +169,25 @@ restaurants = (restros || []).filter((r: any) => {
   href={`/menu?restro=${r.RestroCode}&arrival=${arrivalTime}&stationName=${stationName}&train=${trainNum}&halt=--`}
   className="block w-full text-center bg-gray-900 text-white font-black py-4 rounded-2xl"
 >
-  VIEW MENU
-</a>
-            </div>
-          ))
-        ) : (
-          <p>No vendors found.</p>
-        )}
-      </div>
-    </main>
-  );
-}
+  "use client";
+
+import ...
+
+// ✅ 👇 YAHAN ADD KARO (TOP PE)
 function timeToMinutes(t: string) {
   if (!t) return 0;
   const [h, m] = t.split(":").map(Number);
   return h * 60 + m;
+}
+
+export default function Page() {
+
+  // tumhara sara code
+
+  return (
+    <main>
+      ...
+    </main>
+  );
+}
 }
