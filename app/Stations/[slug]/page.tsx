@@ -108,7 +108,8 @@ const cStn = route.find(
       .or('RaileatsStatus.eq.Active,IsActive.eq.true');
 
    const arrivalMin = timeToMinutes(arrivalTime);
-
+console.log("🚆 ARRIVAL TIME:", arrivalTime);
+console.log("🚆 ARRIVAL MIN:", arrivalMin);
 restaurants = (restros || []).filter((r: any) => {
   const start = r.open_time?.slice(0, 5) || "00:00";
   const end = r.closed_time?.slice(0, 5) || "23:59";
