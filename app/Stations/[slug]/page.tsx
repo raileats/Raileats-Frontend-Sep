@@ -107,7 +107,18 @@ const cStn = route.find(
       .eq("StationCode", stationCode)
       .or('RaileatsStatus.eq.Active,IsActive.eq.true');
 
-    restaurants = restros || [];
+   const arrivalMin = timeToMinutes(arrivalTime);
+
+restaurants = (restros || []).filter((r: any) => {
+  const start = r.open_time?.slice(0, 5) || "00:00";
+  const end = r.closed_time?.slice(0, 5) || "23:59";
+
+  const startMin = timeToMinutes(start);
+  const endMin = timeToMinutes(end);
+
+  // ✅ ONLY show if train arrives between open-close time
+  return arrivalMin >= startMin && arrivalMin <= endMin;
+});
   } catch (err) { 
     console.error("❌ CRITICAL PAGE ERROR:", err); 
   }
@@ -161,4 +172,9 @@ const cStn = route.find(
       </div>
     </main>
   );
+}
+function timeToMinutes(t: string) {
+  if (!t) return 0;
+  const [h, m] = t.split(":").map(Number);
+  return h * 60 + m;
 }
