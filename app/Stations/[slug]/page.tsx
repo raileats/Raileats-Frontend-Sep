@@ -58,10 +58,12 @@ export default async function Page(props: {
 
   let arrivalTime = resolvedSearchParams.arrival || "--:--";
   let stationName = resolvedSearchParams.stationName || stationCode;
-  let restaurants: any[] = [];
   let finalDisplayDate = inputDate || "";
 
+  let filteredItems: any[] = [];
+
   try {
+
     /* ================= TRAIN ROUTE ================= */
 
     const { data: route } = await serviceClient
@@ -93,28 +95,32 @@ export default async function Page(props: {
       }
     }
 
-   /* ================= MENU ITEMS ================= */
+    /* ================= MENU ITEMS ================= */
 
-const { data: items } = await serviceClient
-  .from("RestroMenuItems")
-  .select("*")
-  .eq("restro_code", "1004"); // 👈 dynamic kar sakte baad me
+    const { data: items } = await serviceClient
+      .from("RestroMenuItems")
+      .select("*")
+      .eq("restro_code", "1004");
 
-const arrivalMin = timeToMinutes(arrivalTime || "00:00");
+    const arrivalMin = timeToMinutes(arrivalTime || "00:00");
 
-const filteredItems = (items || []).filter((item: any) => {
-  const start = item.start_time?.slice(0, 5) || "00:00";
-  const end = item.end_time?.slice(0, 5) || "23:59";
+    filteredItems = (items || []).filter((item: any) => {
+      const start = item.start_time?.slice(0, 5) || "00:00";
+      const end = item.end_time?.slice(0, 5) || "23:59";
 
-  const startMin = timeToMinutes(start);
-  const endMin = timeToMinutes(end);
+      const startMin = timeToMinutes(start);
+      const endMin = timeToMinutes(end);
 
-  // ✅ DEBUG LOGS (YAHI ADD KARNA HAI)
-  console.log("ARRIVAL:", arrivalTime);
-  console.log("ITEM:", item.item_name, "START:", start, "END:", end);
+      console.log("ARRIVAL:", arrivalTime);
+      console.log("ITEM:", item.item_name, start, end);
 
-  return arrivalMin >= startMin && arrivalMin <= endMin;
-});
+      return arrivalMin >= startMin && arrivalMin <= endMin;
+    });
+
+  } catch (err) {
+    console.error("PAGE ERROR:", err);
+  }
+
   /* ================= UI ================= */
 
   return (
@@ -138,27 +144,18 @@ const filteredItems = (items || []).filter((item: any) => {
         Food at {stationName}
       </h1>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {restaurants.length > 0 ? (
-          restaurants.map((r) => (
-            <div
-              key={r.RestroCode}
-              className="border p-5 rounded-xl shadow-sm"
-            >
-              <h3 className="text-lg font-semibold mb-3">
-                {r.RestroName}
-              </h3>
-
-              <a
-                href={`/menu?restro=${r.RestroCode}&arrival=${arrivalTime}&stationName=${stationName}&train=${trainNum}&halt=--`}
-                className="block text-center bg-black text-white py-2 rounded"
-              >
-                Order Now
-              </a>
+      <div className="grid gap-4">
+        {filteredItems.length > 0 ? (
+          filteredItems.map((item: any) => (
+            <div key={item.id} className="border p-4 rounded">
+              <div className="font-bold">{item.item_name}</div>
+              <div className="text-sm text-gray-500">
+                {item.start_time} - {item.end_time}
+              </div>
             </div>
           ))
         ) : (
-          <div>No restaurants available for this time</div>
+          <div>No items available for this time</div>
         )}
       </div>
 
