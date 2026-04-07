@@ -16,148 +16,106 @@ function timeToMinutes(t: string) {
   return h * 60 + m;
 }
 
-function getCalculatedDate(urlDate: string, bDay: number, cDay: number) {
-  if (!urlDate) return "";
-
-  try {
-    const base = new Date(urlDate + "T00:00:00");
-
-    if (isNaN(base.getTime())) return urlDate;
-
-    const diff = (Number(cDay) || 1) - (Number(bDay) || 1);
-
-    base.setDate(base.getDate() + diff);
-
-    return base.toLocaleDateString("en-IN", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    });
-
-  } catch {
-    return urlDate;
-  }
-}
-
 /* ================= PAGE ================= */
 
 export default async function Page(props: {
   params: Promise<any>;
   searchParams: Promise<any>;
 }) {
-
   const resolvedParams = await props.params;
   const resolvedSearchParams = await props.searchParams;
 
   const slug = resolvedParams.slug || "";
   const stationCode = slug.split("-")[0].toUpperCase();
 
-  const trainNum = resolvedSearchParams.train || "";
-  const boarding = (resolvedSearchParams.boarding || "").toUpperCase();
-  const inputDate = resolvedSearchParams.date || "";
+  const arrivalTimeRaw = resolvedSearchParams.arrival || "00:00";
+  const arrivalTime = arrivalTimeRaw.slice(0, 5);
 
-  let arrivalTime = resolvedSearchParams.arrival || "--:--";
-  let stationName = resolvedSearchParams.stationName || stationCode;
-  let finalDisplayDate = inputDate || "";
+  const stationName = resolvedSearchParams.stationName || stationCode;
 
-  let filteredItems: any[] = [];
+  /* ================= FETCH MENU ================= */
 
-  try {
+  const { data: items } = await serviceClient
+    .from("RestroMenuItems")
+    .select("*")
+    .eq("restro_code", "1004");
 
-    /* ================= TRAIN ROUTE ================= */
+  const arrivalMin = timeToMinutes(arrivalTime);
 
-    const { data: route } = await serviceClient
-      .from("TrainRoute")
-      .select("StationCode, StationName, Day, Arrives")
-      .or(`trainNumber.eq.${trainNum},trainNumber.eq.${parseInt(trainNum) || 0}`);
+  /* ================= FILTER ================= */
 
-    if (route && route.length > 0) {
-      const bStn = route.find(
-        (r) => String(r.StationCode).toUpperCase().trim() === boarding
-      );
+  const filteredItems = (items || []).filter((item: any) => {
+    const start = item.start_time?.slice(0, 5) || "00:00";
+    const end = item.end_time?.slice(0, 5) || "23:59";
 
-      const cStn = route.find(
-        (r) => String(r.StationCode).toUpperCase().trim() === stationCode
-      );
+    const startMin = timeToMinutes(start);
+    const endMin = timeToMinutes(end);
 
-      if (cStn) {
-        stationName = cStn.StationName;
+    return arrivalMin >= startMin && arrivalMin <= endMin;
+  });
 
-        if (cStn.Arrives) {
-          arrivalTime = formatTime(cStn.Arrives);
-        }
+  /* ================= GROUP ================= */
 
-        finalDisplayDate = getCalculatedDate(
-          inputDate,
-          bStn?.Day || 1,
-          cStn.Day || 1
-        );
-      }
-    }
+  const grouped: Record<string, any[]> = {};
 
-    /* ================= MENU ITEMS ================= */
-
-    const { data: items } = await serviceClient
-      .from("RestroMenuItems")
-      .select("*")
-      .eq("restro_code", "1004");
-
-    const arrivalMin = timeToMinutes(arrivalTime || "00:00");
-
-    filteredItems = (items || []).filter((item: any) => {
-      const start = item.start_time?.slice(0, 5) || "00:00";
-      const end = item.end_time?.slice(0, 5) || "23:59";
-
-      const startMin = timeToMinutes(start);
-      const endMin = timeToMinutes(end);
-
-      console.log("ARRIVAL:", arrivalTime);
-      console.log("ITEM:", item.item_name, start, end);
-
-      return arrivalMin >= startMin && arrivalMin <= endMin;
-    });
-
-  } catch (err) {
-    console.error("PAGE ERROR:", err);
-  }
+  filteredItems.forEach((item: any) => {
+    const type = item.item_category || "Other";
+    if (!grouped[type]) grouped[type] = [];
+    grouped[type].push(item);
+  });
 
   /* ================= UI ================= */
 
   return (
-    <main className="max-w-5xl mx-auto px-4 py-8">
+    <main className="max-w-5xl mx-auto px-4 py-6">
 
-      <div className="bg-orange-50 border p-6 rounded-xl mb-8 flex justify-between">
-        <div>
-          <p className="text-sm text-gray-500">Delivery Date</p>
-          <p className="text-xl font-bold">
-            {finalDisplayDate || inputDate || "Date Pending"}
-          </p>
-        </div>
-
-        <div>
-          <p className="text-sm text-gray-500">Arrival</p>
-          <p className="text-xl font-bold">{arrivalTime}</p>
-        </div>
-      </div>
-
-      <h1 className="text-2xl font-bold mb-6">
-        Food at {stationName}
+      <h1 className="text-2xl font-bold mb-4">
+        {stationName}
       </h1>
 
-      <div className="grid gap-4">
-        {filteredItems.length > 0 ? (
-          filteredItems.map((item: any) => (
-            <div key={item.id} className="border p-4 rounded">
-              <div className="font-bold">{item.item_name}</div>
-              <div className="text-sm text-gray-500">
-                {item.start_time} - {item.end_time}
+      <p className="mb-6 text-gray-500">
+        Arrival: {arrivalTime}
+      </p>
+
+      {Object.keys(grouped).length === 0 && (
+        <div className="text-red-500">
+          No items available for this time
+        </div>
+      )}
+
+      {Object.entries(grouped).map(([type, list]) => (
+        <div key={type} className="mb-6">
+
+          <h2 className="text-lg font-semibold mb-2">
+            {type}
+          </h2>
+
+          {list.map((item: any) => (
+            <div
+              key={item.item_code}
+              className="border p-3 mb-2 rounded flex justify-between"
+            >
+              <div>
+                <div className="font-medium">{item.item_name}</div>
+                <div className="text-sm text-gray-500">
+                  {item.item_description}
+                </div>
+                <div className="text-sm">
+                  {item.start_time?.slice(0,5)} - {item.end_time?.slice(0,5)}
+                </div>
+                <div className="font-semibold">
+                  ₹{item.selling_price}
+                </div>
               </div>
+
+              <button className="bg-green-600 text-white px-3 py-1 rounded h-fit">
+                Add
+              </button>
             </div>
-          ))
-        ) : (
-          <div>No items available for this time</div>
-        )}
-      </div>
+          ))}
+
+        </div>
+      ))}
 
     </main>
   );
