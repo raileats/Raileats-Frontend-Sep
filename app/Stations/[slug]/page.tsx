@@ -109,9 +109,12 @@ const filteredItems = (items || []).filter((item: any) => {
   const startMin = timeToMinutes(start);
   const endMin = timeToMinutes(end);
 
+  // ✅ DEBUG LOGS (YAHI ADD KARNA HAI)
+  console.log("ARRIVAL:", arrivalTime);
+  console.log("ITEM:", item.item_name, "START:", start, "END:", end);
+
   return arrivalMin >= startMin && arrivalMin <= endMin;
 });
-
   /* ================= UI ================= */
 
   return (
