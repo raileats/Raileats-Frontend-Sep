@@ -2,6 +2,7 @@
 
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
+
 type MenuItem = {
   item_code: string;
   item_name: string;
@@ -9,8 +10,6 @@ type MenuItem = {
   selling_price: number;
   menu_type: string;
   status: string;
-
-  // ✅ ADD THIS
   start_time?: string;
   end_time?: string;
 };
@@ -26,7 +25,6 @@ export default function MenuPage() {
   const restro = params.get("restro");
   const arrival = params.get("arrival");
 
-  // ✅ HEADER PARAMS
   const stationName = params.get("stationName");
   const halt = params.get("halt");
   const train = params.get("train");
@@ -44,39 +42,24 @@ export default function MenuPage() {
 
     async function load() {
       try {
-  // ✅ ADD THIS (VERY IMPORTANT)
-  setItems([]);
-  setError(null);
+        setItems([]);
+        setError(null);
 
-  const res = await fetch(
-  `/api/getMenu?restro=${restro}&arrival=${arrival}`,
-  { cache: "no-store" }
-);
+        const res = await fetch(
+          `/api/getMenu?restro=${restro}&arrival=${arrival}`,
+          { cache: "no-store" }
+        );
 
         const data: MenuResponse = await res.json();
 
         if (!data.ok) {
-  setError("Server error");
-  setItems([]);
-} else {
-  const filtered = (data.items || []).filter(item => {
-  if (!arrival) return true;
+          setError("Server error");
+          setItems([]);
+        } else {
+          // ✅ DIRECT USE (NO EXTRA FILTER)
+          setItems(data.items || []);
+        }
 
-  const [h, m] = arrival.split(":").map(Number);
-  const arrivalMin = h * 60 + m;
-
-  const [sh, sm] = (item.start_time || "00:00").split(":").map(Number);
-  const [eh, em] = (item.end_time || "23:59").split(":").map(Number);
-
-  const startMin = sh * 60 + sm;
-  const endMin = eh * 60 + em;
-
-  return arrivalMin >= startMin && arrivalMin <= endMin;
-});
-
-setItems(filtered);
-  setError(null);
-}
       } catch {
         setError("Server error");
       } finally {
@@ -99,7 +82,7 @@ setItems(filtered);
   return (
     <div>
 
-      {/* ✅ HEADER FIX (FORCE VISIBLE) */}
+      {/* HEADER */}
       <div style={{ padding: "12px", borderBottom: "1px solid #ddd" }}>
         <div style={{ fontWeight: "bold", fontSize: "18px" }}>
           {stationName || "Station"}
@@ -123,9 +106,16 @@ setItems(filtered);
               >
                 <div>
                   <div>{item.item_name}</div>
+
                   <div className="text-sm text-gray-500">
                     {item.item_description}
                   </div>
+
+                  {/* ✅ TIME DISPLAY */}
+                  <div className="text-xs text-gray-400">
+                    {item.start_time?.slice(0,5)} - {item.end_time?.slice(0,5)}
+                  </div>
+
                   <div>₹{item.selling_price}</div>
                 </div>
 
