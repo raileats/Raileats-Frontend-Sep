@@ -52,12 +52,17 @@ export default function MenuPage() {
 
         const data: MenuResponse = await res.json();
 
-        if (!data.ok) {
-          setError("Server error");
-          setItems([]);
-        } else {
-          setItems(data.items || []);
-        }
+if (!data.ok) {
+  setError("Server error");
+  setItems([]);
+} else {
+  // 🔥 TEMP TEST (Chicken Curry remove karke check)
+  setItems(
+    (data.items || []).filter(
+      item => item.item_name !== "Chicken Curry"
+    )
+  );
+}
 
       } catch {
         setError("Server error");
@@ -74,6 +79,7 @@ export default function MenuPage() {
 
   /* ================= FORCE FILTER (FINAL FIX) ================= */
 
+  export const dynamic = "force-dynamic";
   const arrivalTime = (arrival || "00:00").slice(0, 5);
 
 const [h, m] = arrivalTime.split(":").map(Number);
