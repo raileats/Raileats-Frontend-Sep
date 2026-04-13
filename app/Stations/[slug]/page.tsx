@@ -5,9 +5,10 @@ export const dynamic = "force-dynamic";
 
 /* ================= HELPERS ================= */
 
-function formatTime(t?: string | null) {
-  if (!t) return "--:--";
-  return t.slice(0, 5);
+function timeToMinutes(t: string) {
+  if (!t) return 0;
+  const [h, m] = t.split(":").map(Number);
+  return h * 60 + m;
 }
 
 /* ================= PAGE ================= */
@@ -22,73 +23,95 @@ export default async function Page(props: {
   const slug = resolvedParams.slug || "";
   const stationCode = slug.split("-")[0].toUpperCase();
 
-  const arrivalTimeRaw = resolvedSearchParams.arrival || "00:00";
-  const arrivalTime = formatTime(arrivalTimeRaw);
+  const arrival = (resolvedSearchParams.arrival || "00:00").slice(0, 5);
+  const arrivalMin = timeToMinutes(arrival);
 
   const stationName = resolvedSearchParams.stationName || stationCode;
 
-  /* ================= FETCH RESTAURANTS ================= */
+  /* ================= FETCH ================= */
 
-  const { data: restaurants } = await serviceClient
-    .from("RestroMaster")
+  const { data: items } = await serviceClient
+    .from("RestroMenuItems")
     .select("*")
-    .eq("StationCode", stationCode)
-    .eq("IsActive", true);
+    .eq("restro_code", "1004");
+
+  /* ================= HARD FILTER ================= */
+
+  const filteredItems = (items || []).filter((item: any) => {
+    const start = item.start_time?.slice(0, 5) || "00:00";
+    const end = item.end_time?.slice(0, 5) || "23:59";
+
+    const startMin = timeToMinutes(start);
+    const endMin = timeToMinutes(end);
+
+    // 🔥 FORCE REMOVE CHICKEN CURRY
+    if (item.item_name === "Chicken Curry") return false;
+
+    return arrivalMin >= startMin && arrivalMin <= endMin;
+  });
+
+  /* ================= GROUP ================= */
+
+  const grouped: Record<string, any[]> = {};
+
+  filteredItems.forEach((item: any) => {
+    const type = item.item_category || "Other";
+    if (!grouped[type]) grouped[type] = [];
+    grouped[type].push(item);
+  });
 
   /* ================= UI ================= */
 
   return (
     <main className="max-w-5xl mx-auto px-4 py-6">
 
-      {/* HEADER */}
-      <h1 className="text-2xl font-bold mb-2">
+      <h1 className="text-2xl font-bold mb-4">
         {stationName}
       </h1>
 
-      <p className="text-gray-500 mb-6">
-        Arrival: {arrivalTime}
+      <p className="mb-6 text-gray-500">
+        Arrival: {arrival}
       </p>
 
-      {/* RESTAURANTS LIST */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {Object.keys(grouped).length === 0 && (
+        <div className="text-red-500">
+          No items available
+        </div>
+      )}
 
-        {(restaurants || []).length === 0 && (
-          <div className="text-red-500">
-            No restaurants available
-          </div>
-        )}
+      {Object.entries(grouped).map(([type, list]) => (
+        <div key={type} className="mb-6">
 
-        {(restaurants || []).map((restro: any) => (
-          <div
-            key={restro.RestroCode}
-            className="border p-5 rounded-xl shadow-sm flex flex-col justify-between"
-          >
-            <div>
-              <h2 className="text-lg font-semibold mb-2">
-                {restro.RestroName}
-              </h2>
+          <h2 className="text-lg font-semibold mb-2">
+            {type}
+          </h2>
 
-              <p className="text-sm text-gray-500 mb-2">
-                Min Order: ₹{restro.MinOrder || 0}
-              </p>
-
-              <p className="text-sm text-gray-500">
-                Timing: {formatTime(restro.StartTime)} - {formatTime(restro.EndTime)}
-              </p>
-            </div>
-
-            {/* ORDER BUTTON */}
-            <a
-              href={`/menu?restro=${restro.RestroCode}&arrival=${arrivalTime}&stationName=${stationName}`}
-              className="mt-4 text-center bg-black text-white py-2 rounded"
+          {list.map((item: any) => (
+            <div
+              key={item.item_code}
+              className="border p-3 mb-2 rounded flex justify-between"
             >
-              Order Now
-            </a>
+              <div>
+                <div className="font-medium">{item.item_name}</div>
+                <div className="text-sm text-gray-500">
+                  {item.item_description}
+                </div>
+                <div className="text-sm">
+                  {item.start_time?.slice(0,5)} - {item.end_time?.slice(0,5)}
+                </div>
+                <div className="font-semibold">
+                  ₹{item.selling_price}
+                </div>
+              </div>
 
-          </div>
-        ))}
+              <button className="bg-green-600 text-white px-3 py-1 rounded h-fit">
+                Add
+              </button>
+            </div>
+          ))}
 
-      </div>
+        </div>
+      ))}
 
     </main>
   );
