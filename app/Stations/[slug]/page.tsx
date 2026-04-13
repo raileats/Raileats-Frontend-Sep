@@ -35,13 +35,15 @@ export default async function Page(props: {
 
   /* ================= FETCH MENU ================= */
 
-  const { data: items } = await serviceClient
-    .from("RestroMenuItems")
-    .select("*")
-    .eq("restro_code", "1004");
+  const arrival = arrivalTime.slice(0, 5); // "11:50"
 
-  const arrivalMin = timeToMinutes(arrivalTime);
-
+const { data: items } = await serviceClient
+  .from("RestroMenuItems")
+  .select("*")
+  .eq("restro_code", "1004")
+  .lte("start_time", arrival + ":00")
+  .gte("end_time", arrival + ":00")
+  .order("start_time", { ascending: true });
   /* ================= FILTER ================= */
 
   const filteredItems = (items || []).filter((item: any) => {
