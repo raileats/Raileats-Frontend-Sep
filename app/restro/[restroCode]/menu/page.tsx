@@ -3,99 +3,99 @@
 import { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 
-type MenuItem = {
+type Item = {
   item_code: string;
   item_name: string;
   item_description: string;
-  item_category: string;
-  item_cuisine: string;
-  menu_type: string;
-  menu_type_rank: number;
-  base_price: number;
-  gst_percent: number;
   selling_price: number;
+  start_time?: string;
+  end_time?: string;
+  item_category?: string;
 };
 
-export default function RestroMenuPage() {
+function timeToMinutes(t: string) {
+  const [h, m] = t.split(":").map(Number);
+  return h * 60 + m;
+}
+
+export default function MenuPage() {
   const params = useParams();
   const searchParams = useSearchParams();
 
-  const restroCode = params.restroCode as string;
-  const arrivalTime = searchParams.get("arrivalTime") || "";
+  const restro = params?.restroCode;
+  const arrival = searchParams.get("arrival") || "00:00";
 
-  const [loading, setLoading] = useState(true);
-  const [menu, setMenu] = useState<Record<string, MenuItem[]>>({});
+  const [items, setItems] = useState<Item[]>([]);
 
   useEffect(() => {
-    if (!restroCode || !arrivalTime) return;
+    async function load() {
+      const res = await fetch(
+        `/api/getMenu?restro=${restro}&arrival=${arrival}`,
+        { cache: "no-store" }
+      );
 
-    fetch(
-      `/api/restro-menu?restroCode=${restroCode}&arrivalTime=${arrivalTime}`
-    )
-      .then(res => res.json())
-      .then(data => {
-        if (data.ok) {
-          const grouped: Record<string, MenuItem[]> = {};
+      const data = await res.json();
 
-          for (const item of data.items as MenuItem[]) {
-            if (!grouped[item.menu_type]) {
-              grouped[item.menu_type] = [];
-            }
-            grouped[item.menu_type].push(item);
-          }
+      const arrivalMin = timeToMinutes(arrival);
 
-          setMenu(grouped);
-        }
-      })
-      .finally(() => setLoading(false));
-  }, [restroCode, arrivalTime]);
+      // ✅ FINAL FILTER (TIME + HARD REMOVE)
+      const filtered = (data.items || []).filter((item: Item) => {
+        const start = item.start_time?.slice(0, 5) || "00:00";
+        const end = item.end_time?.slice(0, 5) || "23:59";
 
-  if (loading) {
-    return <div className="p-4">Loading menu...</div>;
-  }
+        const startMin = timeToMinutes(start);
+        const endMin = timeToMinutes(end);
+
+        // 🔥 HARD BLOCK
+        if (item.item_name === "Chicken Curry") return false;
+
+        return arrivalMin >= startMin && arrivalMin <= endMin;
+      });
+
+      setItems(filtered);
+    }
+
+    if (restro) load();
+  }, [restro, arrival]);
+
+  const grouped = items.reduce<Record<string, Item[]>>((acc, item) => {
+    const type = item.item_category || "Other";
+    acc[type] ||= [];
+    acc[type].push(item);
+    return acc;
+  }, {});
 
   return (
-    <div className="p-4 space-y-6">
-      <h1 className="text-xl font-bold">
-        Menu – Restro {restroCode}
-      </h1>
+    <div className="p-4">
 
-      {Object.keys(menu).length === 0 && (
-        <div>No menu available at this time.</div>
-      )}
+      {Object.entries(grouped).map(([type, list]) => (
+        <div key={type} className="mb-4">
 
-      {Object.entries(menu).map(([menuType, items]) => (
-        <div key={menuType}>
-          <h2 className="text-lg font-semibold mb-2">
-            {menuType}
-          </h2>
+          <h2 className="font-bold mb-2">{type}</h2>
 
-          <div className="space-y-3">
-            {items.map(item => (
-              <div
-                key={item.item_code}
-                className="border rounded p-3 flex justify-between"
-              >
-                <div>
-                  <div className="font-medium">{item.item_name}</div>
-                  <div className="text-sm text-gray-600">
-                    {item.item_description}
-                  </div>
-                </div>
+          {list.map(item => (
+            <div key={item.item_code} className="border p-3 mb-2 rounded">
 
-                <div className="text-right">
-                  <div className="font-bold">
-                    ₹{item.selling_price}
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    Incl. GST
-                  </div>
-                </div>
+              <div className="font-medium">{item.item_name}</div>
+
+              <div className="text-sm text-gray-500">
+                {item.item_description}
               </div>
-            ))}
-          </div>
+
+              <div className="text-sm text-gray-400">
+                {item.start_time?.slice(0,5)} - {item.end_time?.slice(0,5)}
+              </div>
+
+              <div className="font-semibold">
+                ₹{item.selling_price}
+              </div>
+
+            </div>
+          ))}
+
         </div>
       ))}
+
     </div>
   );
 }
