@@ -74,23 +74,27 @@ export default function MenuPage() {
 
   /* ================= FORCE FILTER (FINAL FIX) ================= */
 
-  const arrivalTime = arrival || "00:00";
-  const [h, m] = arrivalTime.split(":").map(Number);
-  const arrivalMin = h * 60 + m;
+  const arrivalTime = (arrival || "00:00").slice(0, 5);
 
-  const finalItems = items.filter((item) => {
-    const start = (item.start_time || "00:00").slice(0, 5);
-    const end = (item.end_time || "23:59").slice(0, 5);
+const [h, m] = arrivalTime.split(":").map(Number);
+const arrivalMin = h * 60 + m;
 
-    const [sh, sm] = start.split(":").map(Number);
-    const [eh, em] = end.split(":").map(Number);
+const finalItems = items.filter((item) => {
+  const start = (item.start_time || "00:00").slice(0, 5);
+  const end = (item.end_time || "23:59").slice(0, 5);
 
-    const startMin = sh * 60 + sm;
-    const endMin = eh * 60 + em;
+  const [sh, sm] = start.split(":").map(Number);
+  const [eh, em] = end.split(":").map(Number);
 
-    return arrivalMin >= startMin && arrivalMin <= endMin;
-  });
+  const startMin = sh * 60 + sm;
+  const endMin = eh * 60 + em;
 
+  // 🔥 DEBUG (temporary)
+  console.log("ARRIVAL:", arrivalMin);
+  console.log("ITEM:", item.item_name, startMin, endMin);
+
+  return arrivalMin >= startMin && arrivalMin <= endMin;
+});
   /* ================= GROUP ================= */
 
   const grouped = finalItems.reduce<Record<string, MenuItem[]>>((acc, item) => {
