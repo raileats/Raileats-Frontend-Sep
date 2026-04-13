@@ -1,5 +1,6 @@
 "use client";
 
+export const dynamic = "force-dynamic";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -79,7 +80,6 @@ if (!data.ok) {
 
   /* ================= FORCE FILTER (FINAL FIX) ================= */
 
-  export const dynamic = "force-dynamic";
   const arrivalTime = (arrival || "00:00").slice(0, 5);
 
 const [h, m] = arrivalTime.split(":").map(Number);
