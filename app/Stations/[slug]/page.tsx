@@ -23,102 +23,72 @@ export default async function Page(props: {
   const stationCode = slug.split("-")[0].toUpperCase();
 
   const arrivalTimeRaw = resolvedSearchParams.arrival || "00:00";
-  const arrivalTime = arrivalTimeRaw.slice(0, 5);
+  const arrivalTime = formatTime(arrivalTimeRaw);
 
   const stationName = resolvedSearchParams.stationName || stationCode;
 
-  /* ================= FETCH MENU (DB FILTER) ================= */
+  /* ================= FETCH RESTAURANTS ================= */
 
-  const arrival = arrivalTime; // "11:50"
-
- const { data: rawItems } = await serviceClient
-  .from("RestroMenuItems")
-  .select("*")
-  .eq("restro_code", "1004");
-
-const arrivalMin =
-  parseInt(arrivalTime.split(":")[0]) * 60 +
-  parseInt(arrivalTime.split(":")[1]);
-
-const items = (rawItems || []).filter((item: any) => {
-  const start = item.start_time?.slice(0, 5) || "00:00";
-  const end = item.end_time?.slice(0, 5) || "23:59";
-
-  const startMin =
-    parseInt(start.split(":")[0]) * 60 +
-    parseInt(start.split(":")[1]);
-
-  const endMin =
-    parseInt(end.split(":")[0]) * 60 +
-    parseInt(end.split(":")[1]);
-
-  return arrivalMin >= startMin && arrivalMin <= endMin;
-});
-  /* ================= GROUP ================= */
-
-  const grouped: Record<string, any[]> = {};
-
-  (items || []).forEach((item: any) => {
-    const type = item.item_category || "Other";
-    if (!grouped[type]) grouped[type] = [];
-    grouped[type].push(item);
-  });
+  const { data: restaurants } = await serviceClient
+    .from("RestroMaster")
+    .select("*")
+    .eq("StationCode", stationCode)
+    .eq("IsActive", true);
 
   /* ================= UI ================= */
 
   return (
     <main className="max-w-5xl mx-auto px-4 py-6">
 
-      <h1 className="text-2xl font-bold mb-4">
+      {/* HEADER */}
+      <h1 className="text-2xl font-bold mb-2">
         {stationName}
       </h1>
 
-      <p className="mb-6 text-gray-500">
+      <p className="text-gray-500 mb-6">
         Arrival: {arrivalTime}
       </p>
 
-      {Object.keys(grouped).length === 0 && (
-        <div className="text-red-500">
-          No items available for this time
-        </div>
-      )}
+      {/* RESTAURANTS LIST */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
-      {Object.entries(grouped).map(([type, list]) => (
-        <div key={type} className="mb-6">
+        {(restaurants || []).length === 0 && (
+          <div className="text-red-500">
+            No restaurants available
+          </div>
+        )}
 
-          <h2 className="text-lg font-semibold mb-2">
-            {type}
-          </h2>
+        {(restaurants || []).map((restro: any) => (
+          <div
+            key={restro.RestroCode}
+            className="border p-5 rounded-xl shadow-sm flex flex-col justify-between"
+          >
+            <div>
+              <h2 className="text-lg font-semibold mb-2">
+                {restro.RestroName}
+              </h2>
 
-          {list.map((item: any) => (
-            <div
-              key={item.item_code}
-              className="border p-3 mb-2 rounded flex justify-between"
-            >
-              <div>
-                <div className="font-medium">{item.item_name}</div>
+              <p className="text-sm text-gray-500 mb-2">
+                Min Order: ₹{restro.MinOrder || 0}
+              </p>
 
-                <div className="text-sm text-gray-500">
-                  {item.item_description}
-                </div>
-
-                <div className="text-sm">
-                  {item.start_time?.slice(0,5)} - {item.end_time?.slice(0,5)}
-                </div>
-
-                <div className="font-semibold">
-                  ₹{item.selling_price}
-                </div>
-              </div>
-
-              <button className="bg-green-600 text-white px-3 py-1 rounded h-fit">
-                Add
-              </button>
+              <p className="text-sm text-gray-500">
+                Timing: {formatTime(restro.StartTime)} - {formatTime(restro.EndTime)}
+              </p>
             </div>
-          ))}
 
-        </div>
-      ))}
+            {/* ORDER BUTTON */}
+            <a
+              href={`/menu?restro=${restro.RestroCode}&arrival=${arrivalTime}&stationName=${stationName}`}
+              className="mt-4 text-center bg-black text-white py-2 rounded"
+            >
+              Order Now
+            </a>
+
+          </div>
+        ))}
+
+      </div>
 
     </main>
   );
