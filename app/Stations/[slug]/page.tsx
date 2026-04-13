@@ -33,9 +33,9 @@ export default async function Page(props: {
 
   const stationName = resolvedSearchParams.stationName || stationCode;
 
-  /* ================= FETCH MENU ================= */
+ /* ================= FETCH MENU (FILTERED FROM DB) ================= */
 
-  const arrival = arrivalTime.slice(0, 5); // "11:50"
+const arrival = arrivalTime.slice(0, 5); // "11:50"
 
 const { data: items } = await serviceClient
   .from("RestroMenuItems")
