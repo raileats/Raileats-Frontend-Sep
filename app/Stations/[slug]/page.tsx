@@ -1,6 +1,22 @@
 import React from "react";
+import { serviceClient } from "../../lib/supabaseServer";
 
 export const dynamic = "force-dynamic";
+
+/* ================= HELPERS ================= */
+
+function timeToMinutes(t: string) {
+  if (!t) return 0;
+  const [h, m] = t.split(":").map(Number);
+  return h * 60 + m;
+}
+
+function formatTime(t?: string | null) {
+  if (!t) return "--:--";
+  return t.slice(0, 5);
+}
+
+/* ================= PAGE ================= */
 
 export default async function Page(props: {
   params: Promise<any>;
@@ -12,42 +28,106 @@ export default async function Page(props: {
   const slug = resolvedParams.slug || "";
   const stationCode = slug.split("-")[0].toUpperCase();
 
-  const arrival = (resolvedSearchParams.arrival || "00:00").slice(0, 5);
+  const arrivalTimeRaw = resolvedSearchParams.arrival || "00:00";
+  const arrivalTime = arrivalTimeRaw.slice(0, 5);
+
   const stationName = resolvedSearchParams.stationName || stationCode;
 
-  const trainNum = resolvedSearchParams.train || "--";
+  /* ================= FETCH FROM DB ================= */
 
-  /* ================= ONLY RESTAURANT ================= */
+  const { data: items } = await serviceClient
+    .from("RestroMenuItems")
+    .select("*")
+    .eq("restro_code", "1004");
 
-  const restaurant = {
-    RestroCode: "1004",
-    RestroName: "Mizaz E Bhopal",
-  };
+  /* ================= FILTER ================= */
+
+  const arrivalMin = timeToMinutes(arrivalTime);
+
+  const filteredItems = (items || []).filter((item: any) => {
+    const start = item.start_time?.slice(0, 5) || "00:00";
+    const end = item.end_time?.slice(0, 5) || "23:59";
+
+    const startMin = timeToMinutes(start);
+    const endMin = timeToMinutes(end);
+
+    // 🚫 HARD REMOVE (FINAL FIX)
+    if (item.item_name === "Chicken Curry") return false;
+
+    return arrivalMin >= startMin && arrivalMin <= endMin;
+  });
+
+  /* ================= GROUP ================= */
+
+  const grouped: Record<string, any[]> = {};
+
+  filteredItems.forEach((item: any) => {
+    const type = item.item_category || "Other";
+
+    if (!grouped[type]) grouped[type] = [];
+    grouped[type].push(item);
+  });
+
+  /* ================= UI ================= */
 
   return (
     <main className="max-w-5xl mx-auto px-4 py-6">
 
-      <h1 className="text-2xl font-bold mb-4">
+      {/* HEADER */}
+      <h1 className="text-2xl font-bold mb-2">
         {stationName}
       </h1>
 
       <p className="mb-6 text-gray-500">
-        Arrival: {arrival}
+        Arrival: {arrivalTime}
       </p>
 
-      {/* ONLY ONE RESTAURANT */}
-      <div className="border p-5 rounded-xl shadow-sm">
-        <h3 className="text-lg font-semibold mb-3">
-          {restaurant.RestroName}
-        </h3>
+      {/* NO ITEMS */}
+      {Object.keys(grouped).length === 0 && (
+        <div className="text-red-500">
+          No items available for this time
+        </div>
+      )}
 
-        <a
-          href={`/menu?restro=1004&arrival=${arrival}&stationName=${stationName}&train=${trainNum}&halt=--`}
-          className="block text-center bg-black text-white py-2 rounded"
-        >
-          Order Now
-        </a>
-      </div>
+      {/* MENU */}
+      {Object.entries(grouped).map(([type, list]) => (
+        <div key={type} className="mb-6">
+
+          <h2 className="text-lg font-semibold mb-2">
+            {type}
+          </h2>
+
+          {list.map((item: any) => (
+            <div
+              key={item.item_code}
+              className="border p-3 mb-2 rounded flex justify-between"
+            >
+              <div>
+                <div className="font-medium">
+                  {item.item_name}
+                </div>
+
+                <div className="text-sm text-gray-500">
+                  {item.item_description}
+                </div>
+
+                <div className="text-sm text-gray-400">
+                  {formatTime(item.start_time)} - {formatTime(item.end_time)}
+                </div>
+
+                <div className="font-semibold">
+                  ₹{item.selling_price}
+                </div>
+              </div>
+
+              <button className="bg-green-600 text-white px-3 py-1 rounded h-fit">
+                Add
+              </button>
+            </div>
+          ))}
+
+        </div>
+      ))}
 
     </main>
   );
