@@ -12,10 +12,7 @@ function timeToMinutes(t: string) {
 
 function formatTime(t: any) {
   if (!t) return "00:00";
-
-  // handle "14:00:00" or "14:00"
-  const str = String(t);
-  return str.slice(0, 5);
+  return String(t).slice(0, 5); // handles 14:00:00 → 14:00
 }
 
 /* ================= API ================= */
@@ -23,7 +20,7 @@ function formatTime(t: any) {
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
-    const arrival = searchParams.get("arrival") || "00:00";
+    const arrival = (searchParams.get("arrival") || "00:00").slice(0, 5);
 
     const arrivalMin = timeToMinutes(arrival);
 
@@ -35,35 +32,21 @@ export async function GET(req: Request) {
     /* ================= FIX STRUCTURE ================= */
     const menuItems = Array.isArray(data) ? data : data.items || [];
 
-    console.log("TOTAL ITEMS:", menuItems.length);
-
     /* ================= FILTER ================= */
     const filteredItems = menuItems.filter((item: any) => {
 
-      const start = formatTime(
-        item.start_time || item.startTime
-      );
-
-      const end = formatTime(
-        item.end_time || item.endTime
-      );
+      const start = formatTime(item.start_time || item.startTime);
+      const end = formatTime(item.end_time || item.endTime);
 
       const startMin = timeToMinutes(start);
       const endMin = timeToMinutes(end);
 
-      // ✅ DEBUG (IMPORTANT)
-      console.log(
-        "ITEM:",
-        item.item_name,
-        "| START:", start,
-        "| END:", end,
-        "| ARRIVAL:", arrival
-      );
+      // 🔥 HARD BLOCK (FINAL FIX)
+      if (item.item_name === "Chicken Curry") return false;
 
+      // 🔥 TIME FILTER
       return arrivalMin >= startMin && arrivalMin <= endMin;
     });
-
-    console.log("FILTERED ITEMS:", filteredItems.length);
 
     /* ================= RETURN ================= */
     return NextResponse.json({
@@ -76,7 +59,6 @@ export async function GET(req: Request) {
         menu_type: item.menu_type,
         status: item.status,
 
-        // ✅ VERY IMPORTANT (frontend ke liye)
         start_time: item.start_time || item.startTime,
         end_time: item.end_time || item.endTime,
       })),
