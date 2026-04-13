@@ -10,12 +10,6 @@ function formatTime(t?: string | null) {
   return t.slice(0, 5);
 }
 
-function timeToMinutes(t: string) {
-  if (!t) return 0;
-  const [h, m] = t.split(":").map(Number);
-  return h * 60 + m;
-}
-
 /* ================= PAGE ================= */
 
 export default async function Page(props: {
@@ -33,34 +27,23 @@ export default async function Page(props: {
 
   const stationName = resolvedSearchParams.stationName || stationCode;
 
- /* ================= FETCH MENU (FILTERED FROM DB) ================= */
+  /* ================= FETCH MENU (DB FILTER) ================= */
 
-const arrival = arrivalTime.slice(0, 5); // "11:50"
+  const arrival = arrivalTime; // "11:50"
 
-const { data: items } = await serviceClient
-  .from("RestroMenuItems")
-  .select("*")
-  .eq("restro_code", "1004")
-  .lte("start_time", arrival + ":00")
-  .gte("end_time", arrival + ":00")
-  .order("start_time", { ascending: true });
-  /* ================= FILTER ================= */
-
-  const filteredItems = (items || []).filter((item: any) => {
-    const start = item.start_time?.slice(0, 5) || "00:00";
-    const end = item.end_time?.slice(0, 5) || "23:59";
-
-    const startMin = timeToMinutes(start);
-    const endMin = timeToMinutes(end);
-
-    return arrivalMin >= startMin && arrivalMin <= endMin;
-  });
+  const { data: items } = await serviceClient
+    .from("RestroMenuItems")
+    .select("*")
+    .eq("restro_code", "1004")
+    .lte("start_time", arrival + ":00")
+    .gte("end_time", arrival + ":00")
+    .order("start_time", { ascending: true });
 
   /* ================= GROUP ================= */
 
   const grouped: Record<string, any[]> = {};
 
-  filteredItems.forEach((item: any) => {
+  (items || []).forEach((item: any) => {
     const type = item.item_category || "Other";
     if (!grouped[type]) grouped[type] = [];
     grouped[type].push(item);
@@ -99,12 +82,15 @@ const { data: items } = await serviceClient
             >
               <div>
                 <div className="font-medium">{item.item_name}</div>
+
                 <div className="text-sm text-gray-500">
                   {item.item_description}
                 </div>
+
                 <div className="text-sm">
                   {item.start_time?.slice(0,5)} - {item.end_time?.slice(0,5)}
                 </div>
+
                 <div className="font-semibold">
                   ₹{item.selling_price}
                 </div>
