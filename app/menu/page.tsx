@@ -56,7 +56,6 @@ export default function MenuPage() {
           setError("Server error");
           setItems([]);
         } else {
-          // ✅ DIRECT USE (NO EXTRA FILTER)
           setItems(data.items || []);
         }
 
@@ -73,7 +72,28 @@ export default function MenuPage() {
   if (loading) return <div className="p-4">Loading...</div>;
   if (error) return <div className="p-4 text-red-500">{error}</div>;
 
-  const grouped = items.reduce<Record<string, MenuItem[]>>((acc, item) => {
+  /* ================= FORCE FILTER (FINAL FIX) ================= */
+
+  const arrivalTime = arrival || "00:00";
+  const [h, m] = arrivalTime.split(":").map(Number);
+  const arrivalMin = h * 60 + m;
+
+  const finalItems = items.filter((item) => {
+    const start = (item.start_time || "00:00").slice(0, 5);
+    const end = (item.end_time || "23:59").slice(0, 5);
+
+    const [sh, sm] = start.split(":").map(Number);
+    const [eh, em] = end.split(":").map(Number);
+
+    const startMin = sh * 60 + sm;
+    const endMin = eh * 60 + em;
+
+    return arrivalMin >= startMin && arrivalMin <= endMin;
+  });
+
+  /* ================= GROUP ================= */
+
+  const grouped = finalItems.reduce<Record<string, MenuItem[]>>((acc, item) => {
     acc[item.menu_type] ||= [];
     acc[item.menu_type].push(item);
     return acc;
@@ -111,7 +131,7 @@ export default function MenuPage() {
                     {item.item_description}
                   </div>
 
-                  {/* ✅ TIME DISPLAY */}
+                  {/* TIME */}
                   <div className="text-xs text-gray-400">
                     {item.start_time?.slice(0,5)} - {item.end_time?.slice(0,5)}
                   </div>
