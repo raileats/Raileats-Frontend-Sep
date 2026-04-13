@@ -31,14 +31,29 @@ export default async function Page(props: {
 
   const arrival = arrivalTime; // "11:50"
 
-  const { data: items } = await serviceClient
-    .from("RestroMenuItems")
-    .select("*")
-    .eq("restro_code", "1004")
-    .lte("start_time", arrival + ":00")
-    .gte("end_time", arrival + ":00")
-    .order("start_time", { ascending: true });
+ const { data: rawItems } = await serviceClient
+  .from("RestroMenuItems")
+  .select("*")
+  .eq("restro_code", "1004");
 
+const arrivalMin =
+  parseInt(arrivalTime.split(":")[0]) * 60 +
+  parseInt(arrivalTime.split(":")[1]);
+
+const items = (rawItems || []).filter((item: any) => {
+  const start = item.start_time?.slice(0, 5) || "00:00";
+  const end = item.end_time?.slice(0, 5) || "23:59";
+
+  const startMin =
+    parseInt(start.split(":")[0]) * 60 +
+    parseInt(start.split(":")[1]);
+
+  const endMin =
+    parseInt(end.split(":")[0]) * 60 +
+    parseInt(end.split(":")[1]);
+
+  return arrivalMin >= startMin && arrivalMin <= endMin;
+});
   /* ================= GROUP ================= */
 
   const grouped: Record<string, any[]> = {};
