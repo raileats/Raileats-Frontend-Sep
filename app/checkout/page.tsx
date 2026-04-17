@@ -15,7 +15,7 @@ export default function CheckoutPage() {
   const [payment, setPayment] = useState("COD");
   const [loading, setLoading] = useState(false);
 
-  // ❌ अगर cart empty है
+  // ❌ Cart empty
   if (!lines || lines.length === 0) {
     return (
       <div className="p-6 text-center text-gray-500">
@@ -23,6 +23,8 @@ export default function CheckoutPage() {
       </div>
     );
   }
+
+  /* ================= PLACE ORDER ================= */
 
   async function placeOrder() {
     if (!name || !mobile || !seat || !coach) {
@@ -33,23 +35,54 @@ export default function CheckoutPage() {
     try {
       setLoading(true);
 
-      // 👉 dummy API call (replace later)
-      await new Promise((r) => setTimeout(r, 1000));
+      const orderId = "RE" + Date.now();
+
+      const payload = {
+        orderId,
+        name,
+        mobile,
+        seat,
+        coach,
+        paymentMode: payment,
+        items: lines,
+        totalAmount: total,
+      };
+
+      // ✅ ADMIN API CALL
+      const res = await fetch(
+        "https://admin.raileats.in/api/orders/create",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        }
+      );
+
+      if (!res.ok) {
+        alert("Order failed (Admin API)");
+        return;
+      }
 
       clearCart();
 
+      // ✅ SUCCESS REDIRECT
       if (payment === "COD") {
-        router.push("/order-success");
+        router.push(`/order-success?orderId=${orderId}`);
       } else {
-        router.push("/payment");
+        router.push(`/payment?orderId=${orderId}`);
       }
 
     } catch (err) {
+      console.error(err);
       alert("Error placing order");
     } finally {
       setLoading(false);
     }
   }
+
+  /* ================= UI ================= */
 
   return (
     <div className="max-w-5xl mx-auto p-4 grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -130,7 +163,11 @@ export default function CheckoutPage() {
           disabled={loading}
           className="w-full bg-green-600 text-white py-2 mt-3 rounded"
         >
-          {loading ? "Processing..." : "Pay Now"}
+          {loading
+            ? "Processing..."
+            : payment === "COD"
+            ? "Place Order"
+            : "Pay Now"}
         </button>
 
       </div>
