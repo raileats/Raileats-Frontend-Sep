@@ -64,6 +64,7 @@ export default function RestroMenuClient({ header, items }: Props) {
 
   const grouped = useMemo(() => {
     const map = new Map<string, MenuItem[]>();
+
     visible.forEach((it) => {
       const key = it.menu_type || "Others";
       if (!map.has(key)) map.set(key, []);
@@ -84,19 +85,9 @@ export default function RestroMenuClient({ header, items }: Props) {
   return (
     <div className="max-w-5xl mx-auto p-4">
 
-      {/* 🔵 FLOATING CART (MOBILE) */}
+      {/* 🔵 FLOATING CART */}
       {count > 0 && (
-  <div className="fixed top-16 right-4 z-50 lg:hidden">
-    <button
-      onClick={() => setShowMobileCart(true)}
-      className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-full shadow-lg"
-    >
-      <span className="font-bold">{count}</span>
-      <span>₹{total}</span>
-      <span className="underline text-sm">View cart</span>
-    </button>
-  </div>
-)}
+        <div className="fixed top-16 right-4 z-50 lg:hidden">
           <button
             onClick={() => setShowMobileCart(true)}
             className="bg-blue-600 text-white px-4 py-2 rounded-full shadow-lg text-sm font-bold"
@@ -192,6 +183,7 @@ export default function RestroMenuClient({ header, items }: Props) {
                         </div>
                       )}
                     </div>
+
                   </div>
                 );
               })}
@@ -232,7 +224,7 @@ export default function RestroMenuClient({ header, items }: Props) {
         </div>
       </div>
 
-      {/* MOBILE CART OVERLAY */}
+      {/* MOBILE CART POPUP */}
       {showMobileCart && (
         <div className="fixed inset-0 bg-black/40 z-[1000] flex justify-center items-center">
           <div className="bg-white w-[90%] max-w-md rounded-xl p-4">
