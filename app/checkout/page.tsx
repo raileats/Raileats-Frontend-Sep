@@ -19,16 +19,9 @@ export default function CheckoutPage() {
     return <div className="p-6 text-center">Cart is empty</div>;
   }
 
-  // ✅ SUBTOTAL
-  const subTotal = lines.reduce((sum, l) => sum + l.price * l.qty, 0);
-
-  // ✅ GST 5%
+  const subTotal = lines.reduce((s, l) => s + l.price * l.qty, 0);
   const gst = Math.round(subTotal * 0.05);
-
-  // ✅ DELIVERY CHARGE
   const delivery = subTotal > 0 ? 20 : 0;
-
-  // ✅ FINAL TOTAL
   const finalTotal = subTotal + gst + delivery;
 
   async function placeOrder() {
@@ -43,10 +36,16 @@ export default function CheckoutPage() {
       const firstItem = lines[0];
 
       const payload = {
-        restroCode: firstItem?.restro_code || "1004",
-        restroName: firstItem?.restro_name || "Restaurant",
-        stationCode: firstItem?.station_code || "BPL",
-        stationName: firstItem?.station_name || "Bhopal",
+        // 🔥 IMPORTANT FULL DATA
+        pnr: "1234567890",
+        trainNumber: "11016",
+        trainName: "Demo Express",
+
+        restroCode: String(firstItem?.id || "1004"),
+        restroName: firstItem?.name || "Restaurant",
+
+        stationCode: "BPL",
+        stationName: "Bhopal",
 
         arrivalDate: new Date().toISOString().slice(0, 10),
         arrivalTime: new Date().toTimeString().slice(0, 5),
@@ -56,15 +55,15 @@ export default function CheckoutPage() {
         customerName: name,
         customerMobile: mobile,
 
-        // ✅ IMPORTANT FIX
+        // ✅ CRITICAL FIX
         items: lines.map((l) => ({
           item_name: l.name,
-          selling_price: l.price, // 🔥 FIX
-          qty: l.qty,
+          selling_price: Number(l.price),
+          qty: Number(l.qty),
         })),
-
-        totalAmount: finalTotal, // optional
       };
+
+      console.log("PAYLOAD =>", payload);
 
       const res = await fetch("/api/order/create", {
         method: "POST",
@@ -76,8 +75,9 @@ export default function CheckoutPage() {
 
       const data = await res.json();
 
+      console.log("API RESPONSE =>", data);
+
       if (!res.ok || !data?.orderId) {
-        console.error(data);
         alert("Order failed (Admin API)");
         return;
       }
