@@ -5,27 +5,13 @@ import { useParams, useSearchParams } from "next/navigation";
 
 const SUPABASE_URL = "https://ygisiztmuzwxpnvhwrmr.supabase.co";
 
-/* ================= HELPERS ================= */
-
-function timeToMinutes(t: string) {
-  if (!t || !t.includes(":")) return 0;
-  const [h, m] = t.split(":").map(Number);
-  return h * 60 + m;
-}
-
-function formatTime(t: string) {
-  if (!t) return "00:00";
-  return t.slice(0, 5);
-}
-
-/* ================= PAGE ================= */
-
 export default function TrainPage() {
   const params = useParams();
   const searchParams = useSearchParams();
 
   const slug = (params as any)?.slug || "";
   const trainNumber = slug.match(/^(\d+)/)?.[1] || "";
+
   const urlDate = searchParams.get("date") || "";
   const boarding = (searchParams.get("boarding") || "").toUpperCase();
 
@@ -36,10 +22,12 @@ export default function TrainPage() {
     async function fetchData() {
       try {
         setLoading(true);
+
         const res = await fetch(
           `/api/train-restros?train=${trainNumber}&date=${urlDate}&boarding=${boarding}&full=1`,
           { cache: "no-store" }
         );
+
         const json = await res.json();
         setStations(json?.stations || []);
       } catch (e) {
@@ -48,6 +36,7 @@ export default function TrainPage() {
         setLoading(false);
       }
     }
+
     if (trainNumber) fetchData();
   }, [trainNumber, urlDate, boarding]);
 
@@ -76,46 +65,33 @@ export default function TrainPage() {
           const stationName = st.StationName || "Station";
           const state = st.State || "";
 
-          const arrivesRaw = st.Arrives || "00:00";
-          const arrives = formatTime(arrivesRaw);
-          const arrivalMin = timeToMinutes(arrives);
-
+          const arrives = st.Arrives || "--:--";
           const halt = st.HaltTime || "0m";
           const deliveryDate = st.date || urlDate;
 
           const vendors = st.vendors || [];
-
-          // ✅ TIME FILTER
-          const filteredVendors = vendors.filter((r: any) => {
-            const open = formatTime(r.OpenTime || "00:00");
-            const close = formatTime(r.ClosedTime || "23:59");
-
-            const openMin = timeToMinutes(open);
-            const closeMin = timeToMinutes(close);
-
-            return arrivalMin >= openMin && arrivalMin <= closeMin;
-          });
-
-          if (!filteredVendors.length) return null;
+          if (!vendors.length) return null;
 
           return (
             <div
               key={`${stationCode}-${index}`}
               className="border rounded-xl p-4 bg-gray-50 shadow-sm"
             >
-              {/* HEADER */}
+              {/* Station Header */}
               <div className="mb-4 border-b pb-2 flex justify-between items-start">
                 <div>
                   <h2 className="text-lg font-bold text-gray-800">
                     {stationName} ({stationCode})
                   </h2>
+
                   <div className="flex gap-2 items-center mt-1">
                     {state && (
                       <span className="text-[10px] text-gray-500 uppercase font-semibold">
                         {state}
                       </span>
                     )}
-                    <span className="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded border font-bold">
+
+                    <span className="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded border border-blue-200 font-bold">
                       📅 {deliveryDate}
                     </span>
                   </div>
@@ -125,18 +101,17 @@ export default function TrainPage() {
                   <div className="text-sm font-bold text-blue-600">
                     Arrival: {arrives}
                   </div>
-                  <div className="text-xs text-gray-600">Halt: {halt}</div>
+                  <div className="text-xs text-gray-600">
+                    Halt: {halt}
+                  </div>
                 </div>
               </div>
 
-              {/* RESTAURANTS */}
+              {/* Vendors */}
               <div className="space-y-3">
-                {filteredVendors.map((r: any) => {
+                {vendors.map((r: any) => {
                   const restroName = r.RestroName || "Restaurant";
                   const minOrder = r.MinimumOrderValue || 0;
-
-                  const open = formatTime(r.OpenTime);
-                  const close = formatTime(r.ClosedTime);
 
                   let fileName = r.RestroDisplayPhoto
                     ? String(r.RestroDisplayPhoto).split("/").pop()
@@ -153,6 +128,7 @@ export default function TrainPage() {
                       key={r.RestroCode}
                       className="bg-white p-3 rounded-lg border flex gap-3"
                     >
+                      {/* Image */}
                       <div className="w-24 h-24 bg-gray-100 rounded-md overflow-hidden border">
                         {image ? (
                           <img
@@ -161,32 +137,36 @@ export default function TrainPage() {
                             className="w-full h-full object-cover"
                           />
                         ) : (
-                          <div className="flex items-center justify-center h-full text-[10px] text-gray-400">
+                          <div className="flex items-center justify-center h-full text-xs text-gray-400">
                             No Image
                           </div>
                         )}
                       </div>
 
+                      {/* Info */}
                       <div className="flex-1 flex flex-col justify-between">
                         <div>
                           <div className="flex justify-between">
-                            <span className="font-bold">{restroName}</span>
-                            <span className="bg-yellow-100 text-yellow-800 text-[10px] px-1 rounded font-bold">
+                            <span className="font-bold text-gray-900">
+                              {restroName}
+                            </span>
+
+                            <span className="bg-yellow-100 text-yellow-800 text-[10px] px-2 py-0.5 rounded">
                               ★ {r.RestroRating || "4.2"}
                             </span>
                           </div>
 
                           <div className="text-[11px] text-gray-600 mt-1">
-                            Min. Order: ₹{minOrder} | {open} - {close}
+                            Min. Order: ₹{minOrder}
                           </div>
 
-                          <div className="mt-1">
+                          <div className="mt-1 text-[10px] font-bold">
                             {isVeg ? (
-                              <span className="text-green-600 text-[10px] font-bold">
+                              <span className="text-green-600">
                                 ● Pure Veg
                               </span>
                             ) : (
-                              <span className="text-red-600 text-[10px] font-bold">
+                              <span className="text-red-600">
                                 ● Non Veg
                               </span>
                             )}
@@ -204,7 +184,7 @@ export default function TrainPage() {
                               `&arrival=${arrives}` +
                               `&halt=${halt}`
                             }
-                            className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold px-4 py-2 rounded-lg"
+                            className="inline-block bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold px-4 py-2 rounded-lg"
                           >
                             Order Now
                           </a>
