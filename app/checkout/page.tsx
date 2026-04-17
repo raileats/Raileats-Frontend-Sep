@@ -6,7 +6,7 @@ import { useCart } from "@/lib/useCart";
 
 export default function CheckoutPage() {
   const router = useRouter();
-  const { lines, total, clearCart } = useCart();
+  const { lines, clearCart } = useCart();
 
   const [name, setName] = useState("");
   const [mobile, setMobile] = useState("");
@@ -16,12 +16,20 @@ export default function CheckoutPage() {
   const [loading, setLoading] = useState(false);
 
   if (!lines || lines.length === 0) {
-    return (
-      <div className="p-6 text-center text-gray-500">
-        Cart is empty
-      </div>
-    );
+    return <div className="p-6 text-center">Cart is empty</div>;
   }
+
+  // ✅ SUBTOTAL
+  const subTotal = lines.reduce((sum, l) => sum + l.price * l.qty, 0);
+
+  // ✅ GST 5%
+  const gst = Math.round(subTotal * 0.05);
+
+  // ✅ DELIVERY CHARGE
+  const delivery = subTotal > 0 ? 20 : 0;
+
+  // ✅ FINAL TOTAL
+  const finalTotal = subTotal + gst + delivery;
 
   async function placeOrder() {
     if (!name || !mobile || !seat || !coach) {
@@ -34,15 +42,9 @@ export default function CheckoutPage() {
 
       const firstItem = lines[0];
 
-      // ✅ FINAL SAFE PAYLOAD
       const payload = {
-        pnr: null,
-        trainNumber: "11016",
-        trainName: "Train",
-
         restroCode: firstItem?.restro_code || "1004",
         restroName: firstItem?.restro_name || "Restaurant",
-
         stationCode: firstItem?.station_code || "BPL",
         stationName: firstItem?.station_name || "Bhopal",
 
@@ -54,14 +56,15 @@ export default function CheckoutPage() {
         customerName: name,
         customerMobile: mobile,
 
+        // ✅ IMPORTANT FIX
         items: lines.map((l) => ({
           item_name: l.name,
-          selling_price: l.price,
+          selling_price: l.price, // 🔥 FIX
           qty: l.qty,
         })),
-      };
 
-      console.log("FINAL PAYLOAD =>", payload);
+        totalAmount: finalTotal, // optional
+      };
 
       const res = await fetch("/api/order/create", {
         method: "POST",
@@ -74,7 +77,7 @@ export default function CheckoutPage() {
       const data = await res.json();
 
       if (!res.ok || !data?.orderId) {
-        console.error("API ERROR:", data);
+        console.error(data);
         alert("Order failed (Admin API)");
         return;
       }
@@ -82,7 +85,7 @@ export default function CheckoutPage() {
       clearCart();
 
       router.push(
-        `/order-success?orderId=${data.orderId}&amount=${data.totalAmount}`
+        `/order-success?orderId=${data.orderId}&amount=${finalTotal}`
       );
 
     } catch (err) {
@@ -97,7 +100,7 @@ export default function CheckoutPage() {
     <div className="max-w-5xl mx-auto p-4 grid grid-cols-1 lg:grid-cols-3 gap-6">
 
       {/* LEFT */}
-      <div className="lg:col-span-2 space-y-4">
+      <div className="space-y-4">
 
         <h1 className="text-xl font-bold">Passenger Details</h1>
 
@@ -130,11 +133,10 @@ export default function CheckoutPage() {
           />
         </div>
 
-        {/* Payment */}
         <div className="border p-3 rounded">
-          <h2 className="font-semibold mb-2">Payment Mode</h2>
+          <h2>Payment Mode</h2>
 
-          <label className="block">
+          <label>
             <input
               type="radio"
               checked={payment === "COD"}
@@ -142,7 +144,7 @@ export default function CheckoutPage() {
             /> COD
           </label>
 
-          <label className="block">
+          <label>
             <input
               type="radio"
               checked={payment === "PREPAID"}
@@ -154,18 +156,38 @@ export default function CheckoutPage() {
       </div>
 
       {/* RIGHT */}
-      <div className="border p-4 rounded h-fit">
+      <div className="border p-4 rounded">
 
-        <h3 className="font-semibold mb-2">Your Order</h3>
+        <h3>Your Order</h3>
 
         {lines.map((l) => (
-          <div key={l.id} className="flex justify-between text-sm mb-1">
+          <div key={l.id} className="flex justify-between text-sm">
             <span>{l.name}</span>
             <span>{l.qty}</span>
           </div>
         ))}
 
-        <div className="mt-3 font-bold">Total: ₹{total}</div>
+        <hr className="my-2" />
+
+        <div className="flex justify-between text-sm">
+          <span>Subtotal</span>
+          <span>₹{subTotal}</span>
+        </div>
+
+        <div className="flex justify-between text-sm">
+          <span>GST (5%)</span>
+          <span>₹{gst}</span>
+        </div>
+
+        <div className="flex justify-between text-sm">
+          <span>Delivery</span>
+          <span>₹{delivery}</span>
+        </div>
+
+        <div className="flex justify-between font-bold mt-2">
+          <span>Total</span>
+          <span>₹{finalTotal}</span>
+        </div>
 
         <button
           onClick={placeOrder}
