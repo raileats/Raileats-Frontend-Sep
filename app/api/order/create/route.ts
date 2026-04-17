@@ -1,17 +1,29 @@
-// 🔴 IMPORTANT
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { serviceClient } from "@/lib/supabaseServer";
 
+function generateOrderId() {
+  const now = new Date();
+  const ts =
+    now.getFullYear().toString() +
+    String(now.getMonth() + 1).padStart(2, "0") +
+    String(now.getDate()).padStart(2, "0") +
+    String(now.getHours()).padStart(2, "0") +
+    String(now.getMinutes()).padStart(2, "0") +
+    String(now.getSeconds()).padStart(2, "0");
+
+  return `RE-${ts}-${Math.floor(Math.random() * 1000)}`;
+}
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
+    console.log("BODY =>", body);
 
     const {
       pnr,
       trainNumber,
-      trainName,
       restroCode,
       restroName,
       stationCode,
@@ -24,95 +36,89 @@ export async function POST(req: Request) {
       items,
     } = body;
 
-    console.log("ORDER BODY =>", body);
-
-    // ✅ VALIDATION
-    if (!restroCode || !stationCode) {
-      return NextResponse.json(
-        { ok: false, error: "missing_required_fields" },
-        { status: 400 }
-      );
-    }
-
-    if (!items || !Array.isArray(items) || items.length === 0) {
+    if (!items || !items.length) {
       return NextResponse.json(
         { ok: false, error: "cart_empty" },
         { status: 400 }
       );
     }
 
-    // ✅ SAFE TOTAL CALCULATION
-    const totalAmount = items.reduce((sum: number, i: any) => {
-      const price = Number(i.selling_price || i.price || 0);
-      const qty = Number(i.qty || 0);
-      return sum + price * qty;
-    }, 0);
+    // ✅ CALCULATIONS
+    const subTotal = items.reduce(
+      (s: number, i: any) =>
+        s + Number(i.selling_price || i.price || 0) * Number(i.qty || 0),
+      0
+    );
 
-    console.log("TOTAL =>", totalAmount);
+    const gst = Math.round(subTotal * 0.05);
+    const delivery = 20;
+    const total = subTotal + gst + delivery;
 
-    if (!totalAmount || isNaN(totalAmount)) {
-      return NextResponse.json(
-        { ok: false, error: "invalid_total" },
-        { status: 400 }
-      );
-    }
+    // ✅ JOURNEY PAYLOAD (IMPORTANT)
+    const journeyPayload = {
+      pnr: pnr || "0000000000",
+      name: customerName,
+      seat: body.seat,
+      coach: body.coach,
+      mobile: customerMobile,
+      trainNo: trainNumber,
+      deliveryDate: arrivalDate,
+      deliveryTime: arrivalTime,
+    };
 
-    // ✅ INSERT ORDER
-    const { data: order, error } = await serviceClient
+    const { data, error } = await serviceClient
       .from("Orders")
       .insert({
-        pnr: pnr || null,
-        train_number: trainNumber || null,
-        train_name: trainName || null,
+        OrderId: generateOrderId(),
 
-        restro_code: String(restroCode),
-        restro_name: restroName || "Restaurant",
+        RestroCode: Number(restroCode),
+        RestroName: restroName,
 
-        station_code: stationCode || "NA",
-        station_name: stationName || "Station",
+        StationCode: stationCode,
+        StationName: stationName || stationCode,
 
-        arrival_date: arrivalDate || null,
-        arrival_time: arrivalTime || null,
+        DeliveryDate: arrivalDate,
+        DeliveryTime: arrivalTime,
 
-        payment_mode: paymentMode || "COD",
+        TrainNumber: trainNumber,
 
-        customer_name: customerName || "Guest",
-        customer_mobile: customerMobile || "",
+        Coach: body.coach,
+        Seat: body.seat,
 
-        total_amount: totalAmount,
+        CustomerName: customerName,
+        CustomerMobile: customerMobile,
 
-        current_status: "BOOKED",
+        SubTotal: subTotal,
+        GSTAmount: gst,
+        PlatformCharge: delivery,
+        TotalAmount: total,
+
+        PaymentMode: paymentMode || "COD",
+        Status: "Booked",
+
+        JourneyPayload: journeyPayload,
       })
       .select()
       .single();
 
-    if (error || !order) {
+    if (error) {
       console.error("SUPABASE ERROR =>", error);
       return NextResponse.json(
-        { ok: false, error: "order_create_failed" },
+        { ok: false, error: error.message },
         { status: 500 }
       );
     }
 
-    // ✅ STATUS HISTORY
-    await serviceClient.from("OrderStatusHistory").insert({
-      order_id: order.id,
-      old_status: null,
-      new_status: "BOOKED",
-      changed_by: "system",
-      remarks: "Order created",
-    });
-
     return NextResponse.json({
       ok: true,
-      orderId: order.id,
-      totalAmount,
+      orderId: data.OrderId,
+      totalAmount: total,
     });
 
-  } catch (e) {
+  } catch (e: any) {
     console.error("SERVER ERROR =>", e);
     return NextResponse.json(
-      { ok: false, error: "server_error" },
+      { ok: false, error: e.message },
       { status: 500 }
     );
   }
