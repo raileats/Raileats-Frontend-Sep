@@ -14,8 +14,10 @@ type MenuItem = {
   start_time?: string | null;
   end_time?: string | null;
   base_price?: number | null;
+  selling_price?: number | null;
   status?: string | null;
   menu_type?: string | null;
+  restro_code?: string | number; // ✅ IMPORTANT
 };
 
 type Props = {
@@ -85,7 +87,7 @@ export default function RestroMenuClient({ header, items }: Props) {
   return (
     <div className="max-w-5xl mx-auto p-4">
 
-      {/* 🔵 FLOATING CART */}
+      {/* FLOATING CART */}
       {count > 0 && (
         <div className="fixed top-16 right-4 z-50 lg:hidden">
           <button
@@ -140,7 +142,7 @@ export default function RestroMenuClient({ header, items }: Props) {
                       </div>
 
                       <div className="font-bold">
-                        {price(it.base_price)}
+                        {price(it.selling_price || it.base_price)}
                       </div>
                     </div>
 
@@ -158,8 +160,15 @@ export default function RestroMenuClient({ header, items }: Props) {
                             add({
                               id: it.id,
                               name: it.item_name,
-                              price: Number(it.base_price || 0),
+                              price: Number(it.selling_price || it.base_price || 0),
                               qty: 1,
+
+                              // ✅ FINAL FIX (MOST IMPORTANT)
+                              restro_code: String(it.restro_code || header.restroCode),
+
+                              restro_name: header.outletName,
+                              station_code: header.stationCode,
+                              station_name: header.stationCode,
                             })
                           }
                         >
@@ -167,13 +176,9 @@ export default function RestroMenuClient({ header, items }: Props) {
                         </button>
                       ) : (
                         <div className="flex items-center gap-2">
-                          <button onClick={() => changeQty(it.id, qty - 1)}>
-                            -
-                          </button>
+                          <button onClick={() => changeQty(it.id, qty - 1)}>-</button>
                           <span>{qty}</span>
-                          <button onClick={() => changeQty(it.id, qty + 1)}>
-                            +
-                          </button>
+                          <button onClick={() => changeQty(it.id, qty + 1)}>+</button>
                           <button
                             className="text-red-500 text-sm"
                             onClick={() => remove(it.id)}
@@ -224,7 +229,7 @@ export default function RestroMenuClient({ header, items }: Props) {
         </div>
       </div>
 
-      {/* MOBILE CART POPUP */}
+      {/* MOBILE CART */}
       {showMobileCart && (
         <div className="fixed inset-0 bg-black/40 z-[1000] flex justify-center items-center">
           <div className="bg-white w-[90%] max-w-md rounded-xl p-4">
