@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { useCart } from "@/lib/useCart";
+import { useCart } from "@/app/lib/useCart";
+import CartPillMobile from "@/app/components/CartPillMobile";
 
 type Item = {
   id: number;
@@ -25,6 +26,7 @@ export default function RestroMenuClient({
   header: Header;
 }) {
   const { add } = useCart();
+
   const [vegOnly, setVegOnly] = useState(false);
 
   const filteredItems = vegOnly
@@ -54,52 +56,44 @@ export default function RestroMenuClient({
       </div>
 
       {/* MENU */}
-      <div className="grid lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-
-          {filteredItems.map((it) => (
-            <div
-              key={it.id}
-              className="border rounded p-3 flex flex-col justify-between"
-            >
-              <div>
-                <div className="font-medium">{it.item_name}</div>
-                <div className="text-sm text-gray-500">
-                  ₹{it.base_price}
-                </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {filteredItems.map((it) => (
+          <div
+            key={it.id}
+            className="border rounded p-3 flex flex-col justify-between"
+          >
+            <div>
+              <div className="font-medium">{it.item_name}</div>
+              <div className="text-sm text-gray-500">
+                ₹{it.base_price}
               </div>
-
-              <button
-                className="mt-3 bg-green-600 text-white px-3 py-1 rounded text-sm"
-                onClick={() => {
-                  // 🔥 DEBUG (remove later)
-                  console.log("ADDING ITEM 👉", {
-                    item: it,
-                    restroCode: header.restroCode,
-                    outlet: header.outletName,
-                  });
-
-                  add({
-                    id: it.id,
-                    name: it.item_name,
-                    price: Number(it.base_price || 0),
-                    qty: 1,
-
-                    // ✅ FINAL FIX (MOST IMPORTANT)
-                    restro_code: String(header.restroCode),
-                    restro_name: header.outletName,
-                    station_code: header.stationCode,
-                    station_name: header.stationName,
-                  });
-                }}
-              >
-                Add
-              </button>
             </div>
-          ))}
 
-        </div>
+            <button
+              className="mt-3 bg-green-600 text-white px-3 py-1 rounded text-sm"
+              onClick={() => {
+                add({
+                  id: it.id,
+                  name: it.item_name,
+                  price: Number(it.base_price || 0),
+                  qty: 1,
+
+                  restro_code: String(header.restroCode),
+                  restro_name: header.outletName,
+                  station_code: header.stationCode,
+                  station_name: header.stationName,
+                });
+              }}
+            >
+              Add
+            </button>
+          </div>
+        ))}
       </div>
+
+      {/* 🔥 MOBILE VIEW CART BUTTON (IMPORTANT FIX) */}
+      <CartPillMobile />
+
     </div>
   );
 }
