@@ -1,3 +1,4 @@
+// 🔴 IMPORTANT
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
@@ -6,8 +7,6 @@ import { serviceClient } from "@/lib/supabaseServer";
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-
-    console.log("ORDER BODY =>", body);
 
     const {
       pnr,
@@ -25,8 +24,10 @@ export async function POST(req: Request) {
       items,
     } = body;
 
+    console.log("ORDER BODY =>", body);
+
     // ✅ VALIDATION
-    if (!restroCode || !stationCode || !arrivalDate || !arrivalTime) {
+    if (!restroCode || !stationCode) {
       return NextResponse.json(
         { ok: false, error: "missing_required_fields" },
         { status: 400 }
@@ -42,43 +43,51 @@ export async function POST(req: Request) {
 
     // ✅ SAFE TOTAL CALCULATION
     const totalAmount = items.reduce((sum: number, i: any) => {
-      const price = Number(i?.selling_price || 0);
-      const qty = Number(i?.qty || 0);
+      const price = Number(i.selling_price || i.price || 0);
+      const qty = Number(i.qty || 0);
       return sum + price * qty;
     }, 0);
 
-    // ❌ अगर total 0 है → reject
-    if (totalAmount <= 0) {
+    console.log("TOTAL =>", totalAmount);
+
+    if (!totalAmount || isNaN(totalAmount)) {
       return NextResponse.json(
-        { ok: false, error: "invalid_amount" },
+        { ok: false, error: "invalid_total" },
         { status: 400 }
       );
     }
 
-    // ✅ ORDER INSERT
+    // ✅ INSERT ORDER
     const { data: order, error } = await serviceClient
       .from("Orders")
       .insert({
         pnr: pnr || null,
         train_number: trainNumber || null,
         train_name: trainName || null,
-        restro_code: restroCode,
-        restro_name: restroName,
-        station_code: stationCode,
-        station_name: stationName,
-        arrival_date: arrivalDate,
-        arrival_time: arrivalTime,
+
+        restro_code: String(restroCode),
+        restro_name: restroName || "Restaurant",
+
+        station_code: stationCode || "NA",
+        station_name: stationName || "Station",
+
+        arrival_date: arrivalDate || null,
+        arrival_time: arrivalTime || null,
+
         payment_mode: paymentMode || "COD",
+
         customer_name: customerName || "Guest",
         customer_mobile: customerMobile || "",
+
         total_amount: totalAmount,
+
         current_status: "BOOKED",
       })
       .select()
       .single();
 
     if (error || !order) {
-      console.error("ORDER CREATE ERROR:", error);
+      console.error("SUPABASE ERROR =>", error);
       return NextResponse.json(
         { ok: false, error: "order_create_failed" },
         { status: 500 }
@@ -98,11 +107,10 @@ export async function POST(req: Request) {
       ok: true,
       orderId: order.id,
       totalAmount,
-      status: "BOOKED",
     });
 
   } catch (e) {
-    console.error("ORDER CREATE API ERROR:", e);
+    console.error("SERVER ERROR =>", e);
     return NextResponse.json(
       { ok: false, error: "server_error" },
       { status: 500 }
