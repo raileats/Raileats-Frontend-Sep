@@ -3,8 +3,6 @@ import { serviceClient } from "../../lib/supabaseServer";
 
 export const dynamic = "force-dynamic";
 
-/* ================= HELPERS ================= */
-
 function timeToMinutes(t: string) {
   if (!t) return 0;
   const [h, m] = t.split(":").map(Number);
@@ -16,8 +14,6 @@ function formatTime(t?: string | null) {
   return t.slice(0, 5);
 }
 
-/* ================= PAGE ================= */
-
 export default async function Page(props: {
   params: Promise<any>;
   searchParams: Promise<any>;
@@ -25,24 +21,19 @@ export default async function Page(props: {
   const resolvedParams = await props.params;
   const resolvedSearchParams = await props.searchParams;
 
-  const slug = resolvedParams.slug || "";
-  const stationCode = slug.split("-")[0].toUpperCase();
+  const arrival = (resolvedSearchParams.arrival || "00:00").slice(0, 5);
+  const arrivalMin = timeToMinutes(arrival);
 
-  const arrivalTimeRaw = resolvedSearchParams.arrival || "00:00";
-  const arrivalTime = arrivalTimeRaw.slice(0, 5);
+  const stationName = resolvedSearchParams.stationName || "Station";
 
-  const stationName = resolvedSearchParams.stationName || stationCode;
-
-  /* ================= FETCH FROM DB ================= */
+  /* ================= DB FETCH ================= */
 
   const { data: items } = await serviceClient
     .from("RestroMenuItems")
     .select("*")
     .eq("restro_code", "1004");
 
-  /* ================= FILTER ================= */
-
-  const arrivalMin = timeToMinutes(arrivalTime);
+  /* ================= FINAL FILTER ================= */
 
   const filteredItems = (items || []).filter((item: any) => {
     const start = item.start_time?.slice(0, 5) || "00:00";
@@ -51,7 +42,7 @@ export default async function Page(props: {
     const startMin = timeToMinutes(start);
     const endMin = timeToMinutes(end);
 
-    // 🚫 HARD REMOVE (FINAL FIX)
+    // 🔥 HARD BLOCK (FINAL)
     if (item.item_name === "Chicken Curry") return false;
 
     return arrivalMin >= startMin && arrivalMin <= endMin;
@@ -63,39 +54,25 @@ export default async function Page(props: {
 
   filteredItems.forEach((item: any) => {
     const type = item.item_category || "Other";
-
     if (!grouped[type]) grouped[type] = [];
     grouped[type].push(item);
   });
 
-  /* ================= UI ================= */
-
   return (
     <main className="max-w-5xl mx-auto px-4 py-6">
 
-      {/* HEADER */}
       <h1 className="text-2xl font-bold mb-2">
         {stationName}
       </h1>
 
       <p className="mb-6 text-gray-500">
-        Arrival: {arrivalTime}
+        Arrival: {arrival}
       </p>
 
-      {/* NO ITEMS */}
-      {Object.keys(grouped).length === 0 && (
-        <div className="text-red-500">
-          No items available for this time
-        </div>
-      )}
-
-      {/* MENU */}
       {Object.entries(grouped).map(([type, list]) => (
         <div key={type} className="mb-6">
 
-          <h2 className="text-lg font-semibold mb-2">
-            {type}
-          </h2>
+          <h2 className="text-lg font-semibold mb-2">{type}</h2>
 
           {list.map((item: any) => (
             <div
@@ -103,18 +80,13 @@ export default async function Page(props: {
               className="border p-3 mb-2 rounded flex justify-between"
             >
               <div>
-                <div className="font-medium">
-                  {item.item_name}
-                </div>
-
+                <div className="font-medium">{item.item_name}</div>
                 <div className="text-sm text-gray-500">
                   {item.item_description}
                 </div>
-
                 <div className="text-sm text-gray-400">
                   {formatTime(item.start_time)} - {formatTime(item.end_time)}
                 </div>
-
                 <div className="font-semibold">
                   ₹{item.selling_price}
                 </div>
