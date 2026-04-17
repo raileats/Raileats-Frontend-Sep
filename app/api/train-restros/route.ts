@@ -8,8 +8,7 @@ function formatHaltTime(val: any) {
   const parts = String(val).split(":").map(Number);
   const hh = parts[0] || 0;
   const mm = parts[1] || 0;
-  const totalMin = hh * 60 + mm;
-  return `${totalMin}m`;
+  return `${hh * 60 + mm}m`;
 }
 
 function normalize(val: any) {
@@ -24,16 +23,22 @@ function isTrue(val: any) {
 
 function formatTime(val: any) {
   if (!val) return "00:00";
-  const str = String(val);
-  return str.length >= 5 ? str.slice(0, 5) : str;
+  return String(val).slice(0, 5);
 }
 
-/* ================= MAIN API HANDLER ================= */
+function timeToMinutes(t: string) {
+  if (!t || !t.includes(":")) return 0;
+  const [h, m] = t.split(":").map(Number);
+  return h * 60 + m;
+}
+
+/* ================= API ================= */
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
+
   const trainParam = searchParams.get("train")?.trim() || "";
-  const startDateParam = searchParams.get("date")?.trim() || ""; // Format: YYYY-MM-DD
+  const startDateParam = searchParams.get("date")?.trim() || "";
   const boarding = searchParams.get("boarding")?.trim() || "";
 
   try {
@@ -42,7 +47,8 @@ export async function GET(req: Request) {
       now.toLocaleString("en-US", { timeZone: "Asia/Kolkata" })
     );
 
-    /* 1. Fetch Train Route Data */
+    /* ================= FETCH ROUTE ================= */
+
     const { data: stopsRows } = await serviceClient
       .from("TrainRoute")
       .select("*")
@@ -53,22 +59,29 @@ export async function GET(req: Request) {
       return NextResponse.json({ ok: true, stations: [] });
     }
 
-    /* 2. Boarding Station & Base Day Calculation */
+    /* ================= BOARDING ================= */
+
     const normBoard = normalize(boarding);
-    const boardingStation = stopsRows.find((s) => normalize(s.StationCode) === normBoard);
-    
-    // Agar boarding station nahi milta toh pehle stop ko base maante hain
-    const baseDay = boardingStation ? Number(boardingStation.Day || 1) : Number(stopsRows[0].Day || 1);
-    
-    // Sirf boarding station ke baad wale stops dikhane ke liye
-    const bIdx = stopsRows.findIndex((s) => normalize(s.StationCode) === normBoard);
+    const boardingStation = stopsRows.find(
+      (s) => normalize(s.StationCode) === normBoard
+    );
+
+    const baseDay = boardingStation
+      ? Number(boardingStation.Day || 1)
+      : Number(stopsRows[0].Day || 1);
+
+    const bIdx = stopsRows.findIndex(
+      (s) => normalize(s.StationCode) === normBoard
+    );
+
     const activeRoute = bIdx !== -1 ? stopsRows.slice(bIdx) : stopsRows;
 
     const stationCodes = Array.from(
       new Set(activeRoute.map((s) => normalize(s.StationCode)))
     );
 
-    /* 3. Parallel Fetch: Station Details & Restaurant Details */
+    /* ================= FETCH STATIONS + RESTROS ================= */
+
     const [stationsData, restrosData] = await Promise.all([
       serviceClient
         .from("Stations")
@@ -95,7 +108,8 @@ export async function GET(req: Request) {
       }
     });
 
-    /* 4. FINAL BUILD: Stations with Calculated Dates & Restaurants */
+    /* ================= FINAL BUILD ================= */
+
     const finalStations = activeRoute
       .map((s) => {
         const code = normalize(s.StationCode);
@@ -103,71 +117,78 @@ export async function GET(req: Request) {
 
         if (!vendorsRaw.length) return null;
 
-        /* ===== DEEP DATE CALCULATION ===== */
-        // User ki selected date (startDateParam) par utne din add karo jitna boarding se difference hai
+        /* ===== DATE CALC ===== */
+
         const sDate = new Date(startDateParam + "T00:00:00");
-        const currentStnDay = Number(s.Day || 1);
-        const dayDiff = currentStnDay - baseDay;
-        
+        const currentDay = Number(s.Day || 1);
+        const dayDiff = currentDay - baseDay;
         sDate.setDate(sDate.getDate() + dayDiff);
 
+        const arrival = formatTime(s.Arrives || "00:00");
+        const arrivalMin = timeToMinutes(arrival);
+
         const arrivalDateTime = new Date(sDate);
-        const [h, m] = (s.Arrives || "00:00").split(":").map(Number);
+        const [h, m] = arrival.split(":").map(Number);
         arrivalDateTime.setHours(h, m, 0);
 
-        // Jo stations nikal chuke hain unhe filter out karein
+        // ❌ past stations हटाओ
         if (arrivalDateTime <= istNow) return null;
 
-       /* ===== VENDORS MAPPING ===== */
-       const validVendors = vendorsRaw
-  .map((v: any) => {
-    const open = formatTime(v.open_time ?? v.OpenTime);
-    const close = formatTime(v.closed_time ?? v.ClosedTime);
-    const arrival = formatTime(s.Arrives);
+        /* ================= 🔥 MAIN FILTER ================= */
 
-    // ⏱ Convert to minutes
-    const [ah, am] = arrival.split(":").map(Number);
-    const [oh, om] = open.split(":").map(Number);
-    const [ch, cm] = close.split(":").map(Number);
+        const validVendors = vendorsRaw
+          .map((v: any) => {
+            const open = formatTime(v.open_time ?? v.OpenTime);
+            const close = formatTime(v.closed_time ?? v.ClosedTime);
 
-    const arrivalMin = ah * 60 + am;
-    const openMin = oh * 60 + om;
-    const closeMin = ch * 60 + cm;
+            const openMin = timeToMinutes(open);
+            const closeMin = timeToMinutes(close);
 
-    // ❌ Agar restaurant band hai to hata do
-    if (arrivalMin < openMin || arrivalMin > closeMin) {
-      return null;
-    }
+            let isOpen = false;
 
-    return {
-      RestroCode: v.RestroCode,
-      RestroName: v.RestroName,
-      RestroRating: v.RestroRating || "4.2",
-      OpenTime: open,
-      ClosedTime: close,
-      MinimumOrderValue: v.MinimumOrderValue || v.MinimumOrdermValue || 0,
-      RestroDisplayPhoto: v.RestroDisplayPhoto,
-      IsPureVeg: isTrue(v.IsPureVeg) ? 1 : 0,
-    };
-  })
-  .filter(Boolean);
+            if (closeMin >= openMin) {
+              // normal
+              isOpen = arrivalMin >= openMin && arrivalMin <= closeMin;
+            } else {
+              // overnight
+              isOpen = arrivalMin >= openMin || arrivalMin <= closeMin;
+            }
+
+            if (!isOpen) return null;
+
+            return {
+              RestroCode: v.RestroCode,
+              RestroName: v.RestroName,
+              RestroRating: v.RestroRating || "4.2",
+              OpenTime: open,
+              ClosedTime: close,
+              MinimumOrderValue:
+                v.MinimumOrderValue || v.MinimumOrdermValue || 0,
+              RestroDisplayPhoto: v.RestroDisplayPhoto,
+              IsPureVeg: isTrue(v.IsPureVeg) ? 1 : 0,
+            };
+          })
+          .filter(Boolean);
+
+        if (!validVendors.length) return null;
 
         return {
           StationCode: code,
           StationName: s.StationName,
           State: stateMap[code] || "",
-          Arrives: s.Arrives,
+          Arrives: arrival,
           Departs: s.Departs,
           HaltTime: formatHaltTime(s.Stoptime || s.StopTime),
-          // Frontend ko isi 'date' key ki zaroorat hai
-          date: sDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
-          day_count: currentStnDay,
+          date: sDate.toLocaleDateString("en-GB", {
+            day: "2-digit",
+            month: "short",
+            year: "numeric",
+          }),
           vendors: validVendors,
         };
       })
-      .filter(Boolean); // <--- Sirf ek baar hona chahiye
+      .filter(Boolean);
 
-    // Final response bhi sirf EK baar hona chahiye
     return NextResponse.json({
       ok: true,
       stations: finalStations,
