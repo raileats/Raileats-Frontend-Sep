@@ -191,26 +191,19 @@ export default function TrainPage() {
                           </div>
                         </div>
 
-                        {/* ✅ Order Now */}
-                        <div className="mt-2 text-right">
-                          <a
-                            href={`/menu?restro=${r.RestroCode}&arrival=${arrives}&stationName=${encodeURIComponent(
-                              stationName
-                            )}&train=${trainNumber}&halt=${halt}`}
-                            className="bg-orange-500 text-white text-xs font-bold px-4 py-2 rounded-lg"
-                          >
-                            Order Now
-                          </a>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })
-      )}
-    </div>
-  );
-}
+                       {/* ✅ Order Now FIXED */}
+<div className="mt-2 text-right">
+  <a
+    href={`/Stations/${stationCode}-${stationName.replace(/\s+/g, '-')}/${r.RestroCode}-${restroName.replace(/\s+/g, '-')}` +
+      `?date=${encodeURIComponent(deliveryDate)}` +
+      `&train=${trainNumber}` + 
+      `&boarding=${boarding}` + 
+      `&stationName=${encodeURIComponent(stationName)}` +
+      `&arrival=${arrives}` + 
+      `&halt=${halt}`
+    }
+    className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold px-4 py-2 rounded-lg"
+  >
+    Order Now
+  </a>
+</div>
