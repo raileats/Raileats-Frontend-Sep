@@ -86,7 +86,17 @@ export default function RestroMenuClient({ header, items }: Props) {
 
       {/* 🔵 FLOATING CART (MOBILE) */}
       {count > 0 && (
-        <div className="fixed top-16 right-4 z-50 lg:hidden">
+  <div className="fixed top-16 right-4 z-50 lg:hidden">
+    <button
+      onClick={() => setShowMobileCart(true)}
+      className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-full shadow-lg"
+    >
+      <span className="font-bold">{count}</span>
+      <span>₹{total}</span>
+      <span className="underline text-sm">View cart</span>
+    </button>
+  </div>
+)}
           <button
             onClick={() => setShowMobileCart(true)}
             className="bg-blue-600 text-white px-4 py-2 rounded-full shadow-lg text-sm font-bold"
