@@ -8,18 +8,9 @@ import RestroMenuClient from "./RestroMenuClient";
 type MenuItem = {
   id: number;
   restro_code: string | number;
-  item_code?: string | null;
   item_name: string;
-  item_description?: string | null;
-  item_category?: string | null;
-  item_cuisine?: string | null;
-  menu_type?: string | null;
-  start_time?: string | null;
-  end_time?: string | null;
   base_price?: number | null;
-  gst_percent?: number | null;
-  selling_price?: number | null;
-  status?: string | null;
+  item_category?: string | null;
 };
 
 export const dynamic = "force-dynamic";
@@ -30,34 +21,14 @@ const ADMIN_BASE =
 
 /* ------------ helpers ------------ */
 function humanizeFromSlug(restroSlug: string) {
-  const decoded = decodeURIComponent(String(restroSlug || ""));
-  const cleaned = decoded
+  return decodeURIComponent(restroSlug)
     .replace(/^\d+-/, "")
     .replace(/-\d+$/, "")
     .replace(/-/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-
-  return cleaned
+    .trim()
     .split(" ")
-    .filter(Boolean)
-    .map((w) => (w[0] ? w[0].toUpperCase() + w.slice(1) : w))
+    .map((w) => w[0]?.toUpperCase() + w.slice(1))
     .join(" ");
-}
-
-/* ------------ SEO ------------ */
-export async function generateMetadata({
-  params,
-}: {
-  params: { slug: string; restroSlug: string };
-}): Promise<Metadata> {
-  const stationCode = extractStationCode(params.slug) || "";
-  const outletName = humanizeFromSlug(params.restroSlug);
-
-  return {
-    title: `${outletName} Menu at ${stationCode} | RailEats`,
-    description: `Order food from ${outletName} at ${stationCode}`,
-  };
 }
 
 /* ------------ FETCH ------------ */
@@ -85,21 +56,24 @@ export default async function Page({
   const restroCode = extractRestroCode(params.restroSlug) || "";
   const outletName = humanizeFromSlug(params.restroSlug);
 
-  // ✅ NEW: stationName extract (slug se)
-  const stationName = params.slug
-    ?.split("-")
-    ?.slice(1)
-    ?.join(" ")
-    ?.replace(/-/g, " ") || stationCode;
+  const stationName =
+    params.slug?.split("-")?.slice(1)?.join(" ") || stationCode;
 
-  const items = await fetchOnMenu(restroCode);
+  const rawItems = await fetchOnMenu(restroCode);
 
-  // ✅ FIXED HEADER
+  // ✅ 🔥 FIX: normalize items
+  const items = rawItems.map((it) => ({
+    id: it.id,
+    item_name: it.item_name,
+    base_price: Number(it.base_price || 0), // ✅ always number
+    is_veg: it.item_category?.toLowerCase() !== "non-veg",
+  }));
+
   const header = {
     stationCode,
     restroCode: String(restroCode),
     outletName,
-    stationName, // 🔥 IMPORTANT FIX
+    stationName,
   };
 
   return (
