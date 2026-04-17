@@ -16,7 +16,11 @@ export default function CheckoutPage() {
   const [loading, setLoading] = useState(false);
 
   if (!lines || lines.length === 0) {
-    return <div className="p-6 text-center text-gray-500">Cart is empty</div>;
+    return (
+      <div className="p-6 text-center text-gray-500">
+        Cart is empty
+      </div>
+    );
   }
 
   async function placeOrder() {
@@ -28,20 +32,27 @@ export default function CheckoutPage() {
     try {
       setLoading(true);
 
-      // 👉 CART se required values nikaal rahe hain
       const firstItem = lines[0];
 
+      // ✅ FINAL SAFE PAYLOAD
       const payload = {
-        restroCode: firstItem.restro_code,
-        restroName: firstItem.restro_name || "Restaurant",
-        stationCode: firstItem.station_code || "NA",
-        stationName: firstItem.station_name || "Station",
+        pnr: null,
+        trainNumber: "11016",
+        trainName: "Train",
+
+        restroCode: firstItem?.restro_code || "1004",
+        restroName: firstItem?.restro_name || "Restaurant",
+
+        stationCode: firstItem?.station_code || "BPL",
+        stationName: firstItem?.station_name || "Bhopal",
+
         arrivalDate: new Date().toISOString().slice(0, 10),
         arrivalTime: new Date().toTimeString().slice(0, 5),
 
+        paymentMode: payment,
+
         customerName: name,
         customerMobile: mobile,
-        paymentMode: payment,
 
         items: lines.map((l) => ({
           item_name: l.name,
@@ -49,6 +60,8 @@ export default function CheckoutPage() {
           qty: l.qty,
         })),
       };
+
+      console.log("FINAL PAYLOAD =>", payload);
 
       const res = await fetch("/api/order/create", {
         method: "POST",
@@ -61,6 +74,7 @@ export default function CheckoutPage() {
       const data = await res.json();
 
       if (!res.ok || !data?.orderId) {
+        console.error("API ERROR:", data);
         alert("Order failed (Admin API)");
         return;
       }
@@ -116,6 +130,7 @@ export default function CheckoutPage() {
           />
         </div>
 
+        {/* Payment */}
         <div className="border p-3 rounded">
           <h2 className="font-semibold mb-2">Payment Mode</h2>
 
