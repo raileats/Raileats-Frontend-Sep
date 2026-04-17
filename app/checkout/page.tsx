@@ -49,16 +49,13 @@ export default function CheckoutPage() {
       };
 
       // ✅ ADMIN API CALL
-      const res = await fetch(
-        "https://admin.raileats.in/api/orders/create",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(payload),
-        }
-      );
+     const res = await fetch("/api/create-order", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify(payload),
+});
 
       if (!res.ok) {
         alert("Order failed (Admin API)");
