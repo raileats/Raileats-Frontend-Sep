@@ -25,7 +25,6 @@ export default function RestroMenuClient({
   header: Header;
 }) {
   const { add } = useCart();
-
   const [vegOnly, setVegOnly] = useState(false);
 
   const filteredItems = vegOnly
@@ -56,8 +55,8 @@ export default function RestroMenuClient({
 
       {/* MENU */}
       <div className="grid lg:grid-cols-3 gap-6">
-
         <div className="lg:col-span-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+
           {filteredItems.map((it) => (
             <div
               key={it.id}
@@ -73,9 +72,11 @@ export default function RestroMenuClient({
               <button
                 className="mt-3 bg-green-600 text-white px-3 py-1 rounded text-sm"
                 onClick={() => {
+                  // 🔥 DEBUG (remove later)
                   console.log("ADDING ITEM 👉", {
                     item: it,
-                    restro: header,
+                    restroCode: header.restroCode,
+                    outlet: header.outletName,
                   });
 
                   add({
@@ -84,7 +85,7 @@ export default function RestroMenuClient({
                     price: Number(it.base_price || 0),
                     qty: 1,
 
-                    // 🔥 MOST IMPORTANT FIX
+                    // ✅ FINAL FIX (MOST IMPORTANT)
                     restro_code: String(header.restroCode),
                     restro_name: header.outletName,
                     station_code: header.stationCode,
@@ -96,8 +97,8 @@ export default function RestroMenuClient({
               </button>
             </div>
           ))}
-        </div>
 
+        </div>
       </div>
     </div>
   );
