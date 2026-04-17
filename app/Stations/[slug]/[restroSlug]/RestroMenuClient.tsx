@@ -17,6 +17,7 @@ type MenuItem = {
   start_time?: string | null;
   end_time?: string | null;
   base_price?: number | null;
+  gst_percent?: number | null;
   selling_price?: number | null;
   status?: string | null;
 };
@@ -29,6 +30,7 @@ type Props = {
     stationName?: string;
   };
   items: MenuItem[];
+  offer: { text: string } | null;
 };
 
 // ---- helpers ----
@@ -47,55 +49,59 @@ const isNonVeg = (cat?: string | null) =>
   String(cat || "").toLowerCase() === "non-veg";
 
 const dot = (cat?: string | null) => {
-  if (isVegLike(cat)) return <span className="w-3 h-3 bg-green-600 rounded-full" />;
-  if (isNonVeg(cat)) return <span className="w-3 h-3 bg-red-600 rounded-full" />;
-  return <span className="w-3 h-3 bg-gray-400 rounded-full" />;
+  if (isVegLike(cat))
+    return <span className="inline-block w-3 h-3 rounded-full bg-green-600" />;
+  if (isNonVeg(cat))
+    return <span className="inline-block w-3 h-3 rounded-full bg-red-600" />;
+  return <span className="inline-block w-3 h-3 rounded-full bg-gray-400" />;
 };
 
-const priceStr = (n?: number | null) =>
-  typeof n === "number" ? `₹${n}` : "—";
+const t = (s?: string | null) => (s ? s.slice(0, 5) : "");
 
-// ✅ TIME HELPER (IMPORTANT)
-const timeToMinutes = (t?: string | null) => {
+const priceStr = (n?: number | null) =>
+  typeof n === "number"
+    ? `₹${Number(n).toFixed(2).replace(/\.00$/, "")}`
+    : "—";
+
+// ✅ TIME CONVERT
+const timeToMin = (t?: string | null) => {
   if (!t || !t.includes(":")) return 0;
-  const [h, m] = t.slice(0,5).split(":").map(Number);
+  const [h, m] = t.slice(0, 5).split(":").map(Number);
   return h * 60 + m;
 };
 
-export default function RestroMenuClient({ header, items }: Props) {
-
+export default function RestroMenuClient({ header, items, offer }: Props) {
   const [vegOnly, setVegOnly] = useState(false);
+  const [showMobileCart, setShowMobileCart] = useState(false);
 
   const { lines, count, total, add, changeQty, remove, clearCart } = useCart();
 
-  // ✅ GET ARRIVAL TIME FROM URL
+  // ✅ GET ARRIVAL TIME
   const arrivalMin = useMemo(() => {
     if (typeof window === "undefined") return 0;
-    const u = new URL(window.location.href);
 
+    const u = new URL(window.location.href);
     const arrival =
       u.searchParams.get("arrivalTime") ||
       u.searchParams.get("arrival") ||
       "00:00";
 
-    return timeToMinutes(arrival);
+    return timeToMin(arrival);
   }, []);
 
-  // ✅ 🔥 FINAL FILTER (MAIN FIX)
+  // ✅ FINAL FILTER (MAIN FIX)
   const visible = useMemo(() => {
     return (items || []).filter((x) => {
       if (x.status !== "ON") return false;
 
-      const startMin = timeToMinutes(x.start_time || "00:00");
-      const endMin = timeToMinutes(x.end_time || "23:59");
+      const startMin = timeToMin(x.start_time || "00:00");
+      const endMin = timeToMin(x.end_time || "23:59");
 
       let isOpen = false;
 
       if (endMin >= startMin) {
-        // normal case
         isOpen = arrivalMin >= startMin && arrivalMin <= endMin;
       } else {
-        // overnight case
         isOpen = arrivalMin >= startMin || arrivalMin <= endMin;
       }
 
@@ -107,41 +113,55 @@ export default function RestroMenuClient({ header, items }: Props) {
     });
   }, [items, vegOnly, arrivalMin]);
 
+  // grouping
   const grouped = useMemo(() => {
     const by = new Map<string, MenuItem[]>();
-    visible.forEach((it) => {
-      const key = it.menu_type || "Others";
-      if (!by.has(key)) by.set(key, []);
-      by.get(key)!.push(it);
-    });
 
-    const result: any[] = [];
-    ORDER_MENU_TYPES.forEach((t) => {
-      if (by.has(t)) result.push({ type: t, items: by.get(t) });
-    });
+    for (const it of visible) {
+      const k = it.menu_type?.trim() || "Others";
+      const list = by.get(k);
+      list ? list.push(it) : by.set(k, [it]);
+    }
 
-    by.forEach((v, k) => {
-      if (!ORDER_MENU_TYPES.includes(k)) {
-        result.push({ type: k, items: v });
+    const out: { type: string; items: MenuItem[] }[] = [];
+    const used = new Set<string>();
+
+    for (const t of ORDER_MENU_TYPES) {
+      const list = by.get(t);
+      if (list) {
+        out.push({ type: t, items: list });
+        used.add(t);
       }
+    }
+
+    by.forEach((list, k) => {
+      if (!used.has(k)) out.push({ type: k, items: list });
     });
 
-    return result;
+    return out;
   }, [visible]);
 
-  const getQty = (id: number) => lines.find((l) => l.id === id)?.qty || 0;
+  const getQty = (id: number) => lines.find((l) => l.id === id)?.qty ?? 0;
+
+  const addOne = (it: MenuItem) => {
+    const price = Number(it.base_price || 0);
+    if (!price) return;
+    add({ id: it.id, name: it.item_name, price, qty: 1 });
+  };
 
   return (
     <div className="max-w-5xl mx-auto p-4 grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-      {/* LEFT MENU */}
+      {/* LEFT */}
       <div className="lg:col-span-2">
 
         {/* HEADER */}
         <div className="flex justify-between mb-4">
           <div>
             <h1 className="text-xl font-bold">{header.outletName}</h1>
-            <p className="text-sm text-gray-500">{header.stationCode}</p>
+            <div className="text-sm text-gray-500">
+              {header.stationCode} • {header.stationName}
+            </div>
           </div>
 
           <label className="flex items-center gap-2 text-sm">
@@ -150,15 +170,15 @@ export default function RestroMenuClient({ header, items }: Props) {
           </label>
         </div>
 
-        {/* ITEMS */}
+        {/* MENU */}
         {grouped.length === 0 ? (
           <div className="text-gray-500">No items available</div>
         ) : (
           grouped.map((g) => (
-            <div key={g.type} className="mb-4">
+            <div key={g.type} className="mb-5">
               <h2 className="font-semibold mb-2">{g.type}</h2>
 
-              {g.items.map((it: MenuItem) => {
+              {g.items.map((it) => {
                 const qty = getQty(it.id);
 
                 return (
@@ -173,15 +193,13 @@ export default function RestroMenuClient({ header, items }: Props) {
                     </div>
 
                     <div className="text-xs text-gray-500">
-                      {it.start_time} - {it.end_time}
+                      {t(it.start_time)} - {t(it.end_time)}
                     </div>
 
                     <div className="mt-2">
                       {qty === 0 ? (
                         <button
-                          onClick={() =>
-                            add({ id: it.id, name: it.item_name, price: it.base_price || 0, qty: 1 })
-                          }
+                          onClick={() => addOne(it)}
                           className="bg-green-600 text-white px-3 py-1 rounded"
                         >
                           + Add
@@ -208,7 +226,7 @@ export default function RestroMenuClient({ header, items }: Props) {
         <h3 className="font-semibold mb-2">Cart</h3>
 
         {count === 0 ? (
-          <p className="text-sm text-gray-500">Empty</p>
+          <p className="text-sm text-gray-500">Cart is empty</p>
         ) : (
           <>
             {lines.map((l) => (
@@ -226,6 +244,7 @@ export default function RestroMenuClient({ header, items }: Props) {
           </>
         )}
       </div>
+
     </div>
   );
 }
