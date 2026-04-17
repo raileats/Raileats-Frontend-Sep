@@ -6,164 +6,122 @@ import { useCart } from "@/lib/useCart";
 
 export default function CheckoutPage() {
   const router = useRouter();
-  const { lines, clearCart } = useCart();
+
+  // ✅ FIXED (lines → items)
+  const { items, clearCart } = useCart();
 
   const [name, setName] = useState("");
   const [mobile, setMobile] = useState("");
-  const [seat, setSeat] = useState("");
-  const [coach, setCoach] = useState("");
-  const [payment, setPayment] = useState("COD");
-  const [loading, setLoading] = useState(false);
 
-  if (!lines || lines.length === 0) {
-    return <div className="p-6 text-center">Cart is empty</div>;
-  }
+  /* ================= CALCULATIONS ================= */
 
-  const subTotal = lines.reduce((s, l) => s + l.price * l.qty, 0);
-  const gst = Math.round(subTotal * 0.05);
-  const delivery = subTotal > 0 ? 20 : 0;
-  const finalTotal = subTotal + gst + delivery;
+  const subtotal = items.reduce(
+    (sum, i) => sum + Number(i.price) * Number(i.qty),
+    0
+  );
 
-  async function placeOrder() {
-    if (!name || !mobile || !seat || !coach) {
-      alert("Fill all details");
+  const gst = Math.round(subtotal * 0.05);
+  const delivery = subtotal > 0 ? 20 : 0;
+
+  const total = subtotal + gst + delivery;
+
+  /* ================= ORDER ================= */
+
+  const placeOrder = async () => {
+    if (!items.length) {
+      alert("Cart empty");
       return;
     }
 
+    const firstItem = items[0];
+
+    // ✅ DEBUG (optional)
+    console.log("PAYLOAD =>", {
+      restroCode: firstItem?.restro_code,
+    });
+
     try {
-      setLoading(true);
-
-      const firstItem = lines[0];
-
-      const payload = {
-        // 🔥 IMPORTANT FULL DATA
-        pnr: "1234567890",
-        trainNumber: "11016",
-        trainName: "Demo Express",
-
-        restroCode: String(firstItem?.id || "1004"),
-        restroName: firstItem?.name || "Restaurant",
-
-        stationCode: "BPL",
-        stationName: "Bhopal",
-
-        arrivalDate: new Date().toISOString().slice(0, 10),
-        arrivalTime: new Date().toTimeString().slice(0, 5),
-
-        paymentMode: payment,
-
-        customerName: name,
-        customerMobile: mobile,
-
-        // ✅ CRITICAL FIX
-        items: lines.map((l) => ({
-          item_name: l.name,
-          selling_price: Number(l.price),
-          qty: Number(l.qty),
-        })),
-      };
-
-      console.log("PAYLOAD =>", payload);
-
       const res = await fetch("/api/order/create", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          pnr: "1234567890",
+          trainNumber: "11016",
+          trainName: "Demo Express",
+
+          // 🔥 MOST IMPORTANT
+          restroCode: firstItem?.restro_code,
+          restroName: firstItem?.restro_name,
+
+          stationCode: firstItem?.station_code,
+          stationName: firstItem?.station_name,
+
+          arrivalDate: "2026-04-18",
+          arrivalTime: "12:30",
+
+          paymentMode: "COD",
+
+          customerName: name || "Guest",
+          customerMobile: mobile || "",
+
+          items: items.map((i) => ({
+            id: i.id,
+            name: i.name,
+            qty: i.qty,
+            selling_price: i.price,
+          })),
+        }),
       });
 
       const data = await res.json();
 
       console.log("API RESPONSE =>", data);
 
-      if (!res.ok || !data?.orderId) {
+      if (!data.ok) {
         alert("Order failed (Admin API)");
         return;
       }
 
       clearCart();
 
-      router.push(
-        `/order-success?orderId=${data.orderId}&amount=${finalTotal}`
-      );
-
-    } catch (err) {
-      console.error(err);
-      alert("Error placing order");
-    } finally {
-      setLoading(false);
+      router.push("/order-success");
+    } catch (e) {
+      console.error(e);
+      alert("Server error");
     }
-  }
+  };
+
+  /* ================= UI ================= */
 
   return (
-    <div className="max-w-5xl mx-auto p-4 grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div className="max-w-md mx-auto p-4">
 
-      {/* LEFT */}
-      <div className="space-y-4">
+      <h2 className="text-lg font-bold mb-3">Passenger Details</h2>
 
-        <h1 className="text-xl font-bold">Passenger Details</h1>
+      <input
+        className="border p-2 w-full mb-2"
+        placeholder="Name"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+      />
 
-        <input
-          placeholder="Name"
-          className="border p-2 w-full"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-        />
+      <input
+        className="border p-2 w-full mb-4"
+        placeholder="Mobile"
+        value={mobile}
+        onChange={(e) => setMobile(e.target.value)}
+      />
 
-        <input
-          placeholder="Mobile"
-          className="border p-2 w-full"
-          value={mobile}
-          onChange={(e) => setMobile(e.target.value)}
-        />
+      {/* ORDER SUMMARY */}
+      <div className="border p-3 rounded mb-3">
+        <h3 className="font-semibold mb-2">Your Order</h3>
 
-        <div className="grid grid-cols-2 gap-2">
-          <input
-            placeholder="Coach"
-            className="border p-2"
-            value={coach}
-            onChange={(e) => setCoach(e.target.value)}
-          />
-          <input
-            placeholder="Seat"
-            className="border p-2"
-            value={seat}
-            onChange={(e) => setSeat(e.target.value)}
-          />
-        </div>
-
-        <div className="border p-3 rounded">
-          <h2>Payment Mode</h2>
-
-          <label>
-            <input
-              type="radio"
-              checked={payment === "COD"}
-              onChange={() => setPayment("COD")}
-            /> COD
-          </label>
-
-          <label>
-            <input
-              type="radio"
-              checked={payment === "PREPAID"}
-              onChange={() => setPayment("PREPAID")}
-            /> Prepaid
-          </label>
-        </div>
-
-      </div>
-
-      {/* RIGHT */}
-      <div className="border p-4 rounded">
-
-        <h3>Your Order</h3>
-
-        {lines.map((l) => (
-          <div key={l.id} className="flex justify-between text-sm">
-            <span>{l.name}</span>
-            <span>{l.qty}</span>
+        {items.map((i) => (
+          <div key={i.id} className="flex justify-between text-sm">
+            <span>{i.name} x {i.qty}</span>
+            <span>₹{i.price * i.qty}</span>
           </div>
         ))}
 
@@ -171,7 +129,7 @@ export default function CheckoutPage() {
 
         <div className="flex justify-between text-sm">
           <span>Subtotal</span>
-          <span>₹{subTotal}</span>
+          <span>₹{subtotal}</span>
         </div>
 
         <div className="flex justify-between text-sm">
@@ -186,22 +144,16 @@ export default function CheckoutPage() {
 
         <div className="flex justify-between font-bold mt-2">
           <span>Total</span>
-          <span>₹{finalTotal}</span>
+          <span>₹{total}</span>
         </div>
-
-        <button
-          onClick={placeOrder}
-          disabled={loading}
-          className="w-full bg-green-600 text-white py-2 mt-3 rounded"
-        >
-          {loading
-            ? "Processing..."
-            : payment === "COD"
-            ? "Place Order"
-            : "Pay Now"}
-        </button>
-
       </div>
+
+      <button
+        onClick={placeOrder}
+        className="w-full bg-green-600 text-white py-2 rounded"
+      >
+        Place Order
+      </button>
 
     </div>
   );
