@@ -1,12 +1,13 @@
-// 🔴 IMPORTANT: force dynamic (Vercel build fix)
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
-import { serviceClient } from "@/lib/supabaseServer"; // ✅ FIXED PATH
+import { serviceClient } from "@/lib/supabaseServer";
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
+
+    console.log("ORDER BODY =>", body);
 
     const {
       pnr,
@@ -24,6 +25,7 @@ export async function POST(req: Request) {
       items,
     } = body;
 
+    // ✅ VALIDATION
     if (!restroCode || !stationCode || !arrivalDate || !arrivalTime) {
       return NextResponse.json(
         { ok: false, error: "missing_required_fields" },
@@ -38,12 +40,22 @@ export async function POST(req: Request) {
       );
     }
 
-    const totalAmount = items.reduce(
-      (sum: number, i: any) =>
-        sum + Number(i.selling_price) * Number(i.qty),
-      0
-    );
+    // ✅ SAFE TOTAL CALCULATION
+    const totalAmount = items.reduce((sum: number, i: any) => {
+      const price = Number(i?.selling_price || 0);
+      const qty = Number(i?.qty || 0);
+      return sum + price * qty;
+    }, 0);
 
+    // ❌ अगर total 0 है → reject
+    if (totalAmount <= 0) {
+      return NextResponse.json(
+        { ok: false, error: "invalid_amount" },
+        { status: 400 }
+      );
+    }
+
+    // ✅ ORDER INSERT
     const { data: order, error } = await serviceClient
       .from("Orders")
       .insert({
@@ -73,6 +85,7 @@ export async function POST(req: Request) {
       );
     }
 
+    // ✅ STATUS HISTORY
     await serviceClient.from("OrderStatusHistory").insert({
       order_id: order.id,
       old_status: null,
