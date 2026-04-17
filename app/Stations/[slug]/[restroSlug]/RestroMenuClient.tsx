@@ -1,25 +1,21 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import Link from "next/link";
-import { useCart } from "../../../lib/useCart";
+import { useCart } from "@/lib/useCart";
 
-// ---- Types ----
+/* ================= TYPES ================= */
+
 type MenuItem = {
   id: number;
-  restro_code: string | number;
-  item_code?: string | null;
   item_name: string;
   item_description?: string | null;
   item_category?: string | null;
-  item_cuisine?: string | null;
-  menu_type?: string | null;
   start_time?: string | null;
   end_time?: string | null;
   base_price?: number | null;
-  gst_percent?: number | null;
-  selling_price?: number | null;
   status?: string | null;
+  menu_type?: string | null;
 };
 
 type Props = {
@@ -30,221 +26,232 @@ type Props = {
     stationName?: string;
   };
   items: MenuItem[];
-  offer: { text: string } | null;
 };
 
-// ---- helpers ----
-const ORDER_MENU_TYPES = [
-  "Thalis","Combos","Breakfast","Rice And Biryani","Roti Paratha",
-  "Pizza and Sandwiches","Fast Food","Burger","Starters and Snacks",
-  "Sweets","Beverages","Restro Specials","Bakery",
-];
+/* ================= HELPERS ================= */
 
-const isVegLike = (cat?: string | null) => {
-  const c = String(cat || "").toLowerCase();
-  return c === "veg" || c === "jain";
-};
+const isVeg = (cat?: string | null) =>
+  ["veg", "jain"].includes(String(cat || "").toLowerCase());
 
 const isNonVeg = (cat?: string | null) =>
   String(cat || "").toLowerCase() === "non-veg";
 
 const dot = (cat?: string | null) => {
-  if (isVegLike(cat))
-    return <span className="inline-block w-3 h-3 rounded-full bg-green-600" />;
-  if (isNonVeg(cat))
-    return <span className="inline-block w-3 h-3 rounded-full bg-red-600" />;
-  return <span className="inline-block w-3 h-3 rounded-full bg-gray-400" />;
+  if (isVeg(cat)) return <span className="w-3 h-3 bg-green-600 rounded-full inline-block" />;
+  if (isNonVeg(cat)) return <span className="w-3 h-3 bg-red-600 rounded-full inline-block" />;
+  return <span className="w-3 h-3 bg-gray-400 rounded-full inline-block" />;
 };
 
-const t = (s?: string | null) => (s ? s.slice(0, 5) : "");
+const price = (n?: number | null) => (n ? `₹${n}` : "—");
 
-const priceStr = (n?: number | null) =>
-  typeof n === "number"
-    ? `₹${Number(n).toFixed(2).replace(/\.00$/, "")}`
-    : "—";
+/* ================= COMPONENT ================= */
 
-// ✅ TIME CONVERT
-const timeToMin = (t?: string | null) => {
-  if (!t || !t.includes(":")) return 0;
-  const [h, m] = t.slice(0, 5).split(":").map(Number);
-  return h * 60 + m;
-};
-
-export default function RestroMenuClient({ header, items, offer }: Props) {
+export default function RestroMenuClient({ header, items }: Props) {
   const [vegOnly, setVegOnly] = useState(false);
   const [showMobileCart, setShowMobileCart] = useState(false);
 
-  const { lines, count, total, add, changeQty, remove, clearCart } = useCart();
+  const { lines, count, total, add, changeQty, remove } = useCart();
 
-  // ✅ GET ARRIVAL TIME
-  const arrivalMin = useMemo(() => {
-    if (typeof window === "undefined") return 0;
+  /* ================= FILTER ================= */
 
-    const u = new URL(window.location.href);
-    const arrival =
-      u.searchParams.get("arrivalTime") ||
-      u.searchParams.get("arrival") ||
-      "00:00";
-
-    return timeToMin(arrival);
-  }, []);
-
-  // ✅ FINAL FILTER (MAIN FIX)
   const visible = useMemo(() => {
-    return (items || []).filter((x) => {
-      if (x.status !== "ON") return false;
+    let arr = (items || []).filter((x) => x.status === "ON");
+    if (vegOnly) arr = arr.filter((x) => isVeg(x.item_category));
+    return arr;
+  }, [items, vegOnly]);
 
-      const startMin = timeToMin(x.start_time || "00:00");
-      const endMin = timeToMin(x.end_time || "23:59");
+  /* ================= GROUP ================= */
 
-      let isOpen = false;
-
-      if (endMin >= startMin) {
-        isOpen = arrivalMin >= startMin && arrivalMin <= endMin;
-      } else {
-        isOpen = arrivalMin >= startMin || arrivalMin <= endMin;
-      }
-
-      if (!isOpen) return false;
-
-      if (vegOnly && !isVegLike(x.item_category)) return false;
-
-      return true;
-    });
-  }, [items, vegOnly, arrivalMin]);
-
-  // grouping
   const grouped = useMemo(() => {
-    const by = new Map<string, MenuItem[]>();
-
-    for (const it of visible) {
-      const k = it.menu_type?.trim() || "Others";
-      const list = by.get(k);
-      list ? list.push(it) : by.set(k, [it]);
-    }
-
-    const out: { type: string; items: MenuItem[] }[] = [];
-    const used = new Set<string>();
-
-    for (const t of ORDER_MENU_TYPES) {
-      const list = by.get(t);
-      if (list) {
-        out.push({ type: t, items: list });
-        used.add(t);
-      }
-    }
-
-    by.forEach((list, k) => {
-      if (!used.has(k)) out.push({ type: k, items: list });
+    const map = new Map<string, MenuItem[]>();
+    visible.forEach((it) => {
+      const key = it.menu_type || "Others";
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(it);
     });
 
-    return out;
+    return Array.from(map.entries()).map(([type, items]) => ({
+      type,
+      items,
+    }));
   }, [visible]);
 
-  const getQty = (id: number) => lines.find((l) => l.id === id)?.qty ?? 0;
+  const getQty = (id: number) =>
+    lines.find((l) => l.id === id)?.qty || 0;
 
-  const addOne = (it: MenuItem) => {
-    const price = Number(it.base_price || 0);
-    if (!price) return;
-    add({ id: it.id, name: it.item_name, price, qty: 1 });
-  };
+  /* ================= UI ================= */
 
   return (
-    <div className="max-w-5xl mx-auto p-4 grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div className="max-w-5xl mx-auto p-4">
 
-      {/* LEFT */}
-      <div className="lg:col-span-2">
+      {/* 🔵 FLOATING CART (MOBILE) */}
+      {count > 0 && (
+        <div className="fixed top-16 right-4 z-50 lg:hidden">
+          <button
+            onClick={() => setShowMobileCart(true)}
+            className="bg-blue-600 text-white px-4 py-2 rounded-full shadow-lg text-sm font-bold"
+          >
+            {count} ₹{total} View cart
+          </button>
+        </div>
+      )}
 
-        {/* HEADER */}
-        <div className="flex justify-between mb-4">
-          <div>
-            <h1 className="text-xl font-bold">{header.outletName}</h1>
-            <div className="text-sm text-gray-500">
-              {header.stationCode} • {header.stationName}
-            </div>
-          </div>
-
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" onChange={(e)=>setVegOnly(e.target.checked)} />
-            Veg only
-          </label>
+      {/* HEADER */}
+      <div className="flex justify-between items-center mb-4">
+        <div>
+          <h1 className="text-xl font-bold">{header.outletName}</h1>
+          <div className="text-gray-500 text-sm">{header.stationCode}</div>
         </div>
 
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={vegOnly}
+            onChange={(e) => setVegOnly(e.target.checked)}
+          />
+          Veg only
+        </label>
+      </div>
+
+      <div className="grid lg:grid-cols-3 gap-6">
+
         {/* MENU */}
-        {grouped.length === 0 ? (
-          <div className="text-gray-500">No items available</div>
-        ) : (
-          grouped.map((g) => (
-            <div key={g.type} className="mb-5">
+        <div className="lg:col-span-2 space-y-4">
+          {grouped.map((g) => (
+            <div key={g.type}>
               <h2 className="font-semibold mb-2">{g.type}</h2>
 
               {g.items.map((it) => {
                 const qty = getQty(it.id);
 
                 return (
-                  <div key={it.id} className="border p-3 rounded mb-2">
+                  <div key={it.id} className="border rounded p-3 mb-2">
 
                     <div className="flex justify-between">
                       <div className="flex gap-2">
                         {dot(it.item_category)}
-                        <span>{it.item_name}</span>
+                        <div>
+                          <div className="font-medium">{it.item_name}</div>
+                          <div className="text-xs text-gray-500">
+                            {it.start_time} - {it.end_time}
+                          </div>
+                        </div>
                       </div>
-                      <span>{priceStr(it.base_price)}</span>
+
+                      <div className="font-bold">
+                        {price(it.base_price)}
+                      </div>
                     </div>
 
-                    <div className="text-xs text-gray-500">
-                      {t(it.start_time)} - {t(it.end_time)}
-                    </div>
+                    {it.item_description && (
+                      <p className="text-xs text-gray-600 mt-1">
+                        {it.item_description}
+                      </p>
+                    )}
 
                     <div className="mt-2">
                       {qty === 0 ? (
                         <button
-                          onClick={() => addOne(it)}
-                          className="bg-green-600 text-white px-3 py-1 rounded"
+                          className="bg-green-600 text-white px-3 py-1 rounded text-sm"
+                          onClick={() =>
+                            add({
+                              id: it.id,
+                              name: it.item_name,
+                              price: Number(it.base_price || 0),
+                              qty: 1,
+                            })
+                          }
                         >
                           + Add
                         </button>
                       ) : (
-                        <div className="flex gap-2">
-                          <button onClick={()=>changeQty(it.id, qty-1)}>-</button>
+                        <div className="flex items-center gap-2">
+                          <button onClick={() => changeQty(it.id, qty - 1)}>
+                            -
+                          </button>
                           <span>{qty}</span>
-                          <button onClick={()=>changeQty(it.id, qty+1)}>+</button>
+                          <button onClick={() => changeQty(it.id, qty + 1)}>
+                            +
+                          </button>
+                          <button
+                            className="text-red-500 text-sm"
+                            onClick={() => remove(it.id)}
+                          >
+                            Remove
+                          </button>
                         </div>
                       )}
                     </div>
-
                   </div>
                 );
               })}
             </div>
-          ))
-        )}
+          ))}
+        </div>
+
+        {/* DESKTOP CART */}
+        <div className="hidden lg:block">
+          <div className="border rounded p-4 sticky top-20">
+            <h3 className="font-bold mb-2">Your Cart</h3>
+
+            {count === 0 ? (
+              <p className="text-sm text-gray-500">Cart is empty</p>
+            ) : (
+              <>
+                {lines.map((l) => (
+                  <div key={l.id} className="flex justify-between mb-2">
+                    <span>{l.name} × {l.qty}</span>
+                    <span>₹{l.price * l.qty}</span>
+                  </div>
+                ))}
+
+                <div className="border-t pt-2 mt-2 flex justify-between font-bold">
+                  <span>Total</span>
+                  <span>₹{total}</span>
+                </div>
+
+                <Link
+                  href="/checkout"
+                  className="block mt-3 bg-green-600 text-white text-center py-2 rounded"
+                >
+                  Checkout
+                </Link>
+              </>
+            )}
+          </div>
+        </div>
       </div>
 
-      {/* CART */}
-      <div className="border p-4 rounded h-fit sticky top-20">
-        <h3 className="font-semibold mb-2">Cart</h3>
+      {/* MOBILE CART OVERLAY */}
+      {showMobileCart && (
+        <div className="fixed inset-0 bg-black/40 z-[1000] flex justify-center items-center">
+          <div className="bg-white w-[90%] max-w-md rounded-xl p-4">
+            <div className="flex justify-between mb-3">
+              <h3 className="font-bold">Your Cart</h3>
+              <button onClick={() => setShowMobileCart(false)}>✕</button>
+            </div>
 
-        {count === 0 ? (
-          <p className="text-sm text-gray-500">Cart is empty</p>
-        ) : (
-          <>
             {lines.map((l) => (
-              <div key={l.id} className="flex justify-between text-sm mb-1">
-                <span>{l.name}</span>
-                <span>{l.qty}</span>
+              <div key={l.id} className="flex justify-between mb-2">
+                <span>{l.name} × {l.qty}</span>
+                <span>₹{l.price * l.qty}</span>
               </div>
             ))}
 
-            <div className="mt-2 font-bold">₹{total}</div>
+            <div className="border-t pt-2 mt-2 flex justify-between font-bold">
+              <span>Total</span>
+              <span>₹{total}</span>
+            </div>
 
-            <Link href="/checkout" className="block bg-green-600 text-white text-center py-2 mt-2 rounded">
+            <Link
+              href="/checkout"
+              className="block mt-3 bg-green-600 text-white text-center py-2 rounded"
+            >
               Checkout
             </Link>
-          </>
-        )}
-      </div>
-
+          </div>
+        </div>
+      )}
     </div>
   );
 }
