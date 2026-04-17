@@ -38,16 +38,17 @@ export default function CheckoutPage() {
 
   /* ================= LOAD CART ================= */
 
-  useEffect(() => {
-    const c = getCart() as Cart | null;
+ useEffect(() => {
+  const c = getCart();
+  console.log("CHECKOUT CART:", c);
 
-    if (!c || !Array.isArray(c.items) || c.items.length === 0) {
-      router.replace("/search");
-      return;
-    }
+  if (!c || !Array.isArray(c.items) || c.items.length === 0) {
+    router.replace("/search");
+    return;
+  }
 
-    setCart(c);
-  }, [router]);
+  setCart(c);
+}, []);
 
   if (!cart) return <div className="p-4">Loading checkout…</div>;
 
