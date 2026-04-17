@@ -1,7 +1,6 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import RestroMenuClient from "@/components/RestroMenuClient";
 
 export default function MenuPage() {
   const searchParams = useSearchParams();
@@ -16,20 +15,19 @@ export default function MenuPage() {
     stationName,
   });
 
-  if (!restro) {
-    return <div className="p-4">Missing restro</div>;
-  }
-
   return (
     <div className="p-4">
-      <RestroMenuClient
-        header={{
-          restroCode: restro,
-          stationCode: "",
-          outletName: "Loading...",
-        }}
-        items={[]} // अभी dummy
-      />
+      <h1 className="text-xl font-bold">Menu Page</h1>
+
+      <div className="mt-4 text-sm">
+        <div><b>Restro:</b> {restro}</div>
+        <div><b>Arrival:</b> {arrival}</div>
+        <div><b>Station:</b> {stationName}</div>
+      </div>
+
+      <div className="mt-6 text-green-600">
+        ✅ Menu page working (Next step: items load)
+      </div>
     </div>
   );
 }
