@@ -102,7 +102,7 @@ export async function POST(req: Request) {
       .single();
 
     if (error) {
-      console.error("SUPABASE ERROR =>", error);
+    console.error("SUPABASE FULL ERROR =>", JSON.stringify(error, null, 2));
       return NextResponse.json(
         { ok: false, error: error.message },
         { status: 500 }
