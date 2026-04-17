@@ -10,11 +10,14 @@ export type CartLine = {
   qty: number;
   price: number;
 
-  // ✅ NEW (IMPORTANT for order API)
-  restro_code?: string;
+  // ✅ REQUIRED FOR ORDER API
+  restro_code: string;
   restro_name?: string;
   station_code?: string;
   station_name?: string;
+
+  // ✅ OPTIONAL (future safe)
+  item_code?: string;
 };
 
 type CartMap = Record<number, CartLine>;
@@ -26,6 +29,11 @@ export type CartContextValue = {
   lines: CartLine[];
 
   count: number;
+
+  // ✅ PRICING BREAKDOWN
+  subtotal: number;
+  gst: number;
+  delivery: number;
   total: number;
 
   add: (line: CartLine) => void;
@@ -43,13 +51,18 @@ const CartCtx = createContext<CartContextValue | null>(null);
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [cart, setCart] = useState<CartMap>({});
 
+  /* ================= ADD ================= */
+
   const add: CartContextValue["add"] = (line) => {
-    if (!line || !line.id) return;
+    // ❌ अगर restro_code नहीं है → reject
+    if (!line || !line.id || !line.restro_code) {
+      console.error("❌ Missing restro_code in cart item", line);
+      return;
+    }
 
     setCart((c) => {
       const existing = c[line.id];
 
-      // ✅ First time add
       if (!existing) {
         return {
           ...c,
@@ -60,7 +73,6 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         };
       }
 
-      // ✅ Increase qty only (keep meta same)
       return {
         ...c,
         [line.id]: {
@@ -70,6 +82,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       };
     });
   };
+
+  /* ================= CHANGE QTY ================= */
 
   const changeQty: CartContextValue["changeQty"] = (id, qty) => {
     setCart((c) => {
@@ -83,13 +97,12 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
       return {
         ...c,
-        [id]: {
-          ...row,
-          qty,
-        },
+        [id]: { ...row, qty },
       };
     });
   };
+
+  /* ================= REMOVE ================= */
 
   const remove: CartContextValue["remove"] = (id) => {
     setCart((c) => {
@@ -99,20 +112,37 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
+  /* ================= CLEAR ================= */
+
   const clearCart = () => setCart({});
+
+  /* ================= CALCULATIONS ================= */
 
   const value = useMemo<CartContextValue>(() => {
     const items = Object.values(cart);
 
     const count = items.reduce((a, b) => a + b.qty, 0);
-    const total = items.reduce((a, b) => a + b.qty * b.price, 0);
+
+    const subtotal = items.reduce(
+      (a, b) => a + b.qty * Number(b.price || 0),
+      0
+    );
+
+    const gst = Math.round(subtotal * 0.05); // ✅ 5% GST
+    const delivery = subtotal > 0 ? 20 : 0; // ✅ flat ₹20
+    const total = subtotal + gst + delivery;
 
     return {
       cart,
       items,
       lines: items,
       count,
+
+      subtotal,
+      gst,
+      delivery,
       total,
+
       add,
       changeQty,
       remove,
