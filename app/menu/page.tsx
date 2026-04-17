@@ -2,8 +2,7 @@
 
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import RestroMenuClient from "../restro/[restroCode]/menu/RestroMenuClient"; // 👈 IMPORTANT
-
+import RestroMenuClient from "../Stations/[slug]/[restroSlug]/RestroMenuClient";
 export default function MenuPage() {
   const searchParams = useSearchParams();
 
