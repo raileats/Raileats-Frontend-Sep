@@ -7,21 +7,33 @@ export function slugifyName(name: string) {
     .replace(/-+/g, "-");
 }
 
-/** e.g. makeRestroSlug("Mizaz E Bhopal Restaurant", "1004")
+/** e.g.
+ * makeRestroSlug("Mizaz E Bhopal Restaurant", "1004")
  * -> "mizaz-e-bhopal-restaurant-1004"
  */
-export function makeRestroSlug(restroName: string, restroCode: string | number) {
+export function makeRestroSlug(
+  restroName: string,
+  restroCode: string | number
+) {
   const base = slugifyName(restroName || "restaurant");
   return `${base}-${restroCode}`;
 }
 
-/** Extract numeric outlet code from slug.
- * Supports BOTH styles:
- *  - "1004-mizaz-e-bhopal"   (code-first)
- *  - "mizaz-e-bhopal-1004"   (code-last)
+/**
+ * ✅ FINAL FIXED VERSION
+ * Supports:
+ * - "1004-mizaz-e-bhopal"
+ * - "mizaz-e-bhopal-1004"
+ * - "mizaz-1004-bhopal" (rare but safe)
  */
 export function extractRestroCode(restroSlug: string) {
   const s = String(restroSlug || "");
-  const m = s.match(/^(\d{2,})\b/) || s.match(/(\d{2,})$/);
-  return m ? m[1] : "";
+
+  // 🔥 get ALL numbers
+  const matches = s.match(/\d+/g);
+
+  if (!matches || matches.length === 0) return "";
+
+  // ✅ ALWAYS take LAST number (correct restro code)
+  return matches[matches.length - 1];
 }
