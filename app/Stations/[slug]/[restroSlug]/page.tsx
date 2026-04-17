@@ -85,13 +85,25 @@ export default async function Page({
   const restroCode = extractRestroCode(params.restroSlug) || "";
   const outletName = humanizeFromSlug(params.restroSlug);
 
+  // ✅ NEW: stationName extract (slug se)
+  const stationName = params.slug
+    ?.split("-")
+    ?.slice(1)
+    ?.join(" ")
+    ?.replace(/-/g, " ") || stationCode;
+
   const items = await fetchOnMenu(restroCode);
 
-  const header = { stationCode, restroCode, outletName };
+  // ✅ FIXED HEADER
+  const header = {
+    stationCode,
+    restroCode: String(restroCode),
+    outletName,
+    stationName, // 🔥 IMPORTANT FIX
+  };
 
   return (
     <main className="max-w-5xl mx-auto px-3 sm:px-6 py-6">
-      {/* ✅ offer REMOVE kar diya (error fix) */}
       <RestroMenuClient header={header} items={items} />
     </main>
   );
