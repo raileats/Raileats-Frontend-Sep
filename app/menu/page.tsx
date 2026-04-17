@@ -1,7 +1,7 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import RestroMenuClient from "../components/RestroMenuClient";
+import RestroMenuClient from "@/components/RestroMenuClient";
 
 export default function MenuPage() {
   const searchParams = useSearchParams();
