@@ -5,7 +5,8 @@ import { useParams, useSearchParams } from "next/navigation";
 
 const SUPABASE_URL = "https://ygisiztmuzwxpnvhwrmr.supabase.co";
 
-/* ================= TIME HELPER ================= */
+/* ================= HELPERS ================= */
+
 function timeToMinutes(t: string) {
   if (!t || !t.includes(":")) return 0;
   const [h, m] = t.split(":").map(Number);
@@ -50,7 +51,7 @@ export default function TrainPage() {
     if (trainNumber) fetchData();
   }, [trainNumber, urlDate, boarding]);
 
-  if (loading)
+  if (loading) {
     return (
       <div className="p-10 text-center">
         <div className="inline-block w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin mb-4"></div>
@@ -59,6 +60,7 @@ export default function TrainPage() {
         </div>
       </div>
     );
+  }
 
   return (
     <div className="max-w-3xl mx-auto p-4 space-y-6">
@@ -83,7 +85,7 @@ export default function TrainPage() {
 
           const vendors = st.vendors || [];
 
-          /* ================= 🔥 MAIN FIX ================= */
+          // ✅ TIME FILTER
           const filteredVendors = vendors.filter((r: any) => {
             const open = formatTime(r.OpenTime || "00:00");
             const close = formatTime(r.ClosedTime || "23:59");
@@ -101,7 +103,7 @@ export default function TrainPage() {
               key={`${stationCode}-${index}`}
               className="border rounded-xl p-4 bg-gray-50 shadow-sm"
             >
-              {/* Station Header */}
+              {/* HEADER */}
               <div className="mb-4 border-b pb-2 flex justify-between items-start">
                 <div>
                   <h2 className="text-lg font-bold text-gray-800">
@@ -127,7 +129,7 @@ export default function TrainPage() {
                 </div>
               </div>
 
-              {/* Restaurants */}
+              {/* RESTAURANTS */}
               <div className="space-y-3">
                 {filteredVendors.map((r: any) => {
                   const restroName = r.RestroName || "Restaurant";
@@ -191,19 +193,31 @@ export default function TrainPage() {
                           </div>
                         </div>
 
-                       {/* ✅ Order Now FIXED */}
-<div className="mt-2 text-right">
-  <a
-    href={`/Stations/${stationCode}-${stationName.replace(/\s+/g, '-')}/${r.RestroCode}-${restroName.replace(/\s+/g, '-')}` +
-      `?date=${encodeURIComponent(deliveryDate)}` +
-      `&train=${trainNumber}` + 
-      `&boarding=${boarding}` + 
-      `&stationName=${encodeURIComponent(stationName)}` +
-      `&arrival=${arrives}` + 
-      `&halt=${halt}`
-    }
-    className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold px-4 py-2 rounded-lg"
-  >
-    Order Now
-  </a>
-</div>
+                        {/* ✅ FIXED BUTTON */}
+                        <div className="mt-2 text-right">
+                          <a
+                            href={`/Stations/${stationCode}-${stationName.replace(/\s+/g, '-')}/${r.RestroCode}-${restroName.replace(/\s+/g, '-')}` +
+                              `?date=${encodeURIComponent(deliveryDate)}` +
+                              `&train=${trainNumber}` +
+                              `&boarding=${boarding}` +
+                              `&stationName=${encodeURIComponent(stationName)}` +
+                              `&arrival=${arrives}` +
+                              `&halt=${halt}`
+                            }
+                            className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold px-4 py-2 rounded-lg"
+                          >
+                            Order Now
+                          </a>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })
+      )}
+    </div>
+  );
+}
