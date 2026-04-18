@@ -4,12 +4,21 @@ import { useState, useMemo } from "react";
 import { useCart } from "../../../lib/useCart";
 import CartPillMobile from "../../../components/CartPillMobile";
 
-/* ================= TIME ================= */
+/* 🔥 UNIVERSAL FIELD GET */
+const get = (it: any, keys: string[]) => {
+  for (let k of keys) {
+    if (it[k] !== undefined && it[k] !== null && it[k] !== "") {
+      return it[k];
+    }
+  }
+  return null;
+};
+
+/* 🔥 TIME */
 const toMin = (t?: string | null) => {
   if (!t) return null;
 
   let str = t.toString().trim();
-
   if (str.length >= 8) str = str.slice(0, 5);
 
   const [h, m] = str.split(":").map(Number);
@@ -18,42 +27,56 @@ const toMin = (t?: string | null) => {
   return h * 60 + m;
 };
 
-/* ================= COMPONENT ================= */
-
 export default function RestroMenuClient({ items, header }: any) {
   const { add, changeQty, cart } = useCart();
   const [vegOnly, setVegOnly] = useState(false);
 
-  /* 🔥 TRAIN TIME */
+  /* TRAIN TIME */
   const params = new URLSearchParams(
     typeof window !== "undefined" ? window.location.search : ""
   );
 
-  const trainTime = params.get("time") || "11:50";
+  const trainTime =
+    params.get("arrivalTime") ||
+    params.get("time") ||
+    "11:50";
+
   const trainMin = toMin(trainTime) || 710;
 
-  /* ================= FILTER ================= */
-
+  /* FILTER */
   const visible = useMemo(() => {
     return items.filter((it: any) => {
-      if (it.status !== "ON") return false;
+      const status = get(it, ["status", "Status"]);
+      if (status && status !== "ON") return false;
 
-      const s = toMin(it.item_start_time);
-      const e = toMin(it.item_end_time);
+      const start = get(it, [
+        "item_start_time",
+        "ItemStartTime",
+        "start_time",
+      ]);
 
-      // 🔥 TIMING FILTER
+      const end = get(it, [
+        "item_end_time",
+        "ItemEndTime",
+        "end_time",
+      ]);
+
+      const s = toMin(start);
+      const e = toMin(end);
+
       if (s !== null && e !== null) {
         if (!(trainMin >= s && trainMin <= e)) return false;
       }
 
-      // 🔥 VEG FILTER
-      if (vegOnly && !it.is_veg) return false;
+      const veg =
+        get(it, ["is_veg", "IsVeg"]) ??
+        String(get(it, ["item_category", "category"])).toLowerCase().includes("veg");
+
+      if (vegOnly && !veg) return false;
 
       return true;
     });
   }, [items, vegOnly]);
-
-  /* ================= UI ================= */
 
   return (
     <div className="p-3 max-w-xl mx-auto">
@@ -61,15 +84,11 @@ export default function RestroMenuClient({ items, header }: any) {
       {/* HEADER */}
       <div className="flex justify-between mb-3">
         <div>
-          <h1 className="text-lg font-semibold">
-            {header.outletName}
-          </h1>
-          <div className="text-xs text-gray-500">
-            {header.stationCode}
-          </div>
+          <h1 className="font-semibold">{header.outletName}</h1>
+          <div className="text-xs text-gray-500">{header.stationCode}</div>
         </div>
 
-        <label className="text-sm flex items-center gap-1">
+        <label className="text-sm flex gap-1">
           <input
             type="checkbox"
             checked={vegOnly}
@@ -79,30 +98,46 @@ export default function RestroMenuClient({ items, header }: any) {
         </label>
       </div>
 
-      {/* EMPTY */}
       {visible.length === 0 && (
         <div className="text-center text-gray-500 mt-10">
           No items available at this time
         </div>
       )}
 
-      {/* ITEMS */}
       <div className="space-y-3">
         {visible.map((it: any) => {
           const existing = cart[it.id];
+
+          const desc = get(it, [
+            "description",
+            "item_description",
+            "ItemDescription",
+          ]);
+
+          const start = get(it, [
+            "item_start_time",
+            "ItemStartTime",
+          ]);
+
+          const end = get(it, [
+            "item_end_time",
+            "ItemEndTime",
+          ]);
+
+          const isVeg =
+            get(it, ["is_veg", "IsVeg"]) ??
+            String(get(it, ["item_category"])).toLowerCase().includes("veg");
 
           return (
             <div
               key={it.id}
               className="border rounded-lg p-3 flex justify-between"
             >
-
-              {/* LEFT */}
               <div>
                 <div className="flex gap-2 items-center">
                   <span
                     className={`w-3 h-3 rounded-full ${
-                      it.is_veg ? "bg-green-600" : "bg-red-600"
+                      isVeg ? "bg-green-600" : "bg-red-600"
                     }`}
                   />
                   <span className="text-sm font-medium">
@@ -110,17 +145,15 @@ export default function RestroMenuClient({ items, header }: any) {
                   </span>
                 </div>
 
-                {/* ✅ TIME */}
-                {it.item_start_time && (
+                {start && (
                   <div className="text-xs text-gray-500">
-                    ⏱ {it.item_start_time} - {it.item_end_time}
+                    ⏱ {start} - {end}
                   </div>
                 )}
 
-                {/* ✅ DESCRIPTION */}
-                {it.description && (
+                {desc && (
                   <div className="text-xs text-gray-600">
-                    {it.description}
+                    {desc}
                   </div>
                 )}
 
@@ -129,7 +162,6 @@ export default function RestroMenuClient({ items, header }: any) {
                 </div>
               </div>
 
-              {/* RIGHT */}
               <div>
                 {!existing ? (
                   <button
@@ -157,13 +189,11 @@ export default function RestroMenuClient({ items, header }: any) {
                   </div>
                 )}
               </div>
-
             </div>
           );
         })}
       </div>
 
-      {/* CART BUTTON */}
       <CartPillMobile />
     </div>
   );
