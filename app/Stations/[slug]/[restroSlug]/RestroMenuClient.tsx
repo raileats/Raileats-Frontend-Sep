@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useCart } from "@/app/lib/useCart";
+import { useCart } from "../../../lib/useCart";
 
 type Item = {
   id: number;
