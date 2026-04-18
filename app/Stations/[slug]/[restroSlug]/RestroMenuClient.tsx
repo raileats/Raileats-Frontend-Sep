@@ -53,7 +53,7 @@ export default function RestroMenuClient({
       </div>
 
       {/* LIST */}
-      <div className="space-y-4">
+     <div className="grid grid-cols-2 gap-4">
         {filteredItems.map((it) => {
           const existing = cart[it.id];
 
