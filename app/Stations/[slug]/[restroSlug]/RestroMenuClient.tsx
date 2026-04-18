@@ -1,90 +1,66 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
-import Link from "next/link";
+import { useState } from "react";
 import { useCart } from "../../../lib/useCart";
 
 /* ================= TYPES ================= */
 
-type MenuItem = {
+type Item = {
   id: number;
   item_name: string;
-  item_description?: string | null;
-  item_category?: string | null;
-  start_time?: string | null;
-  end_time?: string | null;
-  base_price?: number | null;
-  status?: string | null;
+  base_price: number;
+  item_category?: string;
+  item_description?: string;
+  item_start_time?: string;
+  item_end_time?: string;
+  status?: string;
 };
 
-type Props = {
-  header: {
-    stationCode: string;
-    restroCode: string | number;
-    outletName: string;
-    stationName?: string;
-  };
-  items: MenuItem[];
+type Header = {
+  restroCode: string;
+  outletName: string;
+  stationCode: string;
+  stationName: string;
 };
 
 /* ================= HELPERS ================= */
 
+const isVeg = (cat?: string) => {
+  return cat?.toLowerCase().includes("veg");
+};
+
 const timeToMin = (t?: string | null) => {
-  if (!t || !t.includes(":")) return null;
-  const [h, m] = t.slice(0, 5).split(":").map(Number);
+  if (!t) return null;
+  const clean = t.slice(0, 5); // handle 11:59:00
+  const [h, m] = clean.split(":").map(Number);
+  if (isNaN(h) || isNaN(m)) return null;
   return h * 60 + m;
 };
 
-const isVeg = (c?: string | null) =>
-  ["veg", "jain"].includes(String(c).toLowerCase());
-
-const vegDot = (c?: string | null) => (
-  <span
-    className={`w-3 h-3 rounded-full ${
-      isVeg(c) ? "bg-green-600" : "bg-red-600"
-    }`}
-  />
-);
-
-const price = (p?: number | null) =>
-  typeof p === "number" ? `₹${p}` : "—";
-
 /* ================= COMPONENT ================= */
 
-export default function RestroMenuClient({ header, items }: Props) {
-  const { items: cartItems, count, total, add, changeQty } = useCart();
-
+export default function RestroMenuClient({
+  items,
+  header,
+}: {
+  items: Item[];
+  header: Header;
+}) {
+  const { add, changeQty, cart } = useCart();
   const [vegOnly, setVegOnly] = useState(false);
 
-  /* ===== TRAIN TIME ===== */
-  const trainMin = useMemo(() => {
-    if (typeof window === "undefined") return null;
+  /* 🔥 TEMP FIX TRAIN TIME (11:50 AM) */
+  const trainMin = 11 * 60 + 50;
 
-    const url = new URL(window.location.href);
+  /* ================= FILTER ================= */
 
-    const t =
-      url.searchParams.get("arrivalTime") ||
-      url.searchParams.get("arrival");
+  const visible = items.filter((it) => {
+    if (it.status && it.status !== "ON") return false;
 
-    if (!t) return null;
+    const s = timeToMin(it.item_start_time);
+    const e = timeToMin(it.item_end_time);
 
-    return timeToMin(t);
-  }, []);
-
-  /* ===== FILTER ===== */
-  const visible = useMemo(() => {
-    return items.filter((it) => {
-      if (it.status && it.status !== "ON") return false;
-
-      const s = timeToMin(it.start_time);
-      const e = timeToMin(it.end_time);
-
-      // ✅ no timing → show
-      if (s === null || e === null) return true;
-
-      // ✅ no train time → show
-      if (trainMin === null) return true;
-
+    if (s !== null && e !== null) {
       let ok = false;
 
       if (e >= s) {
@@ -94,179 +70,144 @@ export default function RestroMenuClient({ header, items }: Props) {
       }
 
       if (!ok) return false;
+    }
 
-      if (vegOnly && !isVeg(it.item_category)) return false;
+    if (vegOnly && !isVeg(it.item_category)) return false;
 
-      return true;
-    });
-  }, [items, vegOnly, trainMin]);
-
-  const getQty = (id: number) =>
-    cartItems.find((i) => i.id === id)?.qty || 0;
+    return true;
+  });
 
   /* ================= UI ================= */
 
   return (
-    <div className="max-w-6xl mx-auto p-4 grid lg:grid-cols-3 gap-6">
+    <div className="p-3 max-w-xl mx-auto">
 
-      {/* ===== LEFT MENU ===== */}
-      <div className="lg:col-span-2">
-
-        {/* HEADER */}
-        <div className="flex justify-between mb-4">
-          <div>
-            <h1 className="text-xl font-bold">{header.outletName}</h1>
-            <div className="text-sm text-gray-500">
-              {header.stationCode}
-            </div>
+      {/* HEADER */}
+      <div className="flex justify-between items-center mb-3">
+        <div>
+          <h1 className="text-lg font-semibold">
+            {header.outletName}
+          </h1>
+          <div className="text-xs text-gray-500">
+            {header.stationCode}
           </div>
-
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              onChange={(e) => setVegOnly(e.target.checked)}
-            />
-            Veg only
-          </label>
         </div>
 
-        {/* ITEMS */}
-        {visible.length === 0 ? (
-          <div className="text-gray-500 mt-10">
-            No items available at this time
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {visible.map((it) => {
-              const qty = getQty(it.id);
-
-              return (
-                <div
-                  key={it.id}
-                  className="border rounded-lg p-4 bg-white shadow-sm"
-                >
-                  {/* TOP */}
-                  <div className="flex justify-between items-start">
-
-                    {/* LEFT */}
-                    <div className="flex-1">
-
-                      {/* NAME */}
-                      <div className="flex items-center gap-2">
-                        {vegDot(it.item_category)}
-                        <span className="font-medium">
-                          {it.item_name}
-                        </span>
-                      </div>
-
-                      {/* TIME */}
-                      {it.start_time && it.end_time && (
-                        <div className="text-xs text-gray-500 mt-1">
-                          ⏱ {it.start_time.slice(0, 5)} -{" "}
-                          {it.end_time.slice(0, 5)}
-                        </div>
-                      )}
-
-                      {/* DESC */}
-                      {it.item_description && (
-                        <div className="text-sm text-gray-600 mt-1">
-                          {it.item_description}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* RIGHT SIDE */}
-                    <div className="flex flex-col items-end gap-2">
-
-                      {/* PRICE */}
-                      <div className="font-semibold">
-                        {price(it.base_price)}
-                      </div>
-
-                      {/* BUTTON */}
-                      {qty === 0 ? (
-                        <button
-                          onClick={() =>
-                            add({
-                              id: it.id,
-                              name: it.item_name,
-                              price: Number(it.base_price || 0),
-                              qty: 1,
-                            })
-                          }
-                          className="border border-green-600 text-green-600 px-4 py-1 rounded text-sm"
-                        >
-                          ADD +
-                        </button>
-                      ) : (
-                        <div className="flex items-center gap-2 border rounded px-2 py-1">
-                          <button
-                            onClick={() =>
-                              changeQty(it.id, qty - 1)
-                            }
-                          >
-                            -
-                          </button>
-
-                          <span>{qty}</span>
-
-                          <button
-                            onClick={() =>
-                              changeQty(it.id, qty + 1)
-                            }
-                          >
-                            +
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
+        <label className="text-sm flex items-center gap-1">
+          <input
+            type="checkbox"
+            checked={vegOnly}
+            onChange={(e) => setVegOnly(e.target.checked)}
+          />
+          Veg only
+        </label>
       </div>
 
-      {/* ===== RIGHT CART (DESKTOP) ===== */}
-      <div className="hidden lg:block border p-4 rounded sticky top-20 h-fit">
-        <h3 className="font-semibold mb-2">Your Cart</h3>
-
-        {count === 0 ? (
-          <p className="text-sm text-gray-500">Cart empty</p>
-        ) : (
-          <>
-            {cartItems.map((c) => (
-              <div
-                key={c.id}
-                className="flex justify-between text-sm mb-1"
-              >
-                <span>{c.name}</span>
-                <span>x{c.qty}</span>
-              </div>
-            ))}
-
-            <div className="mt-2 font-bold">₹{total}</div>
-
-            <Link
-              href="/checkout"
-              className="block bg-green-600 text-white text-center py-2 mt-2 rounded"
-            >
-              Checkout
-            </Link>
-          </>
-        )}
-      </div>
-
-      {/* ===== FLOATING CART (MOBILE) ===== */}
-      {count > 0 && (
-        <Link
-          href="/checkout"
-          className="fixed bottom-20 right-4 bg-blue-600 text-white px-4 py-2 rounded-full shadow lg:hidden"
-        >
-          {count} items • ₹{total}
-        </Link>
+      {/* EMPTY */}
+      {visible.length === 0 && (
+        <div className="text-center text-gray-500 mt-10">
+          No items available at this time
+        </div>
       )}
+
+      {/* ITEMS */}
+      <div className="space-y-3">
+        {visible.map((it) => {
+          const existing = cart[it.id];
+
+          return (
+            <div
+              key={it.id}
+              className="border rounded-lg p-3 flex justify-between items-start shadow-sm"
+            >
+
+              {/* LEFT SIDE */}
+              <div className="flex-1 pr-2">
+
+                {/* NAME + VEG DOT */}
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`w-3 h-3 rounded-full ${
+                      isVeg(it.item_category)
+                        ? "bg-green-600"
+                        : "bg-red-600"
+                    }`}
+                  />
+                  <span className="font-medium text-sm">
+                    {it.item_name}
+                  </span>
+                </div>
+
+                {/* TIME */}
+                {it.item_start_time && (
+                  <div className="text-xs text-gray-500 mt-1">
+                    ⏱ {it.item_start_time?.slice(0, 5)} -{" "}
+                    {it.item_end_time?.slice(0, 5)}
+                  </div>
+                )}
+
+                {/* DESCRIPTION */}
+                {it.item_description && (
+                  <div className="text-xs text-gray-600 mt-1">
+                    {it.item_description}
+                  </div>
+                )}
+
+                {/* PRICE */}
+                <div className="text-sm font-semibold mt-1">
+                  ₹{it.base_price}
+                </div>
+              </div>
+
+              {/* RIGHT SIDE */}
+              <div className="flex flex-col items-end">
+
+                {!existing ? (
+                  <button
+                    className="border border-green-600 text-green-600 px-3 py-1 rounded text-sm"
+                    onClick={() =>
+                      add({
+                        id: it.id,
+                        name: it.item_name,
+                        price: Number(it.base_price || 0),
+                        qty: 1,
+                        restro_code: header.restroCode,
+                        restro_name: header.outletName,
+                        station_code: header.stationCode,
+                        station_name: header.stationName,
+                      })
+                    }
+                  >
+                    ADD
+                  </button>
+                ) : (
+                  <div className="flex items-center gap-2 border rounded px-2 py-1">
+                    <button
+                      onClick={() =>
+                        changeQty(it.id, existing.qty - 1)
+                      }
+                    >
+                      -
+                    </button>
+
+                    <span>{existing.qty}</span>
+
+                    <button
+                      onClick={() =>
+                        changeQty(it.id, existing.qty + 1)
+                      }
+                    >
+                      +
+                    </button>
+                  </div>
+                )}
+              </div>
+
+            </div>
+          );
+        })}
+      </div>
+
     </div>
   );
 }
