@@ -14,13 +14,15 @@ export default function CartWidget() {
     <button
       type="button"
       onClick={openCart}
-      className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 shadow-md hover:shadow-lg border"
+      className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 shadow-md hover:shadow-lg border transition"
       aria-label="Open cart"
     >
+      {/* COUNT */}
       <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-blue-600 text-white text-xs font-semibold">
         {count}
       </span>
 
+      {/* TOTAL */}
       <span className="text-sm font-medium">
         ₹{Number(total || 0).toFixed(0)}
       </span>
