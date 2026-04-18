@@ -24,20 +24,26 @@ type Header = {
 
 /* ================= TIME HELPERS ================= */
 
-// URL se train time nikaalo
+// ट्रेन टाइम निकालना (URL से)
 function getTrainTime() {
   if (typeof window === "undefined") return null;
 
   const params = new URLSearchParams(window.location.search);
+
   const raw =
-    params.get("time") || params.get("arrival") || params.get("date");
+    params.get("time") ||
+    params.get("arrival") ||
+    params.get("date");
 
-  if (!raw) return null;
+  if (raw) {
+    const match = raw.match(/(\d{1,2}):(\d{2})/);
+    if (match) {
+      return parseInt(match[1]) * 60 + parseInt(match[2]);
+    }
+  }
 
-  const match = raw.match(/(\d{1,2}):(\d{2})/);
-  if (!match) return null;
-
-  return parseInt(match[1]) * 60 + parseInt(match[2]);
+  // ✅ fallback (important for now)
+  return 11 * 60 + 50; // 11:50 AM
 }
 
 // "HH:mm" → minutes
@@ -75,13 +81,14 @@ export default function RestroMenuClient({
     // Veg filter
     if (vegOnly && !i.is_veg) return false;
 
-    // Time filter
     const start = timeToMinutes(i.start_time);
     const end = timeToMinutes(i.end_time);
 
-    if (!trainTime || start === null || end === null) return true;
+    // ❗ strict rule (IMPORTANT FIX)
+    if (start === null || end === null) return false;
+    if (trainTime === null) return false;
 
-    // Overnight support (e.g. 22:00 → 02:00)
+    // Overnight case (22:00 → 02:00)
     if (end < start) {
       return trainTime >= start || trainTime <= end;
     }
@@ -126,7 +133,7 @@ export default function RestroMenuClient({
               {/* LEFT */}
               <div className="flex-1">
 
-                {/* name + veg */}
+                {/* NAME + VEG */}
                 <div className="flex items-center gap-2">
                   <span
                     className={`w-3 h-3 rounded-full ${
@@ -139,19 +146,17 @@ export default function RestroMenuClient({
                   </span>
                 </div>
 
-                {/* price */}
+                {/* PRICE */}
                 <div className="text-sm font-medium mt-1">
                   ₹{it.base_price}
                 </div>
 
-                {/* time */}
-                {(it.start_time || it.end_time) && (
-                  <div className="text-xs text-green-600 mt-1">
-                    ⏱ {it.start_time} - {it.end_time}
-                  </div>
-                )}
+                {/* TIME (OLD STYLE FIX) */}
+                <div className="text-xs text-gray-500 mt-1">
+                  {it.start_time} - {it.end_time}
+                </div>
 
-                {/* description */}
+                {/* DESCRIPTION */}
                 {it.item_description && (
                   <div className="text-xs text-gray-500 mt-1">
                     {it.item_description}
@@ -162,7 +167,6 @@ export default function RestroMenuClient({
               {/* RIGHT */}
               <div className="flex flex-col items-end justify-between">
 
-                {/* ADD / QTY */}
                 {qty === 0 ? (
                   <button
                     className="border border-green-600 text-green-600 px-3 py-1 rounded text-sm"
@@ -179,7 +183,7 @@ export default function RestroMenuClient({
                       })
                     }
                   >
-                    ADD +
+                    Add
                   </button>
                 ) : (
                   <div className="flex items-center gap-2 border rounded px-2 py-1 text-sm">
@@ -199,7 +203,7 @@ export default function RestroMenuClient({
           );
         })}
 
-        {/* EMPTY STATE */}
+        {/* EMPTY */}
         {filteredItems.length === 0 && (
           <div className="text-center text-gray-500 py-10">
             No items available at this time
