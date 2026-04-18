@@ -10,11 +10,9 @@ export default function CartPopup() {
   const [open, setOpen] = useState(false);
   const router = useRouter();
 
-  /* 🔥 LISTEN OPEN EVENT */
   useEffect(() => {
     const offOpen = onOpenCart(() => setOpen(true));
     const offClose = onCloseCart(() => setOpen(false));
-
     return () => {
       offOpen();
       offClose();
@@ -24,47 +22,59 @@ export default function CartPopup() {
   if (!open || items.length === 0) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-white w-[320px] rounded-lg shadow-lg p-4 relative">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
+      <div className="bg-white w-[320px] rounded-lg shadow-xl overflow-hidden">
 
-        {/* CLOSE */}
-        <button
-          className="absolute right-3 top-2 text-gray-500"
-          onClick={() => setOpen(false)}
-        >
-          ✕
-        </button>
-
-        <h2 className="font-semibold mb-3">Your Cart</h2>
+        {/* HEADER */}
+        <div className="flex justify-between items-center px-4 py-2 border-b">
+          <h2 className="font-semibold text-sm">Your Cart</h2>
+          <button
+            onClick={() => setOpen(false)}
+            className="text-gray-500 text-lg"
+          >
+            ×
+          </button>
+        </div>
 
         {/* ITEMS */}
-        <div className="space-y-2 text-sm">
+        <div className="px-4 py-2 space-y-2 text-sm max-h-[200px] overflow-y-auto">
           {items.map((it) => (
-            <div key={it.id} className="flex justify-between">
-              <span>
-                {it.name} x {it.qty}
-              </span>
-              <span>₹{it.price * it.qty}</span>
+            <div key={it.id} className="flex justify-between items-center">
+              
+              {/* LEFT */}
+              <div className="flex-1 pr-2">
+                <div className="truncate">
+                  {it.name} x {it.qty}
+                </div>
+              </div>
+
+              {/* RIGHT */}
+              <div className="text-right font-medium">
+                ₹{it.price * it.qty}
+              </div>
             </div>
           ))}
         </div>
 
         {/* TOTAL */}
-        <div className="flex justify-between mt-3 font-semibold border-t pt-2">
+        <div className="flex justify-between items-center px-4 py-2 border-t text-sm font-semibold">
           <span>Total</span>
           <span>₹{total}</span>
         </div>
 
-        {/* CHECKOUT */}
-        <button
-          className="mt-3 w-full bg-green-600 text-white py-2 rounded"
-          onClick={() => {
-            setOpen(false);
-            router.push("/checkout");
-          }}
-        >
-          Checkout
-        </button>
+        {/* BUTTON */}
+        <div className="p-3">
+          <button
+            onClick={() => {
+              setOpen(false);
+              router.push("/checkout");
+            }}
+            className="w-full bg-green-600 text-white py-2 rounded-md font-medium"
+          >
+            Checkout
+          </button>
+        </div>
+
       </div>
     </div>
   );
