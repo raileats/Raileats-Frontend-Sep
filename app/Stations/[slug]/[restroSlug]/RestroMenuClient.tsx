@@ -8,9 +8,9 @@ type Item = {
   item_name: string;
   base_price: number;
   is_veg?: boolean;
+  item_description?: string | null;
   start_time?: string | null;
   end_time?: string | null;
-  item_description?: string | null;
 };
 
 type Header = {
@@ -28,7 +28,6 @@ export default function RestroMenuClient({
   header: Header;
 }) {
   const { add, changeQty, items: cartItems } = useCart();
-
   const [vegOnly, setVegOnly] = useState(false);
 
   const filteredItems = vegOnly
@@ -41,28 +40,26 @@ export default function RestroMenuClient({
   };
 
   return (
-    <div className="p-4 max-w-3xl mx-auto">
+    <div className="max-w-4xl mx-auto px-3 py-4">
 
       {/* HEADER */}
-      <div className="flex justify-between items-center mb-4">
-        <div>
-          <h1 className="text-xl font-bold">{header.outletName}</h1>
-          <div className="text-gray-500 text-sm">
-            {header.stationCode}
-          </div>
-        </div>
+      <div className="mb-5">
+        <h1 className="text-xl font-bold">{header.outletName}</h1>
+        <p className="text-sm text-gray-500">{header.stationCode}</p>
 
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={vegOnly}
-            onChange={(e) => setVegOnly(e.target.checked)}
-          />
-          Veg only
-        </label>
+        <div className="mt-2 flex gap-2">
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={vegOnly}
+              onChange={(e) => setVegOnly(e.target.checked)}
+            />
+            Veg Only
+          </label>
+        </div>
       </div>
 
-      {/* MENU LIST (VERTICAL) */}
+      {/* MENU */}
       <div className="space-y-4">
 
         {filteredItems.map((it) => {
@@ -71,12 +68,13 @@ export default function RestroMenuClient({
           return (
             <div
               key={it.id}
-              className="border-b pb-4 flex justify-between gap-4"
+              className="flex justify-between gap-4 border rounded-xl p-3 shadow-sm hover:shadow-md transition"
             >
-              {/* LEFT SIDE */}
+
+              {/* LEFT */}
               <div className="flex-1">
 
-                {/* NAME + VEG DOT */}
+                {/* veg + name */}
                 <div className="flex items-center gap-2">
                   <span
                     className={`w-3 h-3 rounded-full ${
@@ -84,38 +82,47 @@ export default function RestroMenuClient({
                     }`}
                   ></span>
 
-                  <span className="font-medium">
+                  <span className="font-semibold text-sm">
                     {it.item_name}
                   </span>
                 </div>
 
-                {/* TIME */}
+                {/* price */}
+                <div className="text-sm font-medium mt-1">
+                  ₹{it.base_price}
+                </div>
+
+                {/* time */}
                 {(it.start_time || it.end_time) && (
-                  <div className="text-xs text-gray-500 mt-1">
-                    {it.start_time} - {it.end_time}
+                  <div className="text-xs text-green-600 mt-1">
+                    ⏱ {it.start_time} - {it.end_time}
                   </div>
                 )}
 
-                {/* DESCRIPTION */}
+                {/* description */}
                 {it.item_description && (
-                  <div className="text-sm text-gray-600 mt-1">
+                  <div className="text-xs text-gray-500 mt-1 line-clamp-2">
                     {it.item_description}
                   </div>
                 )}
               </div>
 
-              {/* RIGHT SIDE */}
+              {/* RIGHT */}
               <div className="flex flex-col items-end justify-between">
 
-                {/* PRICE */}
-                <div className="font-semibold">
-                  ₹{it.base_price}
+                {/* IMAGE (placeholder) */}
+                <div className="w-20 h-20 bg-gray-100 rounded-lg overflow-hidden mb-2">
+                  <img
+                    src="/food.png"
+                    alt="food"
+                    className="w-full h-full object-cover"
+                  />
                 </div>
 
-                {/* BUTTON / QTY */}
+                {/* BUTTON */}
                 {qty === 0 ? (
                   <button
-                    className="mt-2 bg-green-600 text-white px-4 py-1 rounded text-sm"
+                    className="border border-green-600 text-green-600 px-3 py-1 rounded text-sm font-medium"
                     onClick={() =>
                       add({
                         id: it.id,
@@ -129,21 +136,15 @@ export default function RestroMenuClient({
                       })
                     }
                   >
-                    Add
+                    ADD +
                   </button>
                 ) : (
-                  <div className="mt-2 flex items-center gap-2 border rounded px-2 py-1">
-                    <button
-                      onClick={() => changeQty(it.id, qty - 1)}
-                    >
+                  <div className="flex items-center gap-2 border rounded px-2 py-1 text-sm">
+                    <button onClick={() => changeQty(it.id, qty - 1)}>
                       -
                     </button>
-
                     <span>{qty}</span>
-
-                    <button
-                      onClick={() => changeQty(it.id, qty + 1)}
-                    >
+                    <button onClick={() => changeQty(it.id, qty + 1)}>
                       +
                     </button>
                   </div>
