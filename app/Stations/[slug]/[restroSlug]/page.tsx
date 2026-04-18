@@ -1,25 +1,30 @@
 import React from "react";
-import type { Metadata } from "next";
 import { extractStationCode } from "../../../lib/stationSlug";
 import { extractRestroCode } from "../../../lib/restroSlug";
 import RestroMenuClient from "./RestroMenuClient";
 
-/* ------------ types ------------ */
+/* ------------ TYPES ------------ */
 type MenuItem = {
   id: number;
-  restro_code: string | number;
   item_name: string;
   base_price?: number | null;
   item_category?: string | null;
+
+  // 🔥 IMPORTANT FIELDS
+  description?: string | null;
+  item_start_time?: string | null;
+  item_end_time?: string | null;
+  status?: string | null;
 };
 
+/* ------------ CONFIG ------------ */
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 const ADMIN_BASE =
   process.env.NEXT_PUBLIC_ADMIN_APP_URL || "https://admin.raileats.in";
 
-/* ------------ helpers ------------ */
+/* ------------ HELPERS ------------ */
 function humanizeFromSlug(restroSlug: string) {
   return decodeURIComponent(restroSlug)
     .replace(/^\d+-/, "")
@@ -61,12 +66,27 @@ export default async function Page({
 
   const rawItems = await fetchOnMenu(restroCode);
 
-  // ✅ 🔥 FIX: normalize items
+  // ✅ 🔥 FINAL NORMALIZATION (THIS WAS MISSING)
   const items = rawItems.map((it) => ({
-    id: it.id,
-    item_name: it.item_name,
-    base_price: Number(it.base_price || 0), // ✅ always number
-    is_veg: it.item_category?.toLowerCase() !== "non-veg",
+    id: Number(it.id),
+
+    item_name: it.item_name || "",
+    base_price: Number(it.base_price || 0),
+
+    // ✅ veg/non-veg FIX
+    is_veg:
+      it.item_category?.toLowerCase() === "veg" ||
+      it.item_category?.toLowerCase() === "vegetarian",
+
+    // ✅ description FIX
+    description: it.description || "",
+
+    // ✅ timing FIX (MOST IMPORTANT)
+    item_start_time: it.item_start_time || null,
+    item_end_time: it.item_end_time || null,
+
+    // ✅ status
+    status: it.status || "ON",
   }));
 
   const header = {
