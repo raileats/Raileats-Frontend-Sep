@@ -5,8 +5,7 @@ import { useCart } from "../../../lib/useCart";
 import CartPillMobile from "../../../components/CartPillMobile";
 import CartWidget from "../../../components/CartWidget";
 
-/* ================= SAFE FIELD GET ================= */
-
+/* ================= SAFE GET ================= */
 const get = (obj: any, keys: string[]) => {
   for (let k of keys) {
     if (obj[k] !== undefined && obj[k] !== null && obj[k] !== "") {
@@ -16,12 +15,34 @@ const get = (obj: any, keys: string[]) => {
   return null;
 };
 
-/* ================= HELPERS ================= */
+/* ================= TIME PARSER ================= */
+const timeToMin = (t?: string | null) => {
+  if (!t) return null;
 
+  let str = t.toString().trim();
+
+  // handle "11:59:00"
+  if (str.length >= 8) str = str.slice(0, 5);
+
+  // handle "11:50 AM"
+  if (str.toLowerCase().includes("am") || str.toLowerCase().includes("pm")) {
+    const date = new Date(`1970-01-01 ${str}`);
+    if (!isNaN(date.getTime())) {
+      return date.getHours() * 60 + date.getMinutes();
+    }
+  }
+
+  const [h, m] = str.split(":").map(Number);
+  if (isNaN(h) || isNaN(m)) return null;
+
+  return h * 60 + m;
+};
+
+/* ================= VEG ================= */
 const isVeg = (it: any) => {
   const v = get(it, [
-    "is_veg",
     "IsVeg",
+    "is_veg",
     "veg",
     "item_type",
     "category",
@@ -33,50 +54,55 @@ const isVeg = (it: any) => {
   return String(v || "").toLowerCase().includes("veg");
 };
 
-const timeToMin = (t?: string) => {
-  if (!t) return null;
-  const clean = t.slice(0, 5);
-  const [h, m] = clean.split(":").map(Number);
-  if (isNaN(h) || isNaN(m)) return null;
-  return h * 60 + m;
-};
-
 /* ================= COMPONENT ================= */
 
 export default function RestroMenuClient({ items, header }: any) {
   const { add, changeQty, cart } = useCart();
   const [vegOnly, setVegOnly] = useState(false);
 
-  /* 🔥 TRAIN TIME (HARDCODE FIX) */
-  const trainMin = 11 * 60 + 50;
+  /* 🔥 TRAIN TIME FROM URL */
+  const params = new URLSearchParams(
+    typeof window !== "undefined" ? window.location.search : ""
+  );
+
+  const urlTime =
+    params.get("arrivalTime") ||
+    params.get("time") ||
+    params.get("trainTime");
+
+  const trainMin = timeToMin(urlTime) ?? 11 * 60 + 50;
+
+  console.log("TRAIN TIME 👉", urlTime, trainMin);
 
   /* ================= FILTER ================= */
 
   const visible = useMemo(() => {
     return items.filter((it: any) => {
-
-      // ✅ STATUS
       const status = get(it, ["status", "Status"]);
       if (status && status !== "ON") return false;
 
-      // ✅ TIME (REAL FIX)
       const start = get(it, [
         "ItemStartTime",
         "item_start_time",
         "start_time",
+        "StartTime",
       ]);
 
       const end = get(it, [
         "ItemEndTime",
         "item_end_time",
         "end_time",
+        "EndTime",
       ]);
 
       const s = timeToMin(start);
       const e = timeToMin(end);
 
+      // 🔥 DEBUG LOG
+      console.log("ITEM 👉", it.item_name, start, end, s, e);
+
       if (s !== null && e !== null) {
-        let ok = false;
+        let ok;
 
         if (e >= s) {
           ok = trainMin >= s && trainMin <= e;
@@ -99,7 +125,7 @@ export default function RestroMenuClient({ items, header }: any) {
     <div className="p-3 max-w-xl mx-auto">
 
       {/* HEADER */}
-      <div className="flex justify-between items-center mb-3">
+      <div className="flex justify-between mb-3">
         <div>
           <h1 className="text-lg font-semibold">
             {header.outletName}
@@ -139,78 +165,68 @@ export default function RestroMenuClient({ items, header }: any) {
 
           const start = get(it, [
             "ItemStartTime",
-            "item_start_time",
+            "start_time",
           ]);
 
           const end = get(it, [
             "ItemEndTime",
-            "item_end_time",
+            "end_time",
           ]);
 
           return (
             <div
               key={it.id}
-              className="border rounded-lg p-3 flex justify-between shadow-sm"
+              className="border rounded-lg p-3 flex justify-between"
             >
 
               {/* LEFT */}
-              <div className="flex-1 pr-2">
-
-                <div className="flex items-center gap-2">
+              <div>
+                <div className="flex gap-2 items-center">
                   <span
                     className={`w-3 h-3 rounded-full ${
-                      isVeg(it)
-                        ? "bg-green-600"
-                        : "bg-red-600"
+                      isVeg(it) ? "bg-green-600" : "bg-red-600"
                     }`}
                   />
-                  <span className="font-medium text-sm">
+                  <span className="text-sm font-medium">
                     {it.item_name}
                   </span>
                 </div>
 
-                {/* TIME */}
                 {start && (
-                  <div className="text-xs text-gray-500 mt-1">
-                    ⏱ {start?.slice(0, 5)} - {end?.slice(0, 5)}
+                  <div className="text-xs text-gray-500">
+                    ⏱ {start} - {end}
                   </div>
                 )}
 
-                {/* DESCRIPTION */}
                 {desc && (
-                  <div className="text-xs text-gray-600 mt-1">
+                  <div className="text-xs text-gray-600">
                     {desc}
                   </div>
                 )}
 
-                <div className="font-semibold mt-1">
+                <div className="font-semibold">
                   ₹{it.base_price}
                 </div>
               </div>
 
               {/* RIGHT */}
-              <div className="flex flex-col items-end justify-between">
-
+              <div>
                 {!existing ? (
                   <button
-                    className="border border-green-600 text-green-600 px-3 py-1 rounded text-sm"
+                    className="border px-3 py-1 text-green-600 border-green-600 rounded"
                     onClick={() =>
                       add({
                         id: it.id,
                         name: it.item_name,
-                        price: Number(it.base_price || 0),
+                        price: it.base_price,
                         qty: 1,
-                        restro_code: header.restroCode,
-                        restro_name: header.outletName,
-                        station_code: header.stationCode,
-                        station_name: header.stationName,
                       })
                     }
                   >
                     ADD
                   </button>
                 ) : (
-                  <div className="flex items-center gap-2 border rounded px-2 py-1">
+                  <div className="flex gap-2 border px-2 py-1 rounded">
                     <button onClick={() => changeQty(it.id, existing.qty - 1)}>
                       -
                     </button>
@@ -220,7 +236,6 @@ export default function RestroMenuClient({ items, header }: any) {
                     </button>
                   </div>
                 )}
-
               </div>
 
             </div>
@@ -228,9 +243,7 @@ export default function RestroMenuClient({ items, header }: any) {
         })}
       </div>
 
-      {/* CART */}
       <CartPillMobile />
-
     </div>
   );
 }
