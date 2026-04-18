@@ -1,9 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useCart } from "../../../lib/useCart";
-import CartPillMobile from "../../../components/CartPillMobile";
-import CartWidget from "../../../components/CartWidget";
+import { useCart } from "@/app/lib/useCart";
 
 type Item = {
   id: number;
@@ -26,7 +24,7 @@ export default function RestroMenuClient({
   items: Item[];
   header: Header;
 }) {
-  const { add } = useCart();
+  const { add, changeQty, cart } = useCart();
 
   const [vegOnly, setVegOnly] = useState(false);
 
@@ -35,18 +33,16 @@ export default function RestroMenuClient({
     : items;
 
   return (
-    <div className="p-4 max-w-6xl mx-auto">
+    <div className="max-w-5xl mx-auto p-4">
 
       {/* HEADER */}
       <div className="flex justify-between items-center mb-4">
         <div>
-          <h1 className="text-xl font-bold">{header.outletName}</h1>
-          <div className="text-gray-500 text-sm">
-            {header.stationCode}
-          </div>
+          <h1 className="text-lg font-bold">{header.outletName}</h1>
+          <div className="text-sm text-gray-500">{header.stationCode}</div>
         </div>
 
-        <label className="flex items-center gap-2 text-sm">
+        <label className="text-sm flex items-center gap-2">
           <input
             type="checkbox"
             checked={vegOnly}
@@ -56,45 +52,98 @@ export default function RestroMenuClient({
         </label>
       </div>
 
-      {/* MENU */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filteredItems.map((it) => (
-          <div
-            key={it.id}
-            className="border rounded p-3 flex flex-col justify-between"
-          >
-            <div>
-              <div className="font-medium">{it.item_name}</div>
-              <div className="text-sm text-gray-500">
+      {/* LIST */}
+      <div className="space-y-4">
+        {filteredItems.map((it) => {
+          const existing = cart[it.id];
+
+          return (
+            <div
+              key={it.id}
+              className="border-b pb-3 flex justify-between items-start"
+            >
+              {/* LEFT */}
+              <div className="flex-1 pr-3">
+
+                {/* veg dot */}
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`w-3 h-3 rounded-full ${
+                      it.is_veg ? "bg-green-500" : "bg-red-500"
+                    }`}
+                  ></span>
+
+                  <span className="font-medium">
+                    {it.item_name}
+                  </span>
+                </div>
+
+                {/* dummy timing (optional) */}
+                <div className="text-xs text-gray-400 mt-1">
+                  10:00 - 22:00
+                </div>
+
+                {/* ADD / REMOVE */}
+                <div className="mt-2">
+                  {!existing ? (
+                    <button
+                      className="text-green-600 text-sm border px-3 py-1 rounded"
+                      onClick={() =>
+                        add({
+                          id: it.id,
+                          name: it.item_name,
+                          price: Number(it.base_price || 0),
+                          qty: 1,
+                          restro_code: header.restroCode,
+                          restro_name: header.outletName,
+                          station_code: header.stationCode,
+                          station_name: header.stationName,
+                        })
+                      }
+                    >
+                      + Add
+                    </button>
+                  ) : (
+                    <div className="flex items-center gap-2 text-sm">
+                      <button
+                        onClick={() =>
+                          changeQty(it.id, existing.qty - 1)
+                        }
+                        className="px-2 border rounded"
+                      >
+                        -
+                      </button>
+
+                      <span>{existing.qty}</span>
+
+                      <button
+                        onClick={() =>
+                          changeQty(it.id, existing.qty + 1)
+                        }
+                        className="px-2 border rounded"
+                      >
+                        +
+                      </button>
+
+                      <button
+                        onClick={() => changeQty(it.id, 0)}
+                        className="text-red-500 ml-2"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* RIGHT */}
+              <div className="text-right font-medium">
                 ₹{it.base_price}
               </div>
             </div>
-
-            <button
-              className="mt-3 bg-green-600 text-white px-3 py-1 rounded text-sm"
-              onClick={() => {
-                add({
-                  id: it.id,
-                  name: it.item_name,
-                  price: Number(it.base_price || 0),
-                  qty: 1,
-
-                  restro_code: String(header.restroCode),
-                  restro_name: header.outletName,
-                  station_code: header.stationCode,
-                  station_name: header.stationName,
-                });
-              }}
-            >
-              Add
-            </button>
-          </div>
-        ))}
+          );
+        })}
       </div>
-
-      {/* 🔥 MOBILE VIEW CART BUTTON (IMPORTANT FIX) */}
-      <CartPillMobile />
-
     </div>
   );
 }
