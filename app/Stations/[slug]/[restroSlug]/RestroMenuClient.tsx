@@ -11,7 +11,6 @@ type MenuItem = {
   item_name: string;
   item_description?: string | null;
   item_category?: string | null;
-  menu_type?: string | null;
   start_time?: string | null;
   end_time?: string | null;
   base_price?: number | null;
@@ -31,7 +30,7 @@ type Props = {
 /* ================= HELPERS ================= */
 
 const timeToMin = (t?: string | null) => {
-  if (!t || !t.includes(":")) return 0;
+  if (!t || !t.includes(":")) return null;
   const [h, m] = t.slice(0, 5).split(":").map(Number);
   return h * 60 + m;
 };
@@ -39,7 +38,7 @@ const timeToMin = (t?: string | null) => {
 const isVeg = (c?: string | null) =>
   ["veg", "jain"].includes(String(c).toLowerCase());
 
-const dot = (c?: string | null) => (
+const vegDot = (c?: string | null) => (
   <span
     className={`w-3 h-3 rounded-full ${
       isVeg(c) ? "bg-green-600" : "bg-red-600"
@@ -59,13 +58,15 @@ export default function RestroMenuClient({ header, items }: Props) {
 
   /* ===== TRAIN TIME ===== */
   const trainMin = useMemo(() => {
-    if (typeof window === "undefined") return 0;
+    if (typeof window === "undefined") return null;
 
     const url = new URL(window.location.href);
+
     const t =
       url.searchParams.get("arrivalTime") ||
-      url.searchParams.get("arrival") ||
-      "00:00";
+      url.searchParams.get("arrival");
+
+    if (!t) return null;
 
     return timeToMin(t);
   }, []);
@@ -75,13 +76,22 @@ export default function RestroMenuClient({ header, items }: Props) {
     return items.filter((it) => {
       if (it.status && it.status !== "ON") return false;
 
-      const s = timeToMin(it.start_time || "00:00");
-      const e = timeToMin(it.end_time || "23:59");
+      const s = timeToMin(it.start_time);
+      const e = timeToMin(it.end_time);
+
+      // ✅ no timing → show
+      if (s === null || e === null) return true;
+
+      // ✅ no train time → show
+      if (trainMin === null) return true;
 
       let ok = false;
 
-      if (e >= s) ok = trainMin >= s && trainMin <= e;
-      else ok = trainMin >= s || trainMin <= e;
+      if (e >= s) {
+        ok = trainMin >= s && trainMin <= e;
+      } else {
+        ok = trainMin >= s || trainMin <= e;
+      }
 
       if (!ok) return false;
 
@@ -136,22 +146,26 @@ export default function RestroMenuClient({ header, items }: Props) {
                   className="border rounded-lg p-4 bg-white shadow-sm"
                 >
                   {/* TOP */}
-                  <div className="flex justify-between">
+                  <div className="flex justify-between items-start">
 
+                    {/* LEFT */}
                     <div className="flex-1">
 
                       {/* NAME */}
                       <div className="flex items-center gap-2">
-                        {dot(it.item_category)}
+                        {vegDot(it.item_category)}
                         <span className="font-medium">
                           {it.item_name}
                         </span>
                       </div>
 
                       {/* TIME */}
-                      <div className="text-xs text-gray-500 mt-1">
-                        {it.start_time} - {it.end_time}
-                      </div>
+                      {it.start_time && it.end_time && (
+                        <div className="text-xs text-gray-500 mt-1">
+                          ⏱ {it.start_time.slice(0, 5)} -{" "}
+                          {it.end_time.slice(0, 5)}
+                        </div>
+                      )}
 
                       {/* DESC */}
                       {it.item_description && (
@@ -161,47 +175,51 @@ export default function RestroMenuClient({ header, items }: Props) {
                       )}
                     </div>
 
-                    {/* PRICE */}
-                    <div className="font-semibold">
-                      {price(it.base_price)}
-                    </div>
-                  </div>
+                    {/* RIGHT SIDE */}
+                    <div className="flex flex-col items-end gap-2">
 
-                  {/* BUTTON */}
-                  <div className="mt-3">
-                    {qty === 0 ? (
-                      <button
-                        onClick={() =>
-                          add({
-                            id: it.id,
-                            name: it.item_name,
-                            price: Number(it.base_price || 0),
-                            qty: 1,
-                          })
-                        }
-                        className="w-full bg-green-600 text-white py-2 rounded"
-                      >
-                        Add
-                      </button>
-                    ) : (
-                      <div className="flex justify-between items-center">
-                        <button
-                          onClick={() => changeQty(it.id, qty - 1)}
-                          className="px-3 border rounded"
-                        >
-                          -
-                        </button>
-
-                        <span>{qty}</span>
-
-                        <button
-                          onClick={() => changeQty(it.id, qty + 1)}
-                          className="px-3 border rounded"
-                        >
-                          +
-                        </button>
+                      {/* PRICE */}
+                      <div className="font-semibold">
+                        {price(it.base_price)}
                       </div>
-                    )}
+
+                      {/* BUTTON */}
+                      {qty === 0 ? (
+                        <button
+                          onClick={() =>
+                            add({
+                              id: it.id,
+                              name: it.item_name,
+                              price: Number(it.base_price || 0),
+                              qty: 1,
+                            })
+                          }
+                          className="border border-green-600 text-green-600 px-4 py-1 rounded text-sm"
+                        >
+                          ADD +
+                        </button>
+                      ) : (
+                        <div className="flex items-center gap-2 border rounded px-2 py-1">
+                          <button
+                            onClick={() =>
+                              changeQty(it.id, qty - 1)
+                            }
+                          >
+                            -
+                          </button>
+
+                          <span>{qty}</span>
+
+                          <button
+                            onClick={() =>
+                              changeQty(it.id, qty + 1)
+                            }
+                          >
+                            +
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               );
@@ -219,7 +237,10 @@ export default function RestroMenuClient({ header, items }: Props) {
         ) : (
           <>
             {cartItems.map((c) => (
-              <div key={c.id} className="flex justify-between text-sm mb-1">
+              <div
+                key={c.id}
+                className="flex justify-between text-sm mb-1"
+              >
                 <span>{c.name}</span>
                 <span>x{c.qty}</span>
               </div>
