@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useCart } from "../../../lib/useCart";
 
 /* ================= TYPES ================= */
@@ -10,9 +10,9 @@ type Item = {
   item_name: string;
   base_price: number;
   is_veg?: boolean;
-  item_description?: string | null;
   start_time?: string | null;
   end_time?: string | null;
+  item_description?: string | null;
 };
 
 type Header = {
@@ -24,36 +24,23 @@ type Header = {
 
 /* ================= TIME HELPERS ================= */
 
-// ट्रेन टाइम निकालना (URL से)
-function getTrainTime() {
+function timeToMinutes(t?: string | null) {
+  if (!t) return null;
+  const parts = t.split(":");
+  if (parts.length < 2) return null;
+  return Number(parts[0]) * 60 + Number(parts[1]);
+}
+
+function getTrainMinutes() {
   if (typeof window === "undefined") return null;
 
   const params = new URLSearchParams(window.location.search);
+  const raw = params.get("train");
 
-  const raw =
-    params.get("time") ||
-    params.get("arrival") ||
-    params.get("date");
+  if (!raw) return null;
 
-  if (raw) {
-    const match = raw.match(/(\d{1,2}):(\d{2})/);
-    if (match) {
-      return parseInt(match[1]) * 60 + parseInt(match[2]);
-    }
-  }
-
-  // ✅ fallback (important for now)
-  return 11 * 60 + 50; // 11:50 AM
-}
-
-// "HH:mm" → minutes
-function timeToMinutes(t?: string | null) {
-  if (!t) return null;
-
-  const parts = t.split(":");
-  if (parts.length !== 2) return null;
-
-  return parseInt(parts[0]) * 60 + parseInt(parts[1]);
+  const [h, m] = raw.split(":");
+  return Number(h) * 60 + Number(m);
 }
 
 /* ================= COMPONENT ================= */
@@ -65,119 +52,119 @@ export default function RestroMenuClient({
   items: Item[];
   header: Header;
 }) {
-  const { add, changeQty, items: cartItems } = useCart();
+  const { add, changeQty, cart } = useCart();
+
   const [vegOnly, setVegOnly] = useState(false);
 
-  const trainTime = getTrainTime();
-
-  const getQty = (id: number) => {
-    const found = cartItems.find((i) => i.id === id);
-    return found?.qty || 0;
-  };
+  const trainTime = getTrainMinutes();
 
   /* ================= FILTER ================= */
 
-  const filteredItems = items.filter((i) => {
-    // Veg filter
-    if (vegOnly && !i.is_veg) return false;
+  const filteredItems = useMemo(() => {
+    return items.filter((i) => {
+      if (vegOnly && !i.is_veg) return false;
 
-    const start = timeToMinutes(i.start_time);
-    const end = timeToMinutes(i.end_time);
+      const start = timeToMinutes(i.start_time);
+      const end = timeToMinutes(i.end_time);
 
-    // ❗ strict rule (IMPORTANT FIX)
-   const filteredItems = items.filter((i) => {
-  if (vegOnly && !i.is_veg) return false;
+      // ✅ no timing → show
+      if (start === null || end === null) return true;
 
-  const start = timeToMinutes(i.start_time);
-  const end = timeToMinutes(i.end_time);
+      if (trainTime === null) return true;
 
-  // ✅ no time → always show
-  if (start === null || end === null) return true;
+      // overnight case
+      if (end < start) {
+        return trainTime >= start || trainTime <= end;
+      }
 
-  if (trainTime === null) return true;
-
-  // overnight case
-  if (end < start) {
-    return trainTime >= start || trainTime <= end;
-  }
-
-  return trainTime >= start && trainTime <= end;
-});
+      return trainTime >= start && trainTime <= end;
+    });
+  }, [items, vegOnly, trainTime]);
 
   /* ================= UI ================= */
 
   return (
-    <div className="max-w-4xl mx-auto px-3 py-4">
+    <div className="p-4 max-w-4xl mx-auto">
 
       {/* HEADER */}
-      <div className="mb-5">
-        <h1 className="text-xl font-bold">{header.outletName}</h1>
-        <p className="text-sm text-gray-500">{header.stationCode}</p>
-
-        <div className="mt-2">
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={vegOnly}
-              onChange={(e) => setVegOnly(e.target.checked)}
-            />
-            Veg Only
-          </label>
+      <div className="flex justify-between items-center mb-4">
+        <div>
+          <h1 className="text-xl font-bold">{header.outletName}</h1>
+          <div className="text-gray-500 text-sm">{header.stationCode}</div>
         </div>
+
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={vegOnly}
+            onChange={(e) => setVegOnly(e.target.checked)}
+          />
+          Veg only
+        </label>
       </div>
 
-      {/* MENU LIST */}
-      <div className="space-y-4">
+      {/* EMPTY */}
+      {filteredItems.length === 0 && (
+        <div className="text-center text-gray-500 mt-20">
+          No items available at this time
+        </div>
+      )}
 
+      {/* LIST */}
+      <div className="space-y-4">
         {filteredItems.map((it) => {
-          const qty = getQty(it.id);
+          const existing = cart[it.id];
 
           return (
             <div
               key={it.id}
-              className="flex justify-between gap-4 border-b pb-4"
+              className="border rounded-lg p-4 shadow-sm bg-white"
             >
+              {/* TOP ROW */}
+              <div className="flex justify-between items-start">
 
-              {/* LEFT */}
-              <div className="flex-1">
+                {/* LEFT */}
+                <div className="flex-1">
 
-                {/* NAME + VEG */}
-                <div className="flex items-center gap-2">
-                  <span
-                    className={`w-3 h-3 rounded-full ${
-                      it.is_veg ? "bg-green-500" : "bg-red-500"
-                    }`}
-                  ></span>
+                  {/* NAME + DOT */}
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`w-3 h-3 rounded-full ${
+                        it.is_veg ? "bg-green-500" : "bg-red-500"
+                      }`}
+                    />
 
-                  <span className="font-medium">
-                    {it.item_name}
-                  </span>
+                    <span className="font-medium text-base">
+                      {it.item_name}
+                    </span>
+                  </div>
+
+                  {/* TIME */}
+                  {(it.start_time && it.end_time) && (
+                    <div className="text-xs text-gray-500 mt-1">
+                      {it.start_time} - {it.end_time}
+                    </div>
+                  )}
+
+                  {/* DESCRIPTION */}
+                  {it.item_description && (
+                    <div className="text-sm text-gray-600 mt-1">
+                      {it.item_description}
+                    </div>
+                  )}
                 </div>
 
-                {/* PRICE */}
-                <div className="text-sm font-medium mt-1">
+                {/* RIGHT PRICE */}
+                <div className="text-right font-semibold">
                   ₹{it.base_price}
                 </div>
-
-                {/* TIME (OLD STYLE FIX) */}
-                <div className="text-xs text-gray-500 mt-1">
-                  {it.start_time} - {it.end_time}
-                </div>
-
-                {/* DESCRIPTION */}
-                {it.item_description && (
-                  <div className="text-xs text-gray-500 mt-1">
-                    {it.item_description}
-                  </div>
-                )}
               </div>
 
-              {/* RIGHT */}
-              <div className="flex flex-col items-end justify-between">
-
-                {qty === 0 ? (
+              {/* ACTION */}
+              <div className="mt-3">
+                {!existing ? (
                   <button
-                    className="border border-green-600 text-green-600 px-3 py-1 rounded text-sm"
+                    className="w-full bg-green-600 text-white py-2 rounded text-sm"
                     onClick={() =>
                       add({
                         id: it.id,
@@ -194,14 +181,20 @@ export default function RestroMenuClient({
                     Add
                   </button>
                 ) : (
-                  <div className="flex items-center gap-2 border rounded px-2 py-1 text-sm">
-                    <button onClick={() => changeQty(it.id, qty - 1)}>
+                  <div className="flex items-center justify-between">
+                    <button
+                      onClick={() => changeQty(it.id, existing.qty - 1)}
+                      className="px-3 py-1 border rounded"
+                    >
                       -
                     </button>
 
-                    <span>{qty}</span>
+                    <span>{existing.qty}</span>
 
-                    <button onClick={() => changeQty(it.id, qty + 1)}>
+                    <button
+                      onClick={() => changeQty(it.id, existing.qty + 1)}
+                      className="px-3 py-1 border rounded"
+                    >
                       +
                     </button>
                   </div>
@@ -210,14 +203,6 @@ export default function RestroMenuClient({
             </div>
           );
         })}
-
-        {/* EMPTY */}
-        {filteredItems.length === 0 && (
-          <div className="text-center text-gray-500 py-10">
-            No items available at this time
-          </div>
-        )}
-
       </div>
     </div>
   );
