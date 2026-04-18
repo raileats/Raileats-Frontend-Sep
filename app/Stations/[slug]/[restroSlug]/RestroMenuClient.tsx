@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { useCart } from "@/app/lib/useCart";
-import CartPillMobile from "@/app/components/CartPillMobile";
+import { useCart } from "../../../lib/useCart";
+import CartPillMobile from "../../../components/CartPillMobile";
+import CartWidget from "../../../components/CartWidget";
 
 type Item = {
   id: number;
