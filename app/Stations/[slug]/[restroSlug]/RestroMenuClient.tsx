@@ -85,16 +85,24 @@ export default function RestroMenuClient({
     const end = timeToMinutes(i.end_time);
 
     // ❗ strict rule (IMPORTANT FIX)
-    if (start === null || end === null) return false;
-    if (trainTime === null) return false;
+   const filteredItems = items.filter((i) => {
+  if (vegOnly && !i.is_veg) return false;
 
-    // Overnight case (22:00 → 02:00)
-    if (end < start) {
-      return trainTime >= start || trainTime <= end;
-    }
+  const start = timeToMinutes(i.start_time);
+  const end = timeToMinutes(i.end_time);
 
-    return trainTime >= start && trainTime <= end;
-  });
+  // ✅ no time → always show
+  if (start === null || end === null) return true;
+
+  if (trainTime === null) return true;
+
+  // overnight case
+  if (end < start) {
+    return trainTime >= start || trainTime <= end;
+  }
+
+  return trainTime >= start && trainTime <= end;
+});
 
   /* ================= UI ================= */
 
