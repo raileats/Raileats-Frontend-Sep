@@ -3,46 +3,37 @@
 import { useState, useMemo } from "react";
 import { useCart } from "../../../lib/useCart";
 import CartPillMobile from "../../../components/CartPillMobile";
-import CartPopup from "../../../components/CartPopup";
+import CartWidget from "../../../components/CartWidget";
 
-/* ================= TYPES ================= */
+/* ================= SAFE FIELD GET ================= */
 
-type Item = any;
-
-type Header = {
-  restroCode: string;
-  outletName: string;
-  stationCode: string;
-  stationName: string;
-};
-
-/* ================= HELPERS ================= */
-
-// ✅ Veg detection (robust)
-const isVeg = (it: any) => {
-  const v =
-    it.is_veg ??
-    it.veg ??
-    it.isVeg ??
-    it.item_type ??
-    it.category ??
-    "";
-
-  return String(v).toLowerCase().includes("veg");
-};
-
-// ✅ Safe field getter
-const get = (it: any, keys: string[]) => {
+const get = (obj: any, keys: string[]) => {
   for (let k of keys) {
-    if (it[k] !== undefined && it[k] !== null && it[k] !== "") {
-      return it[k];
+    if (obj[k] !== undefined && obj[k] !== null && obj[k] !== "") {
+      return obj[k];
     }
   }
   return null;
 };
 
-// ✅ time convert
-const timeToMin = (t?: string | null) => {
+/* ================= HELPERS ================= */
+
+const isVeg = (it: any) => {
+  const v = get(it, [
+    "is_veg",
+    "IsVeg",
+    "veg",
+    "item_type",
+    "category",
+  ]);
+
+  if (typeof v === "boolean") return v;
+  if (typeof v === "number") return v === 1;
+
+  return String(v || "").toLowerCase().includes("veg");
+};
+
+const timeToMin = (t?: string) => {
   if (!t) return null;
   const clean = t.slice(0, 5);
   const [h, m] = clean.split(":").map(Number);
@@ -52,29 +43,34 @@ const timeToMin = (t?: string | null) => {
 
 /* ================= COMPONENT ================= */
 
-export default function RestroMenuClient({
-  items,
-  header,
-}: {
-  items: Item[];
-  header: Header;
-}) {
+export default function RestroMenuClient({ items, header }: any) {
   const { add, changeQty, cart } = useCart();
   const [vegOnly, setVegOnly] = useState(false);
 
-  /* 🔥 TRAIN TIME (TEMP FIX) */
+  /* 🔥 TRAIN TIME (HARDCODE FIX) */
   const trainMin = 11 * 60 + 50;
 
   /* ================= FILTER ================= */
 
   const visible = useMemo(() => {
-    return items.filter((it) => {
-      // status
-      if (it.status && it.status !== "ON") return false;
+    return items.filter((it: any) => {
 
-      // timing fields (auto detect)
-      const start = get(it, ["start_time", "item_start_time"]);
-      const end = get(it, ["end_time", "item_end_time"]);
+      // ✅ STATUS
+      const status = get(it, ["status", "Status"]);
+      if (status && status !== "ON") return false;
+
+      // ✅ TIME (REAL FIX)
+      const start = get(it, [
+        "ItemStartTime",
+        "item_start_time",
+        "start_time",
+      ]);
+
+      const end = get(it, [
+        "ItemEndTime",
+        "item_end_time",
+        "end_time",
+      ]);
 
       const s = timeToMin(start);
       const e = timeToMin(end);
@@ -135,19 +131,19 @@ export default function RestroMenuClient({
         {visible.map((it: any) => {
           const existing = cart[it.id];
 
-          const description = get(it, [
+          const desc = get(it, [
+            "ItemDescription",
             "item_description",
             "description",
-            "item_desc",
           ]);
 
-          const startTime = get(it, [
-            "start_time",
+          const start = get(it, [
+            "ItemStartTime",
             "item_start_time",
           ]);
 
-          const endTime = get(it, [
-            "end_time",
+          const end = get(it, [
+            "ItemEndTime",
             "item_end_time",
           ]);
 
@@ -160,7 +156,6 @@ export default function RestroMenuClient({
               {/* LEFT */}
               <div className="flex-1 pr-2">
 
-                {/* NAME + VEG */}
                 <div className="flex items-center gap-2">
                   <span
                     className={`w-3 h-3 rounded-full ${
@@ -175,21 +170,19 @@ export default function RestroMenuClient({
                 </div>
 
                 {/* TIME */}
-                {startTime && (
+                {start && (
                   <div className="text-xs text-gray-500 mt-1">
-                    ⏱ {startTime?.slice(0, 5)} -{" "}
-                    {endTime?.slice(0, 5)}
+                    ⏱ {start?.slice(0, 5)} - {end?.slice(0, 5)}
                   </div>
                 )}
 
                 {/* DESCRIPTION */}
-                {description && (
+                {desc && (
                   <div className="text-xs text-gray-600 mt-1">
-                    {description}
+                    {desc}
                   </div>
                 )}
 
-                {/* PRICE */}
                 <div className="font-semibold mt-1">
                   ₹{it.base_price}
                 </div>
@@ -218,21 +211,11 @@ export default function RestroMenuClient({
                   </button>
                 ) : (
                   <div className="flex items-center gap-2 border rounded px-2 py-1">
-                    <button
-                      onClick={() =>
-                        changeQty(it.id, existing.qty - 1)
-                      }
-                    >
+                    <button onClick={() => changeQty(it.id, existing.qty - 1)}>
                       -
                     </button>
-
                     <span>{existing.qty}</span>
-
-                    <button
-                      onClick={() =>
-                        changeQty(it.id, existing.qty + 1)
-                      }
-                    >
+                    <button onClick={() => changeQty(it.id, existing.qty + 1)}>
                       +
                     </button>
                   </div>
@@ -245,7 +228,7 @@ export default function RestroMenuClient({
         })}
       </div>
 
-      {/* 🔥 CART BUTTON FIX */}
+      {/* CART */}
       <CartPillMobile />
 
     </div>
