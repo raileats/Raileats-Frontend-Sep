@@ -17,27 +17,20 @@ const isVegItem = (cat?: string | null) => {
   return c === "veg" || c === "jain";
 };
 
-const isNonVegItem = (cat?: string | null) => {
-  const c = String(cat || "")
-    .toLowerCase()
-    .replace(/\s+/g, "")
-    .replace("-", "");
-  return c === "nonveg";
-};
-
 export default function RestroMenuClient({ items, header }: any) {
   const { add, changeQty, cart } = useCart();
   const [vegOnly, setVegOnly] = useState(false);
 
-  /* TRAIN TIME */
   const params = new URLSearchParams(
     typeof window !== "undefined" ? window.location.search : ""
   );
 
-  const trainTime = params.get("time") || "11:50";
+  // 🔥 FIXED (arrival instead of time)
+  const trainTime =
+    params.get("arrival")?.slice(0, 5) || "11:50";
+
   const trainMin = toMin(trainTime) || 710;
 
-  /* FILTER */
   const visible = useMemo(() => {
     return items.filter((it: any) => {
       if (it.status !== "ON") return false;
@@ -45,11 +38,11 @@ export default function RestroMenuClient({ items, header }: any) {
       const s = toMin(it.start_time);
       const e = toMin(it.end_time);
 
+      // 🔥 SAFETY FIX
       if (s !== null && e !== null) {
-        if (!(trainMin >= s && trainMin <= e)) return false;
+        if (trainMin < s || trainMin > e) return false;
       }
 
-      // ✅ STRONG VEG CHECK
       const isVeg =
         isVegItem(it.item_category) ||
         /dal|roti|rice|paneer|veg|thali|chapati|paratha/i.test(
@@ -92,12 +85,16 @@ export default function RestroMenuClient({ items, header }: any) {
         {visible.map((it: any) => {
           const existing = cart[it.id];
 
-          // ✅ FINAL VEG DETECTION
           const isVeg =
             isVegItem(it.item_category) ||
             /dal|roti|rice|paneer|veg|thali|chapati|paratha/i.test(
               it.item_name
             );
+
+          const description =
+            it.item_description ||
+            it.description ||
+            "";
 
           return (
             <div
@@ -105,7 +102,6 @@ export default function RestroMenuClient({ items, header }: any) {
               className="border rounded-lg p-3 flex justify-between"
             >
               <div>
-                {/* NAME + DOT */}
                 <div className="flex gap-2 items-center">
                   <span
                     className={`w-3 h-3 rounded-full ${
@@ -117,7 +113,6 @@ export default function RestroMenuClient({ items, header }: any) {
                   </span>
                 </div>
 
-                {/* TIME */}
                 <div className="text-xs text-gray-500">
                   ⏱{" "}
                   {it.start_time && it.end_time
@@ -125,18 +120,17 @@ export default function RestroMenuClient({ items, header }: any) {
                     : "Available all day"}
                 </div>
 
-                {/* DESCRIPTION */}
-                <div className="text-xs text-gray-600">
-                  {it.item_description}
-                </div>
+                {description && (
+                  <div className="text-xs text-gray-600">
+                    {description}
+                  </div>
+                )}
 
-                {/* PRICE */}
                 <div className="font-semibold">
                   ₹{it.base_price}
                 </div>
               </div>
 
-              {/* BUTTON */}
               <div>
                 {!existing ? (
                   <button
@@ -169,7 +163,6 @@ export default function RestroMenuClient({ items, header }: any) {
         })}
       </div>
 
-      {/* CART */}
       <CartPillMobile />
     </div>
   );
