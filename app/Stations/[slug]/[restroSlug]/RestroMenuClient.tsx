@@ -34,16 +34,10 @@ export default function RestroMenuClient({ items, header }: any) {
     return items.filter((it: any) => {
       if (it.status !== "ON") return false;
 
-      const s = toMin(it.start_time);
-      const e = toMin(it.end_time);
-
-      // 🔥 FINAL FIX (ONLY THIS LOGIC UPDATED)
-      if (s !== null && e !== null) {
-        if (!isNaN(s) && !isNaN(e)) {
-          // ✅ balanced buffer (IMPORTANT)
-          if (trainMin < s - 30 || trainMin > e + 30) return false;
-        }
-      }
+      // 🔥 TIME FILTER DISABLED (FINAL FIX)
+      // const s = toMin(it.start_time);
+      // const e = toMin(it.end_time);
+      // ❌ कोई time filter नहीं लगाया → items hide नहीं होंगे
 
       const isVeg =
         isVegItem(it.item_category) ||
@@ -55,7 +49,7 @@ export default function RestroMenuClient({ items, header }: any) {
 
       return true;
     });
-  }, [items, vegOnly, trainMin]);
+  }, [items, vegOnly]);
 
   return (
     <div className="p-3 max-w-xl mx-auto">
