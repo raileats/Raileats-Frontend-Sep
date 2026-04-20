@@ -51,10 +51,22 @@ export async function GET(req: Request) {
       );
     }
 
+    // ✅ 🔥 IMPORTANT FIX: map data for frontend
+    const formatted = (data || []).map((item) => ({
+      id: item.item_code, // ✅ fix id
+      item_name: item.item_name,
+      item_description: item.item_description,
+      item_category: item.menu_type, // ✅ fix veg/non-veg
+      base_price: item.base_price,
+      start_time: item.start_time,
+      end_time: item.end_time,
+      status: "ON", // ताकि frontend filter pass हो
+    }));
+
     return NextResponse.json({
       ok: true,
-      count: data?.length || 0,
-      items: data || [],
+      count: formatted.length,
+      items: formatted,
     });
 
   } catch (e) {
