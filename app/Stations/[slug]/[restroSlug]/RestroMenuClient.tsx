@@ -4,32 +4,60 @@ import { useState, useMemo } from "react";
 import { useCart } from "../../../lib/useCart";
 import CartPillMobile from "../../../components/CartPillMobile";
 
-/* CATEGORY FIX */
-const isVegItem = (cat?: string | null) => {
-  const c = String(cat || "").toLowerCase().trim();
+/* TIME CONVERT */
+const toMin = (t?: string | null) => {
+  if (!t) return null;
+  const [h, m] = t.slice(0, 5).split(":").map(Number);
+  return h * 60 + m;
+};
 
-  // ❌ non-veg detect
-  if (c.includes("non")) return false;
+/* 🔥 FINAL CATEGORY FIX */
+const isVegItem = (item: any) => {
+  const cat = String(item.item_category || "").toLowerCase();
 
-  return c === "veg" || c === "jain";
+  // ✅ Proper detection
+  if (cat.includes("non")) return false;
+  if (cat.includes("veg")) return true;
+
+  // 🔥 fallback (name based)
+  const name = String(item.item_name || "").toLowerCase();
+
+  if (/chicken|mutton|egg|fish/.test(name)) return false;
+
+  return true;
 };
 
 export default function RestroMenuClient({ items, header }: any) {
   const { add, changeQty, cart } = useCart();
   const [vegOnly, setVegOnly] = useState(false);
 
-  // 🔥 FINAL FIX → NO TIME FILTER
+  const params = new URLSearchParams(
+    typeof window !== "undefined" ? window.location.search : ""
+  );
+
+  const trainTime =
+    params.get("arrival")?.slice(0, 5) || "11:50";
+
+  const trainMin = toMin(trainTime) || 710;
+
   const visible = useMemo(() => {
     return items.filter((it: any) => {
       if (it.status !== "ON") return false;
 
-      const isVeg = isVegItem(it.item_category);
+      const s = toMin(it.start_time);
+      const e = toMin(it.end_time);
+
+      if (s !== null && e !== null) {
+        if (trainMin < s || trainMin > e) return false;
+      }
+
+      const isVeg = isVegItem(it);
 
       if (vegOnly && !isVeg) return false;
 
       return true;
     });
-  }, [items, vegOnly]);
+  }, [items, vegOnly, trainMin]);
 
   return (
     <div className="p-3 max-w-xl mx-auto">
@@ -61,7 +89,7 @@ export default function RestroMenuClient({ items, header }: any) {
         {visible.map((it: any) => {
           const existing = cart[it.id];
 
-          const isVeg = isVegItem(it.item_category);
+          const isVeg = isVegItem(it);
 
           const description =
             it.item_description ||
