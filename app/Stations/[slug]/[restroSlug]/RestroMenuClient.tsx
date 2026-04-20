@@ -11,11 +11,10 @@ const toMin = (t?: string | null) => {
   return h * 60 + m;
 };
 
-/* 🔥 CATEGORY FIX (ONLY CHANGE) */
+/* CATEGORY FIX */
 const isVegItem = (cat?: string | null) => {
   const c = String(cat || "").toLowerCase().trim();
 
-  // ✅ FIX: non-veg detect properly
   if (c.includes("non")) return false;
 
   return c === "veg" || c === "jain";
@@ -29,7 +28,6 @@ export default function RestroMenuClient({ items, header }: any) {
     typeof window !== "undefined" ? window.location.search : ""
   );
 
-  // ✅ SAME AS YOUR CODE (NO CHANGE)
   const trainTime =
     params.get("arrival")?.slice(0, 5) || "11:50";
 
@@ -42,9 +40,10 @@ export default function RestroMenuClient({ items, header }: any) {
       const s = toMin(it.start_time);
       const e = toMin(it.end_time);
 
-      // ✅ SAME SAFETY LOGIC
-      if (s !== null && e !== null) {
-        if (trainMin < s || trainMin > e) return false;
+      // 🔥 FIX: ONLY APPLY IF TIME EXISTS AND VALID
+      if (s !== null && e !== null && trainMin !== null) {
+        // ❗ allow small buffer (important fix)
+        if (trainMin + 15 < s || trainMin > e) return false;
       }
 
       const isVeg =
@@ -62,7 +61,6 @@ export default function RestroMenuClient({ items, header }: any) {
   return (
     <div className="p-3 max-w-xl mx-auto">
 
-      {/* HEADER */}
       <div className="flex justify-between mb-3">
         <div>
           <h1 className="font-semibold">{header.outletName}</h1>
