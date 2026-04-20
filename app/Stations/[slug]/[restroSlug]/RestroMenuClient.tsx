@@ -11,6 +11,20 @@ const toMin = (t?: string | null) => {
   return h * 60 + m;
 };
 
+/* ✅ CATEGORY FIX FUNCTIONS */
+const isVegItem = (cat?: string | null) => {
+  const c = String(cat || "").toLowerCase().trim();
+  return c === "veg" || c === "jain";
+};
+
+const isNonVegItem = (cat?: string | null) => {
+  const c = String(cat || "")
+    .toLowerCase()
+    .replace(/\s+/g, "")
+    .replace("-", "");
+  return c === "nonveg";
+};
+
 export default function RestroMenuClient({ items, header }: any) {
   const { add, changeQty, cart } = useCart();
   const [vegOnly, setVegOnly] = useState(false);
@@ -35,13 +49,13 @@ export default function RestroMenuClient({ items, header }: any) {
         if (!(trainMin >= s && trainMin <= e)) return false;
       }
 
-      const isVeg = it.item_category === "Veg";
+      const isVeg = isVegItem(it.item_category);
 
       if (vegOnly && !isVeg) return false;
 
       return true;
     });
-  }, [items, vegOnly]);
+  }, [items, vegOnly, trainMin]);
 
   return (
     <div className="p-3 max-w-xl mx-auto">
@@ -72,7 +86,7 @@ export default function RestroMenuClient({ items, header }: any) {
       <div className="space-y-3">
         {visible.map((it: any) => {
           const existing = cart[it.id];
-          const isVeg = it.item_category === "Veg";
+          const isVeg = isVegItem(it.item_category);
 
           return (
             <div
@@ -92,9 +106,12 @@ export default function RestroMenuClient({ items, header }: any) {
                   </span>
                 </div>
 
-                {/* TIME */}
+                {/* ✅ TIME FIX */}
                 <div className="text-xs text-gray-500">
-                  ⏱ {it.start_time} - {it.end_time}
+                  ⏱{" "}
+                  {it.start_time && it.end_time
+                    ? `${it.start_time} - ${it.end_time}`
+                    : "Available all day"}
                 </div>
 
                 {/* DESCRIPTION */}
