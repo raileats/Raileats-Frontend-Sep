@@ -17,19 +17,10 @@ const isVegItem = (cat?: string | null) => {
   return c === "veg" || c === "jain";
 };
 
-const isNonVegItem = (cat?: string | null) => {
-  const c = String(cat || "")
-    .toLowerCase()
-    .replace(/\s+/g, "")
-    .replace("-", "");
-  return c === "nonveg";
-};
-
 export default function RestroMenuClient({ items, header }: any) {
   const { add, changeQty, cart } = useCart();
   const [vegOnly, setVegOnly] = useState(false);
 
-  /* TRAIN TIME */
   const params = new URLSearchParams(
     typeof window !== "undefined" ? window.location.search : ""
   );
@@ -37,7 +28,6 @@ export default function RestroMenuClient({ items, header }: any) {
   const trainTime = params.get("time") || "11:50";
   const trainMin = toMin(trainTime) || 710;
 
-  /* FILTER */
   const visible = useMemo(() => {
     return items.filter((it: any) => {
       if (it.status !== "ON") return false;
@@ -89,6 +79,10 @@ export default function RestroMenuClient({ items, header }: any) {
 
       <div className="space-y-3">
         {visible.map((it: any) => {
+
+          // 🔥 DEBUG (IMPORTANT)
+          console.log("ITEM DATA:", it);
+
           const existing = cart[it.id];
 
           const isVeg =
@@ -97,7 +91,7 @@ export default function RestroMenuClient({ items, header }: any) {
               it.item_name
             );
 
-          /* ✅ DESCRIPTION FIX */
+          // ✅ DESCRIPTION SAFE FIX
           const description =
             it.item_description ||
             it.itemDescription ||
@@ -130,7 +124,7 @@ export default function RestroMenuClient({ items, header }: any) {
                     : "Available all day"}
                 </div>
 
-                {/* ✅ DESCRIPTION SHOW */}
+                {/* DESCRIPTION */}
                 {description && (
                   <div className="text-xs text-gray-600">
                     {description}
