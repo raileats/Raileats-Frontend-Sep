@@ -18,6 +18,7 @@ export async function GET(req: Request) {
 
     const supa = serviceClient;
 
+    /* 🔥 REMOVE TIME FILTER (same as your code) */
     const { data, error } = await supa
       .from("RestroMenuItems")
       .select(`
@@ -32,7 +33,8 @@ export async function GET(req: Request) {
         start_time,
         end_time
       `)
-      .eq("restro_code", restroCode) // ✅ बस यही filter रहना चाहिए
+      .eq("restro_code", restroCode)
+      .eq("menu_status", 1)
       .order("menu_type_rank", { ascending: true })
       .order("base_price", { ascending: true });
 
@@ -44,16 +46,32 @@ export async function GET(req: Request) {
       );
     }
 
-    const formatted = (data || []).map((item) => ({
-      id: Number(item.item_code),
-      item_name: item.item_name || "",
-      item_description: item.item_description || "",
-      item_category: item.menu_type || "",
-      base_price: Number(item.base_price || 0),
-      start_time: item.start_time || null,
-      end_time: item.end_time || null,
-      status: "ON",
-    }));
+    /* ✅ 🔥 FORMAT FIX (MORE SAFE) */
+    const formatted = (data || []).map((item) => {
+      const category = (item.menu_type || "").toString().trim();
+
+      return {
+        id: Number(item.item_code),
+
+        item_name: item.item_name || "",
+        item_description: item.item_description || "",
+
+        // 🔥 IMPORTANT FIX → keep original category EXACT
+        item_category: category,
+
+        base_price: Number(item.base_price || 0),
+
+        // 🔥 ensure proper time format
+        start_time: item.start_time
+          ? String(item.start_time).slice(0, 5)
+          : null,
+        end_time: item.end_time
+          ? String(item.end_time).slice(0, 5)
+          : null,
+
+        status: "ON",
+      };
+    });
 
     return NextResponse.json({
       ok: true,
