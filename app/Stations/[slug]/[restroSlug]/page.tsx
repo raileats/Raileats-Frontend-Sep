@@ -18,7 +18,7 @@ function humanizeFromSlug(restroSlug: string) {
     .join(" ");
 }
 
-/* ------------ FETCH (LIVE API) ------------ */
+/* ------------ FETCH ------------ */
 async function fetchOnMenu(
   restroCode: string | number,
   arrivalTime: string
@@ -30,8 +30,12 @@ async function fetchOnMenu(
     );
 
     const json = await res.json();
+
+    console.log("API RESPONSE:", json);
+
     return json?.items || [];
-  } catch {
+  } catch (e) {
+    console.log("API ERROR:", e);
     return [];
   }
 }
@@ -45,16 +49,48 @@ export default async function Page({ params, searchParams }: any) {
   const stationName =
     params.slug?.split("-")?.slice(1)?.join(" ") || stationCode;
 
-  /* ✅ SAFE ARRIVAL TIME */
+  /* ✅ ARRIVAL TIME FIX */
   let arrivalTime = "12:00:00";
 
   if (searchParams?.arrival) {
-    const parts = searchParams.arrival.split(":");
-    arrivalTime = `${parts[0]}:${parts[1] || "00"}:00`;
+    const t = searchParams.arrival.slice(0, 5);
+    arrivalTime = t + ":00";
   }
 
-  /* ✅ FETCH DATA */
-  const items = await fetchOnMenu(restroCode, arrivalTime);
+  /* ✅ FETCH */
+  const rawItems = await fetchOnMenu(restroCode, arrivalTime);
+
+  /* 🔥 🔥 FINAL NORMALIZATION (MOST IMPORTANT) */
+  const items = rawItems.map((it: any) => ({
+    id: Number(it.id),
+
+    item_name: it.item_name || "",
+    base_price: Number(it.base_price || 0),
+
+    item_category: it.item_category || "",
+
+    // ✅ description fix
+    item_description:
+      it.item_description ||
+      it.description ||
+      "",
+
+    // ✅ TIME FIX (IMPORTANT)
+    start_time:
+      it.start_time ||
+      it.item_start_time ||
+      null,
+
+    end_time:
+      it.end_time ||
+      it.item_end_time ||
+      null,
+
+    // ✅ status fix
+    status:
+      it.status ||
+      "ON",
+  }));
 
   const header = {
     stationCode,
