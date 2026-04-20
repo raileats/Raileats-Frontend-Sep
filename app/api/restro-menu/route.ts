@@ -1,27 +1,24 @@
-// 🔴 IMPORTANT: force dynamic
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { serviceClient } from "../../lib/supabaseServer";
-
-/* ================= API ================= */
 
 export async function GET(req: Request) {
   try {
     const url = new URL(req.url);
 
     const restroCode = url.searchParams.get("restro");
-    const arrivalTime = url.searchParams.get("arrivalTime"); // HH:mm:ss
 
-    if (!restroCode || !arrivalTime) {
+    if (!restroCode) {
       return NextResponse.json(
-        { ok: false, error: "missing_params" },
+        { ok: false, error: "missing_restro" },
         { status: 400 }
       );
     }
 
     const supa = serviceClient;
 
+    /* 🔥 REMOVE TIME FILTER */
     const { data, error } = await supa
       .from("RestroMenuItems")
       .select(`
@@ -38,8 +35,6 @@ export async function GET(req: Request) {
       `)
       .eq("restro_code", restroCode)
       .eq("menu_status", 1)
-      .lte("start_time", arrivalTime)
-      .gte("end_time", arrivalTime)
       .order("menu_type_rank", { ascending: true })
       .order("base_price", { ascending: true });
 
@@ -51,16 +46,21 @@ export async function GET(req: Request) {
       );
     }
 
-    // ✅ 🔥 IMPORTANT FIX: map data for frontend
+    /* ✅ FORMAT FIX */
     const formatted = (data || []).map((item) => ({
-      id: item.item_code, // ✅ fix id
-      item_name: item.item_name,
-      item_description: item.item_description,
-      item_category: item.menu_type, // ✅ fix veg/non-veg
-      base_price: item.base_price,
-      start_time: item.start_time,
-      end_time: item.end_time,
-      status: "ON", // ताकि frontend filter pass हो
+      id: Number(item.item_code),
+
+      item_name: item.item_name || "",
+      item_description: item.item_description || "",
+
+      item_category: item.menu_type || "",
+
+      base_price: Number(item.base_price || 0),
+
+      start_time: item.start_time || null,
+      end_time: item.end_time || null,
+
+      status: "ON",
     }));
 
     return NextResponse.json({
