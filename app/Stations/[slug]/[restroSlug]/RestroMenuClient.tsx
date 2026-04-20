@@ -49,7 +49,6 @@ export default function RestroMenuClient({ items, header }: any) {
         if (!(trainMin >= s && trainMin <= e)) return false;
       }
 
-      // ✅ STRONG VEG CHECK
       const isVeg =
         isVegItem(it.item_category) ||
         /dal|roti|rice|paneer|veg|thali|chapati|paratha/i.test(
@@ -92,12 +91,18 @@ export default function RestroMenuClient({ items, header }: any) {
         {visible.map((it: any) => {
           const existing = cart[it.id];
 
-          // ✅ FINAL VEG DETECTION
           const isVeg =
             isVegItem(it.item_category) ||
             /dal|roti|rice|paneer|veg|thali|chapati|paratha/i.test(
               it.item_name
             );
+
+          /* ✅ DESCRIPTION FIX */
+          const description =
+            it.item_description ||
+            it.itemDescription ||
+            it.description ||
+            "";
 
           return (
             <div
@@ -125,10 +130,12 @@ export default function RestroMenuClient({ items, header }: any) {
                     : "Available all day"}
                 </div>
 
-                {/* DESCRIPTION */}
-                <div className="text-xs text-gray-600">
-                  {it.item_description}
-                </div>
+                {/* ✅ DESCRIPTION SHOW */}
+                {description && (
+                  <div className="text-xs text-gray-600">
+                    {description}
+                  </div>
+                )}
 
                 {/* PRICE */}
                 <div className="font-semibold">
