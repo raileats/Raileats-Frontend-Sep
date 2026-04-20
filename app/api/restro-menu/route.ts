@@ -6,7 +6,6 @@ import { serviceClient } from "../../lib/supabaseServer";
 export async function GET(req: Request) {
   try {
     const url = new URL(req.url);
-
     const restroCode = url.searchParams.get("restro");
 
     if (!restroCode) {
@@ -18,60 +17,40 @@ export async function GET(req: Request) {
 
     const supa = serviceClient;
 
-    /* 🔥 REMOVE TIME FILTER (same as your code) */
+    // 🔥 SIMPLE QUERY (NO FILTER, NO ERROR)
     const { data, error } = await supa
       .from("RestroMenuItems")
-      .select(`
-        item_code,
-        item_name,
-        item_description,
-        menu_type,
-        menu_type_rank,
-        base_price,
-        gst_percent,
-        selling_price,
-        start_time,
-        end_time
-      `)
-      .eq("restro_code", restroCode)
-      .eq("menu_status", 1)
-      .order("menu_type_rank", { ascending: true })
-      .order("base_price", { ascending: true });
+      .select("*")
+      .eq("restro_code", restroCode);
 
     if (error) {
-      console.error("MENU API ERROR:", error);
+      console.error("DB ERROR:", error.message);
       return NextResponse.json(
-        { ok: false, error: "db_error" },
+        { ok: false, error: error.message },
         { status: 500 }
       );
     }
 
-    /* ✅ 🔥 FORMAT FIX (MORE SAFE) */
-    const formatted = (data || []).map((item) => {
-      const category = (item.menu_type || "").toString().trim();
+    // 🔥 SAFE FORMAT
+    const formatted = (data || []).map((item: any) => ({
+      id: Number(item.item_code),
 
-      return {
-        id: Number(item.item_code),
+      item_name: item.item_name || "",
+      item_description: item.item_description || "",
 
-        item_name: item.item_name || "",
-        item_description: item.item_description || "",
+      item_category: item.menu_type || "",
 
-        // 🔥 IMPORTANT FIX → keep original category EXACT
-        item_category: category,
+      base_price: Number(item.base_price || 0),
 
-        base_price: Number(item.base_price || 0),
+      start_time: item.start_time
+        ? String(item.start_time).slice(0, 5)
+        : null,
+      end_time: item.end_time
+        ? String(item.end_time).slice(0, 5)
+        : null,
 
-        // 🔥 ensure proper time format
-        start_time: item.start_time
-          ? String(item.start_time).slice(0, 5)
-          : null,
-        end_time: item.end_time
-          ? String(item.end_time).slice(0, 5)
-          : null,
-
-        status: "ON",
-      };
-    });
+      status: "ON",
+    }));
 
     return NextResponse.json({
       ok: true,
@@ -79,10 +58,10 @@ export async function GET(req: Request) {
       items: formatted,
     });
 
-  } catch (e) {
-    console.error("RESTRO MENU API ERROR:", e);
+  } catch (e: any) {
+    console.error("SERVER ERROR:", e);
     return NextResponse.json(
-      { ok: false, error: "server_error" },
+      { ok: false, error: e.message },
       { status: 500 }
     );
   }
