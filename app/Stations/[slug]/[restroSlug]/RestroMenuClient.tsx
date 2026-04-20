@@ -11,9 +11,13 @@ const toMin = (t?: string | null) => {
   return h * 60 + m;
 };
 
-/* CATEGORY FIX */
+/* 🔥 CATEGORY FIX (ONLY CHANGE) */
 const isVegItem = (cat?: string | null) => {
   const c = String(cat || "").toLowerCase().trim();
+
+  // ✅ FIX: non-veg detect properly
+  if (c.includes("non")) return false;
+
   return c === "veg" || c === "jain";
 };
 
@@ -25,7 +29,7 @@ export default function RestroMenuClient({ items, header }: any) {
     typeof window !== "undefined" ? window.location.search : ""
   );
 
-  // 🔥 FIXED (arrival instead of time)
+  // ✅ SAME AS YOUR CODE (NO CHANGE)
   const trainTime =
     params.get("arrival")?.slice(0, 5) || "11:50";
 
@@ -38,7 +42,7 @@ export default function RestroMenuClient({ items, header }: any) {
       const s = toMin(it.start_time);
       const e = toMin(it.end_time);
 
-      // 🔥 SAFETY FIX
+      // ✅ SAME SAFETY LOGIC
       if (s !== null && e !== null) {
         if (trainMin < s || trainMin > e) return false;
       }
