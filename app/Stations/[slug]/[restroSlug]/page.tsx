@@ -49,18 +49,18 @@ export default async function Page({ params, searchParams }: any) {
   const stationName =
     params.slug?.split("-")?.slice(1)?.join(" ") || stationCode;
 
-  /* ✅ ARRIVAL TIME FIX */
+  /* 🔥 ARRIVAL TIME FIX */
   let arrivalTime = "12:00:00";
 
   if (searchParams?.arrival) {
-    const t = searchParams.arrival.slice(0, 5);
-    arrivalTime = t + ":00";
+    const t = searchParams.arrival.slice(0, 5); // 11:50
+    arrivalTime = t + ":00"; // 11:50:00
   }
 
-  /* ✅ FETCH */
+  /* 🔥 FETCH DATA */
   const rawItems = await fetchOnMenu(restroCode, arrivalTime);
 
-  /* 🔥 🔥 FINAL NORMALIZATION (MOST IMPORTANT) */
+  /* 🔥🔥 FINAL NORMALIZATION (MAIN FIX) */
   const items = rawItems.map((it: any) => ({
     id: Number(it.id),
 
@@ -69,13 +69,13 @@ export default async function Page({ params, searchParams }: any) {
 
     item_category: it.item_category || "",
 
-    // ✅ description fix
+    // description fix
     item_description:
       it.item_description ||
       it.description ||
       "",
 
-    // ✅ TIME FIX (IMPORTANT)
+    // timing fix
     start_time:
       it.start_time ||
       it.item_start_time ||
@@ -86,10 +86,8 @@ export default async function Page({ params, searchParams }: any) {
       it.item_end_time ||
       null,
 
-    // ✅ status fix
-    status:
-      it.status ||
-      "ON",
+    // 🔥 STATUS FIX (MAIN BUG)
+    status: (it.status || "ON").toUpperCase(),
   }));
 
   const header = {
