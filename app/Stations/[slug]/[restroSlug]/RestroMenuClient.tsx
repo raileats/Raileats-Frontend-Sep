@@ -11,20 +11,10 @@ const toMin = (t?: string | null) => {
   return h * 60 + m;
 };
 
-/* 🔥 FINAL CATEGORY FIX */
-const isVegItem = (item: any) => {
-  const cat = String(item.item_category || "").toLowerCase();
-
-  // ✅ Proper detection
-  if (cat.includes("non")) return false;
-  if (cat.includes("veg")) return true;
-
-  // 🔥 fallback (name based)
-  const name = String(item.item_name || "").toLowerCase();
-
-  if (/chicken|mutton|egg|fish/.test(name)) return false;
-
-  return true;
+/* CATEGORY FIX */
+const isVegItem = (cat?: string | null) => {
+  const c = String(cat || "").toLowerCase().trim();
+  return c === "veg" || c === "jain";
 };
 
 export default function RestroMenuClient({ items, header }: any) {
@@ -47,11 +37,16 @@ export default function RestroMenuClient({ items, header }: any) {
       const s = toMin(it.start_time);
       const e = toMin(it.end_time);
 
+      // ✅ 🔥 ONLY FIX (15 min buffer added)
       if (s !== null && e !== null) {
-        if (trainMin < s || trainMin > e) return false;
+        if (trainMin < s - 15 || trainMin > e) return false;
       }
 
-      const isVeg = isVegItem(it);
+      const isVeg =
+        isVegItem(it.item_category) ||
+        /dal|roti|rice|paneer|veg|thali|chapati|paratha/i.test(
+          it.item_name
+        );
 
       if (vegOnly && !isVeg) return false;
 
@@ -81,7 +76,7 @@ export default function RestroMenuClient({ items, header }: any) {
 
       {visible.length === 0 && (
         <div className="text-center text-gray-500 mt-10">
-          No items available
+          No items available at this time
         </div>
       )}
 
@@ -89,7 +84,11 @@ export default function RestroMenuClient({ items, header }: any) {
         {visible.map((it: any) => {
           const existing = cart[it.id];
 
-          const isVeg = isVegItem(it);
+          const isVeg =
+            isVegItem(it.item_category) ||
+            /dal|roti|rice|paneer|veg|thali|chapati|paratha/i.test(
+              it.item_name
+            );
 
           const description =
             it.item_description ||
