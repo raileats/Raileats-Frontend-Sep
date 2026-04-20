@@ -4,21 +4,13 @@ import { useState, useMemo } from "react";
 import { useCart } from "../../../lib/useCart";
 import CartPillMobile from "../../../components/CartPillMobile";
 
-/* TIME CONVERT */
-const toMin = (t?: string | null) => {
-  if (!t) return null;
-  const [h, m] = t.slice(0, 5).split(":").map(Number);
-  return h * 60 + m;
-};
-
-/* ✅ FIXED CATEGORY LOGIC */
+/* CATEGORY FIX */
 const isVegItem = (cat?: string | null) => {
   const c = String(cat || "").toLowerCase().trim();
 
-  // ❌ non-veg detect properly
+  // ❌ non-veg detect
   if (c.includes("non")) return false;
 
-  // ✅ veg only exact
   return c === "veg" || c === "jain";
 };
 
@@ -26,36 +18,18 @@ export default function RestroMenuClient({ items, header }: any) {
   const { add, changeQty, cart } = useCart();
   const [vegOnly, setVegOnly] = useState(false);
 
-  const params = new URLSearchParams(
-    typeof window !== "undefined" ? window.location.search : ""
-  );
-
-  // ✅ SAME AS BEFORE
-  const trainTime =
-    params.get("arrival")?.slice(0, 5) || "11:50";
-
-  const trainMin = toMin(trainTime) || 710;
-
+  // 🔥 FINAL FIX → NO TIME FILTER
   const visible = useMemo(() => {
     return items.filter((it: any) => {
       if (it.status !== "ON") return false;
 
-      const s = toMin(it.start_time);
-      const e = toMin(it.end_time);
-
-      // ✅ SAME TIME LOGIC
-      if (s !== null && e !== null) {
-        if (trainMin < s || trainMin > e) return false;
-      }
-
-      // ✅ 🔥 FINAL FIX → ONLY CATEGORY (NO REGEX)
       const isVeg = isVegItem(it.item_category);
 
       if (vegOnly && !isVeg) return false;
 
       return true;
     });
-  }, [items, vegOnly, trainMin]);
+  }, [items, vegOnly]);
 
   return (
     <div className="p-3 max-w-xl mx-auto">
@@ -79,7 +53,7 @@ export default function RestroMenuClient({ items, header }: any) {
 
       {visible.length === 0 && (
         <div className="text-center text-gray-500 mt-10">
-          No items available at this time
+          No items available
         </div>
       )}
 
@@ -87,7 +61,6 @@ export default function RestroMenuClient({ items, header }: any) {
         {visible.map((it: any) => {
           const existing = cart[it.id];
 
-          // ✅ SAME LOGIC FOR DOT COLOR
           const isVeg = isVegItem(it.item_category);
 
           const description =
