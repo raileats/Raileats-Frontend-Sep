@@ -21,13 +21,15 @@ export default function RestroMenuClient({ items, header }: any) {
   const { add, changeQty, cart } = useCart();
   const [vegOnly, setVegOnly] = useState(false);
 
+  /* ✅ FIX: सही param */
   const params = new URLSearchParams(
     typeof window !== "undefined" ? window.location.search : ""
   );
 
-  const trainTime = params.get("time") || "11:50";
-  const trainMin = toMin(trainTime) || 710;
+  const trainTime = params.get("arrival") || "12:00"; // 🔥 FIXED
+  const trainMin = toMin(trainTime) || 720;
 
+  /* FILTER */
   const visible = useMemo(() => {
     return items.filter((it: any) => {
       if (it.status !== "ON") return false;
@@ -35,8 +37,10 @@ export default function RestroMenuClient({ items, header }: any) {
       const s = toMin(it.start_time);
       const e = toMin(it.end_time);
 
+      const buffer = 10; // 🔥 IMPORTANT FIX
+
       if (s !== null && e !== null) {
-        if (!(trainMin >= s && trainMin <= e)) return false;
+        if (!(trainMin + buffer >= s && trainMin <= e)) return false;
       }
 
       const isVeg =
@@ -79,10 +83,6 @@ export default function RestroMenuClient({ items, header }: any) {
 
       <div className="space-y-3">
         {visible.map((it: any) => {
-
-          // 🔥 DEBUG (IMPORTANT)
-          console.log("ITEM DATA:", it);
-
           const existing = cart[it.id];
 
           const isVeg =
@@ -91,7 +91,6 @@ export default function RestroMenuClient({ items, header }: any) {
               it.item_name
             );
 
-          // ✅ DESCRIPTION SAFE FIX
           const description =
             it.item_description ||
             it.itemDescription ||
