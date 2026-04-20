@@ -17,17 +17,25 @@ const isVegItem = (cat?: string | null) => {
   return c === "veg" || c === "jain";
 };
 
+const isNonVegItem = (cat?: string | null) => {
+  const c = String(cat || "")
+    .toLowerCase()
+    .replace(/\s+/g, "")
+    .replace("-", "");
+  return c === "nonveg";
+};
+
 export default function RestroMenuClient({ items, header }: any) {
   const { add, changeQty, cart } = useCart();
   const [vegOnly, setVegOnly] = useState(false);
 
-  /* ✅ FIX: सही param */
+  /* TRAIN TIME */
   const params = new URLSearchParams(
     typeof window !== "undefined" ? window.location.search : ""
   );
 
-  const trainTime = params.get("arrival") || "12:00"; // 🔥 FIXED
-  const trainMin = toMin(trainTime) || 720;
+  const trainTime = params.get("time") || "11:50";
+  const trainMin = toMin(trainTime) || 710;
 
   /* FILTER */
   const visible = useMemo(() => {
@@ -37,12 +45,11 @@ export default function RestroMenuClient({ items, header }: any) {
       const s = toMin(it.start_time);
       const e = toMin(it.end_time);
 
-      const buffer = 10; // 🔥 IMPORTANT FIX
-
       if (s !== null && e !== null) {
-        if (!(trainMin + buffer >= s && trainMin <= e)) return false;
+        if (!(trainMin >= s && trainMin <= e)) return false;
       }
 
+      // ✅ STRONG VEG CHECK
       const isVeg =
         isVegItem(it.item_category) ||
         /dal|roti|rice|paneer|veg|thali|chapati|paratha/i.test(
@@ -85,17 +92,12 @@ export default function RestroMenuClient({ items, header }: any) {
         {visible.map((it: any) => {
           const existing = cart[it.id];
 
+          // ✅ FINAL VEG DETECTION
           const isVeg =
             isVegItem(it.item_category) ||
             /dal|roti|rice|paneer|veg|thali|chapati|paratha/i.test(
               it.item_name
             );
-
-          const description =
-            it.item_description ||
-            it.itemDescription ||
-            it.description ||
-            "";
 
           return (
             <div
@@ -124,11 +126,9 @@ export default function RestroMenuClient({ items, header }: any) {
                 </div>
 
                 {/* DESCRIPTION */}
-                {description && (
-                  <div className="text-xs text-gray-600">
-                    {description}
-                  </div>
-                )}
+                <div className="text-xs text-gray-600">
+                  {it.item_description}
+                </div>
 
                 {/* PRICE */}
                 <div className="font-semibold">
