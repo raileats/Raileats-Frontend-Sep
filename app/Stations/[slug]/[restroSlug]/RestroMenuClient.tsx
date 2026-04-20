@@ -11,7 +11,7 @@ const toMin = (t?: string | null) => {
   return h * 60 + m;
 };
 
-/* ✅ CATEGORY FIX FUNCTIONS */
+/* CATEGORY FIX */
 const isVegItem = (cat?: string | null) => {
   const c = String(cat || "").toLowerCase().trim();
   return c === "veg" || c === "jain";
@@ -49,7 +49,12 @@ export default function RestroMenuClient({ items, header }: any) {
         if (!(trainMin >= s && trainMin <= e)) return false;
       }
 
-      const isVeg = isVegItem(it.item_category);
+      // ✅ STRONG VEG CHECK
+      const isVeg =
+        isVegItem(it.item_category) ||
+        /dal|roti|rice|paneer|veg|thali|chapati|paratha/i.test(
+          it.item_name
+        );
 
       if (vegOnly && !isVeg) return false;
 
@@ -86,7 +91,13 @@ export default function RestroMenuClient({ items, header }: any) {
       <div className="space-y-3">
         {visible.map((it: any) => {
           const existing = cart[it.id];
-          const isVeg = isVegItem(it.item_category);
+
+          // ✅ FINAL VEG DETECTION
+          const isVeg =
+            isVegItem(it.item_category) ||
+            /dal|roti|rice|paneer|veg|thali|chapati|paratha/i.test(
+              it.item_name
+            );
 
           return (
             <div
@@ -106,7 +117,7 @@ export default function RestroMenuClient({ items, header }: any) {
                   </span>
                 </div>
 
-                {/* ✅ TIME FIX */}
+                {/* TIME */}
                 <div className="text-xs text-gray-500">
                   ⏱{" "}
                   {it.start_time && it.end_time
