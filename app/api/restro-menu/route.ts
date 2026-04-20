@@ -6,6 +6,7 @@ import { serviceClient } from "../../lib/supabaseServer";
 export async function GET(req: Request) {
   try {
     const url = new URL(req.url);
+
     const restroCode = url.searchParams.get("restro");
 
     if (!restroCode) {
@@ -17,40 +18,56 @@ export async function GET(req: Request) {
 
     const supa = serviceClient;
 
-    // 🔥 SIMPLE QUERY (NO FILTER, NO ERROR)
     const { data, error } = await supa
       .from("RestroMenuItems")
-      .select("*")
-      .eq("restro_code", restroCode);
+      .select(`
+        item_code,
+        item_name,
+        item_description,
+        menu_type,
+        menu_type_rank,
+        base_price,
+        gst_percent,
+        selling_price,
+        start_time,
+        end_time
+      `)
+      .eq("restro_code", restroCode)
+      .eq("menu_status", 1)
+      .order("menu_type_rank", { ascending: true })
+      .order("base_price", { ascending: true });
 
     if (error) {
-      console.error("DB ERROR:", error.message);
+      console.error("MENU API ERROR:", error);
       return NextResponse.json(
-        { ok: false, error: error.message },
+        { ok: false, error: "db_error" },
         { status: 500 }
       );
     }
 
-    // 🔥 SAFE FORMAT
-    const formatted = (data || []).map((item: any) => ({
-      id: Number(item.item_code),
+    /* ✅ SAFE FORMAT FIX */
+    const formatted = (data || []).map((item) => {
+      return {
+        id: Number(item.item_code),
 
-      item_name: item.item_name || "",
-      item_description: item.item_description || "",
+        item_name: item.item_name || "",
+        item_description: item.item_description || "",
+        item_category: (item.menu_type || "").trim(),
 
-      item_category: item.menu_type || "",
+        base_price: Number(item.base_price || 0),
 
-      base_price: Number(item.base_price || 0),
+        // 🔥 FIX: DO NOT slice blindly
+        start_time: item.start_time
+          ? item.start_time.toString().substring(0, 5)
+          : null,
 
-      start_time: item.start_time
-        ? String(item.start_time).slice(0, 5)
-        : null,
-      end_time: item.end_time
-        ? String(item.end_time).slice(0, 5)
-        : null,
+        end_time: item.end_time
+          ? item.end_time.toString().substring(0, 5)
+          : null,
 
-      status: "ON",
-    }));
+        status: "ON",
+      };
+    });
 
     return NextResponse.json({
       ok: true,
@@ -58,10 +75,10 @@ export async function GET(req: Request) {
       items: formatted,
     });
 
-  } catch (e: any) {
-    console.error("SERVER ERROR:", e);
+  } catch (e) {
+    console.error("RESTRO MENU API ERROR:", e);
     return NextResponse.json(
-      { ok: false, error: e.message },
+      { ok: false, error: "server_error" },
       { status: 500 }
     );
   }
