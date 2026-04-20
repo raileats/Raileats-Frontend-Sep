@@ -37,10 +37,11 @@ export default function RestroMenuClient({ items, header }: any) {
       const s = toMin(it.start_time);
       const e = toMin(it.end_time);
 
-      // 🔥 FINAL SAFE FIX (only this changed)
+      // 🔥 FINAL FIX (ONLY THIS LOGIC UPDATED)
       if (s !== null && e !== null) {
         if (!isNaN(s) && !isNaN(e)) {
-          if (trainMin < s - 15 || trainMin > e) return false;
+          // ✅ balanced buffer (IMPORTANT)
+          if (trainMin < s - 30 || trainMin > e + 30) return false;
         }
       }
 
