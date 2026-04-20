@@ -15,7 +15,10 @@ export async function GET(req: Request) {
       );
     }
 
-    const { data, error } = await serviceClient
+    const supa = serviceClient;
+
+    // 🔥 NO TIME FILTER AT ALL
+    const { data, error } = await supa
       .from("RestroMenuItems")
       .select(`
         item_code,
@@ -24,13 +27,11 @@ export async function GET(req: Request) {
         menu_type,
         menu_type_rank,
         base_price,
-        gst_percent,
-        selling_price,
         start_time,
-        end_time
+        end_time,
+        menu_status
       `)
       .eq("restro_code", restroCode)
-      .eq("menu_status", 1)
       .order("menu_type_rank", { ascending: true })
       .order("base_price", { ascending: true });
 
@@ -42,31 +43,28 @@ export async function GET(req: Request) {
       );
     }
 
-    // ✅ ONLY SAFE FIX (TIME FORMAT)
+    // 🔥 IMPORTANT: DON'T FILTER menu_status STRICTLY
     const formatted = (data || []).map((item) => ({
       id: Number(item.item_code),
 
       item_name: item.item_name || "",
       item_description: item.item_description || "",
 
-      item_category: item.menu_type || "",
+      // ✅ EXACT category pass
+      item_category: (item.menu_type || "").trim(),
 
       base_price: Number(item.base_price || 0),
 
-      // 🔥 SAFE FIX (no slice bug)
-      start_time: item.start_time
-        ? item.start_time.toString().substring(0, 5)
-        : null,
-
-      end_time: item.end_time
-        ? item.end_time.toString().substring(0, 5)
-        : null,
+      // ✅ keep original time (DON'T SLICE WRONG)
+      start_time: item.start_time || null,
+      end_time: item.end_time || null,
 
       status: "ON",
     }));
 
     return NextResponse.json({
       ok: true,
+      count: formatted.length,
       items: formatted,
     });
 
