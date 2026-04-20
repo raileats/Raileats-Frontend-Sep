@@ -11,7 +11,7 @@ const toMin = (t?: string | null) => {
   return h * 60 + m;
 };
 
-/* CATEGORY FIX */
+/* CATEGORY FIX (UNCHANGED) */
 const isVegItem = (cat?: string | null) => {
   const c = String(cat || "").toLowerCase().trim();
   return c === "veg" || c === "jain";
@@ -37,9 +37,11 @@ export default function RestroMenuClient({ items, header }: any) {
       const s = toMin(it.start_time);
       const e = toMin(it.end_time);
 
-      // ✅ 🔥 ONLY FIX (15 min buffer added)
+      // 🔥 FINAL SAFE FIX (only this changed)
       if (s !== null && e !== null) {
-        if (trainMin < s - 15 || trainMin > e) return false;
+        if (!isNaN(s) && !isNaN(e)) {
+          if (trainMin < s - 15 || trainMin > e) return false;
+        }
       }
 
       const isVeg =
