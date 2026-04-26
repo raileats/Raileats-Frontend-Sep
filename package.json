@@ -14,7 +14,8 @@
     "react-dom": "^18.0.0",
     "react-slick": "^0.29.0",
     "slick-carousel": "^1.8.1",
-    "lucide-react": "^0.379.0"
+    "lucide-react": "^0.379.0",
+    "zustand": "^4.5.2"
   },
   "devDependencies": {
     "autoprefixer": "^10.4.14",
