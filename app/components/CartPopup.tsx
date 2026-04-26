@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState } from "react";
 import { useCart } from "../lib/useCart";
 import { onOpenCart, onCloseCart } from "../lib/cartEvents";
 import { useRouter } from "next/navigation";
@@ -9,10 +9,6 @@ export default function CartPopup() {
   const { items, total, increaseQty, decreaseQty } = useCart();
   const [open, setOpen] = useState(false);
   const router = useRouter();
-
-  // 🔥 swipe support
-  const startY = useRef(0);
-  const currentY = useRef(0);
 
   useEffect(() => {
     const offOpen = onOpenCart(() => setOpen(true));
@@ -23,39 +19,20 @@ export default function CartPopup() {
     };
   }, []);
 
-  const handleTouchStart = (e: any) => {
-    startY.current = e.touches[0].clientY;
-  };
-
-  const handleTouchMove = (e: any) => {
-    currentY.current = e.touches[0].clientY;
-  };
-
-  const handleTouchEnd = () => {
-    if (currentY.current - startY.current > 80) {
-      setOpen(false); // swipe down close
-    }
-  };
-
   if (!open || items.length === 0) return null;
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/40"
-      onClick={() => setOpen(false)}
-    >
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40">
 
       {/* CART BOX */}
       <div
-        onClick={(e) => e.stopPropagation()}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-        className="bg-white w-full md:w-[380px] h-[75vh] rounded-t-2xl shadow-xl flex flex-col
-                   animate-slideUp"
+        className="bg-white w-full md:w-[380px] rounded-t-2xl shadow-xl flex flex-col"
+        style={{
+          height: "calc(100vh - var(--nav-h) - 10px)",
+        }}
       >
 
-        {/* DRAG HANDLE */}
+        {/* HANDLE */}
         <div className="w-10 h-1 bg-gray-300 rounded-full mx-auto mt-2 mb-2"></div>
 
         {/* HEADER */}
@@ -88,10 +65,10 @@ export default function CartPopup() {
           ))}
         </div>
 
-        {/* FOOTER */}
-        <div className="border-t bg-white shrink-0 px-4 pt-3 pb-[20px] shadow-[0_-2px_10px_rgba(0,0,0,0.1)]">
+        {/* 🔥 FOOTER (GLOBAL.CSS SYSTEM BASED) */}
+        <div className="fixed-bottom-action">
 
-          <div className="flex justify-between mb-3 font-semibold">
+          <div className="flex justify-between mb-3 font-semibold px-2">
             <span>Total</span>
             <span>₹{total}</span>
           </div>
