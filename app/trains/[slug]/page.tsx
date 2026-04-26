@@ -5,6 +5,18 @@ import { useParams, useSearchParams } from "next/navigation";
 
 const SUPABASE_URL = "https://ygisiztmuzwxpnvhwrmr.supabase.co";
 
+/* ================= HELPERS ================= */
+
+function toMin(t: string) {
+  if (!t) return 0;
+  const [h, m] = t.slice(0, 5).split(":").map(Number);
+  return h * 60 + m;
+}
+
+function isSameDate(d1: Date, d2: Date) {
+  return d1.toDateString() === d2.toDateString();
+}
+
 export default function TrainPage() {
   const params = useParams();
   const searchParams = useSearchParams();
@@ -72,6 +84,31 @@ export default function TrainPage() {
           const vendors = st.vendors || [];
           if (!vendors.length) return null;
 
+          /* ================= CUT-OFF LOGIC ================= */
+
+          const now = new Date();
+          const nowMin = now.getHours() * 60 + now.getMinutes();
+
+          const trainDate = new Date(deliveryDate);
+          const arrivalMin = toMin(arrives);
+
+          const validVendors = vendors.filter((r: any) => {
+            const cutoff = Number(r.CutOffTime || r.cutoff_time || 0);
+
+            // ✅ APPLY ONLY SAME DAY
+            if (isSameDate(now, trainDate)) {
+              const diff = arrivalMin - nowMin;
+
+              if (diff < cutoff) {
+                return false; // ❌ HIDE
+              }
+            }
+
+            return true; // ✅ SHOW
+          });
+
+          if (!validVendors.length) return null;
+
           return (
             <div
               key={`${stationCode}-${index}`}
@@ -109,7 +146,7 @@ export default function TrainPage() {
 
               {/* Vendors */}
               <div className="space-y-3">
-                {vendors.map((r: any) => {
+                {validVendors.map((r: any) => {
                   const restroName = r.RestroName || "Restaurant";
                   const minOrder = r.MinimumOrderValue || 0;
 
@@ -173,7 +210,7 @@ export default function TrainPage() {
                           </div>
                         </div>
 
-                        {/* ✅ FIXED BUTTON */}
+                        {/* BUTTON */}
                         <div className="mt-2 text-right">
                           <a
                             href={`/Stations/${stationCode}-${stationName.replace(/\s+/g, '-')}/${r.RestroCode}-${restroName.replace(/\s+/g, '-')}` +
