@@ -1,3 +1,5 @@
+"use client";
+
 import React from "react";
 import { extractStationCode } from "../../../lib/stationSlug";
 import { extractRestroCode } from "../../../lib/restroSlug";
@@ -25,7 +27,8 @@ async function fetchOnMenu(
 ) {
   try {
     const res = await fetch(
-      `https://raileats.in/api/restro-menu?restro=${restroCode}&arrivalTime=${arrivalTime}`,
+      // ✅ FIX: arrival param सही किया
+      `https://raileats.in/api/restro-menu?restro=${restroCode}&arrival=${arrivalTime}`,
       { cache: "no-store" }
     );
 
@@ -49,18 +52,25 @@ export default async function Page({ params, searchParams }: any) {
   const stationName =
     params.slug?.split("-")?.slice(1)?.join(" ") || stationCode;
 
-  /* 🔥 ARRIVAL TIME FIX */
+  /* 🔥 ARRIVAL TIME FIX (SAFE) */
   let arrivalTime = "12:00:00";
 
-  if (searchParams?.arrival) {
-    const t = searchParams.arrival.slice(0, 5); // 11:50
+  const arrivalParam =
+    searchParams?.arrival ||
+    searchParams?.arrivalTime || // ✅ fallback support
+    "";
+
+  if (arrivalParam) {
+    const t = arrivalParam.slice(0, 5); // 11:50
     arrivalTime = t + ":00"; // 11:50:00
   }
+
+  console.log("FINAL ARRIVAL SENT:", arrivalTime);
 
   /* 🔥 FETCH DATA */
   const rawItems = await fetchOnMenu(restroCode, arrivalTime);
 
-  /* 🔥🔥 FINAL NORMALIZATION (MAIN FIX) */
+  /* 🔥🔥 FINAL NORMALIZATION */
   const items = rawItems.map((it: any) => ({
     id: Number(it.id),
 
@@ -69,13 +79,11 @@ export default async function Page({ params, searchParams }: any) {
 
     item_category: it.item_category || "",
 
-    // description fix
     item_description:
       it.item_description ||
       it.description ||
       "",
 
-    // timing fix
     start_time:
       it.start_time ||
       it.item_start_time ||
@@ -86,8 +94,8 @@ export default async function Page({ params, searchParams }: any) {
       it.item_end_time ||
       null,
 
-    // 🔥 STATUS FIX (MAIN BUG)
-    status: (it.status || "ON").toUpperCase(),
+    // ✅ STATUS SAFE
+    status: String(it.status || "ON").toUpperCase(),
   }));
 
   const header = {
