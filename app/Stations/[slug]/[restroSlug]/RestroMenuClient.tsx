@@ -11,7 +11,7 @@ const toMin = (t?: string | null) => {
   return h * 60 + m;
 };
 
-/* CATEGORY FIX (UNCHANGED) */
+/* CATEGORY FIX */
 const isVegItem = (cat?: string | null) => {
   const c = String(cat || "").toLowerCase().trim();
   return c === "veg" || c === "jain";
@@ -34,11 +34,16 @@ export default function RestroMenuClient({ items, header }: any) {
     return items.filter((it: any) => {
       if (it.status !== "ON") return false;
 
-      // 🔥 TIME FILTER DISABLED (FINAL FIX)
-      // const s = toMin(it.start_time);
-      // const e = toMin(it.end_time);
-      // ❌ कोई time filter नहीं लगाया → items hide नहीं होंगे
+      /* 🔥 TIME FILTER (FINAL FIX) */
+      const s = toMin(it.start_time);
+      const e = toMin(it.end_time);
 
+      if (s !== null && e !== null) {
+        // ❌ agar train time window ke bahar hai → hide
+        if (trainMin < s || trainMin > e) return false;
+      }
+
+      /* VEG FILTER */
       const isVeg =
         isVegItem(it.item_category) ||
         /dal|roti|rice|paneer|veg|thali|chapati|paratha/i.test(
@@ -49,7 +54,7 @@ export default function RestroMenuClient({ items, header }: any) {
 
       return true;
     });
-  }, [items, vegOnly]);
+  }, [items, vegOnly, trainMin]);
 
   return (
     <div className="p-3 max-w-xl mx-auto">
