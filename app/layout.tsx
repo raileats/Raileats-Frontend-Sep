@@ -4,8 +4,11 @@ import BottomNav from "./components/BottomNav";
 import ForceReloadOnBack from "./components/ForceReloadOnBack";
 import Providers from "./components/Providers";
 
-// 🔥 ADD THIS
+// 🔥 EXISTING
 import CartPopup from "./components/CartPopup";
+
+// ✅ NEW (LOGIN MODAL)
+import LoginModal from "./components/LoginModal";
 
 import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
@@ -47,8 +50,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </div>
           </main>
 
-          {/* 🔥 THIS WAS MISSING (MOST IMPORTANT) */}
+          {/* 🔥 CART POPUP */}
           <CartPopup />
+
+          {/* 🔥 LOGIN MODAL (NEW ADD) */}
+          <LoginModal />
 
           {/* Bottom Nav */}
           <BottomNav />
