@@ -5,16 +5,38 @@ import { useParams, useSearchParams } from "next/navigation";
 
 const SUPABASE_URL = "https://ygisiztmuzwxpnvhwrmr.supabase.co";
 
-/* ================= HELPERS ================= */
+/* ================= LIVE CLOCK ================= */
+function useNow() {
+  const [now, setNow] = useState(Date.now());
 
-function toMin(t: string) {
-  if (!t) return 0;
-  const [h, m] = t.slice(0, 5).split(":").map(Number);
-  return h * 60 + m;
+  useEffect(() => {
+    const t = setInterval(() => {
+      setNow(Date.now());
+    }, 1000);
+
+    return () => clearInterval(t);
+  }, []);
+
+  return now;
 }
 
-function isSameDate(d1: Date, d2: Date) {
-  return d1.toDateString() === d2.toDateString();
+/* ================= TIME CALC ================= */
+function getRemaining(arrival: string, date: string, cutoffMin: number, now: number) {
+  try {
+    const [h, m] = arrival.slice(0, 5).split(":").map(Number);
+
+    const arrivalDate = new Date(date);
+    arrivalDate.setHours(h);
+    arrivalDate.setMinutes(m);
+    arrivalDate.setSeconds(0);
+
+    const diff = arrivalDate.getTime() - now; // arrival - current
+    const remaining = diff - cutoffMin * 60000;
+
+    return remaining;
+  } catch {
+    return 0;
+  }
 }
 
 export default function TrainPage() {
@@ -29,6 +51,8 @@ export default function TrainPage() {
 
   const [stations, setStations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const now = useNow();
 
   useEffect(() => {
     async function fetchData() {
@@ -55,186 +79,135 @@ export default function TrainPage() {
   if (loading) {
     return (
       <div className="p-10 text-center">
-        <div className="inline-block w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-        <div className="font-bold text-gray-700 text-lg">
-          We are finding best restaurants for you...
-        </div>
+        <div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+        <div className="font-semibold">Loading restaurants...</div>
       </div>
     );
   }
 
   return (
     <div className="max-w-3xl mx-auto p-4 space-y-6">
-      {stations.length === 0 ? (
-        <div className="text-center py-20 text-gray-500 font-medium border rounded-xl bg-gray-50">
-          No restaurants found for this route.
-        </div>
-      ) : (
-        stations.map((st: any, index: number) => {
-          if (!st) return null;
+      {stations.map((st: any, index: number) => {
+        const stationCode = st.StationCode;
+        const stationName = st.StationName;
+        const arrives = st.Arrives;
+        const halt = st.HaltTime;
+        const deliveryDate = st.date || urlDate;
 
-          const stationCode = st.StationCode || "N/A";
-          const stationName = st.StationName || "Station";
-          const state = st.State || "";
+        const vendors = st.vendors || [];
 
-          const arrives = st.Arrives || "--:--";
-          const halt = st.HaltTime || "0m";
-          const deliveryDate = st.date || urlDate;
+        /* ================= FILTER WITH CUT-OFF ================= */
+        const validVendors = vendors.filter((r: any) => {
+          const cutoff = Number(r.CutOffTime || r.cutoff_time || 0);
+          const remaining = getRemaining(arrives, deliveryDate, cutoff, now);
+          return remaining > 0;
+        });
 
-          const vendors = st.vendors || [];
-          if (!vendors.length) return null;
+        if (!validVendors.length) return null;
 
-          /* ================= CUT-OFF LOGIC ================= */
+        return (
+          <div key={index} className="border rounded-xl p-4 bg-gray-50">
 
-          const now = new Date();
-          const nowMin = now.getHours() * 60 + now.getMinutes();
-
-          const trainDate = new Date(deliveryDate);
-          const arrivalMin = toMin(arrives);
-
-          const validVendors = vendors.filter((r: any) => {
-            const cutoff = Number(r.CutOffTime || r.cutoff_time || 0);
-
-            // ✅ APPLY ONLY SAME DAY
-            if (isSameDate(now, trainDate)) {
-              const diff = arrivalMin - nowMin;
-
-              if (diff < cutoff) {
-                return false; // ❌ HIDE
-              }
-            }
-
-            return true; // ✅ SHOW
-          });
-
-          if (!validVendors.length) return null;
-
-          return (
-            <div
-              key={`${stationCode}-${index}`}
-              className="border rounded-xl p-4 bg-gray-50 shadow-sm"
-            >
-              {/* Station Header */}
-              <div className="mb-4 border-b pb-2 flex justify-between items-start">
-                <div>
-                  <h2 className="text-lg font-bold text-gray-800">
-                    {stationName} ({stationCode})
-                  </h2>
-
-                  <div className="flex gap-2 items-center mt-1">
-                    {state && (
-                      <span className="text-[10px] text-gray-500 uppercase font-semibold">
-                        {state}
-                      </span>
-                    )}
-
-                    <span className="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded border border-blue-200 font-bold">
-                      📅 {deliveryDate}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="text-right">
-                  <div className="text-sm font-bold text-blue-600">
-                    Arrival: {arrives}
-                  </div>
-                  <div className="text-xs text-gray-600">
-                    Halt: {halt}
-                  </div>
-                </div>
+            {/* HEADER */}
+            <div className="flex justify-between mb-3">
+              <div>
+                <h2 className="font-bold text-lg">
+                  {stationName} ({stationCode})
+                </h2>
+                <div className="text-xs text-gray-500">{deliveryDate}</div>
               </div>
 
-              {/* Vendors */}
-              <div className="space-y-3">
-                {validVendors.map((r: any) => {
-                  const restroName = r.RestroName || "Restaurant";
-                  const minOrder = r.MinimumOrderValue || 0;
-
-                  let fileName = r.RestroDisplayPhoto
-                    ? String(r.RestroDisplayPhoto).split("/").pop()
-                    : "";
-
-                  const image = fileName
-                    ? `${SUPABASE_URL}/storage/v1/object/public/RestroDisplayPhoto/${fileName}`
-                    : null;
-
-                  const isVeg = String(r.IsPureVeg) === "1";
-
-                  return (
-                    <div
-                      key={r.RestroCode}
-                      className="bg-white p-3 rounded-lg border flex gap-3"
-                    >
-                      {/* Image */}
-                      <div className="w-24 h-24 bg-gray-100 rounded-md overflow-hidden border">
-                        {image ? (
-                          <img
-                            src={image}
-                            alt={restroName}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="flex items-center justify-center h-full text-xs text-gray-400">
-                            No Image
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Info */}
-                      <div className="flex-1 flex flex-col justify-between">
-                        <div>
-                          <div className="flex justify-between">
-                            <span className="font-bold text-gray-900">
-                              {restroName}
-                            </span>
-
-                            <span className="bg-yellow-100 text-yellow-800 text-[10px] px-2 py-0.5 rounded">
-                              ★ {r.RestroRating || "4.2"}
-                            </span>
-                          </div>
-
-                          <div className="text-[11px] text-gray-600 mt-1">
-                            Min. Order: ₹{minOrder}
-                          </div>
-
-                          <div className="mt-1 text-[10px] font-bold">
-                            {isVeg ? (
-                              <span className="text-green-600">
-                                ● Pure Veg
-                              </span>
-                            ) : (
-                              <span className="text-red-600">
-                                ● Non Veg
-                              </span>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* BUTTON */}
-                        <div className="mt-2 text-right">
-                          <a
-                            href={`/Stations/${stationCode}-${stationName.replace(/\s+/g, '-')}/${r.RestroCode}-${restroName.replace(/\s+/g, '-')}` +
-                              `?date=${encodeURIComponent(deliveryDate)}` +
-                              `&train=${trainNumber}` +
-                              `&boarding=${boarding}` +
-                              `&stationName=${encodeURIComponent(stationName)}` +
-                              `&arrival=${arrives}` +
-                              `&halt=${halt}`
-                            }
-                            className="inline-block bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold px-4 py-2 rounded-lg"
-                          >
-                            Order Now
-                          </a>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
+              <div className="text-right">
+                <div className="text-blue-600 font-semibold">
+                  Arrival: {arrives}
+                </div>
+                <div className="text-xs text-gray-500">
+                  Halt: {halt}
+                </div>
               </div>
             </div>
-          );
-        })
-      )}
+
+            {/* VENDORS */}
+            <div className="space-y-3">
+              {validVendors.map((r: any) => {
+                const cutoff = Number(r.CutOffTime || r.cutoff_time || 0);
+                const remaining = getRemaining(arrives, deliveryDate, cutoff, now);
+
+                const totalSec = Math.floor(remaining / 1000);
+
+                const hrs = Math.floor((totalSec % 86400) / 3600);
+                const mins = Math.floor((totalSec % 3600) / 60);
+                const secs = totalSec % 60;
+
+                const timeText =
+                  `${String(hrs).padStart(2, "0")}:` +
+                  `${String(mins).padStart(2, "0")}:` +
+                  `${String(secs).padStart(2, "0")}`;
+
+                const isClosingSoon = remaining < 10 * 60 * 1000;
+
+                let img = "";
+                if (r.RestroDisplayPhoto) {
+                  const file = r.RestroDisplayPhoto.split("/").pop();
+                  img = `${SUPABASE_URL}/storage/v1/object/public/RestroDisplayPhoto/${file}`;
+                }
+
+                return (
+                  <div key={r.RestroCode} className="bg-white p-3 rounded-lg border flex gap-3">
+
+                    {/* IMAGE */}
+                    <div className="w-24 h-24 bg-gray-100 rounded-md overflow-hidden">
+                      {img ? (
+                        <img src={img} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="flex items-center justify-center h-full text-xs text-gray-400">
+                          No Image
+                        </div>
+                      )}
+                    </div>
+
+                    {/* INFO */}
+                    <div className="flex-1 flex flex-col justify-between">
+                      <div>
+                        <div className="font-semibold">{r.RestroName}</div>
+
+                        <div className="text-xs text-gray-500">
+                          Min. Order: ₹{r.MinimumOrderValue}
+                        </div>
+
+                        <div className="text-green-600 text-xs font-semibold">
+                          ● Pure Veg
+                        </div>
+
+                        {/* 🔥 COUNTDOWN */}
+                        <div
+                          className={`text-xs font-bold mt-1 ${
+                            isClosingSoon ? "text-red-700" : "text-red-500"
+                          }`}
+                        >
+                          ⏳ Order before: {timeText}
+                          {isClosingSoon && " ⚠ Closing soon"}
+                        </div>
+                      </div>
+
+                      {/* BUTTON */}
+                      <div className="text-right">
+                        <a
+                          href={`/Stations/${stationCode}-${stationName}/${r.RestroCode}-${r.RestroName}?date=${deliveryDate}&train=${trainNumber}&boarding=${boarding}&arrival=${arrives}`}
+                          className="bg-orange-500 text-white px-4 py-2 rounded-lg text-sm"
+                        >
+                          Order Now
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+          </div>
+        );
+      })}
     </div>
   );
 }
