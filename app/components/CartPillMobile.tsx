@@ -1,62 +1,41 @@
 "use client";
 
-import Link from "next/link";
+import React, { useEffect, useState } from "react";
 import { useCart } from "../lib/useCart";
 import { openCart } from "../lib/cartEvents";
 
-type Props = {
-  onOpen?: () => void;
-  className?: string;
-};
-
-export default function CartPillMobile({ onOpen, className = "" }: Props) {
+export default function CartPillMobile() {
   const { count, total } = useCart();
+  const [show, setShow] = useState(false);
 
-  // ❌ nothing in cart → hide
-  if (!count || count <= 0) return null;
+  // ✅ Auto show when item added
+  useEffect(() => {
+    if (count > 0) {
+      setShow(true);
 
-  const handleClick = () => {
-    if (onOpen) {
-      onOpen();
-    } else {
-      openCart(); // ✅ popup trigger (default)
+      // optional auto hide after 5 sec
+      const t = setTimeout(() => {
+        setShow(false);
+      }, 5000);
+
+      return () => clearTimeout(t);
     }
-  };
+  }, [count]);
+
+  if (!count || count === 0 || !show) return null;
 
   return (
-    <div
-      className={`fixed bottom-0 left-0 right-0 z-50 lg:hidden px-3 pb-3 ${className}`}
-    >
-      <div className="bg-green-600 text-white rounded-xl shadow-lg flex items-center justify-between px-4 py-3">
+    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 md:hidden">
 
-        {/* LEFT INFO */}
-        <div>
-          <div className="text-sm font-semibold">
-            {count} item{count > 1 ? "s" : ""}
-          </div>
-          <div className="text-xs opacity-90">
-            ₹{Number(total || 0).toFixed(0)}
-          </div>
-        </div>
+      <button
+        onClick={openCart}
+        className="bg-blue-600 text-white px-4 py-3 rounded-full shadow-lg flex items-center gap-3"
+      >
+        <span className="font-semibold">{count}</span>
+        <span>₹{Number(total).toFixed(0)}</span>
+        <span className="underline text-sm">View Cart</span>
+      </button>
 
-        {/* BUTTON */}
-        {onOpen ? (
-          <button
-            onClick={handleClick}
-            className="bg-white text-green-700 px-4 py-2 rounded-lg text-sm font-semibold"
-          >
-            View Cart
-          </button>
-        ) : (
-          <Link
-            href="/checkout"
-            className="bg-white text-green-700 px-4 py-2 rounded-lg text-sm font-semibold"
-          >
-            View Cart
-          </Link>
-        )}
-
-      </div>
     </div>
   );
 }
