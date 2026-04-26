@@ -17,11 +17,10 @@ function useNow() {
   return now;
 }
 
-/* ================= DATE FIX ================= */
+/* ================= FIX DATE ================= */
 function formatDate(date: string) {
   if (!date) return "";
 
-  // handle "27 Apr 2026"
   if (date.includes(" ")) {
     const [day, mon, year] = date.split(" ");
 
@@ -37,17 +36,17 @@ function formatDate(date: string) {
   return date;
 }
 
-/* ================= TIME FIX ================= */
+/* ================= FIX TIME ================= */
 function formatTime(t: string) {
   if (!t) return "00:00:00";
 
   if (t.length === 5) return t + ":00";     // 02:35 → 02:35:00
-  if (t.length === 4) return "0" + t + ":00";
+  if (t.length === 4) return "0" + t + ":00"; // 2:35 → 02:35:00
 
   return t;
 }
 
-/* ================= MAIN CALC ================= */
+/* ================= FINAL CALC ================= */
 function getRemaining(arrival: string, date: string, cutoffMin: number, now: number) {
   try {
     const d = formatDate(date);
@@ -55,41 +54,16 @@ function getRemaining(arrival: string, date: string, cutoffMin: number, now: num
 
     const arrivalDateTime = new Date(`${d}T${t}`);
 
-    if (isNaN(arrivalDateTime.getTime())) return 999999999;
+    if (isNaN(arrivalDateTime.getTime())) return 0;
 
     const diff = arrivalDateTime.getTime() - now;
 
-    // 🔥 FINAL LOGIC
     return diff - cutoffMin * 60000;
-
   } catch {
-    return 999999999;
+    return 0;
   }
 }
 
-/* ================= FORMAT ================= */
-function formatCountdown(ms: number) {
-  if (ms <= 0) return null;
-
-  let totalSec = Math.floor(ms / 1000);
-
-  const days = Math.floor(totalSec / 86400);
-  totalSec %= 86400;
-
-  const hrs = Math.floor(totalSec / 3600);
-  totalSec %= 3600;
-
-  const mins = Math.floor(totalSec / 60);
-  const secs = totalSec % 60;
-
-  if (days > 0) {
-    return `${days}d ${String(hrs).padStart(2, "0")}:${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
-  }
-
-  return `${String(hrs).padStart(2, "0")}:${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
-}
-
-/* ================= COMPONENT ================= */
 export default function TrainPage() {
   const params = useParams();
   const searchParams = useSearchParams();
@@ -108,14 +82,17 @@ export default function TrainPage() {
   useEffect(() => {
     async function fetchData() {
       try {
+        setLoading(true);
+
         const res = await fetch(
           `/api/train-restros?train=${trainNumber}&date=${urlDate}&boarding=${boarding}&full=1`,
           { cache: "no-store" }
         );
+
         const json = await res.json();
         setStations(json?.stations || []);
       } catch (e) {
-        console.log(e);
+        console.error("API ERROR:", e);
       } finally {
         setLoading(false);
       }
@@ -125,7 +102,12 @@ export default function TrainPage() {
   }, [trainNumber, urlDate, boarding]);
 
   if (loading) {
-    return <div className="p-10 text-center">Loading...</div>;
+    return (
+      <div className="p-10 text-center">
+        <div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+        <div className="font-semibold">Loading restaurants...</div>
+      </div>
+    );
   }
 
   return (
@@ -134,11 +116,12 @@ export default function TrainPage() {
         const stationCode = st.StationCode;
         const stationName = st.StationName;
         const arrives = st.Arrives;
+        const halt = st.HaltTime;
         const deliveryDate = st.date || urlDate;
 
         const vendors = st.vendors || [];
 
-        /* FILTER */
+        /* ================= FILTER ================= */
         const validVendors = vendors.filter((r: any) => {
           const cutoff = Number(r.CutOffTime || r.cutoff_time || 0);
           const remaining = getRemaining(arrives, deliveryDate, cutoff, now);
@@ -148,39 +131,116 @@ export default function TrainPage() {
         if (!validVendors.length) return null;
 
         return (
-          <div key={index} className="border rounded-xl p-4">
+          <div key={index} className="border rounded-xl p-4 bg-gray-50">
 
-            <h2 className="font-bold">
-              {stationName} ({stationCode})
-            </h2>
+            {/* HEADER */}
+            <div className="flex justify-between mb-3">
+              <div>
+                <h2 className="font-bold text-lg">
+                  {stationName} ({stationCode})
+                </h2>
+                <div className="text-xs text-gray-500">{deliveryDate}</div>
+              </div>
 
-            <div className="text-sm text-gray-500 mb-2">
-              {deliveryDate} | Arrival: {arrives}
+              <div className="text-right">
+                <div className="text-blue-600 font-semibold">
+                  Arrival: {arrives}
+                </div>
+                <div className="text-xs text-gray-500">
+                  Halt: {halt}
+                </div>
+              </div>
             </div>
 
-            {validVendors.map((r: any) => {
-              const cutoff = Number(r.CutOffTime || r.cutoff_time || 0);
-              const remaining = getRemaining(arrives, deliveryDate, cutoff, now);
+            {/* VENDORS */}
+            <div className="space-y-3">
+              {validVendors.map((r: any) => {
+                const cutoff = Number(r.CutOffTime || r.cutoff_time || 0);
+                const remaining = getRemaining(arrives, deliveryDate, cutoff, now);
 
-              const countdown = formatCountdown(remaining);
+                const totalSec = Math.floor(remaining / 1000);
 
-              const isRed = remaining <= 10 * 60 * 1000;
+                const days = Math.floor(totalSec / 86400);
+                const hrs = Math.floor((totalSec % 86400) / 3600);
+                const mins = Math.floor((totalSec % 3600) / 60);
+                const secs = totalSec % 60;
 
-              return (
-                <div key={r.RestroCode} className="border p-3 mb-2 rounded">
+                let timeText = "";
 
-                  <div className="font-semibold">{r.RestroName}</div>
+                if (days > 0) {
+                  timeText =
+                    `${days}d ` +
+                    `${String(hrs).padStart(2, "0")}:` +
+                    `${String(mins).padStart(2, "0")}:` +
+                    `${String(secs).padStart(2, "0")}`;
+                } else {
+                  timeText =
+                    `${String(hrs).padStart(2, "0")}:` +
+                    `${String(mins).padStart(2, "0")}:` +
+                    `${String(secs).padStart(2, "0")}`;
+                }
 
-                  {/* COUNTDOWN */}
-                  {countdown && (
-                    <div className={`text-sm font-bold ${isRed ? "text-red-600" : "text-blue-600"}`}>
-                      ⏳ {countdown}
+                const isClosingSoon = remaining <= 10 * 60 * 1000;
+
+                let img = "";
+                if (r.RestroDisplayPhoto) {
+                  const file = r.RestroDisplayPhoto.split("/").pop();
+                  img = `${SUPABASE_URL}/storage/v1/object/public/RestroDisplayPhoto/${file}`;
+                }
+
+                return (
+                  <div key={r.RestroCode} className="bg-white p-3 rounded-lg border flex gap-3">
+
+                    {/* IMAGE */}
+                    <div className="w-24 h-24 bg-gray-100 rounded-md overflow-hidden">
+                      {img ? (
+                        <img src={img} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="flex items-center justify-center h-full text-xs text-gray-400">
+                          No Image
+                        </div>
+                      )}
                     </div>
-                  )}
 
-                </div>
-              );
-            })}
+                    {/* INFO */}
+                    <div className="flex-1 flex flex-col justify-between">
+                      <div>
+                        <div className="font-semibold">{r.RestroName}</div>
+
+                        <div className="text-xs text-gray-500">
+                          Min. Order: ₹{r.MinimumOrderValue}
+                        </div>
+
+                        <div className="text-green-600 text-xs font-semibold">
+                          ● Pure Veg
+                        </div>
+
+                        {/* ✅ COUNTDOWN FIX */}
+                        <div
+                          className={`text-xs font-bold mt-1 ${
+                            isClosingSoon ? "text-red-600" : "text-blue-600"
+                          }`}
+                        >
+                          ⏳ Order before: {timeText}
+                          {isClosingSoon && " ⚠ Closing soon"}
+                        </div>
+                      </div>
+
+                      {/* BUTTON */}
+                      <div className="text-right">
+                        <a
+                          href={`/Stations/${stationCode}-${stationName}/${r.RestroCode}-${r.RestroName}?date=${deliveryDate}&train=${trainNumber}&boarding=${boarding}&arrival=${arrives}`}
+                          className="bg-orange-500 text-white px-4 py-2 rounded-lg text-sm"
+                        >
+                          Order Now
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
           </div>
         );
       })}
