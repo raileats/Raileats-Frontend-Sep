@@ -17,7 +17,7 @@ export async function GET(req: Request) {
 
     const supa = serviceClient;
 
-    // 🔥 ONLY SAFE COLUMNS (NO EXTRA)
+    /* 🔥 STATUS COLUMN ADD KIYA */
     const { data, error } = await supa
       .from("RestroMenuItems")
       .select(`
@@ -27,7 +27,8 @@ export async function GET(req: Request) {
         menu_type,
         base_price,
         start_time,
-        end_time
+        end_time,
+        status
       `)
       .eq("restro_code", restroCode);
 
@@ -39,7 +40,15 @@ export async function GET(req: Request) {
       );
     }
 
-    const formatted = (data || []).map((item) => ({
+    /* 🔥 FINAL FILTER (STATUS FIX) */
+    const filtered = (data || []).filter(
+      (item) =>
+        String(item.status || "")
+          .trim()
+          .toUpperCase() === "ON"
+    );
+
+    const formatted = filtered.map((item) => ({
       id: Number(item.item_code),
       item_name: item.item_name || "",
       item_description: item.item_description || "",
@@ -47,7 +56,7 @@ export async function GET(req: Request) {
       base_price: Number(item.base_price || 0),
       start_time: item.start_time || null,
       end_time: item.end_time || null,
-      status: "ON",
+      status: item.status, // ✅ अब सही आएगा
     }));
 
     return NextResponse.json({
