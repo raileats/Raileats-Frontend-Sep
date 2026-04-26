@@ -26,6 +26,8 @@ export type CartContextValue = {
 
   add: (line: CartLine) => void;
   changeQty: (id: number, qty: number) => void;
+  increaseQty: (id: number) => void;   // ✅ NEW
+  decreaseQty: (id: number) => void;   // ✅ NEW
   remove: (id: number) => void;
   clearCart: () => void;
 };
@@ -54,6 +56,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem("cart", JSON.stringify(cart));
   }, [cart]);
 
+  /* ================= ADD ================= */
+
   const add = (line: CartLine) => {
     if (!line || !line.id) return;
 
@@ -80,6 +84,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
+  /* ================= CHANGE QTY ================= */
+
   const changeQty = (id: number, qty: number) => {
     setCart((c) => {
       const row = c[id];
@@ -97,6 +103,39 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
+  /* ================= INCREASE / DECREASE ================= */
+
+  const increaseQty = (id: number) => {
+    setCart((c) => {
+      const row = c[id];
+      if (!row) return c;
+
+      return {
+        ...c,
+        [id]: { ...row, qty: row.qty + 1 },
+      };
+    });
+  };
+
+  const decreaseQty = (id: number) => {
+    setCart((c) => {
+      const row = c[id];
+      if (!row) return c;
+
+      if (row.qty <= 1) {
+        const { [id]: _, ...rest } = c;
+        return rest;
+      }
+
+      return {
+        ...c,
+        [id]: { ...row, qty: row.qty - 1 },
+      };
+    });
+  };
+
+  /* ================= REMOVE ================= */
+
   const remove = (id: number) => {
     setCart((c) => {
       const { [id]: _, ...rest } = c;
@@ -104,10 +143,14 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
+  /* ================= CLEAR ================= */
+
   const clearCart = () => {
     setCart({});
     localStorage.removeItem("cart");
   };
+
+  /* ================= MEMO ================= */
 
   const value = useMemo<CartContextValue>(() => {
     const items = Object.values(cart);
@@ -122,6 +165,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       total,
       add,
       changeQty,
+      increaseQty,   // ✅ ADDED
+      decreaseQty,   // ✅ ADDED
       remove,
       clearCart,
     };
