@@ -25,7 +25,7 @@ export default function CartPopup() {
     <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/40">
 
       {/* MAIN BOX */}
-     <div className="bg-white w-full md:w-[380px] max-h-[80vh] h-auto rounded-t-xl md:rounded-xl shadow-xl flex flex-col">
+     <div className="bg-white w-full md:w-[380px] max-max-h-[80vh] h-auto rounded-t-xl md:rounded-xl shadow-xl flex flex-col">
 
         {/* HEADER */}
         <div className="flex justify-between items-center px-4 py-3 border-b">
