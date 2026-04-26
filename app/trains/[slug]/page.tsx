@@ -50,28 +50,39 @@ function normalizeTime(t: string) {
 }
 
 /* ================= FINAL CALC ================= */
-function getRemaining(arrival: string, date: string, cutoffMin: number, now: number) {
+
+function getRemaining(arrival: string, date: string, cutoffMin: number) {
   try {
     const d = normalizeDate(date);
     const t = normalizeTime(arrival);
 
     const [year, month, day] = d.split("-").map(Number);
-    const [hh, mm, ss] = t.split(":").map(Number);
+    const [hh, mm] = t.split(":").map(Number);
 
-    const arrivalDateTime = new Date(year, month - 1, day, hh, mm, ss);
-    const currentDateTime = new Date(now);
+    const arrivalDateTime = new Date(year, month - 1, day, hh, mm, 0);
+    const nowDateTime = new Date();
 
-    // STEP 1: Arrival - Current
-    const diffMs = arrivalDateTime.getTime() - currentDateTime.getTime();
+    // 🔥 STEP 1: diff in minutes
+    const diffMin = Math.floor(
+      (arrivalDateTime.getTime() - nowDateTime.getTime()) / 60000
+    );
 
-    // STEP 2: Cutoff minutes → ms
-    const cutoffMs = cutoffMin * 60 * 1000;
+    // 🔥 STEP 2: FINAL
+    const remainingMin = diffMin - cutoffMin;
 
-    // STEP 3: FINAL
-    return diffMs - cutoffMs;
+    // 🔥 DEBUG (important)
+    console.log({
+      arrival,
+      diffMin,
+      cutoffMin,
+      remainingMin
+    });
 
-  } catch (err) {
-    console.log("TIME ERROR:", err);
+    // 🔥 STEP 3: convert back to ms
+    return remainingMin * 60000;
+
+  } catch (e) {
+    console.log("TIME ERROR", e);
     return 0;
   }
 }
