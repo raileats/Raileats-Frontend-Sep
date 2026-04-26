@@ -17,7 +17,6 @@ function useNow() {
 
 /* ================= PARSE HELPERS ================= */
 
-// "27 Apr 2026"
 function parseDateParts(date: string) {
   if (!date) return null;
 
@@ -30,12 +29,10 @@ function parseDateParts(date: string) {
     return { y: Number(year), m: months[mon] ?? 0, d: Number(day) };
   }
 
-  // YYYY-MM-DD
   const [y, m, d] = date.split("-").map(Number);
   return { y, m: (m || 1) - 1, d };
 }
 
-// "2:35" / "02:35" / "02:35:00"
 function parseTimeParts(t: string) {
   if (!t) return { h: 0, m: 0, s: 0 };
   const p = t.split(":").map(Number);
@@ -47,8 +44,6 @@ function parseTimeParts(t: string) {
 }
 
 /* ================= FINAL LOGIC ================= */
-// deadline = arrival - cutoff
-// remaining = deadline - now
 function getRemaining(arrival: string, date: string, cutoffMin: number) {
   try {
     const dp = parseDateParts(date);
@@ -56,29 +51,12 @@ function getRemaining(arrival: string, date: string, cutoffMin: number) {
     if (!dp) return 0;
 
     const arrivalDT = new Date(dp.y, dp.m, dp.d, tp.h, tp.m, tp.s);
-
-    // 🔥 Cutoff subtract here
     const deadlineDT = new Date(arrivalDT.getTime() - cutoffMin * 60000);
 
     const now = new Date();
+    return deadlineDT.getTime() - now.getTime();
 
-    const remaining = deadlineDT.getTime() - now.getTime();
-
-    // DEBUG (1 बार देख लो)
-    console.log({
-      arrival,
-      date,
-      cutoffMin,
-      arrivalDT: arrivalDT.toString(),
-      deadlineDT: deadlineDT.toString(),
-      now: now.toString(),
-      remainingMin: Math.floor(remaining / 60000),
-    });
-
-    return remaining;
-
-  } catch (e) {
-    console.log("TIME ERROR:", e);
+  } catch {
     return 0;
   }
 }
@@ -96,7 +74,7 @@ export default function TrainPage() {
   const [stations, setStations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const nowTick = useNow(); // सिर्फ re-render के लिए
+  useNow(); // सिर्फ re-render
 
   useEffect(() => {
     async function fetchData() {
@@ -138,7 +116,6 @@ export default function TrainPage() {
 
         const vendors = st.vendors || [];
 
-        /* ================= FILTER ================= */
         const validVendors = vendors.filter((r: any) => {
           const cutoff = parseInt(
             String(r.CutOffTime ?? r.cutoff_time ?? "0").trim(),
@@ -146,7 +123,6 @@ export default function TrainPage() {
           ) || 0;
 
           const remaining = getRemaining(arrives, deliveryDate, cutoff);
-
           return remaining > 0;
         });
 
@@ -206,10 +182,12 @@ export default function TrainPage() {
                   img = `${SUPABASE_URL}/storage/v1/object/public/RestroDisplayPhoto/${file}`;
                 }
 
+                // ✅ FIXED ARRIVAL (MAIN BUG FIX)
+                const cleanArrival = (arrives || "").slice(0, 5);
+
                 return (
                   <div key={r.RestroCode} className="bg-white p-3 rounded-lg border flex gap-3">
 
-                    {/* IMAGE */}
                     <div className="w-24 h-24 bg-gray-100 rounded-md overflow-hidden">
                       {img ? (
                         <img src={img} className="w-full h-full object-cover" />
@@ -220,7 +198,6 @@ export default function TrainPage() {
                       )}
                     </div>
 
-                    {/* INFO */}
                     <div className="flex-1 flex flex-col justify-between">
                       <div>
                         <div className="font-semibold">{r.RestroName}</div>
@@ -233,17 +210,15 @@ export default function TrainPage() {
                           ● Pure Veg
                         </div>
 
-                        {/* COUNTDOWN */}
                         <div className={`text-xs font-bold mt-1 ${isClosingSoon ? "text-red-600" : "text-blue-600"}`}>
                           ⏳ Order before: {timeText}
                           {isClosingSoon && " ⚠ Closing soon"}
                         </div>
                       </div>
 
-                      {/* BUTTON */}
                       <div className="text-right">
                         <a
-                          href={`/Stations/${stationCode}-${stationName}/${r.RestroCode}-${r.RestroName}?date=${deliveryDate}&train=${trainNumber}&boarding=${boarding}&arrival=${arrives}`}
+                          href={`/Stations/${stationCode}-${encodeURIComponent(stationName)}/${r.RestroCode}-${encodeURIComponent(r.RestroName)}?date=${deliveryDate}&train=${trainNumber}&boarding=${boarding}&arrival=${cleanArrival}`}
                           className="bg-orange-500 text-white px-4 py-2 rounded-lg text-sm"
                         >
                           Order Now
