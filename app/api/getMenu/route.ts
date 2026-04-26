@@ -37,6 +37,16 @@ export async function GET(req: Request) {
     /* ================= FIX STRUCTURE ================= */
     const menuItems = Array.isArray(data) ? data : data.items || [];
 
+/* 🔍 DEBUG LOG */
+console.log(
+  menuItems.map(i => ({
+    name: i.item_name,
+    status: i.status,
+    item_status: i.item_status,
+    is_active: i.is_active
+  }))
+);
+
     /* ================= FILTER ================= */
     const filteredItems = menuItems.filter((item: any) => {
 
