@@ -11,11 +11,17 @@ type Item = {
   start_time?: string;
   end_time?: string;
   item_category?: string;
+  status?: string; // 🔥 ADD
 };
 
 function timeToMinutes(t: string) {
   const [h, m] = t.split(":").map(Number);
   return h * 60 + m;
+}
+
+/* 🔥 STATUS NORMALIZER */
+function isActive(status?: string) {
+  return String(status || "").trim().toUpperCase() === "ON";
 }
 
 export default function MenuPage() {
@@ -38,17 +44,22 @@ export default function MenuPage() {
 
       const arrivalMin = timeToMinutes(arrival);
 
-      // ✅ FINAL FILTER (TIME + HARD REMOVE)
+      // ✅ FINAL FILTER (STATUS + TIME + HARD BLOCK)
       const filtered = (data.items || []).filter((item: Item) => {
+
+        /* 🔥 STATUS FILTER (NEW) */
+        if (!isActive(item.status)) return false;
+
         const start = item.start_time?.slice(0, 5) || "00:00";
         const end = item.end_time?.slice(0, 5) || "23:59";
 
         const startMin = timeToMinutes(start);
         const endMin = timeToMinutes(end);
 
-        // 🔥 HARD BLOCK
+        /* 🔥 HARD BLOCK (UNCHANGED) */
         if (item.item_name === "Chicken Curry") return false;
 
+        /* 🔥 TIME FILTER (UNCHANGED) */
         return arrivalMin >= startMin && arrivalMin <= endMin;
       });
 
