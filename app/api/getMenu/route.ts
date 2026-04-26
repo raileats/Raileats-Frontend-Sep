@@ -12,7 +12,12 @@ function timeToMinutes(t: string) {
 
 function formatTime(t: any) {
   if (!t) return "00:00";
-  return String(t).slice(0, 5); // handles 14:00:00 → 14:00
+  return String(t).slice(0, 5);
+}
+
+/* 🔥 STATUS NORMALIZER */
+function isActive(status: any) {
+  return String(status || "").trim().toUpperCase() === "ON";
 }
 
 /* ================= API ================= */
@@ -35,17 +40,22 @@ export async function GET(req: Request) {
     /* ================= FILTER ================= */
     const filteredItems = menuItems.filter((item: any) => {
 
+      /* 🔥 STATUS FILTER (FIX) */
+      if (!isActive(item.status)) return false;
+
       const start = formatTime(item.start_time || item.startTime);
       const end = formatTime(item.end_time || item.endTime);
 
       const startMin = timeToMinutes(start);
       const endMin = timeToMinutes(end);
 
-      // 🔥 HARD BLOCK (FINAL FIX)
+      /* 🔥 HARD BLOCK (UNCHANGED) */
       if (item.item_name === "Chicken Curry") return false;
 
-      // 🔥 TIME FILTER
-      return arrivalMin >= startMin && arrivalMin <= endMin;
+      /* 🔥 TIME FILTER */
+      if (arrivalMin < startMin || arrivalMin > endMin) return false;
+
+      return true;
     });
 
     /* ================= RETURN ================= */
