@@ -6,7 +6,7 @@ import { onOpenCart, onCloseCart } from "../lib/cartEvents";
 import { useRouter } from "next/navigation";
 
 export default function CartPopup() {
-  const { items, total } = useCart();
+  const { items, total, increaseQty, decreaseQty } = useCart();
   const [open, setOpen] = useState(false);
   const router = useRouter();
 
@@ -23,7 +23,7 @@ export default function CartPopup() {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
-      <div className="bg-white w-[320px] rounded-lg shadow-xl overflow-hidden">
+      <div className="bg-white w-[340px] rounded-lg shadow-xl overflow-hidden">
 
         {/* HEADER */}
         <div className="flex justify-between items-center px-4 py-2 border-b">
@@ -37,21 +37,44 @@ export default function CartPopup() {
         </div>
 
         {/* ITEMS */}
-        <div className="px-4 py-2 space-y-2 text-sm max-h-[200px] overflow-y-auto">
+        <div className="px-4 py-3 space-y-3 text-sm max-h-[260px] overflow-y-auto">
           {items.map((it) => (
             <div key={it.id} className="flex justify-between items-center">
-              
+
               {/* LEFT */}
               <div className="flex-1 pr-2">
-                <div className="truncate">
-                  {it.name} x {it.qty}
-                </div>
+                <div className="font-medium">{it.name}</div>
+                <div className="text-xs text-gray-500">₹{it.price}</div>
               </div>
 
-              {/* RIGHT */}
-              <div className="text-right font-medium">
+              {/* QTY CONTROL */}
+              <div className="flex items-center gap-2 border rounded px-2 py-1">
+
+                <button
+                  onClick={() => decreaseQty(it.id)}
+                  className="px-2 text-lg"
+                >
+                  -
+                </button>
+
+                <span className="min-w-[20px] text-center">
+                  {it.qty}
+                </span>
+
+                <button
+                  onClick={() => increaseQty(it.id)}
+                  className="px-2 text-lg"
+                >
+                  +
+                </button>
+
+              </div>
+
+              {/* PRICE */}
+              <div className="w-16 text-right font-medium">
                 ₹{it.price * it.qty}
               </div>
+
             </div>
           ))}
         </div>
