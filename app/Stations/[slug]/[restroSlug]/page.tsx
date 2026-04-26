@@ -1,113 +1,225 @@
 "use client";
 
-import React from "react";
-import { extractStationCode } from "../../../lib/stationSlug";
-import { extractRestroCode } from "../../../lib/restroSlug";
-import RestroMenuClient from "./RestroMenuClient";
+import { useState, useMemo } from "react";
+import { useCart } from "../../../lib/useCart";
+import CartPillMobile from "../../../components/CartPillMobile";
 
-export const dynamic = "force-dynamic";
-export const runtime = "nodejs";
+/* ================= TIME CONVERT ================= */
+const toMin = (t?: string | null) => {
+  if (!t) return null;
 
-/* ------------ HELPERS ------------ */
-function humanizeFromSlug(restroSlug: string) {
-  return decodeURIComponent(restroSlug)
-    .replace(/^\d+-/, "")
-    .replace(/-\d+$/, "")
-    .replace(/-/g, " ")
-    .trim()
-    .split(" ")
-    .map((w) => w[0]?.toUpperCase() + w.slice(1))
-    .join(" ");
-}
-
-/* ------------ FETCH ------------ */
-async function fetchOnMenu(
-  restroCode: string | number,
-  arrivalTime: string
-) {
   try {
-    const res = await fetch(
-      // ✅ FIX: arrival param सही किया
-      `https://raileats.in/api/restro-menu?restro=${restroCode}&arrival=${arrivalTime}`,
-      { cache: "no-store" }
-    );
+    const parts = t.slice(0, 5).split(":").map(Number);
+    const h = parts[0] ?? 0;
+    const m = parts[1] ?? 0;
 
-    const json = await res.json();
+    if (isNaN(h) || isNaN(m)) return null;
 
-    console.log("API RESPONSE:", json);
-
-    return json?.items || [];
-  } catch (e) {
-    console.log("API ERROR:", e);
-    return [];
+    return h * 60 + m;
+  } catch {
+    return null;
   }
-}
+};
 
-/* ------------ PAGE ------------ */
-export default async function Page({ params, searchParams }: any) {
-  const stationCode = extractStationCode(params.slug) || "";
-  const restroCode = extractRestroCode(params.restroSlug) || "";
-  const outletName = humanizeFromSlug(params.restroSlug);
+/* ================= CATEGORY ================= */
+const isVegItem = (cat?: string | null) => {
+  const c = String(cat || "").toLowerCase().trim();
+  return c === "veg" || c === "jain";
+};
 
-  const stationName =
-    params.slug?.split("-")?.slice(1)?.join(" ") || stationCode;
+/* ================= STATUS ================= */
+const isItemActive = (it: any) => {
+  const raw =
+    it.status ??
+    it.item_status ??
+    it.is_active ??
+    it.active;
 
-  /* 🔥 ARRIVAL TIME FIX (SAFE) */
-  let arrivalTime = "12:00:00";
+  return String(raw || "").trim().toUpperCase() === "ON";
+};
+
+export default function RestroMenuClient({ items, header }: any) {
+  const { add, changeQty, cart } = useCart();
+  const [vegOnly, setVegOnly] = useState(false);
+
+  /* ================= ARRIVAL ================= */
+  const params = new URLSearchParams(
+    typeof window !== "undefined" ? window.location.search : ""
+  );
 
   const arrivalParam =
-    searchParams?.arrival ||
-    searchParams?.arrivalTime || // ✅ fallback support
-    "";
+    params.get("arrival") ||
+    params.get("arrivalTime") ||
+    null;
 
-  if (arrivalParam) {
-    const t = arrivalParam.slice(0, 5); // 11:50
-    arrivalTime = t + ":00"; // 11:50:00
-  }
+  const trainTime = arrivalParam
+    ? arrivalParam.slice(0, 5)
+    : null;
 
-  console.log("FINAL ARRIVAL SENT:", arrivalTime);
+  const trainMin = trainTime ? toMin(trainTime) : null;
 
-  /* 🔥 FETCH DATA */
-  const rawItems = await fetchOnMenu(restroCode, arrivalTime);
+  /* ================= FINAL FILTER ================= */
+  const visible = useMemo(() => {
+    return items.filter((it: any) => {
 
-  /* 🔥🔥 FINAL NORMALIZATION */
-  const items = rawItems.map((it: any) => ({
-    id: Number(it.id),
+      /* 🔥 STATUS */
+      if (!isItemActive(it)) return false;
 
-    item_name: it.item_name || "",
-    base_price: Number(it.base_price || 0),
+      /* 🔥 TIME FIX (FINAL) */
+      const s = toMin(it.start_time);
+      const e = toMin(it.end_time);
 
-    item_category: it.item_category || "",
+      // ✅ अगर timing missing → SHOW
+      if (s === null || e === null) return true;
 
-    item_description:
-      it.item_description ||
-      it.description ||
-      "",
+      // ✅ अगर arrival missing → SHOW
+      if (trainMin === null) return true;
 
-    start_time:
-      it.start_time ||
-      it.item_start_time ||
-      null,
+      // 🚨 early morning safety (00:xx bugs avoid)
+      if (trainMin < 60) return true;
 
-    end_time:
-      it.end_time ||
-      it.item_end_time ||
-      null,
+      if (e >= s) {
+        // normal case
+        if (!(trainMin >= s && trainMin <= e)) return false;
+      } else {
+        // overnight case
+        if (!(trainMin >= s || trainMin <= e)) return false;
+      }
 
-    // ✅ STATUS SAFE
-    status: String(it.status || "ON").toUpperCase(),
-  }));
+      /* VEG FILTER */
+      const isVeg =
+        isVegItem(it.item_category) ||
+        /dal|roti|rice|paneer|veg|thali|chapati|paratha/i.test(
+          it.item_name
+        );
 
-  const header = {
-    stationCode,
-    restroCode: String(restroCode),
-    outletName,
-    stationName,
-  };
+      if (vegOnly && !isVeg) return false;
+
+      return true;
+    });
+  }, [items, vegOnly, trainMin]);
 
   return (
-    <main className="max-w-5xl mx-auto px-3 sm:px-6 py-6">
-      <RestroMenuClient header={header} items={items} />
-    </main>
+    <div className="p-3 max-w-xl mx-auto">
+
+      {/* HEADER */}
+      <div className="flex justify-between mb-3">
+        <div>
+          <h1 className="font-semibold">{header.outletName}</h1>
+          <div className="text-xs text-gray-500">
+            {header.stationCode}
+          </div>
+        </div>
+
+        <label className="text-sm flex gap-1">
+          <input
+            type="checkbox"
+            checked={vegOnly}
+            onChange={(e) => setVegOnly(e.target.checked)}
+          />
+          Veg only
+        </label>
+      </div>
+
+      {/* EMPTY */}
+      {visible.length === 0 && (
+        <div className="text-center text-gray-500 mt-10">
+          No items available at this time
+        </div>
+      )}
+
+      {/* ITEMS */}
+      <div className="space-y-3">
+        {visible.map((it: any) => {
+          const existing = cart[it.id];
+
+          const isVeg =
+            isVegItem(it.item_category) ||
+            /dal|roti|rice|paneer|veg|thali|chapati|paratha/i.test(
+              it.item_name
+            );
+
+          const description =
+            it.item_description ||
+            it.description ||
+            "";
+
+          return (
+            <div
+              key={it.id}
+              className="border rounded-lg p-3 flex justify-between"
+            >
+              <div>
+                <div className="flex gap-2 items-center">
+                  <span
+                    className={`w-3 h-3 rounded-full ${
+                      isVeg ? "bg-green-600" : "bg-red-600"
+                    }`}
+                  />
+                  <span className="text-sm font-medium">
+                    {it.item_name}
+                  </span>
+                </div>
+
+                <div className="text-xs text-gray-500">
+                  ⏱{" "}
+                  {it.start_time && it.end_time
+                    ? `${it.start_time} - ${it.end_time}`
+                    : "Available all day"}
+                </div>
+
+                {description && (
+                  <div className="text-xs text-gray-600">
+                    {description}
+                  </div>
+                )}
+
+                <div className="font-semibold">
+                  ₹{it.base_price}
+                </div>
+              </div>
+
+              <div>
+                {!existing ? (
+                  <button
+                    className="border px-3 py-1 text-green-600 border-green-600 rounded text-sm"
+                    onClick={() =>
+                      add({
+                        id: it.id,
+                        name: it.item_name,
+                        price: it.base_price,
+                        qty: 1,
+                      })
+                    }
+                  >
+                    ADD
+                  </button>
+                ) : (
+                  <div className="flex gap-2 border px-2 py-1 rounded text-sm">
+                    <button
+                      onClick={() =>
+                        changeQty(it.id, existing.qty - 1)
+                      }
+                    >
+                      -
+                    </button>
+                    <span>{existing.qty}</span>
+                    <button
+                      onClick={() =>
+                        changeQty(it.id, existing.qty + 1)
+                      }
+                    >
+                      +
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <CartPillMobile />
+    </div>
   );
 }
