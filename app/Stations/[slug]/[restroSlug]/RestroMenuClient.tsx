@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useSearchParams } from "next/navigation";
 import { useCart } from "../../../lib/useCart";
 import CartPillMobile from "../../../components/CartPillMobile";
 
@@ -36,14 +37,16 @@ export default function RestroMenuClient({ items, header }: any) {
   const { add, changeQty, cart } = useCart();
   const [vegOnly, setVegOnly] = useState(false);
 
-  const params = new URLSearchParams(
-    typeof window !== "undefined" ? window.location.search : ""
-  );
+  /* 🔥 FIXED PARAMS (IMPORTANT) */
+  const searchParams = useSearchParams();
 
-  const trainTime =
-    params.get("arrival")?.slice(0, 5) || "11:50";
+  const arrivalParam = searchParams.get("arrival");
 
-  const trainMin = toMin(trainTime) || 710;
+  const trainTime = arrivalParam
+    ? arrivalParam.slice(0, 5)
+    : null;
+
+  const trainMin = trainTime ? toMin(trainTime) : null;
 
   /* ================= FINAL FILTER ================= */
   const visible = useMemo(() => {
@@ -56,14 +59,14 @@ export default function RestroMenuClient({ items, header }: any) {
       const s = toMin(it.start_time);
       const e = toMin(it.end_time);
 
-      // 👉 अगर time missing है → show
-      if (s !== null && e !== null) {
+      // 👉 अगर arrival missing है → filter मत लगाओ
+      if (trainMin !== null && s !== null && e !== null) {
 
         if (e >= s) {
-          // ✅ normal (10:00 - 22:00)
+          // ✅ normal timing
           if (!(trainMin >= s && trainMin <= e)) return false;
         } else {
-          // 🔥 overnight (22:00 - 02:00)
+          // 🔥 overnight timing
           if (!(trainMin >= s || trainMin <= e)) return false;
         }
 
