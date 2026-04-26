@@ -17,7 +17,7 @@ function useNow() {
   return now;
 }
 
-/* ================= DATE NORMALIZE ================= */
+/* ================= DATE FIX ================= */
 function normalizeDate(date: string) {
   if (!date) return "";
 
@@ -36,7 +36,7 @@ function normalizeDate(date: string) {
   return date;
 }
 
-/* ================= TIME NORMALIZE ================= */
+/* ================= TIME FIX ================= */
 function normalizeTime(t: string) {
   if (!t) return "00:00:00";
 
@@ -58,15 +58,20 @@ function getRemaining(arrival: string, date: string, cutoffMin: number, now: num
     const [year, month, day] = d.split("-").map(Number);
     const [hh, mm, ss] = t.split(":").map(Number);
 
-    // 🔥 LOCAL TIME (no timezone bug)
     const arrivalDateTime = new Date(year, month - 1, day, hh, mm, ss);
+    const currentDateTime = new Date(now);
 
-    const diff = arrivalDateTime.getTime() - now;
+    // STEP 1: Arrival - Current
+    const diffMs = arrivalDateTime.getTime() - currentDateTime.getTime();
 
-    // ✅ FINAL LOGIC
-    return diff - cutoffMin * 60000;
+    // STEP 2: Cutoff minutes → ms
+    const cutoffMs = cutoffMin * 60 * 1000;
 
-  } catch {
+    // STEP 3: FINAL
+    return diffMs - cutoffMs;
+
+  } catch (err) {
+    console.log("TIME ERROR:", err);
     return 0;
   }
 }
@@ -189,7 +194,7 @@ export default function TrainPage() {
                 return (
                   <div key={r.RestroCode} className="bg-white p-3 rounded-lg border flex gap-3">
 
-                    {/* IMAGE (UNCHANGED) */}
+                    {/* IMAGE */}
                     <div className="w-24 h-24 bg-gray-100 rounded-md overflow-hidden">
                       {img ? (
                         <img src={img} className="w-full h-full object-cover" />
