@@ -17,9 +17,15 @@ const isVegItem = (cat?: string | null) => {
   return c === "veg" || c === "jain";
 };
 
-/* 🔥 STATUS NORMALIZE */
-const isItemActive = (status?: string | null) => {
-  return String(status || "").trim().toUpperCase() === "ON";
+/* 🔥 FINAL STATUS FIX (STRONG) */
+const isItemActive = (it: any) => {
+  const raw =
+    it.status ??
+    it.item_status ??
+    it.is_active ??
+    it.active;
+
+  return String(raw || "").trim().toUpperCase() === "ON";
 };
 
 export default function RestroMenuClient({ items, header }: any) {
@@ -38,8 +44,8 @@ export default function RestroMenuClient({ items, header }: any) {
   const visible = useMemo(() => {
     return items.filter((it: any) => {
 
-      /* 🔥 STATUS FIX */
-      if (!isItemActive(it.status)) return false;
+      /* 🔥 STATUS FIX (FINAL) */
+      if (!isItemActive(it)) return false;
 
       /* 🔥 TIME FILTER */
       const s = toMin(it.start_time);
