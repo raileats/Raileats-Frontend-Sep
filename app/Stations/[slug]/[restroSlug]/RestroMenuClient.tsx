@@ -4,20 +4,24 @@ import { useState, useMemo } from "react";
 import { useCart } from "../../../lib/useCart";
 import CartPillMobile from "../../../components/CartPillMobile";
 
-/* TIME CONVERT */
+/* ================= TIME CONVERT ================= */
 const toMin = (t?: string | null) => {
   if (!t) return null;
-  const [h, m] = t.slice(0, 5).split(":").map(Number);
+
+  const parts = t.slice(0, 5).split(":").map(Number);
+  const h = parts[0] ?? 0;
+  const m = parts[1] ?? 0;
+
   return h * 60 + m;
 };
 
-/* CATEGORY FIX */
+/* ================= CATEGORY ================= */
 const isVegItem = (cat?: string | null) => {
   const c = String(cat || "").toLowerCase().trim();
   return c === "veg" || c === "jain";
 };
 
-/* 🔥 FINAL STATUS FIX (STRONG) */
+/* ================= STATUS ================= */
 const isItemActive = (it: any) => {
   const raw =
     it.status ??
@@ -41,21 +45,31 @@ export default function RestroMenuClient({ items, header }: any) {
 
   const trainMin = toMin(trainTime) || 710;
 
+  /* ================= FINAL FILTER ================= */
   const visible = useMemo(() => {
     return items.filter((it: any) => {
 
-      /* 🔥 STATUS FIX (FINAL) */
+      /* STATUS */
       if (!isItemActive(it)) return false;
 
-      /* 🔥 TIME FILTER */
+      /* TIME */
       const s = toMin(it.start_time);
       const e = toMin(it.end_time);
 
+      // 👉 अगर time missing है → show
       if (s !== null && e !== null) {
-        if (trainMin < s || trainMin > e) return false;
+
+        if (e >= s) {
+          // ✅ normal (10:00 - 22:00)
+          if (!(trainMin >= s && trainMin <= e)) return false;
+        } else {
+          // 🔥 overnight (22:00 - 02:00)
+          if (!(trainMin >= s || trainMin <= e)) return false;
+        }
+
       }
 
-      /* VEG FILTER */
+      /* VEG */
       const isVeg =
         isVegItem(it.item_category) ||
         /dal|roti|rice|paneer|veg|thali|chapati|paratha/i.test(
@@ -88,12 +102,14 @@ export default function RestroMenuClient({ items, header }: any) {
         </label>
       </div>
 
+      {/* EMPTY */}
       {visible.length === 0 && (
         <div className="text-center text-gray-500 mt-10">
           No items available at this time
         </div>
       )}
 
+      {/* ITEMS */}
       <div className="space-y-3">
         {visible.map((it: any) => {
           const existing = cart[it.id];
