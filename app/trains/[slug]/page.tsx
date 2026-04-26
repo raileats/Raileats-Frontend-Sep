@@ -5,6 +5,14 @@ import { useParams, useSearchParams } from "next/navigation";
 
 const SUPABASE_URL = "https://ygisiztmuzwxpnvhwrmr.supabase.co";
 
+/* ================= SLUG FIX ================= */
+function toSlug(str: string) {
+  return (str || "")
+    .trim()
+    .replace(/\s+/g, "-")              // space → dash
+    .replace(/[^a-zA-Z0-9-]/g, "");    // remove special chars
+}
+
 /* ================= LIVE CLOCK ================= */
 function useNow() {
   const [now, setNow] = useState(Date.now());
@@ -74,7 +82,7 @@ export default function TrainPage() {
   const [stations, setStations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useNow(); // सिर्फ re-render
+  useNow();
 
   useEffect(() => {
     async function fetchData() {
@@ -182,7 +190,9 @@ export default function TrainPage() {
                   img = `${SUPABASE_URL}/storage/v1/object/public/RestroDisplayPhoto/${file}`;
                 }
 
-                // ✅ FIXED ARRIVAL (MAIN BUG FIX)
+                /* ✅ FINAL SLUG FIX */
+                const stationSlug = `${stationCode}-${toSlug(stationName)}`;
+                const restroSlug = `${r.RestroCode}-${toSlug(r.RestroName)}`;
                 const cleanArrival = (arrives || "").slice(0, 5);
 
                 return (
@@ -218,7 +228,7 @@ export default function TrainPage() {
 
                       <div className="text-right">
                         <a
-                          href={`/Stations/${stationCode}-${encodeURIComponent(stationName)}/${r.RestroCode}-${encodeURIComponent(r.RestroName)}?date=${deliveryDate}&train=${trainNumber}&boarding=${boarding}&arrival=${cleanArrival}`}
+                          href={`/Stations/${stationSlug}/${restroSlug}?date=${deliveryDate}&train=${trainNumber}&boarding=${boarding}&arrival=${cleanArrival}`}
                           className="bg-orange-500 text-white px-4 py-2 rounded-lg text-sm"
                         >
                           Order Now
