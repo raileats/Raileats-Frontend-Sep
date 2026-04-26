@@ -15,9 +15,15 @@ function formatTime(t: any) {
   return String(t).slice(0, 5);
 }
 
-/* 🔥 STATUS NORMALIZER */
-function isActive(status: any) {
-  return String(status || "").trim().toUpperCase() === "ON";
+/* 🔥 STATUS NORMALIZE */
+function isActive(item: any) {
+  const raw =
+    item.status ??
+    item.item_status ??
+    item.is_active ??
+    item.active;
+
+  return String(raw || "").trim().toUpperCase() === "ON";
 }
 
 /* ================= API ================= */
@@ -34,35 +40,30 @@ export async function GET(req: Request) {
     const jsonData = fs.readFileSync(filePath, "utf-8");
     const data = JSON.parse(jsonData);
 
-    /* ================= FIX STRUCTURE ================= */
     const menuItems = Array.isArray(data) ? data : data.items || [];
 
-/* 🔍 DEBUG LOG */
-console.log(
-  menuItems.map(i => ({
-    name: i.item_name,
-    status: i.status,
-    item_status: i.item_status,
-    is_active: i.is_active
-  }))
-);
+    /* ================= DEBUG (TEMP) ================= */
+    console.log(
+      "STATUS CHECK:",
+      menuItems.map((i: any) => ({
+        name: i.item_name,
+        status: i.status,
+      }))
+    );
 
-    /* ================= FILTER ================= */
+    /* ================= FINAL FILTER ================= */
     const filteredItems = menuItems.filter((item: any) => {
 
-      /* 🔥 STATUS FILTER (FIX) */
-      if (!isActive(item.status)) return false;
+      /* 🔥 STATUS FILTER (MAIN FIX) */
+      if (!isActive(item)) return false;
 
+      /* 🔥 TIME FILTER */
       const start = formatTime(item.start_time || item.startTime);
       const end = formatTime(item.end_time || item.endTime);
 
       const startMin = timeToMinutes(start);
       const endMin = timeToMinutes(end);
 
-      /* 🔥 HARD BLOCK (UNCHANGED) */
-      if (item.item_name === "Chicken Curry") return false;
-
-      /* 🔥 TIME FILTER */
       if (arrivalMin < startMin || arrivalMin > endMin) return false;
 
       return true;
