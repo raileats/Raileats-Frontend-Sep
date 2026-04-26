@@ -17,6 +17,11 @@ const isVegItem = (cat?: string | null) => {
   return c === "veg" || c === "jain";
 };
 
+/* 🔥 STATUS NORMALIZE */
+const isItemActive = (status?: string | null) => {
+  return String(status || "").trim().toUpperCase() === "ON";
+};
+
 export default function RestroMenuClient({ items, header }: any) {
   const { add, changeQty, cart } = useCart();
   const [vegOnly, setVegOnly] = useState(false);
@@ -32,14 +37,15 @@ export default function RestroMenuClient({ items, header }: any) {
 
   const visible = useMemo(() => {
     return items.filter((it: any) => {
-      if (it.status !== "ON") return false;
 
-      /* 🔥 TIME FILTER (FINAL FIX) */
+      /* 🔥 STATUS FIX */
+      if (!isItemActive(it.status)) return false;
+
+      /* 🔥 TIME FILTER */
       const s = toMin(it.start_time);
       const e = toMin(it.end_time);
 
       if (s !== null && e !== null) {
-        // ❌ agar train time window ke bahar hai → hide
         if (trainMin < s || trainMin > e) return false;
       }
 
