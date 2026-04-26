@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { useSearchParams } from "next/navigation";
 import { useCart } from "../../../lib/useCart";
 import CartPillMobile from "../../../components/CartPillMobile";
 
@@ -37,16 +36,19 @@ export default function RestroMenuClient({ items, header }: any) {
   const { add, changeQty, cart } = useCart();
   const [vegOnly, setVegOnly] = useState(false);
 
-  /* 🔥 FIXED PARAMS (IMPORTANT) */
-  const searchParams = useSearchParams();
+  const params = new URLSearchParams(
+    typeof window !== "undefined" ? window.location.search : ""
+  );
 
-  const arrivalParam = searchParams.get("arrival");
+  /* ================= ARRIVAL FIX ================= */
+  const arrivalParam = params.get("arrival");
 
-  const trainTime = arrivalParam
-    ? arrivalParam.slice(0, 5)
-    : null;
+  let trainMin: number | null = null;
 
-  const trainMin = trainTime ? toMin(trainTime) : null;
+  if (arrivalParam && arrivalParam.includes(":")) {
+    const clean = arrivalParam.slice(0, 5); // 11:50
+    trainMin = toMin(clean);
+  }
 
   /* ================= FINAL FILTER ================= */
   const visible = useMemo(() => {
@@ -55,24 +57,23 @@ export default function RestroMenuClient({ items, header }: any) {
       /* STATUS */
       if (!isItemActive(it)) return false;
 
-      /* TIME */
+      /* TIME FILTER (FINAL FIX) */
       const s = toMin(it.start_time);
       const e = toMin(it.end_time);
 
-      // 👉 अगर arrival missing है → filter मत लगाओ
       if (trainMin !== null && s !== null && e !== null) {
 
         if (e >= s) {
-          // ✅ normal timing
+          // ✅ normal (10:00 - 22:00)
           if (!(trainMin >= s && trainMin <= e)) return false;
         } else {
-          // 🔥 overnight timing
+          // 🔥 overnight (22:00 - 02:00)
           if (!(trainMin >= s || trainMin <= e)) return false;
         }
 
       }
 
-      /* VEG */
+      /* VEG FILTER */
       const isVeg =
         isVegItem(it.item_category) ||
         /dal|roti|rice|paneer|veg|thali|chapati|paratha/i.test(
