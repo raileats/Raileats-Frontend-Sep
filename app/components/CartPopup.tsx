@@ -22,10 +22,10 @@ export default function CartPopup() {
   if (!open || items.length === 0) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/40">
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 pb-[90px]">
 
-      {/* MAIN CONTAINER */}
-      <div className="bg-white w-full md:w-[380px] h-[80vh] rounded-t-2xl md:rounded-xl shadow-xl flex flex-col">
+      {/* CART BOX */}
+      <div className="bg-white w-full md:w-[380px] h-[75vh] rounded-t-2xl shadow-xl flex flex-col">
 
         {/* DRAG HANDLE */}
         <div className="w-10 h-1 bg-gray-300 rounded-full mx-auto mt-2 mb-2"></div>
@@ -38,6 +38,7 @@ export default function CartPopup() {
 
         {/* ITEMS (SCROLL ONLY HERE) */}
         <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
+
           {items.map((it) => (
             <div key={it.id} className="flex items-center justify-between">
 
@@ -61,10 +62,11 @@ export default function CartPopup() {
 
             </div>
           ))}
+
         </div>
 
-        {/* FOOTER (FIXED ABOVE NAVBAR) */}
-        <div className="border-t bg-white shrink-0 sticky bottom-0 px-4 pt-3 pb-[calc(12px+env(safe-area-inset-bottom))] shadow-[0_-2px_10px_rgba(0,0,0,0.1)]">
+        {/* FOOTER (ALWAYS VISIBLE ABOVE NAVBAR) */}
+        <div className="border-t bg-white shrink-0 px-4 pt-3 pb-[20px] shadow-[0_-2px_10px_rgba(0,0,0,0.1)]">
 
           <div className="flex justify-between mb-3 font-semibold">
             <span>Total</span>
