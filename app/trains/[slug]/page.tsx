@@ -20,20 +20,16 @@ function useNow() {
   return now;
 }
 
-/* ================= TIME CALC ================= */
+/* ================= REMAINING TIME ================= */
 function getRemaining(arrival: string, date: string, cutoffMin: number, now: number) {
   try {
-    const [h, m] = arrival.slice(0, 5).split(":").map(Number);
+    // ✅ full datetime बनाओ
+    const arrivalDateTime = new Date(`${date}T${arrival}`);
 
-    const arrivalDate = new Date(date);
-    arrivalDate.setHours(h);
-    arrivalDate.setMinutes(m);
-    arrivalDate.setSeconds(0);
+    const diff = arrivalDateTime.getTime() - now;
 
-    const diff = arrivalDate.getTime() - now; // arrival - current
-    const remaining = diff - cutoffMin * 60000;
-
-    return remaining;
+    // ✅ FINAL LOGIC
+    return diff - cutoffMin * 60000;
   } catch {
     return 0;
   }
@@ -96,7 +92,7 @@ export default function TrainPage() {
 
         const vendors = st.vendors || [];
 
-        /* ================= FILTER WITH CUT-OFF ================= */
+        /* ================= FILTER ================= */
         const validVendors = vendors.filter((r: any) => {
           const cutoff = Number(r.CutOffTime || r.cutoff_time || 0);
           const remaining = getRemaining(arrives, deliveryDate, cutoff, now);
@@ -130,21 +126,33 @@ export default function TrainPage() {
             {/* VENDORS */}
             <div className="space-y-3">
               {validVendors.map((r: any) => {
+
                 const cutoff = Number(r.CutOffTime || r.cutoff_time || 0);
                 const remaining = getRemaining(arrives, deliveryDate, cutoff, now);
 
                 const totalSec = Math.floor(remaining / 1000);
 
+                const days = Math.floor(totalSec / 86400);
                 const hrs = Math.floor((totalSec % 86400) / 3600);
                 const mins = Math.floor((totalSec % 3600) / 60);
                 const secs = totalSec % 60;
 
-                const timeText =
-                  `${String(hrs).padStart(2, "0")}:` +
-                  `${String(mins).padStart(2, "0")}:` +
-                  `${String(secs).padStart(2, "0")}`;
+                let timeText = "";
 
-                const isClosingSoon = remaining < 10 * 60 * 1000;
+                if (days > 0) {
+                  timeText =
+                    `${days}d ` +
+                    `${String(hrs).padStart(2, "0")}:` +
+                    `${String(mins).padStart(2, "0")}:` +
+                    `${String(secs).padStart(2, "0")}`;
+                } else {
+                  timeText =
+                    `${String(hrs).padStart(2, "0")}:` +
+                    `${String(mins).padStart(2, "0")}:` +
+                    `${String(secs).padStart(2, "0")}`;
+                }
+
+                const isClosingSoon = remaining <= 10 * 60 * 1000;
 
                 let img = "";
                 if (r.RestroDisplayPhoto) {
@@ -182,7 +190,7 @@ export default function TrainPage() {
                         {/* 🔥 COUNTDOWN */}
                         <div
                           className={`text-xs font-bold mt-1 ${
-                            isClosingSoon ? "text-red-700" : "text-red-500"
+                            isClosingSoon ? "text-red-600" : "text-blue-600"
                           }`}
                         >
                           ⏳ Order before: {timeText}
