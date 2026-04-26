@@ -26,12 +26,6 @@ function formatTime(val: any) {
   return String(val).slice(0, 5);
 }
 
-function timeToMinutes(t: string) {
-  if (!t || !t.includes(":")) return 0;
-  const [h, m] = t.split(":").map(Number);
-  return h * 60 + m;
-}
-
 /* ================= API ================= */
 
 export async function GET(req: Request) {
@@ -125,36 +119,20 @@ export async function GET(req: Request) {
         sDate.setDate(sDate.getDate() + dayDiff);
 
         const arrival = formatTime(s.Arrives || "00:00");
-        const arrivalMin = timeToMinutes(arrival);
 
         const arrivalDateTime = new Date(sDate);
         const [h, m] = arrival.split(":").map(Number);
         arrivalDateTime.setHours(h, m, 0);
 
-        // ❌ past stations हटाओ
+        // ❌ past stations हटाओ (ये रखना है)
         if (arrivalDateTime <= istNow) return null;
 
-        /* ================= 🔥 MAIN FILTER ================= */
+        /* ================= FINAL VENDORS (NO TIME FILTER) ================= */
 
         const validVendors = vendorsRaw
           .map((v: any) => {
             const open = formatTime(v.open_time ?? v.OpenTime);
             const close = formatTime(v.closed_time ?? v.ClosedTime);
-
-            const openMin = timeToMinutes(open);
-            const closeMin = timeToMinutes(close);
-
-            let isOpen = false;
-
-            if (closeMin >= openMin) {
-              // normal
-              isOpen = arrivalMin >= openMin && arrivalMin <= closeMin;
-            } else {
-              // overnight
-              isOpen = arrivalMin >= openMin || arrivalMin <= closeMin;
-            }
-
-            if (!isOpen) return null;
 
             return {
               RestroCode: v.RestroCode,
@@ -166,6 +144,7 @@ export async function GET(req: Request) {
                 v.MinimumOrderValue || v.MinimumOrdermValue || 0,
               RestroDisplayPhoto: v.RestroDisplayPhoto,
               IsPureVeg: isTrue(v.IsPureVeg) ? 1 : 0,
+              CutOffTime: v.CutOffTime || 0, // 🔥 IMPORTANT
             };
           })
           .filter(Boolean);
