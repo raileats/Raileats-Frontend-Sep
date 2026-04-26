@@ -34,47 +34,45 @@ const isItemActive = (it: any) => {
 };
 
 export default function RestroMenuClient({ items, header }: any) {
+
+  const { user } = useAuth(); // 🔥 LOGIN STATE
   const { add, changeQty, cart } = useCart();
+
   const [vegOnly, setVegOnly] = useState(false);
 
   const params = new URLSearchParams(
     typeof window !== "undefined" ? window.location.search : ""
   );
 
-  /* ================= ARRIVAL FIX ================= */
+  /* ================= ARRIVAL ================= */
   const arrivalParam = params.get("arrival");
 
   let trainMin: number | null = null;
 
   if (arrivalParam && arrivalParam.includes(":")) {
-    const clean = arrivalParam.slice(0, 5); // 11:50
+    const clean = arrivalParam.slice(0, 5);
     trainMin = toMin(clean);
   }
 
-  /* ================= FINAL FILTER ================= */
+  /* ================= FILTER ================= */
   const visible = useMemo(() => {
     return items.filter((it: any) => {
 
-      /* STATUS */
       if (!isItemActive(it)) return false;
 
-      /* TIME FILTER (FINAL FIX) */
       const s = toMin(it.start_time);
       const e = toMin(it.end_time);
 
       if (trainMin !== null && s !== null && e !== null) {
 
         if (e >= s) {
-          // ✅ normal (10:00 - 22:00)
           if (!(trainMin >= s && trainMin <= e)) return false;
         } else {
-          // 🔥 overnight (22:00 - 02:00)
           if (!(trainMin >= s || trainMin <= e)) return false;
         }
 
       }
 
-      /* VEG FILTER */
       const isVeg =
         isVegItem(it.item_category) ||
         /dal|roti|rice|paneer|veg|thali|chapati|paratha/i.test(
@@ -86,6 +84,24 @@ export default function RestroMenuClient({ items, header }: any) {
       return true;
     });
   }, [items, vegOnly, trainMin]);
+
+  /* ================= ADD HANDLER ================= */
+  const handleAdd = (it: any) => {
+
+    // ❌ NOT LOGGED IN
+    if (!user) {
+      window.location.href = `/login?redirect=${encodeURIComponent(window.location.href)}`;
+      return;
+    }
+
+    // ✅ LOGGED IN
+    add({
+      id: it.id,
+      name: it.item_name,
+      price: it.base_price,
+      qty: 1,
+    });
+  };
 
   return (
     <div className="p-3 max-w-xl mx-auto">
@@ -169,14 +185,7 @@ export default function RestroMenuClient({ items, header }: any) {
                 {!existing ? (
                   <button
                     className="border px-3 py-1 text-green-600 border-green-600 rounded text-sm"
-                    onClick={() =>
-                      add({
-                        id: it.id,
-                        name: it.item_name,
-                        price: it.base_price,
-                        qty: 1,
-                      })
-                    }
+                    onClick={() => handleAdd(it)} // 🔥 UPDATED
                   >
                     ADD
                   </button>
