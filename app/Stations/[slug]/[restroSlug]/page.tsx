@@ -4,42 +4,38 @@ import { useState, useMemo } from "react";
 import { useCart } from "../../../lib/useCart";
 import CartPillMobile from "../../../components/CartPillMobile";
 
-/* ================= TIME CONVERT ================= */
+/* ================= TIME ================= */
 const toMin = (t?: string | null) => {
   if (!t) return null;
 
   try {
-    const parts = t.slice(0, 5).split(":").map(Number);
-    const h = parts[0] ?? 0;
-    const m = parts[1] ?? 0;
-
+    const [h, m] = t.slice(0, 5).split(":").map(Number);
     if (isNaN(h) || isNaN(m)) return null;
-
     return h * 60 + m;
   } catch {
     return null;
   }
 };
 
-/* ================= CATEGORY ================= */
+/* ================= VEG ================= */
 const isVegItem = (cat?: string | null) => {
-  const c = String(cat || "").toLowerCase().trim();
+  const c = String(cat || "").toLowerCase();
   return c === "veg" || c === "jain";
 };
 
 /* ================= STATUS ================= */
 const isItemActive = (it: any) => {
   const raw =
-    it.status ??
-    it.item_status ??
-    it.is_active ??
-    it.active;
+    it?.status ??
+    it?.item_status ??
+    it?.is_active ??
+    it?.active;
 
-  return String(raw || "").trim().toUpperCase() === "ON";
+  return String(raw || "").toUpperCase() === "ON";
 };
 
-export default function RestroMenuClient({ items, header }: any) {
-  const { add, changeQty, cart } = useCart();
+export default function RestroMenuClient({ items = [], header }: any) {
+  const { add, changeQty, cart = {} } = useCart();
   const [vegOnly, setVegOnly] = useState(false);
 
   /* ================= ARRIVAL ================= */
@@ -49,49 +45,40 @@ export default function RestroMenuClient({ items, header }: any) {
 
   const arrivalParam =
     params.get("arrival") ||
-    params.get("arrivalTime") ||
-    null;
+    params.get("arrivalTime");
 
-  const trainTime = arrivalParam
-    ? arrivalParam.slice(0, 5)
+  const trainMin = arrivalParam
+    ? toMin(arrivalParam.slice(0, 5))
     : null;
 
-  const trainMin = trainTime ? toMin(trainTime) : null;
-
-  /* ================= FINAL FILTER ================= */
+  /* ================= FILTER ================= */
   const visible = useMemo(() => {
-    return items.filter((it: any) => {
+    return (items || []).filter((it: any) => {
 
-      /* 🔥 STATUS */
+      if (!it) return false;
+
+      /* STATUS */
       if (!isItemActive(it)) return false;
 
-      /* 🔥 TIME FIX (FINAL) */
-      const s = toMin(it.start_time);
-      const e = toMin(it.end_time);
+      /* TIME */
+      const s = toMin(it?.start_time);
+      const e = toMin(it?.end_time);
 
-      // ✅ अगर timing missing → SHOW
+      // missing time → show
       if (s === null || e === null) return true;
 
-      // ✅ अगर arrival missing → SHOW
       if (trainMin === null) return true;
 
-      // 🚨 early morning safety (00:xx bugs avoid)
-      if (trainMin < 60) return true;
-
       if (e >= s) {
-        // normal case
         if (!(trainMin >= s && trainMin <= e)) return false;
       } else {
-        // overnight case
         if (!(trainMin >= s || trainMin <= e)) return false;
       }
 
-      /* VEG FILTER */
+      /* VEG */
       const isVeg =
-        isVegItem(it.item_category) ||
-        /dal|roti|rice|paneer|veg|thali|chapati|paratha/i.test(
-          it.item_name
-        );
+        isVegItem(it?.item_category) ||
+        /dal|roti|rice|paneer|veg/i.test(it?.item_name || "");
 
       if (vegOnly && !isVeg) return false;
 
@@ -105,9 +92,11 @@ export default function RestroMenuClient({ items, header }: any) {
       {/* HEADER */}
       <div className="flex justify-between mb-3">
         <div>
-          <h1 className="font-semibold">{header.outletName}</h1>
+          <h1 className="font-semibold">
+            {header?.outletName || "Outlet"}
+          </h1>
           <div className="text-xs text-gray-500">
-            {header.stationCode}
+            {header?.stationCode || ""}
           </div>
         </div>
 
@@ -131,22 +120,15 @@ export default function RestroMenuClient({ items, header }: any) {
       {/* ITEMS */}
       <div className="space-y-3">
         {visible.map((it: any) => {
-          const existing = cart[it.id];
+          const existing = cart?.[it?.id] || null;
 
           const isVeg =
-            isVegItem(it.item_category) ||
-            /dal|roti|rice|paneer|veg|thali|chapati|paratha/i.test(
-              it.item_name
-            );
-
-          const description =
-            it.item_description ||
-            it.description ||
-            "";
+            isVegItem(it?.item_category) ||
+            /dal|roti|rice|paneer|veg/i.test(it?.item_name || "");
 
           return (
             <div
-              key={it.id}
+              key={it?.id || Math.random()}
               className="border rounded-lg p-3 flex justify-between"
             >
               <div>
@@ -157,25 +139,19 @@ export default function RestroMenuClient({ items, header }: any) {
                     }`}
                   />
                   <span className="text-sm font-medium">
-                    {it.item_name}
+                    {it?.item_name || "Item"}
                   </span>
                 </div>
 
                 <div className="text-xs text-gray-500">
                   ⏱{" "}
-                  {it.start_time && it.end_time
+                  {it?.start_time && it?.end_time
                     ? `${it.start_time} - ${it.end_time}`
                     : "Available all day"}
                 </div>
 
-                {description && (
-                  <div className="text-xs text-gray-600">
-                    {description}
-                  </div>
-                )}
-
                 <div className="font-semibold">
-                  ₹{it.base_price}
+                  ₹{it?.base_price || 0}
                 </div>
               </div>
 
@@ -185,9 +161,9 @@ export default function RestroMenuClient({ items, header }: any) {
                     className="border px-3 py-1 text-green-600 border-green-600 rounded text-sm"
                     onClick={() =>
                       add({
-                        id: it.id,
-                        name: it.item_name,
-                        price: it.base_price,
+                        id: it?.id,
+                        name: it?.item_name,
+                        price: it?.base_price,
                         qty: 1,
                       })
                     }
