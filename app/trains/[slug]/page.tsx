@@ -8,81 +8,77 @@ const SUPABASE_URL = "https://ygisiztmuzwxpnvhwrmr.supabase.co";
 /* ================= LIVE CLOCK ================= */
 function useNow() {
   const [now, setNow] = useState(Date.now());
-
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
   }, []);
-
   return now;
 }
 
-/* ================= DATE FIX ================= */
-function normalizeDate(date: string) {
-  if (!date) return "";
+/* ================= PARSE HELPERS ================= */
+
+// "27 Apr 2026"
+function parseDateParts(date: string) {
+  if (!date) return null;
 
   if (date.includes(" ")) {
     const [day, mon, year] = date.split(" ");
-
     const months: any = {
-      Jan: "01", Feb: "02", Mar: "03", Apr: "04",
-      May: "05", Jun: "06", Jul: "07", Aug: "08",
-      Sep: "09", Oct: "10", Nov: "11", Dec: "12",
+      Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5,
+      Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11,
     };
-
-    return `${year}-${months[mon]}-${day.padStart(2, "0")}`;
+    return { y: Number(year), m: months[mon] ?? 0, d: Number(day) };
   }
 
-  return date;
+  // YYYY-MM-DD
+  const [y, m, d] = date.split("-").map(Number);
+  return { y, m: (m || 1) - 1, d };
 }
 
-/* ================= TIME FIX ================= */
-function normalizeTime(t: string) {
-  if (!t) return "00:00:00";
-
-  const parts = t.split(":").map(Number);
-
-  const h = parts[0] ?? 0;
-  const m = parts[1] ?? 0;
-  const s = parts[2] ?? 0;
-
-  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+// "2:35" / "02:35" / "02:35:00"
+function parseTimeParts(t: string) {
+  if (!t) return { h: 0, m: 0, s: 0 };
+  const p = t.split(":").map(Number);
+  return {
+    h: p[0] ?? 0,
+    m: p[1] ?? 0,
+    s: p[2] ?? 0,
+  };
 }
 
-/* ================= FINAL CALC ================= */
-
+/* ================= FINAL LOGIC ================= */
+// deadline = arrival - cutoff
+// remaining = deadline - now
 function getRemaining(arrival: string, date: string, cutoffMin: number) {
   try {
-    const d = normalizeDate(date);
-    const t = normalizeTime(arrival);
+    const dp = parseDateParts(date);
+    const tp = parseTimeParts(arrival);
+    if (!dp) return 0;
 
-    const [year, month, day] = d.split("-").map(Number);
-    const [hh, mm] = t.split(":").map(Number);
+    const arrivalDT = new Date(dp.y, dp.m, dp.d, tp.h, tp.m, tp.s);
 
-    const arrivalDateTime = new Date(year, month - 1, day, hh, mm, 0);
-    const nowDateTime = new Date();
+    // 🔥 Cutoff subtract here
+    const deadlineDT = new Date(arrivalDT.getTime() - cutoffMin * 60000);
 
-    // 🔥 STEP 1: diff in minutes
-    const diffMin = Math.floor(
-      (arrivalDateTime.getTime() - nowDateTime.getTime()) / 60000
-    );
+    const now = new Date();
 
-    // 🔥 STEP 2: FINAL
-    const remainingMin = diffMin - cutoffMin;
+    const remaining = deadlineDT.getTime() - now.getTime();
 
-    // 🔥 DEBUG (important)
+    // DEBUG (1 बार देख लो)
     console.log({
       arrival,
-      diffMin,
+      date,
       cutoffMin,
-      remainingMin
+      arrivalDT: arrivalDT.toString(),
+      deadlineDT: deadlineDT.toString(),
+      now: now.toString(),
+      remainingMin: Math.floor(remaining / 60000),
     });
 
-    // 🔥 STEP 3: convert back to ms
-    return remainingMin * 60000;
+    return remaining;
 
   } catch (e) {
-    console.log("TIME ERROR", e);
+    console.log("TIME ERROR:", e);
     return 0;
   }
 }
@@ -100,18 +96,16 @@ export default function TrainPage() {
   const [stations, setStations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const now = useNow();
+  const nowTick = useNow(); // सिर्फ re-render के लिए
 
   useEffect(() => {
     async function fetchData() {
       try {
         setLoading(true);
-
         const res = await fetch(
           `/api/train-restros?train=${trainNumber}&date=${urlDate}&boarding=${boarding}&full=1`,
           { cache: "no-store" }
         );
-
         const json = await res.json();
         setStations(json?.stations || []);
       } catch (e) {
@@ -146,8 +140,13 @@ export default function TrainPage() {
 
         /* ================= FILTER ================= */
         const validVendors = vendors.filter((r: any) => {
-          const cutoff = Number(r.CutOffTime || r.cutoff_time || 0);
-          const remaining = getRemaining(arrives, deliveryDate, cutoff, now);
+          const cutoff = parseInt(
+            String(r.CutOffTime ?? r.cutoff_time ?? "0").trim(),
+            10
+          ) || 0;
+
+          const remaining = getRemaining(arrives, deliveryDate, cutoff);
+
           return remaining > 0;
         });
 
@@ -178,10 +177,15 @@ export default function TrainPage() {
             {/* VENDORS */}
             <div className="space-y-3">
               {validVendors.map((r: any) => {
-                const cutoff = Number(r.CutOffTime || r.cutoff_time || 0);
-                const remaining = getRemaining(arrives, deliveryDate, cutoff, now);
 
-                const totalSec = Math.floor(remaining / 1000);
+                const cutoff = parseInt(
+                  String(r.CutOffTime ?? r.cutoff_time ?? "0").trim(),
+                  10
+                ) || 0;
+
+                const remaining = getRemaining(arrives, deliveryDate, cutoff);
+
+                const totalSec = Math.max(0, Math.floor(remaining / 1000));
 
                 const days = Math.floor(totalSec / 86400);
                 const hrs = Math.floor((totalSec % 86400) / 3600);
