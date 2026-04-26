@@ -17,8 +17,8 @@ function useNow() {
   return now;
 }
 
-/* ================= FIX DATE ================= */
-function formatDate(date: string) {
+/* ================= DATE NORMALIZE ================= */
+function normalizeDate(date: string) {
   if (!date) return "";
 
   if (date.includes(" ")) {
@@ -36,29 +36,36 @@ function formatDate(date: string) {
   return date;
 }
 
-/* ================= FIX TIME ================= */
-function formatTime(t: string) {
+/* ================= TIME NORMALIZE ================= */
+function normalizeTime(t: string) {
   if (!t) return "00:00:00";
 
-  if (t.length === 5) return t + ":00";     // 02:35 → 02:35:00
-  if (t.length === 4) return "0" + t + ":00"; // 2:35 → 02:35:00
+  const parts = t.split(":").map(Number);
 
-  return t;
+  const h = parts[0] ?? 0;
+  const m = parts[1] ?? 0;
+  const s = parts[2] ?? 0;
+
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
 /* ================= FINAL CALC ================= */
 function getRemaining(arrival: string, date: string, cutoffMin: number, now: number) {
   try {
-    const d = formatDate(date);
-    const t = formatTime(arrival);
+    const d = normalizeDate(date);
+    const t = normalizeTime(arrival);
 
-    const arrivalDateTime = new Date(`${d}T${t}`);
+    const [year, month, day] = d.split("-").map(Number);
+    const [hh, mm, ss] = t.split(":").map(Number);
 
-    if (isNaN(arrivalDateTime.getTime())) return 0;
+    // 🔥 LOCAL TIME (no timezone bug)
+    const arrivalDateTime = new Date(year, month - 1, day, hh, mm, ss);
 
     const diff = arrivalDateTime.getTime() - now;
 
+    // ✅ FINAL LOGIC
     return diff - cutoffMin * 60000;
+
   } catch {
     return 0;
   }
@@ -165,20 +172,11 @@ export default function TrainPage() {
                 const mins = Math.floor((totalSec % 3600) / 60);
                 const secs = totalSec % 60;
 
-                let timeText = "";
-
-                if (days > 0) {
-                  timeText =
-                    `${days}d ` +
-                    `${String(hrs).padStart(2, "0")}:` +
-                    `${String(mins).padStart(2, "0")}:` +
-                    `${String(secs).padStart(2, "0")}`;
-                } else {
-                  timeText =
-                    `${String(hrs).padStart(2, "0")}:` +
-                    `${String(mins).padStart(2, "0")}:` +
-                    `${String(secs).padStart(2, "0")}`;
-                }
+                const timeText =
+                  `Day${days} ` +
+                  `${String(hrs).padStart(2, "0")}:` +
+                  `${String(mins).padStart(2, "0")}:` +
+                  `${String(secs).padStart(2, "0")}`;
 
                 const isClosingSoon = remaining <= 10 * 60 * 1000;
 
@@ -191,7 +189,7 @@ export default function TrainPage() {
                 return (
                   <div key={r.RestroCode} className="bg-white p-3 rounded-lg border flex gap-3">
 
-                    {/* IMAGE */}
+                    {/* IMAGE (UNCHANGED) */}
                     <div className="w-24 h-24 bg-gray-100 rounded-md overflow-hidden">
                       {img ? (
                         <img src={img} className="w-full h-full object-cover" />
@@ -215,12 +213,8 @@ export default function TrainPage() {
                           ● Pure Veg
                         </div>
 
-                        {/* ✅ COUNTDOWN FIX */}
-                        <div
-                          className={`text-xs font-bold mt-1 ${
-                            isClosingSoon ? "text-red-600" : "text-blue-600"
-                          }`}
-                        >
+                        {/* COUNTDOWN */}
+                        <div className={`text-xs font-bold mt-1 ${isClosingSoon ? "text-red-600" : "text-blue-600"}`}>
                           ⏳ Order before: {timeText}
                           {isClosingSoon && " ⚠ Closing soon"}
                         </div>
@@ -236,6 +230,7 @@ export default function TrainPage() {
                         </a>
                       </div>
                     </div>
+
                   </div>
                 );
               })}
