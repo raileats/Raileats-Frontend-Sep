@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
+  const router = useRouter();
+
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
   const [step, setStep] = useState<"phone" | "otp">("phone");
@@ -35,7 +37,7 @@ export default function LoginPage() {
         return;
       }
 
-      // 🔥 TESTING: OTP दिखेगा
+      // 🔥 TESTING
       alert("OTP: " + data.otp);
 
       setStep("otp");
@@ -74,6 +76,16 @@ export default function LoginPage() {
       }
 
       alert("Login success ✅");
+
+      // ✅ 🔥 REDIRECT BACK TO PREVIOUS PAGE
+      const redirectUrl = localStorage.getItem("redirectAfterLogin");
+
+      if (redirectUrl) {
+        localStorage.removeItem("redirectAfterLogin");
+        router.push(redirectUrl);
+      } else {
+        router.push("/"); // fallback
+      }
 
     } catch (err) {
       console.log(err);
