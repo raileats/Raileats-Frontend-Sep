@@ -1,14 +1,17 @@
+"use client";
+
 import "./globals.css";
+import { useEffect } from "react";
+
 import Navbar from "./components/Navbar";
 import BottomNav from "./components/BottomNav";
 import ForceReloadOnBack from "./components/ForceReloadOnBack";
 import Providers from "./components/Providers";
 
-// 🔥 EXISTING
 import CartPopup from "./components/CartPopup";
-
-// ✅ NEW (LOGIN MODAL)
 import LoginModal from "./components/LoginModal";
+
+import { useAuth } from "./lib/useAuth";
 
 import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
@@ -19,10 +22,18 @@ export const metadata = {
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  const loadUser = useAuth((s) => s.loadUser);
+
+  /* 🔥 LOAD USER ON APP START */
+  useEffect(() => {
+    loadUser();
+  }, []);
+
   return (
     <html lang="en">
       <body>
         <Providers>
+
           {/* Navbar */}
           <Navbar />
 
@@ -50,14 +61,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </div>
           </main>
 
-          {/* 🔥 CART POPUP */}
+          {/* CART */}
           <CartPopup />
 
-          {/* 🔥 LOGIN MODAL (NEW ADD) */}
+          {/* LOGIN MODAL */}
           <LoginModal />
 
           {/* Bottom Nav */}
           <BottomNav />
+
         </Providers>
       </body>
     </html>
