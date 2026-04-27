@@ -24,6 +24,7 @@ export default function LoginModal() {
     const handler = (e: any) => {
       setOpen(true);
       setPendingItem(e.detail?.item || null);
+      setStep("mobile"); // reset step
     };
 
     window.addEventListener("raileats:open-login", handler);
@@ -31,25 +32,58 @@ export default function LoginModal() {
       window.removeEventListener("raileats:open-login", handler);
   }, []);
 
-  /* 🔥 SEND OTP (mock for now) */
-  const sendOtp = () => {
+  /* ================= SEND OTP ================= */
+  const sendOtp = async () => {
     if (!mobile) return alert("Enter mobile");
-    setStep("otp");
-  };
 
-  /* 🔥 VERIFY OTP (mock success) */
-  const verifyOtp = () => {
-    // 👉 यहाँ बाद में Supabase OTP लगेगा
-    const isNewUser = true;
+    try {
+      const res = await fetch("/api/send-otp", {
+        method: "POST",
+        body: JSON.stringify({ phone: mobile }),
+      });
 
-    if (isNewUser) {
-      setStep("profile");
-    } else {
-      completeLogin({ name: "User", email: "" });
+      const json = await res.json();
+
+      if (!json.success) {
+        alert("OTP send failed");
+        return;
+      }
+
+      setStep("otp"); // ✅ move to OTP screen
+
+    } catch (err) {
+      console.log(err);
+      alert("Error sending OTP");
     }
   };
 
-  /* 🔥 FINAL LOGIN */
+  /* ================= VERIFY OTP ================= */
+  const verifyOtp = async () => {
+    if (!otp) return alert("Enter OTP");
+
+    try {
+      const res = await fetch("/api/verify-otp", {
+        method: "POST",
+        body: JSON.stringify({ phone: mobile, otp }),
+      });
+
+      const json = await res.json();
+
+      if (!json.success) {
+        alert("Wrong OTP");
+        return;
+      }
+
+      // 👉 first time user → profile
+      setStep("profile");
+
+    } catch (err) {
+      console.log(err);
+      alert("Error verifying OTP");
+    }
+  };
+
+  /* ================= FINAL LOGIN ================= */
   const completeLogin = (data: any) => {
     const user = { mobile, ...data };
 
@@ -73,6 +107,7 @@ export default function LoginModal() {
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
       <div className="bg-white p-4 rounded-lg w-80 space-y-3">
 
+        {/* ================= MOBILE ================= */}
         {step === "mobile" && (
           <>
             <input
@@ -90,6 +125,7 @@ export default function LoginModal() {
           </>
         )}
 
+        {/* ================= OTP ================= */}
         {step === "otp" && (
           <>
             <input
@@ -107,6 +143,7 @@ export default function LoginModal() {
           </>
         )}
 
+        {/* ================= PROFILE ================= */}
         {step === "profile" && (
           <>
             <input
