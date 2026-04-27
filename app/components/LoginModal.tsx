@@ -9,18 +9,15 @@ export default function LoginModal() {
   const { add } = useCart();
 
   const [open, setOpen] = useState(false);
-  const [step, setStep] = useState<"mobile" | "otp" | "profile">("mobile");
+  const [step, setStep] = useState<"mobile" | "otp">("mobile");
 
   const [mobile, setMobile] = useState("");
   const [otp, setOtp] = useState("");
 
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-
   const [pendingItem, setPendingItem] = useState<any>(null);
   const [loading, setLoading] = useState(false);
 
-  /* 🔥 OPEN LOGIN MODAL EVENT */
+  /* 🔥 OPEN LOGIN MODAL */
   useEffect(() => {
     const handler = (e: any) => {
       setOpen(true);
@@ -31,19 +28,6 @@ export default function LoginModal() {
     window.addEventListener("raileats:open-login", handler);
     return () =>
       window.removeEventListener("raileats:open-login", handler);
-  }, []);
-
-  /* 🔥 LOGIN SUCCESS EVENT (IMPORTANT) */
-  useEffect(() => {
-    const handleLoginSuccess = () => {
-      setOpen(false);
-    };
-
-    window.addEventListener("login-success", handleLoginSuccess);
-
-    return () => {
-      window.removeEventListener("login-success", handleLoginSuccess);
-    };
   }, []);
 
   /* ================= SEND OTP ================= */
@@ -68,9 +52,7 @@ export default function LoginModal() {
         return;
       }
 
-      // 🔥 TESTING
-      alert("OTP: " + json.otp);
-
+      alert("OTP: " + json.otp); // testing
       setStep("otp");
 
     } catch (err) {
@@ -103,11 +85,31 @@ export default function LoginModal() {
         return;
       }
 
-      // 🔥 SUCCESS EVENT FIRE
-      window.dispatchEvent(new Event("login-success"));
+      // 🔥 DIRECT LOGIN COMPLETE
+      const user = {
+        mobile,
+        name: "User",
+        email: "",
+      };
 
-      // 👉 new user → profile (optional)
-      setStep("profile");
+      // ✅ GLOBAL STATE
+      setUser(user);
+
+      // ✅ LOCAL STORAGE (persist login)
+      localStorage.setItem("raileats_user", JSON.stringify(user));
+
+      // 🔥 AUTO ADD ITEM AFTER LOGIN
+      if (pendingItem) {
+        add({
+          id: pendingItem.id,
+          name: pendingItem.item_name,
+          price: pendingItem.base_price,
+          qty: 1,
+        });
+      }
+
+      // 🔥 CLOSE MODAL
+      setOpen(false);
 
     } catch (err) {
       console.log(err);
@@ -117,33 +119,13 @@ export default function LoginModal() {
     }
   };
 
-  /* ================= FINAL LOGIN ================= */
-  const completeLogin = (data: any) => {
-    const user = { mobile, ...data };
-
-    setUser(user);
-
-    // 🔥 CONTINUE CART (AUTO ADD)
-    if (pendingItem) {
-      add({
-        id: pendingItem.id,
-        name: pendingItem.item_name,
-        price: pendingItem.base_price,
-        qty: 1,
-      });
-    }
-
-    // 🔥 CLOSE MODAL
-    setOpen(false);
-  };
-
   if (!open) return null;
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
       <div className="bg-white p-4 rounded-lg w-80 space-y-3">
 
-        {/* ================= MOBILE ================= */}
+        {/* MOBILE STEP */}
         {step === "mobile" && (
           <>
             <input
@@ -163,7 +145,7 @@ export default function LoginModal() {
           </>
         )}
 
-        {/* ================= OTP ================= */}
+        {/* OTP STEP */}
         {step === "otp" && (
           <>
             <input
@@ -179,32 +161,6 @@ export default function LoginModal() {
               className="bg-green-600 text-white w-full p-2 rounded"
             >
               {loading ? "Verifying..." : "Verify OTP"}
-            </button>
-          </>
-        )}
-
-        {/* ================= PROFILE ================= */}
-        {step === "profile" && (
-          <>
-            <input
-              placeholder="Name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="border p-2 w-full"
-            />
-
-            <input
-              placeholder="Email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="border p-2 w-full"
-            />
-
-            <button
-              onClick={() => completeLogin({ name, email })}
-              className="bg-orange-600 text-white w-full p-2 rounded"
-            >
-              Continue
             </button>
           </>
         )}
