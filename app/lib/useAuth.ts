@@ -12,7 +12,7 @@ type AuthState = {
   user: User | null;
   setUser: (u: User) => void;
   logout: () => void;
-  loadUser: () => void; // 🔥 important
+  loadUser: () => void;
 };
 
 export const useAuth = create<AuthState>((set) => ({
@@ -25,10 +25,13 @@ export const useAuth = create<AuthState>((set) => ({
 
   logout: () => {
     localStorage.removeItem("raileats_user");
+
+    // 🔥 IMPORTANT: cart clear trigger
+    window.dispatchEvent(new Event("raileats:logout"));
+
     set({ user: null });
   },
 
-  // 🔥 FIX: LOAD USER PROPERLY
   loadUser: () => {
     const saved = localStorage.getItem("raileats_user");
     if (saved) {
