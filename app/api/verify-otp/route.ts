@@ -1,31 +1,31 @@
+import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
 export async function POST(req: Request) {
-  const { phone, otp } = await req.json();
+  try {
+    const { phone, otp } = await req.json();
 
-  const { data } = await supabase
-    .from("otp_codes")
-    .select("*")
-    .eq("phone", phone)
-    .eq("otp", otp)
-    .eq("used", false)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .single();
+    const { data } = await supabase
+      .from("otp_codes")
+      .select("*")
+      .eq("phone", phone)
+      .eq("otp", otp)
+      .order("created_at", { ascending: false })
+      .limit(1);
 
-  if (!data) {
-    return Response.json({ success: false });
+    if (!data || data.length === 0) {
+      return NextResponse.json({ success: false });
+    }
+
+    return NextResponse.json({ success: true });
+
+  } catch (e) {
+    console.log(e);
+    return NextResponse.json({ success: false });
   }
-
-  await supabase
-    .from("otp_codes")
-    .update({ used: true })
-    .eq("id", data.id);
-
-  return Response.json({ success: true });
 }
