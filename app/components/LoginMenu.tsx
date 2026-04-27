@@ -51,7 +51,10 @@ export default function LoginMenu() {
                 My Wallet
               </a>
               <button
-                onClick={logout}
+                onClick={() => {
+  logout();
+  window.location.href = "/";
+}}
                 className="w-full text-left px-3 py-2 hover:bg-gray-50 text-red-600"
               >
                 Logout
