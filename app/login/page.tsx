@@ -37,8 +37,7 @@ export default function LoginPage() {
         return;
       }
 
-      // 🔥 TESTING
-      alert("OTP: " + data.otp);
+      alert("OTP: " + data.otp); // testing
 
       setStep("otp");
 
@@ -77,14 +76,19 @@ export default function LoginPage() {
 
       alert("Login success ✅");
 
-      // ✅ 🔥 REDIRECT BACK TO PREVIOUS PAGE
-      const redirectUrl = localStorage.getItem("redirectAfterLogin");
+      // 🔥 SAFE REDIRECT LOGIC
+      let redirectUrl = localStorage.getItem("redirectAfterLogin");
+
+      // ❌ अगर login page खुद save हो गया हो तो ignore
+      if (redirectUrl && redirectUrl.includes("/login")) {
+        redirectUrl = null;
+      }
 
       if (redirectUrl) {
         localStorage.removeItem("redirectAfterLogin");
         router.push(redirectUrl);
       } else {
-        router.push("/"); // fallback
+        router.back(); // 🔥 best fallback
       }
 
     } catch (err) {
