@@ -33,6 +33,16 @@ export default function LoginModal() {
       window.removeEventListener("raileats:open-login", handler);
   }, []);
 
+  /* LOAD USER IF EXISTS */
+  useEffect(() => {
+    const saved = localStorage.getItem("raileats_user");
+    if (saved) {
+      try {
+        setUser(JSON.parse(saved));
+      } catch {}
+    }
+  }, []);
+
   /* SEND OTP */
   const sendOtp = async () => {
     if (!mobile) return alert("Enter mobile");
@@ -42,7 +52,9 @@ export default function LoginModal() {
 
       const res = await fetch("/api/send-otp", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({ phone: "+91" + mobile }),
       });
 
@@ -72,7 +84,9 @@ export default function LoginModal() {
 
       const res = await fetch("/api/verify-otp", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({ phone: "+91" + mobile, otp }),
       });
 
@@ -118,35 +132,43 @@ export default function LoginModal() {
 
     const user = { mobile, name, email };
 
-    // 🔥 SAVE IN DB
-    await fetch("/api/save-user", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(user),
-    });
-
-    // 🔥 ZUSTAND
-    setUser(user);
-
-    // 🔥 LOCAL STORAGE
-    localStorage.setItem("raileats_user", JSON.stringify(user));
-
-    // 🔥 CONTINUE CART
-    if (pendingItem) {
-      add({
-        id: pendingItem.id,
-        name: pendingItem.item_name,
-        price: pendingItem.base_price,
-        qty: 1,
+    try {
+      // SAVE IN DB
+      await fetch("/api/save-user", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(user),
       });
+
+      // ZUSTAND
+      setUser(user);
+
+      // LOCAL STORAGE
+      localStorage.setItem("raileats_user", JSON.stringify(user));
+
+      // CONTINUE CART
+      if (pendingItem) {
+        add({
+          id: pendingItem.id,
+          name: pendingItem.item_name,
+          price: pendingItem.base_price,
+          qty: 1,
+        });
+      }
+
+      setOpen(false);
+
+      // 🔥 IMPORTANT FIX
+      setTimeout(() => {
+        window.location.reload();
+      }, 300);
+
+    } catch {
+      alert("Error saving profile");
     }
-
-    setOpen(false);
-
-// 🔥 FORCE UI REFRESH (IMPORTANT)
-setTimeout(() => {
-  window.location.reload();
-}, 300);
+  };
 
   if (!open) return null;
 
@@ -162,8 +184,11 @@ setTimeout(() => {
               onChange={(e) => setMobile(e.target.value)}
               className="border p-2 w-full"
             />
-            <button onClick={sendOtp} className="bg-blue-600 text-white w-full p-2 rounded">
-              Send OTP
+            <button
+              onClick={sendOtp}
+              className="bg-blue-600 text-white w-full p-2 rounded"
+            >
+              {loading ? "Sending..." : "Send OTP"}
             </button>
           </>
         )}
@@ -176,8 +201,11 @@ setTimeout(() => {
               onChange={(e) => setOtp(e.target.value)}
               className="border p-2 w-full"
             />
-            <button onClick={verifyOtp} className="bg-green-600 text-white w-full p-2 rounded">
-              Verify OTP
+            <button
+              onClick={verifyOtp}
+              className="bg-green-600 text-white w-full p-2 rounded"
+            >
+              {loading ? "Verifying..." : "Verify OTP"}
             </button>
           </>
         )}
@@ -196,7 +224,10 @@ setTimeout(() => {
               onChange={(e) => setEmail(e.target.value)}
               className="border p-2 w-full"
             />
-            <button onClick={saveProfile} className="bg-orange-600 text-white w-full p-2 rounded">
+            <button
+              onClick={saveProfile}
+              className="bg-orange-600 text-white w-full p-2 rounded"
+            >
               Save
             </button>
           </>
