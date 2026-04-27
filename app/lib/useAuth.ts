@@ -2,22 +2,19 @@
 
 import { create } from "zustand";
 
-/* ================= USER TYPE ================= */
 type User = {
   mobile: string;
   name?: string;
   email?: string;
 };
 
-/* ================= STORE TYPE ================= */
 type AuthState = {
   user: User | null;
   setUser: (u: User) => void;
   logout: () => void;
-  loadUser: () => void;
+  loadUser: () => void; // 🔥 important
 };
 
-/* ================= STORE ================= */
 export const useAuth = create<AuthState>((set) => ({
   user: null,
 
@@ -31,14 +28,13 @@ export const useAuth = create<AuthState>((set) => ({
     set({ user: null });
   },
 
+  // 🔥 FIX: LOAD USER PROPERLY
   loadUser: () => {
-    try {
-      const saved = localStorage.getItem("raileats_user");
-      if (saved) {
+    const saved = localStorage.getItem("raileats_user");
+    if (saved) {
+      try {
         set({ user: JSON.parse(saved) });
-      }
-    } catch (e) {
-      console.log("Auth load error", e);
+      } catch {}
     }
   },
 }));
