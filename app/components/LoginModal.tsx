@@ -142,7 +142,11 @@ export default function LoginModal() {
     }
 
     setOpen(false);
-  };
+
+// 🔥 FORCE UI REFRESH (IMPORTANT)
+setTimeout(() => {
+  window.location.reload();
+}, 300);
 
   if (!open) return null;
 
