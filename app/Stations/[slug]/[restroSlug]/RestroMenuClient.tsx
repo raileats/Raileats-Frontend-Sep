@@ -8,11 +8,9 @@ import CartPillMobile from "../../../components/CartPillMobile";
 /* ================= TIME CONVERT ================= */
 const toMin = (t?: string | null) => {
   if (!t) return null;
-
   const parts = t.slice(0, 5).split(":").map(Number);
   const h = parts[0] ?? 0;
   const m = parts[1] ?? 0;
-
   return h * 60 + m;
 };
 
@@ -34,8 +32,7 @@ const isItemActive = (it: any) => {
 };
 
 export default function RestroMenuClient({ items, header }: any) {
-
-  const { user } = useAuth(); // 🔥 LOGIN STATE
+  const { user } = useAuth();
   const { add, changeQty, cart } = useCart();
 
   const [vegOnly, setVegOnly] = useState(false);
@@ -46,7 +43,6 @@ export default function RestroMenuClient({ items, header }: any) {
 
   /* ================= ARRIVAL ================= */
   const arrivalParam = params.get("arrival");
-
   let trainMin: number | null = null;
 
   if (arrivalParam && arrivalParam.includes(":")) {
@@ -57,20 +53,17 @@ export default function RestroMenuClient({ items, header }: any) {
   /* ================= FILTER ================= */
   const visible = useMemo(() => {
     return items.filter((it: any) => {
-
       if (!isItemActive(it)) return false;
 
       const s = toMin(it.start_time);
       const e = toMin(it.end_time);
 
       if (trainMin !== null && s !== null && e !== null) {
-
         if (e >= s) {
           if (!(trainMin >= s && trainMin <= e)) return false;
         } else {
           if (!(trainMin >= s || trainMin <= e)) return false;
         }
-
       }
 
       const isVeg =
@@ -88,13 +81,17 @@ export default function RestroMenuClient({ items, header }: any) {
   /* ================= ADD HANDLER ================= */
   const handleAdd = (it: any) => {
 
-    // ❌ NOT LOGGED IN
+    // ❌ NOT LOGGED IN → OPEN MODAL (NO REDIRECT)
     if (!user) {
-      window.location.href = `/login?redirect=${encodeURIComponent(window.location.href)}`;
+      window.dispatchEvent(
+        new CustomEvent("raileats:open-login", {
+          detail: { item: it },
+        })
+      );
       return;
     }
 
-    // ✅ LOGGED IN
+    // ✅ LOGGED IN → ADD DIRECT
     add({
       id: it.id,
       name: it.item_name,
@@ -185,7 +182,7 @@ export default function RestroMenuClient({ items, header }: any) {
                 {!existing ? (
                   <button
                     className="border px-3 py-1 text-green-600 border-green-600 rounded text-sm"
-                    onClick={() => handleAdd(it)} // 🔥 UPDATED
+                    onClick={() => handleAdd(it)}
                   >
                     ADD
                   </button>
