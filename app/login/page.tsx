@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { supabase } from "../lib/supabaseClient";
 
 export default function LoginPage() {
   const [phone, setPhone] = useState("");
@@ -11,25 +10,33 @@ export default function LoginPage() {
 
   /* ================= SEND OTP ================= */
   const sendOtp = async (e: any) => {
-    e.preventDefault(); // 🔥 VERY IMPORTANT
+    e.preventDefault();
 
     if (!phone) return alert("Enter mobile number");
 
     try {
       setLoading(true);
 
-      const { error } = await supabase.auth.signInWithOtp({
-        phone: "+91" + phone,
+      const res = await fetch("/api/send-otp", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          phone: "+91" + phone,
+        }),
       });
 
-      console.log("OTP ERROR:", error);
+      const data = await res.json();
 
-      if (error) {
-        alert("OTP send failed");
+      if (!data.success) {
+        alert("Error: " + data.error);
         return;
       }
 
-      // ✅ move to OTP screen
+      // 🔥 TESTING: OTP दिखेगा
+      alert("OTP: " + data.otp);
+
       setStep("otp");
 
     } catch (err) {
@@ -47,20 +54,25 @@ export default function LoginPage() {
     try {
       setLoading(true);
 
-      const { data, error } = await supabase.auth.verifyOtp({
-        phone: "+91" + phone,
-        token: otp,
-        type: "sms",
+      const res = await fetch("/api/verify-otp", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          phone: "+91" + phone,
+          otp,
+        }),
       });
 
-      console.log("VERIFY:", data, error);
+      const data = await res.json();
 
-      if (error) {
-        alert("Invalid OTP");
+      if (!data.success) {
+        alert("Invalid OTP ❌");
         return;
       }
 
-      alert("Login success");
+      alert("Login success ✅");
 
     } catch (err) {
       console.log(err);
