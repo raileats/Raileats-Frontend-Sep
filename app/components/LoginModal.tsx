@@ -20,7 +20,7 @@ export default function LoginModal() {
   const [pendingItem, setPendingItem] = useState<any>(null);
   const [loading, setLoading] = useState(false);
 
-  /* 🔥 LISTEN EVENT */
+  /* 🔥 OPEN LOGIN MODAL EVENT */
   useEffect(() => {
     const handler = (e: any) => {
       setOpen(true);
@@ -33,6 +33,19 @@ export default function LoginModal() {
       window.removeEventListener("raileats:open-login", handler);
   }, []);
 
+  /* 🔥 LOGIN SUCCESS EVENT (IMPORTANT) */
+  useEffect(() => {
+    const handleLoginSuccess = () => {
+      setOpen(false);
+    };
+
+    window.addEventListener("login-success", handleLoginSuccess);
+
+    return () => {
+      window.removeEventListener("login-success", handleLoginSuccess);
+    };
+  }, []);
+
   /* ================= SEND OTP ================= */
   const sendOtp = async () => {
     if (!mobile) return alert("Enter mobile");
@@ -40,12 +53,12 @@ export default function LoginModal() {
     try {
       setLoading(true);
 
-      const res = await fetch("/api/otp/send", {
+      const res = await fetch("/api/send-otp", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ phone: mobile }),
+        body: JSON.stringify({ phone: "+91" + mobile }),
       });
 
       const json = await res.json();
@@ -55,7 +68,10 @@ export default function LoginModal() {
         return;
       }
 
-      setStep("otp"); // ✅ move to OTP screen
+      // 🔥 TESTING
+      alert("OTP: " + json.otp);
+
+      setStep("otp");
 
     } catch (err) {
       console.log(err);
@@ -72,12 +88,12 @@ export default function LoginModal() {
     try {
       setLoading(true);
 
-      const res = await fetch("/api/otp/verify", {
+      const res = await fetch("/api/verify-otp", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ phone: mobile, otp }),
+        body: JSON.stringify({ phone: "+91" + mobile, otp }),
       });
 
       const json = await res.json();
@@ -87,7 +103,10 @@ export default function LoginModal() {
         return;
       }
 
-      // 👉 new user → profile
+      // 🔥 SUCCESS EVENT FIRE
+      window.dispatchEvent(new Event("login-success"));
+
+      // 👉 new user → profile (optional)
       setStep("profile");
 
     } catch (err) {
@@ -103,9 +122,8 @@ export default function LoginModal() {
     const user = { mobile, ...data };
 
     setUser(user);
-    setOpen(false);
 
-    // 🔥 CONTINUE CART
+    // 🔥 CONTINUE CART (AUTO ADD)
     if (pendingItem) {
       add({
         id: pendingItem.id,
@@ -114,6 +132,9 @@ export default function LoginModal() {
         qty: 1,
       });
     }
+
+    // 🔥 CLOSE MODAL
+    setOpen(false);
   };
 
   if (!open) return null;
