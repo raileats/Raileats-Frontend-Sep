@@ -11,17 +11,23 @@ export async function POST(req: Request) {
     const { phone } = await req.json();
 
     if (!phone) {
-      return NextResponse.json({ error: "Phone required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Phone required" },
+        { status: 400 }
+      );
     }
 
     const { data, error } = await supabase
       .from("users")
       .select("*")
-      .eq("phone", phone)
+      .eq("mobile", phone) // ✅ FIXED
       .single();
 
     if (error && error.code !== "PGRST116") {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json(
+        { error: error.message },
+        { status: 500 }
+      );
     }
 
     if (!data) {
@@ -34,6 +40,9 @@ export async function POST(req: Request) {
     });
 
   } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
+    return NextResponse.json(
+      { error: e.message },
+      { status: 500 }
+    );
   }
 }
