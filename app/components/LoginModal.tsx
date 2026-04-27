@@ -24,7 +24,7 @@ export default function LoginModal() {
     const handler = (e: any) => {
       setOpen(true);
       setPendingItem(e.detail?.item || null);
-      setStep("mobile"); // reset step
+      setStep("mobile");
     };
 
     window.addEventListener("raileats:open-login", handler);
@@ -39,6 +39,9 @@ export default function LoginModal() {
     try {
       const res = await fetch("/api/send-otp", {
         method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({ phone: mobile }),
       });
 
@@ -64,7 +67,13 @@ export default function LoginModal() {
     try {
       const res = await fetch("/api/verify-otp", {
         method: "POST",
-        body: JSON.stringify({ phone: mobile, otp }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          phone: mobile,
+          otp: otp,
+        }),
       });
 
       const json = await res.json();
@@ -74,7 +83,7 @@ export default function LoginModal() {
         return;
       }
 
-      // 👉 first time user → profile
+      // 👉 always ask profile (simple flow)
       setStep("profile");
 
     } catch (err) {
