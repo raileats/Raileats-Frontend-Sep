@@ -20,17 +20,29 @@ export async function POST(req: Request) {
     const { error } = await supabase
       .from("users")
       .upsert(
-        [{ phone, name, email }],
-        { onConflict: "phone" } // 🔥 update if exists
+        [
+          {
+            mobile: phone, // ✅ FIXED
+            name,
+            email,
+          },
+        ],
+        { onConflict: "mobile" } // ✅ FIXED
       );
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json(
+        { error: error.message },
+        { status: 500 }
+      );
     }
 
     return NextResponse.json({ success: true });
 
   } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
+    return NextResponse.json(
+      { error: e.message },
+      { status: 500 }
+    );
   }
 }
