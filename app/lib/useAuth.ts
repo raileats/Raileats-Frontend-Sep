@@ -1,18 +1,23 @@
+"use client";
+
 import { create } from "zustand";
 
-/* ================= USER AUTH STORE ================= */
+/* ================= USER TYPE ================= */
 type User = {
   mobile: string;
   name?: string;
   email?: string;
 };
 
+/* ================= STORE TYPE ================= */
 type AuthState = {
   user: User | null;
   setUser: (u: User) => void;
   logout: () => void;
+  loadUser: () => void;
 };
 
+/* ================= STORE ================= */
 export const useAuth = create<AuthState>((set) => ({
   user: null,
 
@@ -25,15 +30,15 @@ export const useAuth = create<AuthState>((set) => ({
     localStorage.removeItem("raileats_user");
     set({ user: null });
   },
-}));
 
-/* ================= AUTO LOAD FROM LOCAL ================= */
-if (typeof window !== "undefined") {
-  const saved = localStorage.getItem("raileats_user");
-  if (saved) {
+  loadUser: () => {
     try {
-      const parsed = JSON.parse(saved);
-      useAuth.setState({ user: parsed });
-    } catch {}
-  }
-}
+      const saved = localStorage.getItem("raileats_user");
+      if (saved) {
+        set({ user: JSON.parse(saved) });
+      }
+    } catch (e) {
+      console.log("Auth load error", e);
+    }
+  },
+}));
