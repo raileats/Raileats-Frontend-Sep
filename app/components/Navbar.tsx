@@ -1,31 +1,31 @@
-// app/components/Navbar.tsx
 "use client";
 
 import Link from "next/link";
-import LoginMenu from "./LoginMenu";
+import { useEffect } from "react";
+import { useAuth } from "../lib/useAuth";
 import CartWidget from "./CartWidget";
 
 export default function Navbar() {
+  const { user, setUser, logout } = useAuth();
+
+  // 🔥 PAGE LOAD पर localStorage से user load
+  useEffect(() => {
+    const saved = localStorage.getItem("raileats_user");
+    if (saved) {
+      try {
+        setUser(JSON.parse(saved));
+      } catch {}
+    }
+  }, []);
+
   return (
-    /*
-      Behavior:
-      - Mobile: header has bg-black so the bar is full-width.
-      - Desktop (md+): header becomes transparent and inner container gets md:bg-black,
-        which keeps the black bar limited to max-w-5xl and centered.
-    */
     <header className="sticky top-0 z-50 w-full bg-black md:bg-transparent">
-      {/* Site container — controls centered max width on desktop, still has px on mobile */}
       <div className="mx-auto max-w-5xl px-4">
-        {/*
-          - On mobile this inner row will sit on header's black background (full-width black).
-          - On md+, this row itself will get the black background and rounded/border styling,
-            so it becomes the centered black bar.
-        */}
         <div
           className="h-14 md:h-16 w-full flex items-center justify-between gap-2
                      md:bg-black md:rounded-b-md md:border-b md:border-gray-800"
         >
-          {/* Left: Logo + Brand */}
+          {/* LEFT LOGO */}
           <Link href="/" className="flex items-center gap-2 md:gap-3 group">
             <img
               src="/logo.png"
@@ -42,13 +42,43 @@ export default function Navbar() {
             </span>
           </Link>
 
-          {/* Right: Cart (desktop only) + Login */}
+          {/* RIGHT SIDE */}
           <div className="flex items-center gap-2">
-            {/* Hide cart chip on mobile; show from md and up */}
+            {/* Cart (desktop only) */}
             <div className="hidden md:inline-flex">
               <CartWidget />
             </div>
-            <LoginMenu />
+
+            {/* 🔥 LOGIN / USER */}
+            {!user ? (
+              <button
+                onClick={() =>
+                  window.dispatchEvent(
+                    new CustomEvent("raileats:open-login")
+                  )
+                }
+                className="bg-white text-black px-3 py-1 rounded"
+              >
+                Login
+              </button>
+            ) : (
+              <div className="flex items-center gap-2">
+                {/* USER NAME */}
+                <div className="bg-green-600 text-white px-3 py-1 rounded text-sm">
+                  {user.name && user.name !== ""
+                    ? user.name
+                    : user.mobile}
+                </div>
+
+                {/* LOGOUT */}
+                <button
+                  onClick={() => logout()}
+                  className="bg-red-500 text-white px-2 py-1 rounded text-xs"
+                >
+                  Logout
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
