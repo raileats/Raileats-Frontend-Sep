@@ -18,6 +18,7 @@ export default function LoginModal() {
   const [email, setEmail] = useState("");
 
   const [pendingItem, setPendingItem] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
 
   /* 🔥 LISTEN EVENT */
   useEffect(() => {
@@ -37,7 +38,9 @@ export default function LoginModal() {
     if (!mobile) return alert("Enter mobile");
 
     try {
-      const res = await fetch("/api/send-otp", {
+      setLoading(true);
+
+      const res = await fetch("/api/otp/send", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -57,6 +60,8 @@ export default function LoginModal() {
     } catch (err) {
       console.log(err);
       alert("Error sending OTP");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -65,15 +70,14 @@ export default function LoginModal() {
     if (!otp) return alert("Enter OTP");
 
     try {
-      const res = await fetch("/api/verify-otp", {
+      setLoading(true);
+
+      const res = await fetch("/api/otp/verify", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          phone: mobile,
-          otp: otp,
-        }),
+        body: JSON.stringify({ phone: mobile, otp }),
       });
 
       const json = await res.json();
@@ -83,12 +87,14 @@ export default function LoginModal() {
         return;
       }
 
-      // 👉 always ask profile (simple flow)
+      // 👉 new user → profile
       setStep("profile");
 
     } catch (err) {
       console.log(err);
       alert("Error verifying OTP");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -125,11 +131,13 @@ export default function LoginModal() {
               onChange={(e) => setMobile(e.target.value)}
               className="border p-2 w-full"
             />
+
             <button
               onClick={sendOtp}
+              disabled={loading}
               className="bg-blue-600 text-white w-full p-2 rounded"
             >
-              Send OTP
+              {loading ? "Sending..." : "Send OTP"}
             </button>
           </>
         )}
@@ -143,11 +151,13 @@ export default function LoginModal() {
               onChange={(e) => setOtp(e.target.value)}
               className="border p-2 w-full"
             />
+
             <button
               onClick={verifyOtp}
+              disabled={loading}
               className="bg-green-600 text-white w-full p-2 rounded"
             >
-              Verify OTP
+              {loading ? "Verifying..." : "Verify OTP"}
             </button>
           </>
         )}
@@ -161,6 +171,7 @@ export default function LoginModal() {
               onChange={(e) => setName(e.target.value)}
               className="border p-2 w-full"
             />
+
             <input
               placeholder="Email"
               value={email}
