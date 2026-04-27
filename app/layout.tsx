@@ -1,7 +1,4 @@
-"use client";
-
 import "./globals.css";
-import { useEffect } from "react";
 
 import Navbar from "./components/Navbar";
 import BottomNav from "./components/BottomNav";
@@ -10,8 +7,7 @@ import Providers from "./components/Providers";
 
 import CartPopup from "./components/CartPopup";
 import LoginModal from "./components/LoginModal";
-
-import { useAuth } from "./lib/useAuth";
+import AuthLoader from "./components/AuthLoader"; // ✅ NEW
 
 import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
@@ -21,18 +17,18 @@ export const metadata = {
   description: "Fresh Food on Trains | RailEats",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
-  const loadUser = useAuth((s) => s.loadUser);
-
-  /* 🔥 LOAD USER ON APP START */
-  useEffect(() => {
-    loadUser();
-  }, []);
-
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html lang="en">
       <body>
         <Providers>
+
+          {/* 🔥 LOAD USER */}
+          <AuthLoader />
 
           {/* Navbar */}
           <Navbar />
@@ -49,12 +45,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </div>
           </div>
 
-          {/* MAIN CONTENT */}
+          {/* MAIN */}
           <main className="main-content">
             <div
               className="site-container"
               style={{
-                paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 80px)",
+                paddingBottom:
+                  "calc(env(safe-area-inset-bottom, 0px) + 80px)",
               }}
             >
               {children}
@@ -64,7 +61,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           {/* CART */}
           <CartPopup />
 
-          {/* LOGIN MODAL */}
+          {/* LOGIN */}
           <LoginModal />
 
           {/* Bottom Nav */}
