@@ -1,24 +1,24 @@
 "use client";
+
 import React, { useEffect, useState } from "react";
 import { ChevronDown } from "lucide-react";
+import { useAuth } from "../lib/useAuth"; // 🔥 IMPORTANT
 
-type User = { name: string; phone: string; email?: string };
+type User = {
+  mobile: string;
+  name?: string;
+  email?: string;
+};
 
 export default function LoginMenu() {
+  const { user, logout, loadUser } = useAuth(); // ✅ GLOBAL STATE
   const [open, setOpen] = useState(false);
-  const [user, setUser] = useState<User | null>(null);
   const [showOtp, setShowOtp] = useState(false);
 
+  /* 🔥 LOAD USER ON START */
   useEffect(() => {
-    const raw = localStorage.getItem("raileats_user");
-    if (raw) setUser(JSON.parse(raw));
+    loadUser();
   }, []);
-
-  const logout = () => {
-    localStorage.removeItem("raileats_user");
-    setUser(null);
-    setOpen(false);
-  };
 
   return (
     <>
@@ -35,7 +35,7 @@ export default function LoginMenu() {
             onClick={() => setOpen((v) => !v)}
             className="flex items-center gap-2 rounded-md bg-white px-4 py-2 text-black font-bold hover:bg-gray-100 transition shadow"
           >
-            <span>{user.name}</span>
+            <span>{user.name || "User"}</span>
             <ChevronDown className="h-4 w-4" />
           </button>
 
@@ -47,14 +47,12 @@ export default function LoginMenu() {
               <a href="/orders" className="block px-3 py-2 hover:bg-gray-50">
                 My Orders
               </a>
-              <a href="/wallet" className="block px-3 py-2 hover:bg-gray-50">
-                My Wallet
-              </a>
+
               <button
                 onClick={() => {
-  logout();
-  window.location.href = "/";
-}}
+                  logout(); // 🔥 global logout (cart bhi clear karega)
+                  window.location.href = "/"; // 🔥 redirect home
+                }}
                 className="w-full text-left px-3 py-2 hover:bg-gray-50 text-red-600"
               >
                 Logout
@@ -67,98 +65,120 @@ export default function LoginMenu() {
       {showOtp && (
         <OTPLoginModal
           onClose={() => setShowOtp(false)}
-          onLoggedIn={(u) => setUser(u)}
+          onLoggedIn={() => {
+            loadUser(); // 🔥 refresh user after login
+          }}
         />
       )}
     </>
   );
 }
 
-/* ---------- OTP modal (demo OTP: 111111) ---------- */
+/* ---------- OTP modal ---------- */
 function OTPLoginModal({
   onClose,
   onLoggedIn,
 }: {
   onClose: () => void;
-  onLoggedIn: (u: User) => void;
+  onLoggedIn: () => void;
 }) {
   const [step, setStep] = useState<"phone" | "otp">("phone");
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
-  const [error, setError] = useState("");
 
   const sendOtp = async () => {
-    if (!/^[6-9]\d{9}$/.test(phone)) {
-      setError("Valid 10-digit phone required");
-      return;
-    }
-    setError("");
-    setStep("otp"); // mock send
+    const res = await fetch("/api/send-otp", {
+      method: "POST",
+      body: JSON.stringify({ phone: "+91" + phone }),
+    });
+
+    const data = await res.json();
+
+    if (!data.success) return alert("OTP failed");
+
+    alert("OTP: " + data.otp);
+    setStep("otp");
   };
 
   const verifyOtp = async () => {
-    if (otp === "111111") {
-      const u: User = { name: "RailEater", phone };
-      localStorage.setItem("raileats_user", JSON.stringify(u));
-      onLoggedIn(u);
-      onClose();
+    const res = await fetch("/api/verify-otp", {
+      method: "POST",
+      body: JSON.stringify({ phone: "+91" + phone, otp }),
+    });
+
+    const data = await res.json();
+
+    if (!data.success) return alert("Wrong OTP");
+
+    // 🔥 CHECK USER FROM DB
+    const userRes = await fetch("/api/get-user", {
+      method: "POST",
+      body: JSON.stringify({ phone: "+91" + phone }),
+    });
+
+    const userData = await userRes.json();
+
+    if (userData.exists) {
+      localStorage.setItem(
+        "raileats_user",
+        JSON.stringify(userData.user)
+      );
     } else {
-      setError("Invalid OTP");
+      // NEW USER
+      const name = prompt("Enter name");
+      const email = prompt("Enter email");
+
+      await fetch("/api/save-user", {
+        method: "POST",
+        body: JSON.stringify({
+          phone: "+91" + phone,
+          name,
+          email,
+        }),
+      });
+
+      localStorage.setItem(
+        "raileats_user",
+        JSON.stringify({
+          mobile: "+91" + phone,
+          name,
+          email,
+        })
+      );
     }
+
+    onLoggedIn();
+    onClose();
   };
 
   return (
-    <div className="fixed inset-0 z-[100] bg-black/50">
-      <div className="mx-auto mt-10 md:mt-16 max-w-xs md:max-w-sm">
-        <div className="rounded-xl bg-white p-4 shadow-lg">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-base md:text-lg font-semibold">OTP Login</h3>
-            <button
-              onClick={onClose}
-              className="text-gray-500 hover:text-black text-lg leading-none"
-            >
-              ✕
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
+      <div className="bg-white p-4 rounded w-80 space-y-3">
+        {step === "phone" ? (
+          <>
+            <input
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="Phone"
+              className="border p-2 w-full"
+            />
+            <button onClick={sendOtp} className="bg-blue-500 text-white w-full p-2">
+              Send OTP
             </button>
-          </div>
-
-          {step === "phone" ? (
-            <>
-              <input
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                className="w-full rounded-md border px-3 py-2 text-sm"
-                placeholder="Phone number"
-              />
-              {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
-              <button
-                onClick={sendOtp}
-                className="mt-3 w-full rounded-md bg-white text-black font-bold py-2 hover:bg-gray-100 shadow text-sm"
-              >
-                Send OTP
-              </button>
-              <p className="mt-2 text-[11px] text-gray-500">
-                Demo OTP: <b>111111</b>
-              </p>
-            </>
-          ) : (
-            <>
-              <input
-                value={otp}
-                onChange={(e) => setOtp(e.target.value)}
-                maxLength={6}
-                className="w-full rounded-md border px-3 py-2 tracking-widest text-center text-sm"
-                placeholder="Enter 6-digit OTP"
-              />
-              {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
-              <button
-                onClick={verifyOtp}
-                className="mt-3 w-full rounded-md bg-white text-black font-bold py-2 hover:bg-gray-100 shadow text-sm"
-              >
-                Verify & Login
-              </button>
-            </>
-          )}
-        </div>
+          </>
+        ) : (
+          <>
+            <input
+              value={otp}
+              onChange={(e) => setOtp(e.target.value)}
+              placeholder="OTP"
+              className="border p-2 w-full"
+            />
+            <button onClick={verifyOtp} className="bg-green-600 text-white w-full p-2">
+              Verify
+            </button>
+          </>
+        )}
       </div>
     </div>
   );
