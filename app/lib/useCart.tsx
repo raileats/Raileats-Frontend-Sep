@@ -1,6 +1,12 @@
 "use client";
 
-import React, { createContext, useContext, useMemo, useState, useEffect } from "react";
+import React, {
+  createContext,
+  useContext,
+  useMemo,
+  useState,
+  useEffect,
+} from "react";
 
 /* ================= TYPES ================= */
 
@@ -26,8 +32,8 @@ export type CartContextValue = {
 
   add: (line: CartLine) => void;
   changeQty: (id: number, qty: number) => void;
-  increaseQty: (id: number) => void;   // ✅ NEW
-  decreaseQty: (id: number) => void;   // ✅ NEW
+  increaseQty: (id: number) => void;
+  decreaseQty: (id: number) => void;
   remove: (id: number) => void;
   clearCart: () => void;
 };
@@ -41,7 +47,7 @@ const CartCtx = createContext<CartContextValue | null>(null);
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [cart, setCart] = useState<CartMap>({});
 
-  /* ✅ LOAD from localStorage */
+  /* ✅ LOAD */
   useEffect(() => {
     const saved = localStorage.getItem("cart");
     if (saved) {
@@ -51,10 +57,24 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  /* ✅ SAVE to localStorage */
+  /* ✅ SAVE */
   useEffect(() => {
     localStorage.setItem("cart", JSON.stringify(cart));
   }, [cart]);
+
+  /* 🔥 LISTEN LOGOUT EVENT (MAIN FIX) */
+  useEffect(() => {
+    const handleLogout = () => {
+      setCart({});
+      localStorage.removeItem("cart");
+    };
+
+    window.addEventListener("raileats:logout", handleLogout);
+
+    return () => {
+      window.removeEventListener("raileats:logout", handleLogout);
+    };
+  }, []);
 
   /* ================= ADD ================= */
 
@@ -165,8 +185,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       total,
       add,
       changeQty,
-      increaseQty,   // ✅ ADDED
-      decreaseQty,   // ✅ ADDED
+      increaseQty,
+      decreaseQty,
       remove,
       clearCart,
     };
