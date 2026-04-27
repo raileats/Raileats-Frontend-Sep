@@ -20,7 +20,7 @@ export default function LoginModal() {
   const [pendingItem, setPendingItem] = useState<any>(null);
   const [loading, setLoading] = useState(false);
 
-  /* OPEN MODAL */
+  /* 🔥 OPEN MODAL */
   useEffect(() => {
     const handler = (e: any) => {
       setOpen(true);
@@ -33,17 +33,7 @@ export default function LoginModal() {
       window.removeEventListener("raileats:open-login", handler);
   }, []);
 
-  /* LOAD USER IF EXISTS */
-  useEffect(() => {
-    const saved = localStorage.getItem("raileats_user");
-    if (saved) {
-      try {
-        setUser(JSON.parse(saved));
-      } catch {}
-    }
-  }, []);
-
-  /* SEND OTP */
+  /* ================= SEND OTP ================= */
   const sendOtp = async () => {
     if (!mobile) return alert("Enter mobile");
 
@@ -65,7 +55,7 @@ export default function LoginModal() {
         return;
       }
 
-      alert("OTP: " + json.otp);
+      alert("OTP: " + json.otp); // remove in prod
       setStep("otp");
 
     } catch {
@@ -75,19 +65,21 @@ export default function LoginModal() {
     }
   };
 
-  /* VERIFY OTP */
+  /* ================= VERIFY OTP ================= */
   const verifyOtp = async () => {
     if (!otp) return alert("Enter OTP");
 
     try {
       setLoading(true);
 
+      const phone = "+91" + mobile;
+
       const res = await fetch("/api/verify-otp", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ phone: "+91" + mobile, otp }),
+        body: JSON.stringify({ phone, otp }),
       });
 
       const json = await res.json();
@@ -100,16 +92,20 @@ export default function LoginModal() {
       // 🔥 CHECK USER FROM DB
       const userRes = await fetch("/api/get-user", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: "+91" + mobile }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ phone }),
       });
 
       const userData = await userRes.json();
 
       if (userData.exists) {
+        // ✅ EXISTING USER AUTO FILL
         setName(userData.user.name || "");
         setEmail(userData.user.email || "");
       } else {
+        // 🆕 NEW USER
         setName("");
         setEmail("");
       }
@@ -123,18 +119,26 @@ export default function LoginModal() {
     }
   };
 
-  /* SAVE PROFILE */
+  /* ================= SAVE PROFILE ================= */
   const saveProfile = async () => {
     if (!name || !email) {
       alert("Name & Email required");
       return;
     }
 
-    const user = { mobile, name, email };
-
     try {
-      // SAVE IN DB
-      await fetch("/api/save-user", {
+      setLoading(true);
+
+      const phone = "+91" + mobile;
+
+      const user = {
+        mobile: phone,
+        name,
+        email,
+      };
+
+      // 🔥 SAVE IN DB
+      const res = await fetch("/api/save-user", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -142,13 +146,18 @@ export default function LoginModal() {
         body: JSON.stringify(user),
       });
 
-      // ZUSTAND
-      setUser(user);
+      const json = await res.json();
 
-      // LOCAL STORAGE
+      if (!json.success) {
+        alert("Failed to save user");
+        return;
+      }
+
+      // ✅ ZUSTAND + LOCAL STORAGE
+      setUser(user);
       localStorage.setItem("raileats_user", JSON.stringify(user));
 
-      // CONTINUE CART
+      // 🔥 CONTINUE CART
       if (pendingItem) {
         add({
           id: pendingItem.id,
@@ -158,15 +167,18 @@ export default function LoginModal() {
         });
       }
 
+      // 🔥 CLOSE MODAL
       setOpen(false);
 
-      // 🔥 IMPORTANT FIX
+      // 🔥 HARD REFRESH → FIX ALL STATE
       setTimeout(() => {
         window.location.reload();
-      }, 300);
+      }, 200);
 
     } catch {
       alert("Error saving profile");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -176,6 +188,7 @@ export default function LoginModal() {
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
       <div className="bg-white p-4 rounded-lg w-80 space-y-3">
 
+        {/* MOBILE */}
         {step === "mobile" && (
           <>
             <input
@@ -184,8 +197,10 @@ export default function LoginModal() {
               onChange={(e) => setMobile(e.target.value)}
               className="border p-2 w-full"
             />
+
             <button
               onClick={sendOtp}
+              disabled={loading}
               className="bg-blue-600 text-white w-full p-2 rounded"
             >
               {loading ? "Sending..." : "Send OTP"}
@@ -193,6 +208,7 @@ export default function LoginModal() {
           </>
         )}
 
+        {/* OTP */}
         {step === "otp" && (
           <>
             <input
@@ -201,8 +217,10 @@ export default function LoginModal() {
               onChange={(e) => setOtp(e.target.value)}
               className="border p-2 w-full"
             />
+
             <button
               onClick={verifyOtp}
+              disabled={loading}
               className="bg-green-600 text-white w-full p-2 rounded"
             >
               {loading ? "Verifying..." : "Verify OTP"}
@@ -210,6 +228,7 @@ export default function LoginModal() {
           </>
         )}
 
+        {/* PROFILE */}
         {step === "profile" && (
           <>
             <input
@@ -218,17 +237,20 @@ export default function LoginModal() {
               onChange={(e) => setName(e.target.value)}
               className="border p-2 w-full"
             />
+
             <input
               placeholder="Email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="border p-2 w-full"
             />
+
             <button
               onClick={saveProfile}
+              disabled={loading}
               className="bg-orange-600 text-white w-full p-2 rounded"
             >
-              Save
+              {loading ? "Saving..." : "Save"}
             </button>
           </>
         )}
