@@ -3,28 +3,23 @@ import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY! // 🔥 CHANGE HERE
 );
 
 export async function POST(req: Request) {
   try {
-    const body = await req.json();
-    const { phone } = body;
+    const { phone } = await req.json();
 
     if (!phone) {
-      return NextResponse.json({ success: false, error: "No phone" });
+      return NextResponse.json({ success: false });
     }
 
-    // 🔥 random OTP
     const otp = Math.floor(1000 + Math.random() * 9000).toString();
 
     console.log("OTP:", otp);
 
     const { error } = await supabase.from("otp_codes").insert([
-      {
-        phone,
-        otp,
-      },
+      { phone, otp }
     ]);
 
     if (error) {
