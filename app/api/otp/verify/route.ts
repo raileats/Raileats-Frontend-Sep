@@ -8,13 +8,13 @@ const supabase = createClient(
 
 export async function POST(req: Request) {
   try {
-    const { phone, otp } = await req.json();
+    const body = await req.json();
+    const { phone, otp } = body;
 
     if (!phone || !otp) {
       return NextResponse.json({ success: false });
     }
 
-    // 🔥 latest OTP match
     const { data, error } = await supabase
       .from("otp_codes")
       .select("*")
@@ -23,21 +23,14 @@ export async function POST(req: Request) {
       .order("created_at", { ascending: false })
       .limit(1);
 
-    if (error) {
-      console.log("VERIFY ERROR:", error);
+    if (error || !data || data.length === 0) {
       return NextResponse.json({ success: false });
     }
-
-    if (!data || data.length === 0) {
-      return NextResponse.json({ success: false });
-    }
-
-    console.log("✅ OTP VERIFIED:", phone);
 
     return NextResponse.json({ success: true });
 
   } catch (err) {
-    console.log("VERIFY CATCH ERROR:", err);
+    console.log(err);
     return NextResponse.json({ success: false });
   }
 }
