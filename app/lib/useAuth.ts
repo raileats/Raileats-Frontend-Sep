@@ -25,18 +25,18 @@ export const useAuth = create<AuthState>((set) => ({
 
   logout: () => {
     set({ user: null });
-
     localStorage.removeItem("raileats_user");
 
+    // 🔥 cart clear trigger
     window.dispatchEvent(new Event("raileats:logout"));
   },
 
   loadUser: () => {
-    const saved = localStorage.getItem("raileats_user");
-    if (saved) {
-      try {
+    try {
+      const saved = localStorage.getItem("raileats_user");
+      if (saved) {
         set({ user: JSON.parse(saved) });
-      } catch {}
-    }
+      }
+    } catch {}
   },
 }));
