@@ -2,46 +2,34 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ========= RAIL EATS THEME ========= */
+/* ========= Base ========= */
 :root {
   --nav-h: 60px;
   --bottom-h: 56px;
-
-  --primary: #F6C800;
-  --secondary: #000000;
-  --accent: #16a34a;
-  --bg: #f5f5f5;
-  --card: #ffffff;
-  --text: #111827;
 }
 
-/* Mobile nav adjust */
 @media (max-width: 640px) {
   :root { --nav-h: 64px; }
+  html { font-size: 92%; }
 }
 
-/* ========= BASE ========= */
 html,
 body {
   height: 100%;
   margin: 0;
   padding: 0;
-  background: var(--bg);
+  background: #f9fafb;
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial;
-  color: var(--text);
   overflow-x: hidden;
-  -webkit-font-smoothing: antialiased;
+  scroll-behavior: smooth;
 }
 
-/* mobile font scale */
-@media (max-width: 640px) {
-  html { font-size: 90%; }
-  body { line-height: 1.3; }
+/* Remove mobile tap highlight */
+* {
+  -webkit-tap-highlight-color: transparent;
 }
 
-img { display: block; max-width: 100%; height: auto; }
-
-/* ========= LAYOUT ========= */
+/* ========= Layout ========= */
 .main-content {
   padding-top: var(--nav-h);
   padding-bottom: calc(var(--bottom-h) + env(safe-area-inset-bottom, 0px));
@@ -50,110 +38,94 @@ img { display: block; max-width: 100%; height: auto; }
 .site-container {
   margin: auto;
   padding: 0 12px;
-  width: 100%;
   max-width: 1024px;
 }
 
-.page-safe-bottom {
-  padding-bottom: calc(var(--bottom-h) + 10px);
-}
-
-/* ========= NAV ========= */
+/* ========= Navbar (FIXED CLEAN) ========= */
 .navbar {
-  @apply fixed top-0 left-0 w-full z-[9999] flex items-center justify-between bg-black text-white px-4 shadow;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
   height: var(--nav-h);
-}
+  z-index: 1000;
 
-.bottom-nav {
-  @apply fixed bottom-0 left-0 w-full z-[999] bg-white border-t flex justify-around items-center;
-  height: var(--bottom-h);
-}
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 
-/* ========= CARD SYSTEM ========= */
-.card {
-  background: var(--card);
-  border-radius: 14px;
-  padding: 14px;
-  box-shadow: 0 4px 14px rgba(0,0,0,0.05);
-}
+  padding: 0 12px;
 
-/* ========= INPUT ========= */
-.input {
-  width: 100%;
-  border: 1px solid #d1d5db;
-  padding: 10px 12px;
-  border-radius: 8px;
   background: white;
-  font-size: 14px;
+  border-bottom: 1px solid #eee;
+
+  backdrop-filter: blur(6px);
 }
 
-.input:focus {
-  outline: none;
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(246,200,0,0.25);
+/* 🔥 LOGO FIX (IMPORTANT) */
+.navbar img {
+  height: 34px;
+  width: 34px;
+  object-fit: contain;
 }
 
-/* ========= BUTTON ========= */
-.btn-primary {
-  background: var(--primary);
-  color: black;
-  border-radius: 8px;
-  padding: 10px;
-  font-weight: 600;
-}
-
-.btn-primary:hover {
-  opacity: 0.9;
-}
-
-/* ========= CART ========= */
-.cart-bubble {
+/* ========= Bottom Nav ========= */
+.bottom-nav {
   position: fixed;
-  right: 14px;
-  bottom: calc(var(--bottom-h) + 10px);
-  z-index: 20;
-  background: #111;
-  color: #fff;
-  border-radius: 9999px;
-  padding: 8px 12px;
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
-.cart-pill-mobile {
-  position: fixed;
-  right: 12px;
-  top: calc(var(--nav-h) + 6px);
-  z-index: 20;
-}
-
-/* ========= IMAGE ========= */
-.slider-img {
+  bottom: 0;
+  left: 0;
   width: 100%;
-  aspect-ratio: 16/9;
-  object-fit: cover;
-  border-radius: 12px;
-}
+  height: var(--bottom-h);
 
-/* ========= LIST ========= */
-.station-card,
-.restaurant-card {
+  background: white;
+  border-top: 1px solid #eee;
+  z-index: 999;
+
   display: flex;
-  gap: 1rem;
+  justify-content: space-around;
   align-items: center;
+
+  box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
 }
 
+/* ========= Buttons ========= */
+button {
+  transition: all 0.2s ease;
+}
+
+button:active {
+  transform: scale(0.97);
+}
+
+/* ========= Cards ========= */
+article,
+.card-safe,
+.search-box-card {
+  transition: all 0.2s ease;
+}
+
+article:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 14px rgba(0,0,0,0.06);
+}
+
+/* ========= Images ========= */
+img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+/* ========= Thumbnails ========= */
 .station-image,
 .resto-image {
-  width: 100px;
-  height: 100px;
-  border-radius: 10px;
+  width: 110px;
+  height: 110px;
+  border-radius: 8px;
   overflow: hidden;
-  background: #eee;
 }
 
-@media (max-width: 640px) {
+@media (max-width:640px) {
   .station-image,
   .resto-image {
     width: 80px;
@@ -161,56 +133,88 @@ img { display: block; max-width: 100%; height: auto; }
   }
 }
 
-/* ========= SPINNER ========= */
+/* ========= Inputs ========= */
+.input {
+  width: 100%;
+  border: 1px solid #ddd;
+  padding: 10px 12px;
+  border-radius: 6px;
+  background: white;
+}
+
+.input:focus {
+  outline: none;
+  border-color: #60a5fa;
+  box-shadow: 0 0 0 2px rgba(96,165,250,0.2);
+}
+
+/* ========= Cart Bubble ========= */
+.cart-bubble {
+  position: fixed;
+  right: 12px;
+  bottom: calc(var(--bottom-h) + 10px);
+  z-index: 60;
+
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  background: #111;
+  color: #fff;
+  padding: 8px 12px;
+  border-radius: 999px;
+
+  font-size: 14px;
+}
+
+/* ========= Cart Pill ========= */
+.cart-pill-mobile {
+  position: fixed;
+  right: 12px;
+  top: calc(var(--nav-h) + 8px);
+  z-index: 9999;
+}
+
+/* ========= Spinner ========= */
 .bubble-spinner {
   width: 42px;
   height: 42px;
-  border-radius: 50%;
-  background: white;
-  border: 2px solid #eee;
+  border-radius: 999px;
   position: relative;
 }
 
-.bubble-spinner::after {
+.bubble-spinner::before {
   content: "";
   position: absolute;
   inset: 0;
-  border-radius: 50%;
-  border: 3px solid #ddd;
-  border-top-color: var(--primary);
-  animation: spin .8s linear infinite;
+  border-radius: 999px;
+  border: 3px solid #eee;
+  border-top-color: #999;
+  animation: spin 0.8s linear infinite;
 }
 
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
 
-/* ========= MOBILE OPTIMIZE ========= */
-@media (max-width: 640px) {
+/* ========= Mobile Tight ========= */
+@media (max-width:640px) {
+  .mb-6 { margin-bottom: 1rem !important; }
+  .mb-4 { margin-bottom: .7rem !important; }
+
+  article.border.rounded.p-3 {
+    padding: .7rem !important;
+  }
+
   h1 {
     font-size: 1.5rem;
-    line-height: 1.1;
-  }
-
-  .card {
-    padding: 12px;
   }
 }
 
-/* ========= Z INDEX SAFE ========= */
-.modal {
-  z-index: 10000;
-}
-
-.overlay {
-  z-index: 9999;
-}
-
-/* ========= SMALL POLISH ========= */
-.rounded-soft {
-  border-radius: 10px;
-}
-
-.shadow-soft {
-  box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+/* ========= Overlay Fix ========= */
+.fixed-bottom-action {
+  position: sticky;
+  bottom: calc(var(--bottom-h) + 10px);
+  background: white;
+  padding: 8px;
 }
