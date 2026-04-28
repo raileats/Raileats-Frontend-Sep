@@ -15,6 +15,7 @@ export async function POST(req: Request) {
       .select("*")
       .eq("phone", phone)
       .eq("otp", otp)
+      .eq("used", false) // 🔥 IMPORTANT
       .order("created_at", { ascending: false })
       .limit(1);
 
@@ -26,13 +27,21 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid OTP" }, { status: 400 });
     }
 
-    // optional: expiry check (5 min)
-    const created = new Date(data[0].created_at).getTime();
+    const otpRow = data[0];
+
+    // 🔥 EXPIRY CHECK (5 min)
+    const created = new Date(otpRow.created_at).getTime();
     const now = Date.now();
 
     if (now - created > 5 * 60 * 1000) {
       return NextResponse.json({ error: "OTP expired" }, { status: 400 });
     }
+
+    // 🔥 MARK OTP USED (CRITICAL FIX)
+    await supabase
+      .from("otp_codes")
+      .update({ used: true })
+      .eq("id", otpRow.id);
 
     return NextResponse.json({ success: true });
 
