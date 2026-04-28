@@ -10,7 +10,7 @@ export default function CartPillMobile() {
   if (!count || count === 0) return null;
 
   return (
-    <div className="fixed bottom-[80px] left-1/2 -translate-x-1/2 z-50 md:hidden">
+    <div className="fixed bottom-[80px] left-1/2 -translate-x-1/2 z-10 md:hidden">
 
       <div className="bg-blue-600 text-white px-4 py-3 rounded-full shadow-lg flex items-center gap-3">
 
