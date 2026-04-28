@@ -12,9 +12,8 @@ export async function POST(req: Request) {
 
     const phone = body.phone || body.mobile || "";
     const name = body.name || "";
-    const email = body.email || null; // ✅ optional
+    const email = body.email || null;
 
-    // 🔥 ONLY REQUIRED FIELDS
     if (!phone || !name) {
       return NextResponse.json(
         { error: "Name & Mobile required" },
@@ -23,16 +22,17 @@ export async function POST(req: Request) {
     }
 
     const { error } = await supabase
-      .from("users")
+      .from("customers") // 🔥 UPDATED TABLE
       .upsert(
         [
           {
-            mobile: phone,   // ✅ match DB column
+            mobile: phone,
             name: name,
-            email: email,    // optional
+            email: email,
+            last_login_at: new Date().toISOString(), // 🔥 NEW
           },
         ],
-        { onConflict: "mobile" } // ✅ correct
+        { onConflict: "mobile" }
       );
 
     if (error) {
