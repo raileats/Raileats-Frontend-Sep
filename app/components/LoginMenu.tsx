@@ -14,28 +14,26 @@ export default function LoginMenu() {
     loadUser();
   }, []);
 
-  // ❌ NOT LOGGED IN
   if (!user) {
     return (
       <button
         onClick={() => {
           window.dispatchEvent(new CustomEvent("raileats:open-login"));
         }}
-        className="rounded-md bg-white px-5 py-2 text-black font-bold hover:bg-gray-100 shadow"
+        className="rounded-md bg-white px-5 py-2 text-black font-bold shadow"
       >
         Login
       </button>
     );
   }
 
-  // ✅ LOGGED IN
   return (
     <div className="relative">
       <button
         onClick={() => setOpen((v) => !v)}
         className="flex items-center gap-2 rounded-md bg-white px-4 py-2 text-black font-bold shadow"
       >
-        <span>{user?.name || "User"}</span>
+        <span>{user.name || "User"}</span>
         <ChevronDown className="h-4 w-4" />
       </button>
 
@@ -66,8 +64,6 @@ export default function LoginMenu() {
             onClick={() => {
               logout();
               setOpen(false);
-
-              // 🔥 NO reload
               router.replace("/");
             }}
             className="w-full text-left px-3 py-2 hover:bg-gray-50 text-red-600"
