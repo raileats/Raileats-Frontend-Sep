@@ -30,8 +30,7 @@ export default function LoginMenu() {
         </button>
       ) : (
         <div className="relative">
-          
-          {/* 🔥 USER NAME BUTTON (CLICKABLE) */}
+          {/* USER BUTTON */}
           <button
             onClick={() => router.push("/profile")}
             className="flex items-center gap-2 rounded-md bg-white px-4 py-2 text-black font-bold hover:bg-gray-100 transition shadow"
@@ -40,7 +39,7 @@ export default function LoginMenu() {
             <ChevronDown className="h-4 w-4" />
           </button>
 
-          {/* 🔽 DROPDOWN */}
+          {/* DROPDOWN TOGGLE */}
           <button
             onClick={() => setOpen((v) => !v)}
             className="ml-2 text-white"
@@ -71,21 +70,25 @@ export default function LoginMenu() {
                 My Orders
               </button>
 
-              {/* 🔥 FINAL LOGOUT FIX */}
+              {/* 🔥 FINAL LOGOUT */}
               <button
                 onClick={() => {
-                  logout();        // clear user + cart
-                  setOpen(false);
+                  logout();
 
-                  // ✅ NEXT ROUTER REDIRECT (BEST WAY)
-                 onClick={() => {
-  // 🔥 1. clear state
-  logout();
+                  localStorage.removeItem("raileats_user");
+                  localStorage.removeItem("cart");
 
-  // 🔥 2. force clean storage (extra safety)
-  localStorage.removeItem("raileats_user");
-  localStorage.removeItem("cart");
+                  window.location.href = "/";
+                }}
+                className="w-full text-left px-3 py-2 hover:bg-gray-50 text-red-600"
+              >
+                Logout
+              </button>
 
-  // 🔥 3. HARD REDIRECT (NO NEXT JS)
-  window.location.href = "/";
-}}
+            </div>
+          )}
+        </div>
+      )}
+    </>
+  );
+}
