@@ -3,10 +3,12 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../lib/useAuth";
 import { useCart } from "../lib/useCart";
+import { useRouter } from "next/navigation";
 
 export default function LoginModal() {
   const { setUser } = useAuth();
   const { add } = useCart();
+  const router = useRouter();
 
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState<"mobile" | "otp" | "profile">("mobile");
@@ -42,9 +44,7 @@ export default function LoginModal() {
 
       const res = await fetch("/api/send-otp", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phone: "+91" + mobile }),
       });
 
@@ -55,7 +55,7 @@ export default function LoginModal() {
         return;
       }
 
-      alert("OTP: " + json.otp); // remove in prod
+      alert("OTP: " + json.otp);
       setStep("otp");
 
     } catch {
@@ -76,9 +76,7 @@ export default function LoginModal() {
 
       const res = await fetch("/api/verify-otp", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phone, otp }),
       });
 
@@ -89,23 +87,19 @@ export default function LoginModal() {
         return;
       }
 
-      // 🔥 CHECK USER FROM DB
+      // 🔥 CHECK USER
       const userRes = await fetch("/api/get-user", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phone }),
       });
 
       const userData = await userRes.json();
 
       if (userData.exists) {
-        // ✅ EXISTING USER AUTO FILL
         setName(userData.user.name || "");
         setEmail(userData.user.email || "");
       } else {
-        // 🆕 NEW USER
         setName("");
         setEmail("");
       }
@@ -131,18 +125,12 @@ export default function LoginModal() {
 
       const phone = "+91" + mobile;
 
-      const user = {
-        mobile: phone,
-        name,
-        email,
-      };
+      const user = { mobile: phone, name, email };
 
-      // 🔥 SAVE IN DB
+      // 🔥 SAVE USER
       const res = await fetch("/api/save-user", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(user),
       });
 
@@ -153,11 +141,17 @@ export default function LoginModal() {
         return;
       }
 
-      // ✅ ZUSTAND + LOCAL STORAGE
-      setUser(user);
-      localStorage.setItem("raileats_user", JSON.stringify(user));
+      // 🔥 UPDATE LAST LOGIN
+      await fetch("/api/update-last-login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone }),
+      });
 
-      // 🔥 CONTINUE CART
+      // ✅ SET USER
+      setUser(user);
+
+      // 🛒 CONTINUE CART
       if (pendingItem) {
         add({
           id: pendingItem.id,
@@ -167,14 +161,10 @@ export default function LoginModal() {
         });
       }
 
-      // 🔥 CLOSE MODAL
       setOpen(false);
 
-      // 🔥 HARD REFRESH → FIX ALL STATE
-      setTimeout(() => {
-       setUser(user);
-       setOpen(false);
-      }, 200);
+      // 🔥 SOFT REFRESH (NO RELOAD)
+      router.refresh();
 
     } catch {
       alert("Error saving profile");
@@ -189,7 +179,6 @@ export default function LoginModal() {
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
       <div className="bg-white p-4 rounded-lg w-80 space-y-3">
 
-        {/* MOBILE */}
         {step === "mobile" && (
           <>
             <input
@@ -198,18 +187,12 @@ export default function LoginModal() {
               onChange={(e) => setMobile(e.target.value)}
               className="border p-2 w-full"
             />
-
-            <button
-              onClick={sendOtp}
-              disabled={loading}
-              className="bg-blue-600 text-white w-full p-2 rounded"
-            >
+            <button onClick={sendOtp} className="bg-blue-600 text-white w-full p-2">
               {loading ? "Sending..." : "Send OTP"}
             </button>
           </>
         )}
 
-        {/* OTP */}
         {step === "otp" && (
           <>
             <input
@@ -218,18 +201,12 @@ export default function LoginModal() {
               onChange={(e) => setOtp(e.target.value)}
               className="border p-2 w-full"
             />
-
-            <button
-              onClick={verifyOtp}
-              disabled={loading}
-              className="bg-green-600 text-white w-full p-2 rounded"
-            >
+            <button onClick={verifyOtp} className="bg-green-600 text-white w-full p-2">
               {loading ? "Verifying..." : "Verify OTP"}
             </button>
           </>
         )}
 
-        {/* PROFILE */}
         {step === "profile" && (
           <>
             <input
@@ -238,19 +215,13 @@ export default function LoginModal() {
               onChange={(e) => setName(e.target.value)}
               className="border p-2 w-full"
             />
-
             <input
               placeholder="Email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="border p-2 w-full"
             />
-
-            <button
-              onClick={saveProfile}
-              disabled={loading}
-              className="bg-orange-600 text-white w-full p-2 rounded"
-            >
+            <button onClick={saveProfile} className="bg-orange-600 text-white w-full p-2">
               {loading ? "Saving..." : "Save"}
             </button>
           </>
