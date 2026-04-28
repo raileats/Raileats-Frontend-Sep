@@ -19,35 +19,24 @@ export const useAuth = create<AuthState>((set) => ({
   user: null,
 
   setUser: (u) => {
-    try {
-      localStorage.setItem("raileats_user", JSON.stringify(u));
-    } catch {}
     set({ user: u });
+    localStorage.setItem("raileats_user", JSON.stringify(u));
   },
 
   logout: () => {
-    try {
-      localStorage.removeItem("raileats_user");
-      localStorage.removeItem("cart");
-    } catch {}
-
-    // 🔥 clear zustand state immediately
     set({ user: null });
 
-    // 🔥 notify पूरे app को
+    localStorage.removeItem("raileats_user");
+
     window.dispatchEvent(new Event("raileats:logout"));
   },
 
   loadUser: () => {
-    try {
-      const saved = localStorage.getItem("raileats_user");
-      if (saved) {
+    const saved = localStorage.getItem("raileats_user");
+    if (saved) {
+      try {
         set({ user: JSON.parse(saved) });
-      } else {
-        set({ user: null });
-      }
-    } catch {
-      set({ user: null });
+      } catch {}
     }
   },
 }));
