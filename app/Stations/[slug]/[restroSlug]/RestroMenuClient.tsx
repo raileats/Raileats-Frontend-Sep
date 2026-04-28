@@ -5,22 +5,24 @@ import { useState, useMemo } from "react";
 import { useCart } from "../../../lib/useCart";
 import CartPillMobile from "../../../components/CartPillMobile";
 
-/* ================= TIME CONVERT ================= */
+/* ================= FAST HELPERS ================= */
+
 const toMin = (t?: string | null) => {
   if (!t) return null;
-  const parts = t.slice(0, 5).split(":").map(Number);
-  const h = parts[0] ?? 0;
-  const m = parts[1] ?? 0;
+  const [h, m] = t.slice(0, 5).split(":").map(Number);
   return h * 60 + m;
 };
 
-/* ================= CATEGORY ================= */
-const isVegItem = (cat?: string | null) => {
-  const c = String(cat || "").toLowerCase().trim();
-  return c === "veg" || c === "jain";
+const vegRegex = /dal|roti|rice|paneer|veg|thali|chapati|paratha/i;
+
+const isVegItem = (it: any) => {
+  return (
+    String(it.item_category || "").toLowerCase() === "veg" ||
+    String(it.item_category || "").toLowerCase() === "jain" ||
+    vegRegex.test(it.item_name)
+  );
 };
 
-/* ================= STATUS ================= */
 const isItemActive = (it: any) => {
   const raw =
     it.status ??
@@ -28,7 +30,7 @@ const isItemActive = (it: any) => {
     it.is_active ??
     it.active;
 
-  return String(raw || "").trim().toUpperCase() === "ON";
+  return String(raw || "").toUpperCase() === "ON";
 };
 
 export default function RestroMenuClient({ items, header }: any) {
@@ -37,20 +39,20 @@ export default function RestroMenuClient({ items, header }: any) {
 
   const [vegOnly, setVegOnly] = useState(false);
 
-  const params = new URLSearchParams(
-    typeof window !== "undefined" ? window.location.search : ""
-  );
+  /* 🔥 COMPUTE ONLY ONCE */
+  const trainMin = useMemo(() => {
+    if (typeof window === "undefined") return null;
 
-  /* ================= ARRIVAL ================= */
-  const arrivalParam = params.get("arrival");
-  let trainMin: number | null = null;
+    const params = new URLSearchParams(window.location.search);
+    const arrival = params.get("arrival");
 
-  if (arrivalParam && arrivalParam.includes(":")) {
-    const clean = arrivalParam.slice(0, 5);
-    trainMin = toMin(clean);
-  }
+    if (arrival && arrival.includes(":")) {
+      return toMin(arrival.slice(0, 5));
+    }
+    return null;
+  }, []);
 
-  /* ================= FILTER ================= */
+  /* 🔥 HEAVY FILTER OPTIMIZED */
   const visible = useMemo(() => {
     return items.filter((it: any) => {
       if (!isItemActive(it)) return false;
@@ -60,28 +62,21 @@ export default function RestroMenuClient({ items, header }: any) {
 
       if (trainMin !== null && s !== null && e !== null) {
         if (e >= s) {
-          if (!(trainMin >= s && trainMin <= e)) return false;
+          if (trainMin < s || trainMin > e) return false;
         } else {
-          if (!(trainMin >= s || trainMin <= e)) return false;
+          if (trainMin < s && trainMin > e) return false;
         }
       }
 
-      const isVeg =
-        isVegItem(it.item_category) ||
-        /dal|roti|rice|paneer|veg|thali|chapati|paratha/i.test(
-          it.item_name
-        );
-
-      if (vegOnly && !isVeg) return false;
+      if (vegOnly && !isVegItem(it)) return false;
 
       return true;
     });
   }, [items, vegOnly, trainMin]);
 
-  /* ================= ADD HANDLER ================= */
-  const handleAdd = (it: any) => {
+  /* ================= ADD ================= */
 
-    // ❌ NOT LOGGED IN → OPEN MODAL (NO REDIRECT)
+  const handleAdd = (it: any) => {
     if (!user) {
       window.dispatchEvent(
         new CustomEvent("raileats:open-login", {
@@ -91,7 +86,6 @@ export default function RestroMenuClient({ items, header }: any) {
       return;
     }
 
-    // ✅ LOGGED IN → ADD DIRECT
     add({
       id: it.id,
       name: it.item_name,
@@ -107,7 +101,9 @@ export default function RestroMenuClient({ items, header }: any) {
       <div className="flex justify-between mb-3">
         <div>
           <h1 className="font-semibold">{header.outletName}</h1>
-          <div className="text-xs text-gray-500">{header.stationCode}</div>
+          <div className="text-xs text-gray-500">
+            {header.stationCode}
+          </div>
         </div>
 
         <label className="text-sm flex gap-1">
@@ -123,7 +119,7 @@ export default function RestroMenuClient({ items, header }: any) {
       {/* EMPTY */}
       {visible.length === 0 && (
         <div className="text-center text-gray-500 mt-10">
-          No items available at this time
+          No items available
         </div>
       )}
 
@@ -131,17 +127,7 @@ export default function RestroMenuClient({ items, header }: any) {
       <div className="space-y-3">
         {visible.map((it: any) => {
           const existing = cart[it.id];
-
-          const isVeg =
-            isVegItem(it.item_category) ||
-            /dal|roti|rice|paneer|veg|thali|chapati|paratha/i.test(
-              it.item_name
-            );
-
-          const description =
-            it.item_description ||
-            it.description ||
-            "";
+          const isVeg = isVegItem(it);
 
           return (
             <div
@@ -164,12 +150,12 @@ export default function RestroMenuClient({ items, header }: any) {
                   ⏱{" "}
                   {it.start_time && it.end_time
                     ? `${it.start_time} - ${it.end_time}`
-                    : "Available all day"}
+                    : "All day"}
                 </div>
 
-                {description && (
+                {it.item_description && (
                   <div className="text-xs text-gray-600">
-                    {description}
+                    {it.item_description}
                   </div>
                 )}
 
