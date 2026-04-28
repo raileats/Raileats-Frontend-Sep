@@ -72,11 +72,11 @@ export default function LoginMenu() {
 
               {/* 🔥 FINAL LOGOUT */}
               <button
-                onClick={() => {
-  logout();
-
-  localStorage.clear(); // 🔥 FULL RESET
-
-  // 🔥 HARD NAVIGATION (NO CACHE, NO SPA)
-  window.location.replace(window.location.origin);
-}}
+  onClick={() => {
+    logout();
+    router.replace("/");
+  }}
+  className="w-full text-left px-3 py-2 hover:bg-gray-50 text-red-600"
+>
+  Logout
+</button>
