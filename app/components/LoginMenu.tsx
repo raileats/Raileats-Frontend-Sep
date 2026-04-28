@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { useAuth } from "../lib/useAuth";
 import { useRouter } from "next/navigation";
@@ -8,21 +8,20 @@ import { useRouter } from "next/navigation";
 export default function LoginMenu() {
   const { user, logout, loadUser } = useAuth();
   const router = useRouter();
-
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
     loadUser();
   }, []);
 
-  // ✅ NOT LOGGED IN
+  // ❌ NOT LOGGED IN
   if (!user) {
     return (
       <button
         onClick={() => {
           window.dispatchEvent(new CustomEvent("raileats:open-login"));
         }}
-        className="rounded-md bg-white px-5 py-2 text-black font-bold hover:bg-gray-100 transition shadow"
+        className="rounded-md bg-white px-5 py-2 text-black font-bold hover:bg-gray-100 shadow"
       >
         Login
       </button>
@@ -32,17 +31,14 @@ export default function LoginMenu() {
   // ✅ LOGGED IN
   return (
     <div className="relative">
-      
-      {/* USER BUTTON */}
       <button
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-2 rounded-md bg-white px-4 py-2 text-black font-bold hover:bg-gray-100 transition shadow"
+        className="flex items-center gap-2 rounded-md bg-white px-4 py-2 text-black font-bold shadow"
       >
         <span>{user?.name || "User"}</span>
         <ChevronDown className="h-4 w-4" />
       </button>
 
-      {/* DROPDOWN */}
       {open && (
         <div className="absolute right-0 mt-2 w-56 rounded-md border bg-white shadow-lg z-50">
 
@@ -66,18 +62,13 @@ export default function LoginMenu() {
             My Orders
           </button>
 
-          {/* 🔥 FINAL LOGOUT FIX */}
           <button
             onClick={() => {
-              logout();              // Zustand clear
+              logout();
               setOpen(false);
 
-              router.replace("/");   // soft redirect
-
-              // fallback (force)
-              setTimeout(() => {
-                window.location.href = "/";
-              }, 50);
+              // 🔥 NO reload
+              router.replace("/");
             }}
             className="w-full text-left px-3 py-2 hover:bg-gray-50 text-red-600"
           >
