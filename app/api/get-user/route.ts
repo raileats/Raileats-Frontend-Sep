@@ -18,12 +18,12 @@ export async function POST(req: Request) {
     }
 
     const { data, error } = await supabase
-      .from("users")
+      .from("customers") // 🔥 UPDATED TABLE
       .select("*")
-      .eq("mobile", phone) // ✅ FIXED
-      .single();
+      .eq("mobile", phone)
+      .maybeSingle(); // safer than single()
 
-    if (error && error.code !== "PGRST116") {
+    if (error) {
       return NextResponse.json(
         { error: error.message },
         { status: 500 }
