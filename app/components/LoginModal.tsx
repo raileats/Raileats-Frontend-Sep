@@ -172,7 +172,8 @@ export default function LoginModal() {
 
       // 🔥 HARD REFRESH → FIX ALL STATE
       setTimeout(() => {
-        window.location.reload();
+       setUser(user);
+       setOpen(false);
       }, 200);
 
     } catch {
