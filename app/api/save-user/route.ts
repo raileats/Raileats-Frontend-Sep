@@ -8,11 +8,16 @@ const supabase = createClient(
 
 export async function POST(req: Request) {
   try {
-    const { phone, name, email } = await req.json();
+    const body = await req.json();
 
-    if (!phone || !name || !email) {
+    const phone = body.phone || body.mobile || "";
+    const name = body.name || "";
+    const email = body.email || null; // ✅ optional
+
+    // 🔥 ONLY REQUIRED FIELDS
+    if (!phone || !name) {
       return NextResponse.json(
-        { error: "All fields required" },
+        { error: "Name & Mobile required" },
         { status: 400 }
       );
     }
@@ -22,15 +27,16 @@ export async function POST(req: Request) {
       .upsert(
         [
           {
-            mobile: phone, // ✅ FIXED
-            name,
-            email,
+            mobile: phone,   // ✅ match DB column
+            name: name,
+            email: email,    // optional
           },
         ],
-        { onConflict: "mobile" } // ✅ FIXED
+        { onConflict: "mobile" } // ✅ correct
       );
 
     if (error) {
+      console.error("SAVE USER ERROR:", error);
       return NextResponse.json(
         { error: error.message },
         { status: 500 }
@@ -40,6 +46,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: true });
 
   } catch (e: any) {
+    console.error("SAVE USER CATCH:", e);
     return NextResponse.json(
       { error: e.message },
       { status: 500 }
