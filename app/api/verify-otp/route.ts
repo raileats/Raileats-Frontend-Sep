@@ -38,10 +38,10 @@ export async function POST(req: Request) {
     }
 
     // 🔥 MARK OTP USED (CRITICAL FIX)
-    await supabase
-      .from("otp_codes")
-      .update({ used: true })
-      .eq("id", otpRow.id);
+   await supabase
+  .from("otp_codes")
+  .update({ used: true })
+  .eq("id", data[0].id);
 
     return NextResponse.json({ success: true });
 
