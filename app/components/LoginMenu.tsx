@@ -31,7 +31,7 @@ export default function LoginMenu() {
     <div className="relative">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-2 rounded-md bg-white px-4 py-2 text-black font-bold shadow"
+        className="flex items-center gap-2 rounded-md bg-green-600 px-4 py-2 text-white font-bold shadow"
       >
         <span>{user.name || "User"}</span>
         <ChevronDown className="h-4 w-4" />
