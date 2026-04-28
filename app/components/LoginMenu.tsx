@@ -11,72 +11,81 @@ export default function LoginMenu() {
 
   const [open, setOpen] = useState(false);
 
-  /* 🔥 LOAD USER ON START */
   useEffect(() => {
     loadUser();
   }, []);
 
+  // ✅ NOT LOGGED IN
+  if (!user) {
+    return (
+      <button
+        onClick={() => {
+          window.dispatchEvent(new CustomEvent("raileats:open-login"));
+        }}
+        className="rounded-md bg-white px-5 py-2 text-black font-bold hover:bg-gray-100 transition shadow"
+      >
+        Login
+      </button>
+    );
+  }
+
+  // ✅ LOGGED IN
   return (
-    <>
-      {/* ================= NOT LOGGED IN ================= */}
-      {!user ? (
-        <button
-          onClick={() => {
-            window.dispatchEvent(new CustomEvent("raileats:open-login"));
-          }}
-          className="rounded-md bg-white px-5 py-2 text-black font-bold hover:bg-gray-100 transition shadow"
-        >
-          Login
-        </button>
-      ) : (
-        <div className="relative">
-          {/* USER BUTTON */}
+    <div className="relative">
+      
+      {/* USER BUTTON */}
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="flex items-center gap-2 rounded-md bg-white px-4 py-2 text-black font-bold hover:bg-gray-100 transition shadow"
+      >
+        <span>{user?.name || "User"}</span>
+        <ChevronDown className="h-4 w-4" />
+      </button>
+
+      {/* DROPDOWN */}
+      {open && (
+        <div className="absolute right-0 mt-2 w-56 rounded-md border bg-white shadow-lg z-50">
+
           <button
-            onClick={() => router.push("/profile")}
-            className="flex items-center gap-2 rounded-md bg-white px-4 py-2 text-black font-bold hover:bg-gray-100 transition shadow"
+            onClick={() => {
+              router.push("/profile");
+              setOpen(false);
+            }}
+            className="w-full text-left px-3 py-2 hover:bg-gray-50"
           >
-            <span>{user.name || "User"}</span>
-            <ChevronDown className="h-4 w-4" />
+            My Profile
           </button>
 
-          {/* DROPDOWN TOGGLE */}
           <button
-            onClick={() => setOpen((v) => !v)}
-            className="ml-2 text-white"
+            onClick={() => {
+              router.push("/orders");
+              setOpen(false);
+            }}
+            className="w-full text-left px-3 py-2 hover:bg-gray-50"
           >
-            ⌄
+            My Orders
           </button>
 
-          {open && (
-            <div className="absolute right-0 mt-2 w-56 rounded-md border bg-white shadow-lg z-50">
+          {/* 🔥 FINAL LOGOUT FIX */}
+          <button
+            onClick={() => {
+              logout();              // Zustand clear
+              setOpen(false);
 
-              <button
-                onClick={() => {
-                  router.push("/profile");
-                  setOpen(false);
-                }}
-                className="w-full text-left px-3 py-2 hover:bg-gray-50"
-              >
-                My Profile
-              </button>
+              router.replace("/");   // soft redirect
 
-              <button
-                onClick={() => {
-                  router.push("/orders");
-                  setOpen(false);
-                }}
-                className="w-full text-left px-3 py-2 hover:bg-gray-50"
-              >
-                My Orders
-              </button>
+              // fallback (force)
+              setTimeout(() => {
+                window.location.href = "/";
+              }, 50);
+            }}
+            className="w-full text-left px-3 py-2 hover:bg-gray-50 text-red-600"
+          >
+            Logout
+          </button>
 
-              {/* 🔥 FINAL LOGOUT */}
-              <button
-  onClick={() => {
-    logout();
-    router.replace("/");
-  }}
-  className="w-full text-left px-3 py-2 hover:bg-gray-50 text-red-600"
->
-  Logout
-</button>
+        </div>
+      )}
+    </div>
+  );
+}
