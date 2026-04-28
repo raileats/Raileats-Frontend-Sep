@@ -3,7 +3,7 @@ import { extractStationCode } from "../../../lib/stationSlug";
 import { extractRestroCode } from "../../../lib/restroSlug";
 import RestroMenuClient from "./RestroMenuClient";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 60;
 export const runtime = "nodejs";
 
 /* ------------ HELPERS ------------ */
