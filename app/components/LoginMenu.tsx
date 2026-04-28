@@ -78,22 +78,14 @@ export default function LoginMenu() {
                   setOpen(false);
 
                   // ✅ NEXT ROUTER REDIRECT (BEST WAY)
-                  router.replace("/");
+                 onClick={() => {
+  // 🔥 1. clear state
+  logout();
 
-                  // 🔥 EXTRA SAFETY (force refresh)
-                  setTimeout(() => {
-                    window.location.href = "/";
-                  }, 100);
-                }}
-                className="w-full text-left px-3 py-2 hover:bg-gray-50 text-red-600"
-              >
-                Logout
-              </button>
+  // 🔥 2. force clean storage (extra safety)
+  localStorage.removeItem("raileats_user");
+  localStorage.removeItem("cart");
 
-            </div>
-          )}
-        </div>
-      )}
-    </>
-  );
-}
+  // 🔥 3. HARD REDIRECT (NO NEXT JS)
+  window.location.href = "/";
+}}
