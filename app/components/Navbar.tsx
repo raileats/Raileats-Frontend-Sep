@@ -3,10 +3,12 @@
 import Link from "next/link";
 import { useEffect } from "react";
 import { useAuth } from "../lib/useAuth";
+import { useRouter } from "next/navigation";
 import CartWidget from "./CartWidget";
 
 export default function Navbar() {
   const { user, setUser, logout } = useAuth();
+  const router = useRouter();
 
   // 🔥 PAGE LOAD पर localStorage से user load
   useEffect(() => {
@@ -19,7 +21,7 @@ export default function Navbar() {
   }, []);
 
   return (
-    <header className="sticky top-0 z-50 w-full bg-black md:bg-transparent">
+    <header className="sticky top-0 z-[9999] w-full bg-black md:bg-transparent">
       <div className="mx-auto max-w-5xl px-4">
         <div
           className="h-14 md:h-16 w-full flex items-center justify-between gap-2
@@ -30,7 +32,7 @@ export default function Navbar() {
             <img
               src="/logo.png"
               alt="RelFood"
-              className="h-10 w-10 md:h-12 md:w-12 rounded-full animate-bubbleGlow"
+              className="h-10 w-10 md:h-12 md:w-12 rounded-full"
             />
             <span className="text-xl md:text-2xl font-semibold leading-none">
               <span className="text-[#F6C800] group-hover:text-white transition duration-300">
@@ -63,16 +65,23 @@ export default function Navbar() {
               </button>
             ) : (
               <div className="flex items-center gap-2">
-                {/* USER NAME */}
-                <div className="bg-green-600 text-white px-3 py-1 rounded text-sm">
+                
+                {/* ✅ CLICKABLE USER BUTTON */}
+                <button
+                  onClick={() => router.push("/profile")}
+                  className="relative z-[9999] bg-green-600 text-white px-3 py-1 rounded text-sm font-semibold hover:bg-green-700"
+                >
                   {user.name && user.name !== ""
                     ? user.name
                     : user.mobile}
-                </div>
+                </button>
 
                 {/* LOGOUT */}
                 <button
-                  onClick={() => logout()}
+                  onClick={() => {
+                    logout();
+                    router.replace("/");
+                  }}
                   className="bg-red-500 text-white px-2 py-1 rounded text-xs"
                 >
                   Logout
