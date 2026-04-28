@@ -27,7 +27,7 @@ export const useAuth = create<AuthState>((set) => ({
     set({ user: null });
     localStorage.removeItem("raileats_user");
 
-    // 🔥 cart clear trigger
+    // 🔥 cart clear
     window.dispatchEvent(new Event("raileats:logout"));
   },
 
