@@ -15,8 +15,8 @@ export async function POST(req: Request) {
       .select("*")
       .eq("phone", phone)
       .eq("otp", otp)
-      .eq("used", false) // 🔥 IMPORTANT
-      .order("created_at", { ascending: false })
+      .eq("used", false) // 🔥 only unused OTP
+      .order("created_at", { ascending: false }) // 🔥 latest first
       .limit(1);
 
     if (error) {
@@ -37,13 +37,20 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "OTP expired" }, { status: 400 });
     }
 
-    // 🔥 MARK OTP USED (CRITICAL FIX)
-   await supabase
-  .from("otp_codes")
-  .update({ used: true })
-  .eq("id", data[0].id);
+    // 🔥 MARK OTP AS USED
+    await supabase
+      .from("otp_codes")
+      .update({ used: true })
+      .eq("id", otpRow.id);
 
-    return NextResponse.json({ success: true });
+    // 🔥 MASK OTP (only last 3 digits visible)
+    const maskedOtp =
+      "XXX" + otpRow.otp.toString().slice(-3);
+
+    return NextResponse.json({
+      success: true,
+      maskedOtp, // 🔥 optional for debug/UI
+    });
 
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 });
