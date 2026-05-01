@@ -84,7 +84,10 @@ export default function ProfilePage() {
       {/* 🔹 MENU */}
       <div className="rounded-xl border bg-white shadow divide-y">
         <MenuItem label="My Orders" />
-        <MenuItem label="Group Orders" />
+        <MenuItem
+  label="Group Orders"
+  onClick={() => router.push("/?bulkOrder=true")}
+/>
         <MenuItem label="Contact Us" />
         <MenuItem label="Feedback" />
         <MenuItem label="About Us" />
@@ -136,9 +139,18 @@ function Field({
 
 /* ================= MENU ITEM ================= */
 
-function MenuItem({ label }: { label: string }) {
+function MenuItem({
+  label,
+  onClick,
+}: {
+  label: string;
+  onClick?: () => void;
+}) {
   return (
-    <div className="flex items-center justify-between px-4 py-3 text-sm cursor-pointer hover:bg-gray-50">
+    <div
+      onClick={onClick}
+      className="flex items-center justify-between px-4 py-3 text-sm cursor-pointer hover:bg-gray-50"
+    >
       <span>{label}</span>
       <span>›</span>
     </div>
