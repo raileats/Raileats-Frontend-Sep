@@ -18,11 +18,22 @@ type AuthState = {
 export const useAuth = create<AuthState>((set) => ({
   user: null,
 
-  /* 🔥 SET USER */
+  /* 🔥 SET USER (LOGIN COMPLETE HERE) */
   setUser: (u) => {
     set({ user: u });
+
     try {
       localStorage.setItem("raileats_user", JSON.stringify(u));
+    } catch {}
+
+    // 🔥 ✅ FEEDBACK AUTO OPEN AFTER LOGIN
+    try {
+      const action = localStorage.getItem("afterLoginAction");
+
+      if (action === "feedback") {
+        window.dispatchEvent(new CustomEvent("raileats:open-feedback"));
+        localStorage.removeItem("afterLoginAction");
+      }
     } catch {}
   },
 
@@ -34,7 +45,6 @@ export const useAuth = create<AuthState>((set) => ({
 
     set({ user: null });
 
-    // 🔥 cart + other cleanup
     window.dispatchEvent(new Event("raileats:logout"));
   },
 
@@ -46,7 +56,7 @@ export const useAuth = create<AuthState>((set) => ({
       if (saved) {
         set({ user: JSON.parse(saved) });
       } else {
-        set({ user: null }); // 🔥 IMPORTANT
+        set({ user: null });
       }
     } catch {
       set({ user: null });
