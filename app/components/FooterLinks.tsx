@@ -39,14 +39,26 @@ export default function FooterLinks() {
               <Link href="/contact" className="text-gray-600 hover:text-yellow-700">
   Contact Us
 </Link>
-            </li>
             <li>
-              <Link href="/menu#feedback" className="text-gray-600 hover:text-yellow-700">
-                Feedback
-              </Link>
-            </li>
-          </ul>
-        </div>
+  <button
+    onClick={() => {
+      const user = JSON.parse(localStorage.getItem("raileats_user") || "null");
+
+      if (!user) {
+        // 🔥 login ke baad wapas feedback open
+        localStorage.setItem("afterLoginAction", "feedback");
+
+        window.dispatchEvent(new CustomEvent("raileats:open-login"));
+      } else {
+        // 🔥 direct modal open
+        window.dispatchEvent(new CustomEvent("raileats:open-feedback"));
+      }
+    }}
+    className="text-gray-600 hover:text-yellow-700 text-left"
+  >
+    Feedback
+  </button>
+</li>
 
         {/* About RailEats */}
         <div>
