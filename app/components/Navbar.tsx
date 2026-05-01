@@ -1,26 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "../lib/useAuth";
 import CartWidget from "./CartWidget";
 
 export default function Navbar() {
-  const { user, setUser, logout } = useAuth();
-
-  useEffect(() => {
-    const saved = localStorage.getItem("raileats_user");
-    if (saved) {
-      try {
-        setUser(JSON.parse(saved));
-      } catch {}
-    }
-  }, []);
+  const { user, logout } = useAuth();
+  const router = useRouter();
 
   return (
     <header className="navbar">
       
-      {/* ✅ LEFT: LOGO + NAME (ONLY THIS, NO BIG IMAGE) */}
+      {/* 🔹 LEFT: LOGO */}
       <Link href="/" className="flex items-center gap-2">
         <img
           src="/logo.png"
@@ -32,15 +24,15 @@ export default function Navbar() {
         </span>
       </Link>
 
-      {/* RIGHT SIDE */}
+      {/* 🔹 RIGHT */}
       <div className="flex items-center gap-2">
 
-        {/* Desktop Cart */}
+        {/* Cart */}
         <div className="hidden md:block">
           <CartWidget />
         </div>
 
-        {/* LOGIN / USER */}
+        {/* 🔥 AUTH UI */}
         {!user ? (
           <button
             onClick={() =>
@@ -55,17 +47,20 @@ export default function Navbar() {
         ) : (
           <div className="flex items-center gap-2">
 
-            {/* 🔥 USER NAME CLICKABLE */}
+            {/* ✅ USER NAME */}
             <button
-              onClick={() => window.location.href = "/profile"}
+              onClick={() => router.push("/profile")}
               className="bg-green-600 text-white px-3 py-1 rounded text-sm"
             >
               {user.name || user.mobile}
             </button>
 
-            {/* LOGOUT */}
+            {/* ✅ LOGOUT */}
             <button
-              onClick={() => logout()}
+              onClick={() => {
+                logout();           // state clear
+                router.push("/");   // homepage
+              }}
               className="bg-red-500 text-white px-2 py-1 rounded text-xs"
             >
               Logout
