@@ -7,20 +7,11 @@ import CartWidget from "./CartWidget";
 
 export default function Navbar() {
   const user = useAuth((s) => s.user);
-  const logout = useAuth((s) => s.logout);
   const router = useRouter();
 
-  /* 🔥 FORCE RE-RENDER FIX */
-  const handleLogout = () => {
-    logout(); // clear zustand + localStorage
-
-    // 🔥 IMPORTANT: full app refresh (fixes ghost state)
-    window.location.href = "/";
-  };
-
   return (
-    <header className="navbar">
-      
+    <header className="navbar flex items-center justify-between px-4 py-2">
+
       {/* 🔹 LEFT: LOGO */}
       <Link href="/" className="flex items-center gap-2">
         <img
@@ -43,6 +34,7 @@ export default function Navbar() {
 
         {/* 🔥 AUTH UI */}
         {!user ? (
+          /* ✅ LOGIN (NOT LOGGED IN) */
           <button
             onClick={() =>
               window.dispatchEvent(
@@ -54,25 +46,13 @@ export default function Navbar() {
             Login
           </button>
         ) : (
-          <div className="flex items-center gap-2">
-
-            {/* USER NAME */}
-            <button
-              onClick={() => router.push("/profile")}
-              className="bg-green-600 text-white px-3 py-1 rounded text-sm"
-            >
-              {user.name || user.mobile}
-            </button>
-
-            {/* LOGOUT */}
-            <button
-              onClick={handleLogout}
-              className="bg-red-500 text-white px-2 py-1 rounded text-xs"
-            >
-              Logout
-            </button>
-
-          </div>
+          /* ✅ USER NAME (LOGGED IN) */
+          <button
+            onClick={() => router.push("/profile")}
+            className="bg-green-600 text-white px-3 py-1 rounded text-sm"
+          >
+            {user?.name || user?.mobile || "User"}
+          </button>
         )}
 
       </div>
