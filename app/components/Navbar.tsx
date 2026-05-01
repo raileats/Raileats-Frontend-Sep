@@ -6,7 +6,8 @@ import { useAuth } from "../lib/useAuth";
 import CartWidget from "./CartWidget";
 
 export default function Navbar() {
-  const { user, logout } = useAuth();
+  const user = useAuth((s) => s.user);
+const logout = useAuth((s) => s.logout);
   const router = useRouter();
 
   return (
