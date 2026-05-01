@@ -108,91 +108,91 @@ export default function HomePage() {
         </section>
       </div>
 
-      {/* 🔥 BULK ORDER MODAL */}
-{showBulkModal && (
-  <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-    <div className="bg-white rounded-xl p-5 w-[90%] max-w-md space-y-4">
+      
+{/* 🔥 BULK MODAL */}
+      {showBulkModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-5 w-[90%] max-w-md space-y-4">
 
-      <h2 className="text-lg font-semibold">
-        Bulk Food Order for Groups in Train
-      </h2>
+            <h2 className="text-lg font-semibold">
+              Bulk Food Order for Groups in Train
+            </h2>
 
-      {/* ✅ SUCCESS MESSAGE */}
-      {success ? (
-        <div className="text-green-600 text-sm text-center">
-          Your query submitted, our team will contact you soon
+            {success ? (
+              <div className="text-green-600 text-sm text-center">
+                Your query submitted, our team will contact you soon
+              </div>
+            ) : (
+              <>
+                {!user && (
+                  <>
+                    <input
+                      placeholder="Name"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      className="w-full border rounded px-3 py-2"
+                    />
+
+                    <input
+                      placeholder="Mobile"
+                      value={mobile}
+                      onChange={(e) => setMobile(e.target.value)}
+                      className="w-full border rounded px-3 py-2"
+                    />
+
+                    <input
+                      placeholder="Email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full border rounded px-3 py-2"
+                    />
+                  </>
+                )}
+
+                <input
+                  placeholder="Train Number"
+                  value={trainNumber}
+                  onChange={(e) => setTrainNumber(e.target.value)}
+                  className="w-full border rounded px-3 py-2"
+                />
+
+                <input
+                  type="date"
+                  value={journeyDate}
+                  onChange={(e) => setJourneyDate(e.target.value)}
+                  className="w-full border rounded px-3 py-2"
+                />
+
+                <input
+                  placeholder="Quantity"
+                  value={quantity}
+                  onChange={(e) => setQuantity(e.target.value)}
+                  className="w-full border rounded px-3 py-2"
+                />
+
+                <button
+                  onClick={() => setSuccess(true)}
+                  className="w-full bg-yellow-600 text-white py-2 rounded"
+                >
+                  Submit Enquiry
+                </button>
+              </>
+            )}
+
+            <button
+              onClick={() => {
+                setShowBulkModal(false);
+                setSuccess(false);
+              }}
+              className="w-full bg-gray-300 py-2 rounded"
+            >
+              Close
+            </button>
+
+          </div>
         </div>
-      ) : (
-        <>
-          {/* 🔴 Guest user fields */}
-          {!user && (
-            <>
-              <input
-                placeholder="Name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="w-full border rounded px-3 py-2"
-              />
-
-              <input
-                placeholder="Mobile"
-                value={mobile}
-                onChange={(e) => setMobile(e.target.value)}
-                className="w-full border rounded px-3 py-2"
-              />
-
-              <input
-                placeholder="Email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full border rounded px-3 py-2"
-              />
-            </>
-          )}
-
-          {/* 🟢 Common fields */}
-          <input
-            placeholder="Train Number"
-            value={trainNumber}
-            onChange={(e) => setTrainNumber(e.target.value)}
-            className="w-full border rounded px-3 py-2"
-          />
-
-          <input
-            type="date"
-            value={journeyDate}
-            onChange={(e) => setJourneyDate(e.target.value)}
-            className="w-full border rounded px-3 py-2"
-          />
-
-          <input
-            placeholder="Quantity"
-            value={quantity}
-            onChange={(e) => setQuantity(e.target.value)}
-            className="w-full border rounded px-3 py-2"
-          />
-
-          {/* 🔥 SUBMIT BUTTON */}
-          <button
-            onClick={() => setSuccess(true)}
-            className="w-full bg-yellow-600 text-white py-2 rounded"
-          >
-            Submit Enquiry
-          </button>
-        </>
       )}
 
-      {/* CLOSE */}
-      <button
-        onClick={() => {
-          setShowBulkModal(false);
-          setSuccess(false);
-        }}
-        className="w-full bg-gray-300 py-2 rounded"
-      >
-        Close
-      </button>
-
-    </div>
-  </div>
-)}
+    </main>
+  );
+}
