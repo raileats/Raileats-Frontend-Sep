@@ -3,24 +3,29 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/lib/useCart";
-import { useAuth } from "@/lib/useAuth"; // ✅ ADD
+import { useAuth } from "@/lib/useAuth";
 
 export default function CheckoutPage() {
   const router = useRouter();
 
   const { items, clearCart } = useCart();
-  const { user } = useAuth(); // ✅ ADD
+  const { user, loadUser } = useAuth();
 
   /* ================= USER ================= */
 
   const [name, setName] = useState("");
   const [mobile, setMobile] = useState("");
+  const [email, setEmail] = useState("");
 
-  // ✅ AUTO FILL AFTER LOGIN
+  useEffect(() => {
+    loadUser();
+  }, []);
+
   useEffect(() => {
     if (user) {
       setName(user.name || "");
       setMobile(user.mobile || "");
+      setEmail(user.email || "");
     }
   }, [user]);
 
@@ -45,7 +50,6 @@ export default function CheckoutPage() {
 
   const gst = Math.round(subtotal * 0.05);
   const delivery = subtotal > 0 ? 20 : 0;
-
   const total = subtotal + gst + delivery;
 
   /* ================= ORDER ================= */
@@ -53,6 +57,11 @@ export default function CheckoutPage() {
   const placeOrder = async () => {
     if (!items.length) {
       alert("Cart empty");
+      return;
+    }
+
+    if (!mobile) {
+      alert("Mobile required");
       return;
     }
 
@@ -65,34 +74,51 @@ export default function CheckoutPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
+          // USER
+          customerName: name || "Guest",
+          customerMobile: mobile,
+          customerEmail: email || null,
+
+          // TRAIN
           pnr: pnr || null,
           trainNumber: trainNo || "11016",
 
+          // RESTRO + STATION
           restroCode: firstItem?.restro_code,
           restroName: firstItem?.restro_name,
-
           stationCode: firstItem?.station_code,
           stationName: firstItem?.station_name,
 
-          arrivalDate: "2026-04-18",
-          arrivalTime: "12:30",
+          // DELIVERY (❗ अभी dynamic नहीं है → बाद में fix करना)
+          arrivalDate: new Date().toISOString().split("T")[0],
+          arrivalTime: new Date().toLocaleTimeString(),
 
-          paymentMode: paymentMode, // ✅ DYNAMIC
-
-          customerName: name || "Guest",
-          customerMobile: mobile || "",
-
+          // SEAT
           coach: coach || null,
           seat: seat || null,
 
+          // PAYMENT
+          paymentMode,
+
+          // PROMO
           promoCode: promo || null,
 
+          // ITEMS
           items: items.map((i) => ({
             id: i.id,
             name: i.name,
             qty: i.qty,
             selling_price: i.price,
           })),
+
+          // SUMMARY
+          subtotal,
+          gst,
+          delivery,
+          total,
+
+          // META
+          bookingTime: new Date().toISOString(),
         }),
       });
 
@@ -119,7 +145,6 @@ export default function CheckoutPage() {
 
       <h2 className="text-lg font-bold mb-3">Passenger Details</h2>
 
-      {/* ✅ NAME (LOCKED AFTER LOGIN) */}
       <input
         className="border p-2 w-full mb-2"
         placeholder="Name"
@@ -128,16 +153,23 @@ export default function CheckoutPage() {
         readOnly={!!user}
       />
 
-      {/* ✅ MOBILE (LOCKED AFTER LOGIN) */}
       <input
-        className="border p-2 w-full mb-3"
+        className="border p-2 w-full mb-2"
         placeholder="Mobile"
         value={mobile}
         onChange={(e) => setMobile(e.target.value)}
         readOnly={!!user}
       />
 
-      {/* ================= JOURNEY ================= */}
+      <input
+        className="border p-2 w-full mb-3"
+        placeholder="Email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        readOnly={!!user}
+      />
+
+      {/* JOURNEY */}
 
       <input
         className="border p-2 w-full mb-2"
@@ -169,16 +201,16 @@ export default function CheckoutPage() {
         />
       </div>
 
-      {/* ================= PROMO ================= */}
+      {/* PROMO */}
 
       <input
         className="border p-2 w-full mb-3"
-        placeholder="Promo Code (optional)"
+        placeholder="Promo Code"
         value={promo}
         onChange={(e) => setPromo(e.target.value)}
       />
 
-      {/* ================= ORDER SUMMARY ================= */}
+      {/* ORDER */}
 
       <div className="border p-3 rounded mb-3">
         <h3 className="font-semibold mb-2">Your Order</h3>
@@ -192,28 +224,13 @@ export default function CheckoutPage() {
 
         <hr className="my-2" />
 
-        <div className="flex justify-between text-sm">
-          <span>Subtotal</span>
-          <span>₹{subtotal}</span>
-        </div>
-
-        <div className="flex justify-between text-sm">
-          <span>GST (5%)</span>
-          <span>₹{gst}</span>
-        </div>
-
-        <div className="flex justify-between text-sm">
-          <span>Delivery</span>
-          <span>₹{delivery}</span>
-        </div>
-
-        <div className="flex justify-between font-bold mt-2">
-          <span>Total</span>
-          <span>₹{total}</span>
-        </div>
+        <Row label="Subtotal" value={subtotal} />
+        <Row label="GST (5%)" value={gst} />
+        <Row label="Delivery" value={delivery} />
+        <Row label="Total" value={total} bold />
       </div>
 
-      {/* ================= PAYMENT ================= */}
+      {/* PAYMENT */}
 
       <div className="flex gap-3 mb-3">
         <button
@@ -235,16 +252,6 @@ export default function CheckoutPage() {
         </button>
       </div>
 
-      {paymentMode === "ONLINE" && (
-        <select className="border p-2 w-full mb-3">
-          <option>UPI</option>
-          <option>Net Banking</option>
-          <option>Card</option>
-        </select>
-      )}
-
-      {/* ================= BUTTON ================= */}
-
       <button
         onClick={placeOrder}
         className="w-full bg-green-600 text-white py-2 rounded"
@@ -252,6 +259,17 @@ export default function CheckoutPage() {
         Place Order
       </button>
 
+    </div>
+  );
+}
+
+/* ================= ROW ================= */
+
+function Row({ label, value, bold = false }: any) {
+  return (
+    <div className={`flex justify-between ${bold ? "font-bold" : "text-sm"}`}>
+      <span>{label}</span>
+      <span>₹{value}</span>
     </div>
   );
 }
