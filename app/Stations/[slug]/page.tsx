@@ -1,6 +1,5 @@
 import React from "react";
 import { serviceClient } from "../../lib/supabaseServer";
-import SaveOrderData from "../../components/SaveOrderData";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +24,7 @@ export default async function Page(props: {
   const arrival = (resolvedSearchParams.arrival || "00:00").slice(0, 5);
   const arrivalMin = timeToMinutes(arrival);
 
-  // 🔥 DATA FROM URL
+  // ✅ DATA FROM URL
   const stationName = resolvedSearchParams.stationName || "Station";
   const stationCode = resolvedSearchParams.stationCode || "";
   const deliveryDate = resolvedSearchParams.deliveryDate || "";
@@ -65,14 +64,6 @@ export default async function Page(props: {
   return (
     <main className="max-w-5xl mx-auto px-4 py-6">
 
-      {/* 🔥 SAVE DATA TO LOCALSTORAGE */}
-      <SaveOrderData
-        stationName={stationName}
-        stationCode={stationCode}
-        deliveryDate={deliveryDate}
-        deliveryTime={deliveryTime}
-      />
-
       <h1 className="text-2xl font-bold mb-2">
         {stationName}
       </h1>
@@ -81,7 +72,7 @@ export default async function Page(props: {
         Arrival: {arrival}
       </p>
 
-      {/* DEBUG SECTION (delete later) */}
+      {/* DEBUG (later remove) */}
       <div className="mb-4 text-sm bg-gray-100 p-2 rounded">
         <p><b>Delivery:</b> {deliveryDate} - {deliveryTime}</p>
         <p><b>Station Code:</b> {stationCode}</p>
