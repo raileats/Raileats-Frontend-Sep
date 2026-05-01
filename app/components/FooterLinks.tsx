@@ -7,6 +7,7 @@ export default function FooterLinks() {
       <h3 className="mb-3 text-base font-semibold">Explore</h3>
 
       <div className="grid grid-cols-2 gap-3 text-sm">
+
         {/* Profile */}
         <div>
           <p className="font-medium mb-1">Profile</p>
@@ -29,36 +30,39 @@ export default function FooterLinks() {
           </ul>
         </div>
 
-        {/* Services */}
-
         {/* Help & Support */}
         <div>
           <p className="font-medium mb-1">Help & Support</p>
           <ul className="space-y-1">
+
+            {/* Contact */}
             <li>
               <Link href="/contact" className="text-gray-600 hover:text-yellow-700">
-  Contact Us
-</Link>
+                Contact Us
+              </Link>
+            </li>
+
+            {/* 🔥 Feedback FIX */}
             <li>
-  <button
-    onClick={() => {
-      const user = JSON.parse(localStorage.getItem("raileats_user") || "null");
+              <button
+                onClick={() => {
+                  const user = JSON.parse(localStorage.getItem("raileats_user") || "null");
 
-      if (!user) {
-        // 🔥 login ke baad wapas feedback open
-        localStorage.setItem("afterLoginAction", "feedback");
+                  if (!user) {
+                    localStorage.setItem("afterLoginAction", "feedback");
+                    window.dispatchEvent(new CustomEvent("raileats:open-login"));
+                  } else {
+                    window.dispatchEvent(new CustomEvent("raileats:open-feedback"));
+                  }
+                }}
+                className="text-gray-600 hover:text-yellow-700 text-left"
+              >
+                Feedback
+              </button>
+            </li>
 
-        window.dispatchEvent(new CustomEvent("raileats:open-login"));
-      } else {
-        // 🔥 direct modal open
-        window.dispatchEvent(new CustomEvent("raileats:open-feedback"));
-      }
-    }}
-    className="text-gray-600 hover:text-yellow-700 text-left"
-  >
-    Feedback
-  </button>
-</li>
+          </ul>
+        </div>
 
         {/* About RailEats */}
         <div>
@@ -91,6 +95,7 @@ export default function FooterLinks() {
             </li>
           </ul>
         </div>
+
       </div>
 
       {/* Contact */}
