@@ -213,13 +213,13 @@ export default function HomePage() {
       )}
 
       {/* 🔥 FEEDBACK MODAL */}
-{showFeedbackModal && ()}
+{showFeedbackModal && (
   <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
     <div className="bg-white p-5 rounded-xl w-[90%] max-w-md space-y-3 relative">
 
       {/* ❌ CLOSE ICON */}
       <button
-        onClick={()=>setShowFeedbackModal(false)}
+        onClick={() => setShowFeedbackModal(false)}
         className="absolute top-3 right-3 text-gray-500 text-lg"
       >
         ✕
@@ -241,7 +241,7 @@ export default function HomePage() {
               <span
                 key={star}
                 onClick={() => setRating(star)}
-                className={`cursor-pointer transition ${
+                className={`cursor-pointer ${
                   star <= rating ? "text-yellow-400" : "text-gray-300"
                 }`}
               >
@@ -253,11 +253,11 @@ export default function HomePage() {
           <textarea
             placeholder="Write feedback..."
             value={comment}
-            onChange={(e)=>setComment(e.target.value)}
+            onChange={(e) => setComment(e.target.value)}
             className="w-full border p-2 rounded-md"
           />
 
-          {/* 🔥 BUTTONS */}
+          {/* BUTTONS */}
           <div className="flex flex-col gap-2 pt-2">
             <button
               onClick={handleFeedbackSubmit}
@@ -267,7 +267,7 @@ export default function HomePage() {
             </button>
 
             <button
-              onClick={()=>setShowFeedbackModal(false)}
+              onClick={() => setShowFeedbackModal(false)}
               className="w-full border border-gray-300 text-gray-600 py-2 rounded-lg"
             >
               Close
@@ -279,3 +279,7 @@ export default function HomePage() {
     </div>
   </div>
 )}
+
+</main>
+);
+}
