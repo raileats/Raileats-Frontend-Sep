@@ -30,16 +30,6 @@ export default function FooterLinks() {
         </div>
 
         {/* Services */}
-        <div>
-          <p className="font-medium mb-1">Services</p>
-          <ul className="space-y-1">
-            <li>
-              <Link href="/menu#bulk" className="text-gray-600 hover:text-yellow-700">
-                Bulk Order Query
-              </Link>
-            </li>
-          </ul>
-        </div>
 
         {/* Help & Support */}
         <div>
