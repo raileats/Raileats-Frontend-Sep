@@ -137,7 +137,22 @@ export default function ProfilePage() {
         />
 
         <MenuItem label="Contact Us" onClick={() => router.push("/contact")} />
-<MenuItem label="Feedback" onClick={() => router.push("/feedback")} />
+<MenuItem
+  label="Feedback"
+  onClick={() => {
+    const user = JSON.parse(localStorage.getItem("raileats_user") || "null");
+
+    if (!user) {
+      // 🔥 login ke baad feedback open
+      localStorage.setItem("afterLoginAction", "feedback");
+
+      window.dispatchEvent(new CustomEvent("raileats:open-login"));
+    } else {
+      // 🔥 direct modal open (home page wala)
+      window.dispatchEvent(new CustomEvent("raileats:open-feedback"));
+    }
+  }}
+/>
 <MenuItem label="About Us" onClick={() => router.push("/about")} />
 <MenuItem label="FAQ" onClick={() => router.push("/faq")} />
 <MenuItem label="Terms & Conditions" onClick={() => router.push("/terms")} />
