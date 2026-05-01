@@ -28,11 +28,10 @@ export default function HomePage() {
   const [quantity, setQuantity] = useState("");
 
   const [success, setSuccess] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  /* 🔥 SUBMIT FUNCTION (FIXED) */
+  /* 🔥 SUBMIT FUNCTION */
   const handleSubmit = async () => {
-    console.log("SUBMIT CLICKED");
-
     if (!trainNumber || !journeyDate || !quantity) {
       alert("Please fill all required fields");
       return;
@@ -44,7 +43,9 @@ export default function HomePage() {
     }
 
     try {
-      const { data, error } = await supabase
+      setLoading(true);
+
+      const { error } = await supabase
         .from("bulk_order_queries")
         .insert([
           {
@@ -57,19 +58,27 @@ export default function HomePage() {
           },
         ]);
 
-      console.log("INSERT DATA:", data);
-      console.log("INSERT ERROR:", error);
+      setLoading(false);
 
       if (error) {
         alert("❌ Error submitting enquiry");
         return;
       }
 
-      // ✅ SUCCESS ONLY AFTER INSERT
+      // ✅ SUCCESS
       setSuccess(true);
+
+      // 🔥 RESET FORM
+      setTrainNumber("");
+      setJourneyDate("");
+      setQuantity("");
+      setName("");
+      setMobile("");
+      setEmail("");
 
     } catch (err) {
       console.error(err);
+      setLoading(false);
       alert("Something went wrong");
     }
   };
@@ -116,11 +125,11 @@ export default function HomePage() {
           <Steps />
         </section>
 
-        {/* BULK CARD */}
+        {/* 🔥 BULK CARD */}
         <section id="bulk-order" className="mt-8 px-3 md:px-0">
           <div
             onClick={() => setShowBulkModal(true)}
-            className="bg-white rounded-xl p-4 shadow border cursor-pointer"
+            className="bg-white rounded-xl p-4 shadow border cursor-pointer hover:bg-gray-50"
           >
             <h2 className="font-semibold">Bulk Order Query</h2>
             <p className="text-sm text-gray-500">
@@ -143,43 +152,95 @@ export default function HomePage() {
               Bulk Food Order
             </h2>
 
+            {/* ✅ SUCCESS UI */}
             {success ? (
-              <div className="text-green-600 text-center">
-                ✅ Your query submitted successfully
+              <div className="text-center space-y-4">
+
+                <div className="text-green-600 text-lg font-semibold">
+                  ✅ Your enquiry has been submitted
+                </div>
+
+                <p className="text-sm text-gray-500">
+                  Our team will contact you shortly.
+                </p>
+
+                <button
+                  onClick={() => {
+                    setShowBulkModal(false);
+                    setSuccess(false);
+                  }}
+                  className="w-full bg-green-600 text-white py-2 rounded"
+                >
+                  Done
+                </button>
+
               </div>
             ) : (
               <>
+                {/* 🔹 ONLY for non-login */}
                 {!user && (
                   <>
-                    <input placeholder="Name" value={name} onChange={(e)=>setName(e.target.value)} className="w-full border p-2"/>
-                    <input placeholder="Mobile" value={mobile} onChange={(e)=>setMobile(e.target.value)} className="w-full border p-2"/>
-                    <input placeholder="Email" value={email} onChange={(e)=>setEmail(e.target.value)} className="w-full border p-2"/>
+                    <input
+                      placeholder="Name"
+                      value={name}
+                      onChange={(e)=>setName(e.target.value)}
+                      className="w-full border p-2 rounded"
+                    />
+                    <input
+                      placeholder="Mobile"
+                      value={mobile}
+                      onChange={(e)=>setMobile(e.target.value)}
+                      className="w-full border p-2 rounded"
+                    />
+                    <input
+                      placeholder="Email"
+                      value={email}
+                      onChange={(e)=>setEmail(e.target.value)}
+                      className="w-full border p-2 rounded"
+                    />
                   </>
                 )}
 
-                <input placeholder="Train Number" value={trainNumber} onChange={(e)=>setTrainNumber(e.target.value)} className="w-full border p-2"/>
-                <input type="date" value={journeyDate} onChange={(e)=>setJourneyDate(e.target.value)} className="w-full border p-2"/>
-                <input placeholder="Quantity" value={quantity} onChange={(e)=>setQuantity(e.target.value)} className="w-full border p-2"/>
+                {/* 🔹 COMMON FIELDS */}
+                <input
+                  placeholder="Train Number"
+                  value={trainNumber}
+                  onChange={(e)=>setTrainNumber(e.target.value)}
+                  className="w-full border p-2 rounded"
+                />
 
-                {/* 🔥 FIXED BUTTON */}
+                <input
+                  type="date"
+                  value={journeyDate}
+                  onChange={(e)=>setJourneyDate(e.target.value)}
+                  className="w-full border p-2 rounded"
+                />
+
+                <input
+                  placeholder="Quantity"
+                  value={quantity}
+                  onChange={(e)=>setQuantity(e.target.value)}
+                  className="w-full border p-2 rounded"
+                />
+
+                {/* 🔥 SUBMIT */}
                 <button
                   onClick={handleSubmit}
+                  disabled={loading}
                   className="w-full bg-yellow-600 text-white py-2 rounded"
                 >
-                  Submit Enquiry
+                  {loading ? "Submitting..." : "Submit Enquiry"}
+                </button>
+
+                {/* CLOSE */}
+                <button
+                  onClick={() => setShowBulkModal(false)}
+                  className="w-full bg-gray-300 py-2 rounded"
+                >
+                  Close
                 </button>
               </>
             )}
-
-            <button
-              onClick={() => {
-                setShowBulkModal(false);
-                setSuccess(false);
-              }}
-              className="w-full bg-gray-300 py-2 rounded"
-            >
-              Close
-            </button>
 
           </div>
         </div>
