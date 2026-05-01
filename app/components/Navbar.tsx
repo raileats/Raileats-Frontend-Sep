@@ -7,8 +7,16 @@ import CartWidget from "./CartWidget";
 
 export default function Navbar() {
   const user = useAuth((s) => s.user);
-const logout = useAuth((s) => s.logout);
+  const logout = useAuth((s) => s.logout);
   const router = useRouter();
+
+  /* 🔥 FORCE RE-RENDER FIX */
+  const handleLogout = () => {
+    logout(); // clear zustand + localStorage
+
+    // 🔥 IMPORTANT: full app refresh (fixes ghost state)
+    window.location.href = "/";
+  };
 
   return (
     <header className="navbar">
@@ -48,7 +56,7 @@ const logout = useAuth((s) => s.logout);
         ) : (
           <div className="flex items-center gap-2">
 
-            {/* ✅ USER NAME */}
+            {/* USER NAME */}
             <button
               onClick={() => router.push("/profile")}
               className="bg-green-600 text-white px-3 py-1 rounded text-sm"
@@ -56,12 +64,9 @@ const logout = useAuth((s) => s.logout);
               {user.name || user.mobile}
             </button>
 
-            {/* ✅ LOGOUT */}
+            {/* LOGOUT */}
             <button
-              onClick={() => {
-                logout();           // state clear
-                router.push("/");   // homepage
-              }}
+              onClick={handleLogout}
               className="bg-red-500 text-white px-2 py-1 rounded text-xs"
             >
               Logout
