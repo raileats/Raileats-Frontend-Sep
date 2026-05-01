@@ -1,5 +1,6 @@
 import React from "react";
 import { serviceClient } from "../../lib/supabaseServer";
+import SaveOrderData from "../../components/SaveOrderData";
 
 export const dynamic = "force-dynamic";
 
