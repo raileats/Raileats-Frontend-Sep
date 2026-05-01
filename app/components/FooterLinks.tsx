@@ -36,9 +36,9 @@ export default function FooterLinks() {
           <p className="font-medium mb-1">Help & Support</p>
           <ul className="space-y-1">
             <li>
-              <Link href="/menu#contact" className="text-gray-600 hover:text-yellow-700">
-                Contact Us
-              </Link>
+              <Link href="/contact" className="text-gray-600 hover:text-yellow-700">
+  Contact Us
+</Link>
             </li>
             <li>
               <Link href="/menu#feedback" className="text-gray-600 hover:text-yellow-700">
