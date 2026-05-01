@@ -29,6 +29,21 @@ export default function HomePage() {
 
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
+  const formatMobile = (num) => {
+  if (!num) return "";
+
+  let clean = num.replace(/\D/g, ""); // only digits
+
+  if (clean.startsWith("91") && clean.length === 12) {
+    return "+" + clean;
+  }
+
+  if (clean.length === 10) {
+    return "+91" + clean;
+  }
+
+  return num;
+};
 
   /* 🔥 SUBMIT FUNCTION */
   const handleSubmit = async () => {
