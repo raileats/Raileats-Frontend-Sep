@@ -17,6 +17,46 @@ export default function HomePage() {
   const user = useAuth((s) => s.user);
 
   const [showBulkModal, setShowBulkModal] = useState(false);
+  const handleSubmit = async () => {
+  // 🔴 Validation
+  if (!trainNumber || !journeyDate || !quantity) {
+    alert("Please fill all required fields");
+    return;
+  }
+
+  if (!user && (!name || !mobile)) {
+    alert("Please fill your details");
+    return;
+  }
+
+  try {
+    const { error } = await supabase
+      .from("bulk_order_queries")
+      .insert([
+        {
+          name: user?.name || name,
+          mobile: user?.mobile || mobile,
+          email: user?.email || email,
+          train_number: trainNumber,
+          journey_date: journeyDate,
+          quantity: quantity,
+        },
+      ]);
+
+    if (error) {
+      console.error(error);
+      alert("Error submitting enquiry");
+      return;
+    }
+
+    // ✅ Success
+    setSuccess(true);
+
+  } catch (err) {
+    console.error(err);
+    alert("Something went wrong");
+  }
+};
 
   // 🔥 FORM STATES
   const [name, setName] = useState("");
