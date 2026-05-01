@@ -17,6 +17,7 @@ export default function HomePage() {
   const user = useAuth((s) => s.user);
 
   const [showBulkModal, setShowBulkModal] = useState(false);
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
 
   // 🔥 FORM STATES
   const [name, setName] = useState("");
@@ -29,23 +30,29 @@ export default function HomePage() {
 
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  // ⭐ FEEDBACK STATES
+  const [rating, setRating] = useState("");
+  const [comment, setComment] = useState("");
+  const [feedbackSuccess, setFeedbackSuccess] = useState(false);
+
   const formatMobile = (num) => {
-  if (!num) return "";
+    if (!num) return "";
 
-  let clean = num.replace(/\D/g, ""); // only digits
+    let clean = num.replace(/\D/g, "");
 
-  if (clean.startsWith("91") && clean.length === 12) {
-    return "+" + clean;
-  }
+    if (clean.startsWith("91") && clean.length === 12) {
+      return "+" + clean;
+    }
 
-  if (clean.length === 10) {
-    return "+91" + clean;
-  }
+    if (clean.length === 10) {
+      return "+91" + clean;
+    }
 
-  return num;
-};
+    return num;
+  };
 
-  /* 🔥 SUBMIT FUNCTION */
+  /* 🔥 BULK SUBMIT */
   const handleSubmit = async () => {
     if (!trainNumber || !journeyDate || !quantity) {
       alert("Please fill all required fields");
@@ -80,10 +87,8 @@ export default function HomePage() {
         return;
       }
 
-      // ✅ SUCCESS
       setSuccess(true);
 
-      // 🔥 RESET FORM
       setTrainNumber("");
       setJourneyDate("");
       setQuantity("");
@@ -98,6 +103,34 @@ export default function HomePage() {
     }
   };
 
+  /* 🔥 FEEDBACK SUBMIT */
+  const handleFeedbackSubmit = async () => {
+    if (!rating || !comment) {
+      alert("Please fill all fields");
+      return;
+    }
+
+    const { error } = await supabase
+      .from("feedbacks")
+      .insert([
+        {
+          name: user?.name,
+          mobile: user?.mobile,
+          rating: Number(rating),
+          message: comment,
+        },
+      ]);
+
+    if (error) {
+      alert("❌ Error submitting feedback");
+      return;
+    }
+
+    setFeedbackSuccess(true);
+    setRating("");
+    setComment("");
+  };
+
   /* 🔹 SCROLL */
   useEffect(() => {
     const goto = search.get("goto");
@@ -107,155 +140,122 @@ export default function HomePage() {
         behavior: "smooth",
       });
     }
-
-    if (goto === "bulk") {
-      document.getElementById("bulk-order")?.scrollIntoView({
-        behavior: "smooth",
-      });
-    }
   }, [search]);
+
+  /* 🔥 OPEN FEEDBACK EVENT */
+  useEffect(() => {
+    const openFeedback = () => setShowFeedbackModal(true);
+
+    window.addEventListener("raileats:open-feedback", openFeedback);
+
+    return () => {
+      window.removeEventListener("raileats:open-feedback", openFeedback);
+    };
+  }, []);
+
+  /* 🔥 AFTER LOGIN */
+  useEffect(() => {
+    const action = localStorage.getItem("afterLoginAction");
+
+    if (action === "feedback") {
+      setShowFeedbackModal(true);
+      localStorage.removeItem("afterLoginAction");
+    }
+  }, []);
 
   return (
     <main className="bg-gray-50 min-h-screen">
 
       <div className="mx-auto w-full md:max-w-4xl md:px-6">
 
-        <section className="mt-3 px-3 md:px-0">
-          <HeroSlider />
-        </section>
+        <HeroSlider />
+        <SearchBox />
+        <ExploreRailInfo />
+        <Offers />
+        <Steps />
 
-        <section className="mt-4 px-3 md:px-0">
-          <SearchBox />
-        </section>
-
-        <section className="mt-4 px-3 md:px-0">
-          <ExploreRailInfo />
-        </section>
-
-        <section id="offers" className="mt-6 px-3 md:px-0">
-          <Offers />
-        </section>
-
-        <section className="mt-6 px-3 md:px-0">
-          <Steps />
-        </section>
-
-        {/* 🔥 BULK CARD */}
-        <section id="bulk-order" className="mt-8 px-3 md:px-0">
+        {/* BULK */}
+        <section className="mt-6">
           <div
             onClick={() => setShowBulkModal(true)}
-            className="bg-white rounded-xl p-4 shadow border cursor-pointer hover:bg-gray-50"
+            className="bg-white p-4 rounded-xl shadow border cursor-pointer"
           >
-            <h2 className="font-semibold">Bulk Order Query</h2>
-            <p className="text-sm text-gray-500">
-              Bulk Food Order for Groups in Train – Submit Your Enquiry
-            </p>
+            Bulk Order Query
           </div>
         </section>
 
-        <section className="mt-8 px-3 md:px-0 mb-16">
-          <FooterLinks />
-        </section>
+        <FooterLinks />
       </div>
 
-      {/* 🔥 MODAL */}
+      {/* BULK MODAL */}
       {showBulkModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-5 w-[90%] max-w-md space-y-4">
+          <div className="bg-white p-5 rounded-xl w-[90%] max-w-md">
 
-            <h2 className="text-lg font-semibold">
-              Bulk Food Order
-            </h2>
-
-            {/* ✅ SUCCESS UI */}
             {success ? (
-              <div className="text-center space-y-4">
-
-                <div className="text-green-600 text-lg font-semibold">
-                  ✅ Your enquiry has been submitted
-                </div>
-
-                <p className="text-sm text-gray-500">
-                  Our team will contact you shortly.
-                </p>
-
-                <button
-                  onClick={() => {
-                    setShowBulkModal(false);
-                    setSuccess(false);
-                  }}
-                  className="w-full bg-green-600 text-white py-2 rounded"
-                >
-                  Done
-                </button>
-
+              <div className="text-green-600 text-center">
+                ✅ Submitted
               </div>
             ) : (
               <>
-                {/* 🔹 ONLY for non-login */}
-                {!user && (
-                  <>
-                    <input
-                      placeholder="Name"
-                      value={name}
-                      onChange={(e)=>setName(e.target.value)}
-                      className="w-full border p-2 rounded"
-                    />
-                    <input
-                      placeholder="Mobile"
-                      value={mobile}
-                      onChange={(e)=>setMobile(e.target.value)}
-                      className="w-full border p-2 rounded"
-                    />
-                    <input
-                      placeholder="Email"
-                      value={email}
-                      onChange={(e)=>setEmail(e.target.value)}
-                      className="w-full border p-2 rounded"
-                    />
-                  </>
-                )}
+                <input placeholder="Train" value={trainNumber} onChange={(e)=>setTrainNumber(e.target.value)} />
+                <input type="date" value={journeyDate} onChange={(e)=>setJourneyDate(e.target.value)} />
+                <input placeholder="Qty" value={quantity} onChange={(e)=>setQuantity(e.target.value)} />
 
-                {/* 🔹 COMMON FIELDS */}
-                <input
-                  placeholder="Train Number"
-                  value={trainNumber}
-                  onChange={(e)=>setTrainNumber(e.target.value)}
-                  className="w-full border p-2 rounded"
-                />
-
-                <input
-                  type="date"
-                  value={journeyDate}
-                  onChange={(e)=>setJourneyDate(e.target.value)}
-                  className="w-full border p-2 rounded"
-                />
-
-                <input
-                  placeholder="Quantity"
-                  value={quantity}
-                  onChange={(e)=>setQuantity(e.target.value)}
-                  className="w-full border p-2 rounded"
-                />
-
-                {/* 🔥 SUBMIT */}
-                <button
-                  onClick={handleSubmit}
-                  disabled={loading}
-                  className="w-full bg-yellow-600 text-white py-2 rounded"
-                >
-                  {loading ? "Submitting..." : "Submit Enquiry"}
-                </button>
-
-                {/* CLOSE */}
-                <button
-                  onClick={() => setShowBulkModal(false)}
-                  className="w-full bg-gray-300 py-2 rounded"
-                >
-                  Close
+                <button onClick={handleSubmit}>
+                  Submit
                 </button>
               </>
             )}
+
+          </div>
+        </div>
+      )}
+
+      {/* 🔥 FEEDBACK MODAL */}
+      {showFeedbackModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white p-5 rounded-xl w-[90%] max-w-md space-y-3">
+
+            <h2 className="text-center font-semibold">
+              ⭐ Rate Your Experience
+            </h2>
+
+            {feedbackSuccess ? (
+              <div className="text-green-600 text-center">
+                ✅ Feedback submitted
+              </div>
+            ) : (
+              <>
+                <select
+                  value={rating}
+                  onChange={(e)=>setRating(e.target.value)}
+                  className="w-full border p-2"
+                >
+                  <option value="">Rating</option>
+                  <option value="5">⭐⭐⭐⭐⭐</option>
+                  <option value="4">⭐⭐⭐⭐</option>
+                  <option value="3">⭐⭐⭐</option>
+                  <option value="2">⭐⭐</option>
+                  <option value="1">⭐</option>
+                </select>
+
+                <textarea
+                  placeholder="Write feedback..."
+                  value={comment}
+                  onChange={(e)=>setComment(e.target.value)}
+                  className="w-full border p-2"
+                />
+
+                <button onClick={handleFeedbackSubmit}>
+                  Submit Feedback
+                </button>
+              </>
+            )}
+
+            <button onClick={()=>setShowFeedbackModal(false)}>
+              Close
+            </button>
 
           </div>
         </div>
