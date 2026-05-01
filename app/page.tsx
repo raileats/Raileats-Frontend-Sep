@@ -92,7 +92,7 @@ export default function HomePage() {
                   Bulk Order Query
                 </h2>
                 <p className="text-sm text-gray-500">
-                  Group order ke liye enquiry submit karein
+                  Bulk Food Order for Groups in Train – Submit Your Enquiry
                 </p>
               </div>
 
