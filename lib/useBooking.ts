@@ -1,8 +1,33 @@
-
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-export const useBooking = create(
+/* 🔥 TYPES DEFINE */
+
+type BookingData = {
+  train: any;
+  journeyDate: string | null;
+  boardingStation: any;
+  delivery: any;
+  restaurant: any;
+  items: any[];
+  user: any;
+};
+
+type BookingState = {
+  booking: BookingData;
+
+  setTrain: (data: any) => void;
+  setJourney: (date: string, station: any) => void;
+  setDelivery: (data: any) => void;
+  setRestaurant: (data: any) => void;
+  setItems: (items: any[]) => void;
+  setUser: (user: any) => void;
+  resetBooking: () => void;
+};
+
+/* 🔥 STORE */
+
+export const useBooking = create<BookingState>()(
   persist(
     (set) => ({
       booking: {
@@ -16,7 +41,9 @@ export const useBooking = create(
       },
 
       setTrain: (data) =>
-        set((state) => ({ booking: { ...state.booking, train: data } })),
+        set((state) => ({
+          booking: { ...state.booking, train: data },
+        })),
 
       setJourney: (date, station) =>
         set((state) => ({
@@ -28,16 +55,24 @@ export const useBooking = create(
         })),
 
       setDelivery: (data) =>
-        set((state) => ({ booking: { ...state.booking, delivery: data } })),
+        set((state) => ({
+          booking: { ...state.booking, delivery: data },
+        })),
 
       setRestaurant: (data) =>
-        set((state) => ({ booking: { ...state.booking, restaurant: data } })),
+        set((state) => ({
+          booking: { ...state.booking, restaurant: data },
+        })),
 
       setItems: (items) =>
-        set((state) => ({ booking: { ...state.booking, items } })),
+        set((state) => ({
+          booking: { ...state.booking, items },
+        })),
 
       setUser: (user) =>
-        set((state) => ({ booking: { ...state.booking, user } })),
+        set((state) => ({
+          booking: { ...state.booking, user },
+        })),
 
       resetBooking: () =>
         set({
