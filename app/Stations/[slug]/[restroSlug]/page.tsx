@@ -24,20 +24,14 @@ async function fetchOnMenu(
   arrivalTime: string
 ) {
   try {
-    console.log("🔥 CALLING API:", restroCode, arrivalTime);
-
     const res = await fetch(
       `https://raileats.in/api/restro-menu?restro=${restroCode}&arrivalTime=${arrivalTime}`,
       { cache: "no-store" }
     );
 
     const json = await res.json();
-
-    console.log("🔥 API RESPONSE:", json);
-
     return json?.items || [];
   } catch (e) {
-    console.log("API ERROR:", e);
     return [];
   }
 }
@@ -52,22 +46,17 @@ export default async function Page({ params, searchParams }: any) {
   const stationName =
     params.slug?.split("-")?.slice(1)?.join(" ") || stationCode;
 
-  /* ================= FIX ARRIVAL ================= */
+  /* 🔥 IMPORTANT: GET DATA FROM URL */
+  const deliveryDate = searchParams?.deliveryDate || "";
+  const deliveryTime = searchParams?.deliveryTime || "";
+  const arrivalParam = searchParams?.arrival || searchParams?.arrivalTime;
 
   let arrivalTime = "12:00:00";
 
-  const rawArrival =
-    searchParams?.arrival ||
-    searchParams?.arrivalTime;
-
-  console.log("🔥 RAW ARRIVAL:", rawArrival);
-
-  if (rawArrival) {
-    const clean = rawArrival.slice(0, 5); // 11:50
-    arrivalTime = clean + ":00";          // 11:50:00
+  if (arrivalParam) {
+    const clean = arrivalParam.slice(0, 5);
+    arrivalTime = clean + ":00";
   }
-
-  console.log("🔥 FINAL ARRIVAL:", arrivalTime);
 
   /* ================= FETCH ================= */
 
@@ -77,31 +66,14 @@ export default async function Page({ params, searchParams }: any) {
 
   const items = (rawItems || []).map((it: any) => ({
     id: Number(it?.id),
-
     item_name: it?.item_name || "",
     base_price: Number(it?.base_price || 0),
-
     item_category: it?.item_category || "",
-
-    item_description:
-      it?.item_description ||
-      it?.description ||
-      "",
-
-    start_time:
-      it?.start_time ||
-      it?.item_start_time ||
-      null,
-
-    end_time:
-      it?.end_time ||
-      it?.item_end_time ||
-      null,
-
+    item_description: it?.item_description || it?.description || "",
+    start_time: it?.start_time || it?.item_start_time || null,
+    end_time: it?.end_time || it?.item_end_time || null,
     status: String(it?.status || "ON").toUpperCase(),
   }));
-
-  console.log("🔥 FINAL ITEMS:", items.length);
 
   const header = {
     stationCode,
@@ -110,9 +82,30 @@ export default async function Page({ params, searchParams }: any) {
     stationName,
   };
 
+  /* 🔥 PASS ALL DATA FOR NEXT PAGE */
+  const nextParams = {
+    stationName,
+    stationCode,
+    deliveryDate,
+    deliveryTime,
+    vendorName: outletName,
+  };
+
   return (
     <main className="max-w-5xl mx-auto px-3 sm:px-6 py-6">
-      <RestroMenuClient header={header} items={items} />
+
+      {/* DEBUG (optional remove later) */}
+      <div className="mb-4 text-sm bg-gray-100 p-2 rounded">
+        <p><b>Delivery:</b> {deliveryDate} - {deliveryTime}</p>
+        <p><b>Station:</b> {stationName} ({stationCode})</p>
+        <p><b>Vendor:</b> {outletName}</p>
+      </div>
+
+      <RestroMenuClient
+        header={header}
+        items={items}
+        nextParams={nextParams}   // 🔥 IMPORTANT
+      />
     </main>
   );
 }
