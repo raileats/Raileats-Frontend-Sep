@@ -59,33 +59,27 @@ export default function HomePage() {
         </section>
 
         {/* 🔥 BULK ORDER SECTION */}
-        <section id="bulk-order" className="mt-8 px-3 md:px-0">
-          <div className="bg-white rounded-xl p-5 shadow border">
+      <section id="bulk-order" className="mt-8 px-3 md:px-0">
+  <div
+    onClick={() => setShowBulkModal(true)}
+    className="bg-white rounded-xl p-4 shadow border cursor-pointer hover:shadow-md transition"
+  >
+    <div className="flex items-center justify-between">
 
-            <h2 className="text-lg font-semibold mb-3">
-              Bulk Order Query
-            </h2>
-
-            <p className="text-sm text-gray-500 mb-4">
-              Group order ke liye enquiry submit karein
-            </p>
-
-            <button
-              onClick={() => setShowBulkModal(true)}
-              className="w-full bg-yellow-600 text-white py-2 rounded"
-            >
-              Start Bulk Order
-            </button>
-
-          </div>
-        </section>
-
-        {/* Footer */}
-        <section className="mt-8 px-3 md:px-0 mb-16">
-          <FooterLinks />
-        </section>
+      <div>
+        <h2 className="text-base font-semibold">
+          Bulk Order Query
+        </h2>
+        <p className="text-sm text-gray-500">
+          Group order ke liye enquiry submit karein
+        </p>
       </div>
 
+      <span className="text-xl text-gray-400">›</span>
+
+    </div>
+  </div>
+</section>
       {/* 🔥 BULK MODAL (NEXT STEP FORM YAHI AAYEGA) */}
       {showBulkModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
