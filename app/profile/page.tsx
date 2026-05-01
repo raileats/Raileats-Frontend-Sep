@@ -5,7 +5,10 @@ import { useAuth } from "../lib/useAuth";
 import { useRouter } from "next/navigation";
 
 export default function ProfilePage() {
-  const { user, loadUser } = useAuth();
+  const user = useAuth((s) => s.user);
+  const loadUser = useAuth((s) => s.loadUser);
+  const logoutStore = useAuth((s) => s.logout);
+
   const router = useRouter();
 
   const [name, setName] = useState("");
@@ -17,37 +20,48 @@ export default function ProfilePage() {
 
     const raw = localStorage.getItem("raileats_user");
     if (raw) {
-      const u = JSON.parse(raw);
-      setName(u.name || "");
-      setMobile(u.mobile || "");
-      setEmail(u.email || "");
+      try {
+        const u = JSON.parse(raw);
+        setName(u.name || "");
+        setMobile(u.mobile || "");
+        setEmail(u.email || "");
+      } catch {}
     }
   }, []);
 
-  /* 🔥 LOGOUT */
-  const logout = () => {
-    localStorage.removeItem("raileats_user");
+  /* 🔥 FINAL LOGOUT FIX */
+  const handleLogout = () => {
+    try {
+      logoutStore(); // ✅ Zustand clear
+      localStorage.removeItem("raileats_user"); // ✅ extra safety
 
-    // अगर auth context में कुछ clear करना हो तो यहाँ करो
+      // 🔥 FULL REFRESH (fixes navbar state issue)
+      window.location.replace("/");
 
-    router.push("/"); // 👉 homepage
+    } catch (err) {
+      console.error("Logout error:", err);
+    }
   };
 
   return (
     <main className="mx-auto w-full max-w-screen-sm p-4 space-y-4">
 
-      {/* 🔹 PROFILE CARD (CLICKABLE) */}
+      {/* 🔹 PROFILE CARD */}
       <div
         onClick={() => router.push("/profile/edit")}
         className="flex items-center gap-4 rounded-xl border bg-white p-4 shadow cursor-pointer"
       >
         <div className="h-12 w-12 flex items-center justify-center rounded-full bg-red-500 text-white text-lg font-bold">
-          {name?.charAt(0) || "U"}
+          {(name || user?.name || "U")?.charAt(0)}
         </div>
 
         <div className="flex-1">
-          <div className="font-semibold text-lg">{name || "Your Name"}</div>
-          <div className="text-sm text-gray-500">{mobile}</div>
+          <div className="font-semibold text-lg">
+            {name || user?.name || "Your Name"}
+          </div>
+          <div className="text-sm text-gray-500">
+            {mobile || user?.mobile}
+          </div>
         </div>
 
         <div>✏️</div>
@@ -55,11 +69,11 @@ export default function ProfilePage() {
 
       {/* 🔹 CONTACT INFO */}
       <div className="rounded-xl border bg-white p-4 space-y-3 shadow">
-        <Field label="Mobile" value={mobile} readOnly />
-        <Field label="Email" value={email} readOnly />
+        <Field label="Mobile" value={mobile || user?.mobile || ""} readOnly />
+        <Field label="Email" value={email || user?.email || ""} readOnly />
       </div>
 
-      {/* 🔹 MENU LIST */}
+      {/* 🔹 MENU */}
       <div className="rounded-xl border bg-white shadow divide-y">
         <MenuItem label="My Orders" />
         <MenuItem label="Group Orders" />
@@ -75,7 +89,7 @@ export default function ProfilePage() {
 
       {/* 🔥 LOGOUT BUTTON */}
       <button
-        onClick={logout}
+        onClick={handleLogout}
         className="w-full rounded-md bg-red-500 py-2 text-white"
       >
         Logout
