@@ -86,7 +86,7 @@ export default function ProfilePage() {
         <MenuItem label="My Orders" />
         <MenuItem
   label="Group Orders"
-  onClick={() => router.push("/?bulkOrder=true")}
+  onClick={() => router.push("/?goto=bulk")}
 />
         <MenuItem label="Contact Us" />
         <MenuItem label="Feedback" />
