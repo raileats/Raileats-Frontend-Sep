@@ -18,25 +18,38 @@ type AuthState = {
 export const useAuth = create<AuthState>((set) => ({
   user: null,
 
+  /* 🔥 SET USER */
   setUser: (u) => {
     set({ user: u });
-    localStorage.setItem("raileats_user", JSON.stringify(u));
+    try {
+      localStorage.setItem("raileats_user", JSON.stringify(u));
+    } catch {}
   },
 
+  /* 🔥 LOGOUT (FULL RESET) */
   logout: () => {
-    set({ user: null });
-    localStorage.removeItem("raileats_user");
+    try {
+      localStorage.removeItem("raileats_user");
+    } catch {}
 
-    // 🔥 cart clear
+    set({ user: null });
+
+    // 🔥 cart + other cleanup
     window.dispatchEvent(new Event("raileats:logout"));
   },
 
+  /* 🔥 LOAD USER (SAFE) */
   loadUser: () => {
     try {
       const saved = localStorage.getItem("raileats_user");
+
       if (saved) {
         set({ user: JSON.parse(saved) });
+      } else {
+        set({ user: null }); // 🔥 IMPORTANT
       }
-    } catch {}
+    } catch {
+      set({ user: null });
+    }
   },
 }));
