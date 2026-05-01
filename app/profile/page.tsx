@@ -29,22 +29,30 @@ export default function ProfilePage() {
     }
   }, []);
 
-  /* 🔥 FINAL LOGOUT FIX */
+  /* 🔥 LOGOUT */
   const handleLogout = () => {
-    try {
-      logoutStore(); // ✅ Zustand clear
-      localStorage.removeItem("raileats_user"); // ✅ extra safety
+    logoutStore();
+    localStorage.removeItem("raileats_user");
 
-      // 🔥 FULL REFRESH (fixes navbar state issue)
-      window.location.replace("/");
-
-    } catch (err) {
-      console.error("Logout error:", err);
-    }
+    // 🔥 FULL REFRESH FIX
+    window.location.replace("/");
   };
 
   return (
     <main className="mx-auto w-full max-w-screen-sm p-4 space-y-4">
+
+      {/* 🔹 HEADER */}
+      <div className="flex justify-between items-center">
+        <h1 className="text-xl font-semibold">My Profile</h1>
+
+        {/* ❌ BACK BUTTON */}
+        <button
+          onClick={() => router.back()}
+          className="text-lg font-bold text-gray-600"
+        >
+          ✕
+        </button>
+      </div>
 
       {/* 🔹 PROFILE CARD */}
       <div
@@ -69,8 +77,8 @@ export default function ProfilePage() {
 
       {/* 🔹 CONTACT INFO */}
       <div className="rounded-xl border bg-white p-4 space-y-3 shadow">
-        <Field label="Mobile" value={mobile || user?.mobile || ""} readOnly />
-        <Field label="Email" value={email || user?.email || ""} readOnly />
+        <Field label="Mobile" value={mobile || user?.mobile || ""} />
+        <Field label="Email" value={email || user?.email || ""} />
       </div>
 
       {/* 🔹 MENU */}
@@ -87,7 +95,7 @@ export default function ProfilePage() {
         <MenuItem label="Rate Us" />
       </div>
 
-      {/* 🔥 LOGOUT BUTTON */}
+      {/* 🔥 LOGOUT */}
       <button
         onClick={handleLogout}
         className="w-full rounded-md bg-red-500 py-2 text-white"
@@ -109,11 +117,9 @@ export default function ProfilePage() {
 function Field({
   label,
   value,
-  readOnly = false,
 }: {
   label: string;
   value: string;
-  readOnly?: boolean;
 }) {
   return (
     <label className="block">
@@ -121,7 +127,7 @@ function Field({
 
       <input
         value={value}
-        readOnly={readOnly}
+        readOnly
         className="w-full rounded-md border px-3 py-2 bg-gray-50"
       />
     </label>
