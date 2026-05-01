@@ -32,7 +32,7 @@ export default function HomePage() {
   const [loading, setLoading] = useState(false);
 
   // ⭐ FEEDBACK STATES
-  const [rating, setRating] = useState("");
+  const [rating, setRating] = useState(0); // ✅ FIX
   const [comment, setComment] = useState("");
   const [feedbackSuccess, setFeedbackSuccess] = useState(false);
 
@@ -127,7 +127,7 @@ export default function HomePage() {
     }
 
     setFeedbackSuccess(true);
-    setRating("");
+    setRating(0); // ✅ reset fix
     setComment("");
   };
 
@@ -224,19 +224,23 @@ export default function HomePage() {
             {feedbackSuccess ? (
               <div className="text-green-600 text-center">
                 ✅ Feedback submitted
-              <div className="flex justify-center gap-2 text-2xl">
-  {[1, 2, 3, 4, 5].map((star) => (
-    <span
-      key={star}
-      onClick={() => setRating(star)}
-      className={`cursor-pointer transition ${
-        star <= rating ? "text-yellow-400" : "text-gray-300"
-      }`}
-    >
-      ★
-    </span>
-  ))}
-</div>
+              </div>
+            ) : (
+              <>
+                {/* ⭐ STAR UI */}
+                <div className="flex justify-center gap-2 text-2xl">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <span
+                      key={star}
+                      onClick={() => setRating(star)}
+                      className={`cursor-pointer transition ${
+                        star <= rating ? "text-yellow-400" : "text-gray-300"
+                      }`}
+                    >
+                      ★
+                    </span>
+                  ))}
+                </div>
 
                 <textarea
                   placeholder="Write feedback..."
