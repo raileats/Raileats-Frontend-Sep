@@ -10,6 +10,7 @@ import Offers from "./components/Offers";
 import Steps from "./components/Steps";
 import ExploreRailInfo from "./components/ExploreRailInfo";
 import FooterLinks from "./components/FooterLinks";
+import { supabase } from "./lib/supabaseClient";
 
 export default function HomePage() {
   const search = useSearchParams();
