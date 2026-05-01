@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/lib/useCart";
 import { useAuth } from "@/lib/useAuth";
+import { useBooking } from "@/lib/useBooking";
 
 export default function CheckoutPage() {
   const router = useRouter();
