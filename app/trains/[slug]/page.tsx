@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
+import { useBooking } from "@/lib/useBooking";
 
 const SUPABASE_URL = "https://ygisiztmuzwxpnvhwrmr.supabase.co";
 
@@ -9,8 +10,8 @@ const SUPABASE_URL = "https://ygisiztmuzwxpnvhwrmr.supabase.co";
 function toSlug(str: string) {
   return (str || "")
     .trim()
-    .replace(/\s+/g, "-")              // space → dash
-    .replace(/[^a-zA-Z0-9-]/g, "");    // remove special chars
+    .replace(/\s+/g, "-")
+    .replace(/[^a-zA-Z0-9-]/g, "");
 }
 
 /* ================= LIVE CLOCK ================= */
@@ -63,7 +64,6 @@ function getRemaining(arrival: string, date: string, cutoffMin: number) {
 
     const now = new Date();
     return deadlineDT.getTime() - now.getTime();
-
   } catch {
     return 0;
   }
@@ -72,6 +72,8 @@ function getRemaining(arrival: string, date: string, cutoffMin: number) {
 export default function TrainPage() {
   const params = useParams();
   const searchParams = useSearchParams();
+
+  const { setTrain, setJourney } = useBooking();
 
   const slug = (params as any)?.slug || "";
   const trainNumber = slug.match(/^(\d+)/)?.[1] || "";
@@ -83,6 +85,24 @@ export default function TrainPage() {
   const [loading, setLoading] = useState(true);
 
   useNow();
+
+  /* 🔥 NEW: STORE DATA FROM URL */
+  useEffect(() => {
+    if (!trainNumber) return;
+
+    setTrain({
+      number: trainNumber,
+      name: "",
+    });
+
+    setJourney(urlDate, boarding);
+
+    console.log("✅ Booking stored from URL:", {
+      trainNumber,
+      urlDate,
+      boarding,
+    });
+  }, [trainNumber, urlDate, boarding]);
 
   useEffect(() => {
     async function fetchData() {
@@ -138,8 +158,6 @@ export default function TrainPage() {
 
         return (
           <div key={index} className="border rounded-xl p-4 bg-gray-50">
-
-            {/* HEADER */}
             <div className="flex justify-between mb-3">
               <div>
                 <h2 className="font-bold text-lg">
@@ -158,10 +176,8 @@ export default function TrainPage() {
               </div>
             </div>
 
-            {/* VENDORS */}
             <div className="space-y-3">
               {validVendors.map((r: any) => {
-
                 const cutoff = parseInt(
                   String(r.CutOffTime ?? r.cutoff_time ?? "0").trim(),
                   10
@@ -190,14 +206,12 @@ export default function TrainPage() {
                   img = `${SUPABASE_URL}/storage/v1/object/public/RestroDisplayPhoto/${file}`;
                 }
 
-                /* ✅ FINAL SLUG FIX */
                 const stationSlug = `${stationCode}-${toSlug(stationName)}`;
                 const restroSlug = `${r.RestroCode}-${toSlug(r.RestroName)}`;
                 const cleanArrival = (arrives || "").slice(0, 5);
 
                 return (
                   <div key={r.RestroCode} className="bg-white p-3 rounded-lg border flex gap-3">
-
                     <div className="w-24 h-24 bg-gray-100 rounded-md overflow-hidden">
                       {img ? (
                         <img src={img} className="w-full h-full object-cover" />
@@ -235,12 +249,10 @@ export default function TrainPage() {
                         </a>
                       </div>
                     </div>
-
                   </div>
                 );
               })}
             </div>
-
           </div>
         );
       })}
