@@ -224,21 +224,19 @@ export default function HomePage() {
             {feedbackSuccess ? (
               <div className="text-green-600 text-center">
                 ✅ Feedback submitted
-              </div>
-            ) : (
-              <>
-                <select
-                  value={rating}
-                  onChange={(e)=>setRating(e.target.value)}
-                  className="w-full border p-2"
-                >
-                  <option value="">Rating</option>
-                  <option value="5">⭐⭐⭐⭐⭐</option>
-                  <option value="4">⭐⭐⭐⭐</option>
-                  <option value="3">⭐⭐⭐</option>
-                  <option value="2">⭐⭐</option>
-                  <option value="1">⭐</option>
-                </select>
+              <div className="flex justify-center gap-2 text-2xl">
+  {[1, 2, 3, 4, 5].map((star) => (
+    <span
+      key={star}
+      onClick={() => setRating(star)}
+      className={`cursor-pointer transition ${
+        star <= rating ? "text-yellow-400" : "text-gray-300"
+      }`}
+    >
+      ★
+    </span>
+  ))}
+</div>
 
                 <textarea
                   placeholder="Write feedback..."
