@@ -5,13 +5,12 @@ import { useAuth } from "../lib/useAuth";
 import { useRouter } from "next/navigation";
 
 export default function ProfilePage() {
-  const { user, setUser, loadUser } = useAuth();
+  const { user, loadUser } = useAuth();
   const router = useRouter();
 
   const [name, setName] = useState("");
   const [mobile, setMobile] = useState("");
   const [email, setEmail] = useState("");
-  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     loadUser();
@@ -25,38 +24,13 @@ export default function ProfilePage() {
     }
   }, []);
 
-  const save = async () => {
-    if (!name) {
-      alert("Name required");
-      return;
-    }
+  /* 🔥 LOGOUT */
+  const logout = () => {
+    localStorage.removeItem("raileats_user");
 
-    try {
-      setLoading(true);
+    // अगर auth context में कुछ clear करना हो तो यहाँ करो
 
-      const updatedUser = {
-        mobile,
-        name,
-        email,
-      };
-
-      await fetch("/api/save-user", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(updatedUser),
-      });
-
-      setUser(updatedUser);
-      localStorage.setItem("raileats_user", JSON.stringify(updatedUser));
-
-      alert("Profile updated");
-    } catch {
-      alert("Error saving profile");
-    } finally {
-      setLoading(false);
-    }
+    router.push("/"); // 👉 homepage
   };
 
   return (
@@ -81,15 +55,12 @@ export default function ProfilePage() {
 
       {/* 🔹 CONTACT INFO */}
       <div className="rounded-xl border bg-white p-4 space-y-3 shadow">
-
-        <Field label="Mobile" value={mobile} onChange={setMobile} readOnly />
-        <Field label="Email" value={email} onChange={setEmail} />
-
+        <Field label="Mobile" value={mobile} readOnly />
+        <Field label="Email" value={email} readOnly />
       </div>
 
       {/* 🔹 MENU LIST */}
       <div className="rounded-xl border bg-white shadow divide-y">
-
         <MenuItem label="My Orders" />
         <MenuItem label="Group Orders" />
         <MenuItem label="Contact Us" />
@@ -100,16 +71,14 @@ export default function ProfilePage() {
         <MenuItem label="Privacy Policy" />
         <MenuItem label="Cancellation Policy" />
         <MenuItem label="Rate Us" />
-
       </div>
 
-      {/* 🔹 SAVE BUTTON */}
+      {/* 🔥 LOGOUT BUTTON */}
       <button
-        onClick={save}
-        disabled={loading}
-        className="w-full rounded-md bg-yellow-600 py-2 text-white"
+        onClick={logout}
+        className="w-full rounded-md bg-red-500 py-2 text-white"
       >
-        {loading ? "Saving..." : "Save Profile"}
+        Logout
       </button>
 
       {/* VERSION */}
@@ -126,12 +95,10 @@ export default function ProfilePage() {
 function Field({
   label,
   value,
-  onChange,
   readOnly = false,
 }: {
   label: string;
   value: string;
-  onChange: (v: string) => void;
   readOnly?: boolean;
 }) {
   return (
@@ -140,9 +107,8 @@ function Field({
 
       <input
         value={value}
-        onChange={(e) => onChange(e.target.value)}
         readOnly={readOnly}
-        className="w-full rounded-md border px-3 py-2"
+        className="w-full rounded-md border px-3 py-2 bg-gray-50"
       />
     </label>
   );
