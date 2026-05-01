@@ -50,7 +50,7 @@ export default function HomePage() {
         .insert([
           {
             name: user?.name || name,
-            mobile: user?.mobile || mobile,
+            mobile: user?.mobile || formatMobile(mobile),
             email: user?.email || email,
             train_number: trainNumber,
             journey_date: journeyDate,
