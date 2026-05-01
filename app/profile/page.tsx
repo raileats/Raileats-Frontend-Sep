@@ -149,7 +149,9 @@ function MenuItem({
   return (
     <div
       onClick={onClick}
-      className="flex items-center justify-between px-4 py-3 text-sm cursor-pointer hover:bg-gray-50"
+      className={`flex items-center justify-between px-4 py-3 text-sm hover:bg-gray-50 ${
+        onClick ? "cursor-pointer" : ""
+      }`}
     >
       <span>{label}</span>
       <span>›</span>
