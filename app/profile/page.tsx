@@ -136,14 +136,13 @@ export default function ProfilePage() {
           onClick={() => setShowBulkModal(true)}
         />
 
-        <MenuItem label="Contact Us" />
-        <MenuItem label="Feedback" />
-        <MenuItem label="About Us" />
-        <MenuItem label="FAQ" />
-        <MenuItem label="Terms & Conditions" />
-        <MenuItem label="Privacy Policy" />
-        <MenuItem label="Cancellation Policy" />
-        <MenuItem label="Rate Us" />
+        <MenuItem label="Contact Us" onClick={() => router.push("/contact")} />
+<MenuItem label="Feedback" onClick={() => router.push("/feedback")} />
+<MenuItem label="About Us" onClick={() => router.push("/about")} />
+<MenuItem label="FAQ" onClick={() => router.push("/faq")} />
+<MenuItem label="Terms & Conditions" onClick={() => router.push("/terms")} />
+<MenuItem label="Privacy Policy" onClick={() => router.push("/privacy-policy")} />
+<MenuItem label="Cancellation Policy" onClick={() => router.push("/cancellation-refund")} />
       </div>
 
       {/* LOGOUT */}
