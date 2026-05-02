@@ -1,7 +1,7 @@
 "use client";
 
 import { useAuth } from "../../../lib/useAuth";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useCart } from "../../../lib/useCart";
 import CartPillMobile from "../../../components/CartPillMobile";
 
