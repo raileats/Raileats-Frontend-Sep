@@ -119,19 +119,19 @@ export default async function Page({ params, searchParams }: any) {
     <main className="container-app">
 
       {/* ✅ NEW CLEAN HEADER */}
-      <div className="mb-5 rounded-xl border border-yellow-300 bg-gradient-to-r from-yellow-50 to-orange-50 p-4 shadow-sm">
+      <div className="mb-4 rounded-xl border border-yellow-300 bg-gradient-to-r from-yellow-50 to-orange-50 p-4 shadow-sm">
 
-  <div className="flex flex-col gap-3">
+  <div className="grid grid-cols-2 gap-4 items-start">
 
-    {/* Journey */}
+    {/* LEFT → Journey */}
     <div>
       <div className="text-xs text-gray-500 font-medium">Journey</div>
 
-      <div className="text-lg font-bold text-orange-700">
+      <div className="text-base font-bold text-orange-700">
         {trainName || "Train"}
       </div>
 
-      <div className="text-sm text-gray-600">
+      <div className="text-xs text-gray-600">
         #{searchParams?.train || ""}
       </div>
 
@@ -140,13 +140,11 @@ export default async function Page({ params, searchParams }: any) {
       </div>
     </div>
 
-    <div className="border-t pt-3"></div>
-
-    {/* Delivery */}
-    <div>
+    {/* RIGHT → Delivery */}
+    <div className="text-right">
       <div className="text-xs text-gray-500 font-medium">Delivery</div>
 
-      <div className="text-lg font-bold text-blue-700">
+      <div className="text-base font-bold text-blue-700">
         {deliveryDate} {deliveryTime && `at ${deliveryTime}`}
       </div>
 
