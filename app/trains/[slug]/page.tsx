@@ -88,10 +88,11 @@ export default function TrainPage() {
 
   useNow();
   const orderData = {
-  train_number: trainNumber,
-  date: urlDate,
-  station_code: boarding,
-};
+    train_number: trainNumber,
+    train_name: trainName,
+    date: urlDate,
+    station_code: boarding,
+  };
 
   /* 🔥 NEW: STORE DATA FROM URL */
   useEffect(() => {
@@ -143,6 +144,23 @@ export default function TrainPage() {
 
   return (
     <div className="max-w-3xl mx-auto p-4 space-y-6">
+      <div className="rounded-lg border border-orange-200 bg-orange-50 p-4">
+        <div className="text-sm text-gray-600">ट्रेन</div>
+        <div className="text-2xl font-bold text-orange-700">
+          {trainName ? `${trainNumber} - ${trainName}` : trainNumber}
+        </div>
+        {boarding && (
+          <div className="mt-2 text-sm text-gray-600">
+            Boarding: <span className="font-medium">{boarding}</span>
+          </div>
+        )}
+        {urlDate && (
+          <div className="text-sm text-gray-600">
+            Date: <span className="font-medium">{urlDate}</span>
+          </div>
+        )}
+      </div>
+
       <SaveOrderData data={orderData} />
       {stations.map((st: any, index: number) => {
         const stationCode = st.StationCode;
@@ -165,6 +183,8 @@ export default function TrainPage() {
 
         if (!validVendors.length) return null;
 
+        const state = st.State || "";
+
         return (
           <div key={index} className="border rounded-xl p-4 bg-gray-50">
             <div className="flex justify-between mb-3">
@@ -172,6 +192,11 @@ export default function TrainPage() {
                 <h2 className="font-bold text-lg">
                   {stationName} ({stationCode})
                 </h2>
+                {state && (
+                  <div className="text-sm text-gray-600 font-medium">
+                    {state}
+                  </div>
+                )}
                 <div className="text-xs text-gray-500">{deliveryDate}</div>
               </div>
 
