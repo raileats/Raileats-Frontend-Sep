@@ -125,6 +125,28 @@ export default function CheckoutPage() {
 
         </div>
       )}
+      {orderData && (
+  <div className="bg-yellow-50 border rounded p-3 mb-3 text-sm">
+
+    <div>
+      <b>Delivery:</b>{" "}
+      {orderData.journey?.arrivalDate}{" "}
+      {orderData.journey?.arrivalTime}
+    </div>
+
+    <div>
+      <b>Station:</b>{" "}
+      {orderData.journey?.stationName} (
+      {orderData.journey?.stationCode})
+    </div>
+
+    <div>
+      <b>Vendor:</b>{" "}
+      {orderData.vendorName}
+    </div>
+
+  </div>
+)}
 
       <h2 className="font-bold mb-3">Passenger Details</h2>
 
