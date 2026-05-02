@@ -119,39 +119,44 @@ export default async function Page({ params, searchParams }: any) {
     <main className="container-app">
 
       {/* ✅ NEW CLEAN HEADER */}
-      <div className="card mb-4">
-        <div className="grid grid-cols-1 gap-3">
+      <div className="mb-5 rounded-xl border border-yellow-300 bg-gradient-to-r from-yellow-50 to-orange-50 p-4 shadow-sm">
 
-          <div>
-            <div className="text-xs text-sub">Journey</div>
+  <div className="flex flex-col gap-3">
 
-            <div className="text-main font-semibold">
-              {trainName || "Train"}
-            </div>
+    {/* Journey */}
+    <div>
+      <div className="text-xs text-gray-500 font-medium">Journey</div>
 
-            <div className="text-sub text-xs">
-              #{searchParams?.train || ""}
-            </div>
-
-            <div className="mt-2 text-sm font-medium">
-              {stationName} ({stationCode})
-            </div>
-          </div>
-
-          <div className="border-t pt-2">
-            <div className="text-xs text-sub">Delivery</div>
-
-            <div className="text-main font-semibold">
-              {deliveryDate} {deliveryTime && `at ${deliveryTime}`}
-            </div>
-
-            <div className="text-sub text-sm">
-              {outletName}
-            </div>
-          </div>
-
-        </div>
+      <div className="text-lg font-bold text-orange-700">
+        {trainName || "Train"}
       </div>
+
+      <div className="text-sm text-gray-600">
+        #{searchParams?.train || ""}
+      </div>
+
+      <div className="mt-1 text-sm font-medium text-gray-800">
+        {stationName} ({stationCode})
+      </div>
+    </div>
+
+    <div className="border-t pt-3"></div>
+
+    {/* Delivery */}
+    <div>
+      <div className="text-xs text-gray-500 font-medium">Delivery</div>
+
+      <div className="text-lg font-bold text-blue-700">
+        {deliveryDate} {deliveryTime && `at ${deliveryTime}`}
+      </div>
+
+      <div className="text-sm text-gray-800 font-medium">
+        {outletName}
+      </div>
+    </div>
+
+  </div>
+</div>
 
       <RestroMenuClient
         header={header}
