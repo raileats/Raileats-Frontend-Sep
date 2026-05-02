@@ -161,7 +161,6 @@ export default function TrainPage() {
         )}
       </div>
 
-      <SaveOrderData data={orderData} />
       {stations.map((st: any, index: number) => {
         const stationCode = st.StationCode;
         const stationName = st.StationName;
