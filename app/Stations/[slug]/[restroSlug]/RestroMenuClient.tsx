@@ -94,17 +94,19 @@ export default function RestroMenuClient({ items, header }: any) {
     });
   };
 
-  return (
-    <div className="container-app space-y-4">
+return (
+  <div className="container-app space-y-4">
 
-      {/* HEADER */}
-     <div className="card flex justify-between items-center">
-        <div>
-          <h1 className="text-main font-semibold">{header.outletName}</h1>
-          <div className="text-sub text-xs">
-            {header.stationCode}
-          </div>
+    {/* HEADER */}
+    <div className="card flex justify-between items-center">
+      <div>
+        <h1 className="text-main font-semibold">
+          {header.outletName}
+        </h1>
+        <div className="text-sub text-xs">
+          {header.stationCode}
         </div>
+      </div>
 
         <label className="text-sm flex gap-1">
           <input
