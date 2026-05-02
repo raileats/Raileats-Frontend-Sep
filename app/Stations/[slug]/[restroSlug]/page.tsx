@@ -1,10 +1,9 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React from "react";
 import { extractStationCode } from "../../../lib/stationSlug";
 import { extractRestroCode } from "../../../lib/restroSlug";
 import RestroMenuClient from "./RestroMenuClient";
-import SaveOrderData from "@/components/SaveOrderData";
 
 export const revalidate = 60;
 export const runtime = "nodejs";
@@ -40,7 +39,7 @@ async function fetchOnMenu(
 }
 
 /* ------------ PAGE ------------ */
-export default function Page({ params, searchParams }: any) {
+export default async function Page({ params, searchParams }: any) {
 
   const stationCode = extractStationCode(params.slug) || "";
   const restroCode = extractRestroCode(params.restroSlug) || "";
@@ -49,34 +48,61 @@ export default function Page({ params, searchParams }: any) {
   const stationName =
     params.slug?.split("-")?.slice(1)?.join(" ") || stationCode;
 
+  /* 🔥 URL DATA */
   const deliveryDate =
     searchParams?.deliveryDate || searchParams?.date || "";
 
   const deliveryTime =
     searchParams?.deliveryTime ||
-    searchParams?.arrival?.slice(0, 5) ||
-    searchParams?.arrivalTime?.slice(0, 5) ||
+    searchParams?.arrival ||
+    searchParams?.arrivalTime ||
     "";
 
   const trainName = searchParams?.trainName || "";
 
-  /* 🔥 SAVE ORDER DATA */
-  const orderData = {
-    train_number: searchParams?.train || "",
-    train_name: trainName,
-    date: deliveryDate,
-    station_code: stationCode,
-    station_name: stationName,
-    vendor_name: outletName,
-    arrival_time: deliveryTime,
-    delivery_date: deliveryDate,
+  /* 🔥 FIXED ARRIVAL TIME */
+  let arrivalTime = "12:00:00";
+
+  if (deliveryTime) {
+    const clean = deliveryTime.slice(0, 5);
+    arrivalTime = clean + ":00";
+  }
+
+  /* ================= FETCH ================= */
+
+  const rawItems = await fetchOnMenu(restroCode, arrivalTime);
+
+  /* ================= NORMALIZE ================= */
+
+  const items = (rawItems || []).map((it: any) => ({
+    id: Number(it?.id),
+    item_name: it?.item_name || "",
+    base_price: Number(it?.base_price || 0),
+    item_category: it?.item_category || "",
+    item_description: it?.item_description || it?.description || "",
+    start_time: it?.start_time || it?.item_start_time || null,
+    end_time: it?.end_time || it?.item_end_time || null,
+    status: String(it?.status || "ON").toUpperCase(),
+  }));
+
+  const header = {
+    stationCode,
+    restroCode: String(restroCode),
+    outletName,
+    stationName,
+  };
+
+  const nextParams = {
+    stationName,
+    stationCode,
+    deliveryDate,
+    deliveryTime,
+    trainName,
+    vendorName: outletName,
   };
 
   return (
     <main className="max-w-5xl mx-auto px-3 sm:px-6 py-6">
-
-      {/* 🔥 SAVE ORDER DATA */}
-      <SaveOrderData data={orderData} />
 
       {/* HEADER */}
       <div className="mb-6 rounded-lg border-2 border-orange-300 bg-gradient-to-r from-orange-50 to-yellow-50 p-5 shadow-sm">
@@ -86,17 +112,15 @@ export default function Page({ params, searchParams }: any) {
             <div className="text-xs font-semibold text-gray-500">
               Journey
             </div>
-
             <div className="mt-2">
               <div className="text-lg font-bold text-orange-700">
                 {trainName || "Train"}
               </div>
-
               <div className="text-sm text-gray-600">
                 #{searchParams?.train || ""}
               </div>
 
-              <div className="mt-2 text-gray-800 font-medium">
+              <div className="mt-3 font-semibold">
                 {stationName} ({stationCode})
               </div>
             </div>
@@ -107,14 +131,12 @@ export default function Page({ params, searchParams }: any) {
               Delivery
             </div>
 
-            <div className="mt-2">
-              <div className="text-lg font-bold text-blue-700">
-                {deliveryDate} {deliveryTime && `at ${deliveryTime}`}
-              </div>
+            <div className="mt-2 text-lg font-bold text-blue-700">
+              {deliveryDate} {deliveryTime && `at ${deliveryTime}`}
+            </div>
 
-              <div className="mt-2 font-medium">
-                {outletName}
-              </div>
+            <div className="mt-3 font-semibold">
+              {outletName}
             </div>
           </div>
 
@@ -122,23 +144,10 @@ export default function Page({ params, searchParams }: any) {
       </div>
 
       <RestroMenuClient
-        header={{
-          stationCode,
-          restroCode: String(restroCode),
-          outletName,
-          stationName,
-        }}
-        items={[]}
-        nextParams={{
-          stationName,
-          stationCode,
-          deliveryDate,
-          deliveryTime,
-          trainName,
-          vendorName: outletName,
-        }}
+        header={header}
+        items={items}
+        nextParams={nextParams}
       />
-
     </main>
   );
 }
