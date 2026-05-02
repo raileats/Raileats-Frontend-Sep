@@ -54,6 +54,7 @@ export default async function Page({ params, searchParams }: any) {
     searchParams?.arrival?.slice(0, 5) ||
     searchParams?.arrivalTime?.slice(0, 5) ||
     "";
+  const trainName = searchParams?.trainName || "";
   const arrivalParam = searchParams?.arrival || searchParams?.arrivalTime;
 
   let arrivalTime = "12:00:00";
@@ -93,6 +94,7 @@ export default async function Page({ params, searchParams }: any) {
     stationCode,
     deliveryDate,
     deliveryTime,
+    trainName,
     vendorName: outletName,
   };
 
@@ -102,6 +104,7 @@ export default async function Page({ params, searchParams }: any) {
       {/* DEBUG (optional remove later) */}
       <div className="mb-4 text-sm bg-gray-100 p-2 rounded">
         <p><b>Delivery:</b> {deliveryDate} - {deliveryTime}</p>
+        <p><b>Train:</b> {trainName ? `${trainName} (#${searchParams?.train || ""})` : searchParams?.train || ""}</p>
         <p><b>Station:</b> {stationName} ({stationCode})</p>
         <p><b>Vendor:</b> {outletName}</p>
       </div>
