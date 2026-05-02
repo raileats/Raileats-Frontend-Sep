@@ -7,6 +7,7 @@ import Providers from "./components/Providers";
 
 import CartPopup from "./components/CartPopup";
 import LoginModal from "./components/LoginModal";
+import FeedbackModal from "./components/FeedbackModal";
 import AuthLoader from "./components/AuthLoader"; // ✅ NEW
 
 import "slick-carousel/slick/slick.css";
@@ -63,6 +64,9 @@ export default function RootLayout({
 
           {/* LOGIN */}
           <LoginModal />
+
+          {/* FEEDBACK */}
+          <FeedbackModal />
 
           {/* Bottom Nav */}
           <BottomNav />
