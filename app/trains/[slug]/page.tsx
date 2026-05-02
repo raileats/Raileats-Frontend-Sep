@@ -86,7 +86,7 @@ export default function TrainPage() {
 
   useNow();
 
-  /* 🔥 STORE BOOKING */
+  /* 🔥 NEW: STORE DATA FROM URL */
   useEffect(() => {
     if (!trainNumber) return;
 
@@ -96,6 +96,12 @@ export default function TrainPage() {
     });
 
     setJourney(urlDate, boarding);
+
+    console.log("✅ Booking stored from URL:", {
+      trainNumber,
+      urlDate,
+      boarding,
+    });
   }, [trainNumber, urlDate, boarding]);
 
   useEffect(() => {
@@ -200,6 +206,8 @@ export default function TrainPage() {
                   img = `${SUPABASE_URL}/storage/v1/object/public/RestroDisplayPhoto/${file}`;
                 }
 
+                const stationSlug = `${stationCode}-${toSlug(stationName)}`;
+                const restroSlug = `${r.RestroCode}-${toSlug(r.RestroName)}`;
                 const cleanArrival = (arrives || "").slice(0, 5);
 
                 return (
@@ -234,21 +242,7 @@ export default function TrainPage() {
 
                       <div className="text-right">
                         <a
-                          href={`/menu?restro=${r.RestroCode}&station=${stationCode}&date=${deliveryDate}&train=${trainNumber}&boarding=${boarding}&arrival=${cleanArrival}`}
-                          onClick={() => {
-                            localStorage.setItem(
-                              "selectedBooking",
-                              JSON.stringify({
-                                restro_name: r.RestroName,
-                                restro_code: r.RestroCode,
-                                station_name: stationName,
-                                station_code: stationCode,
-                                date: deliveryDate,
-                                train_number: trainNumber,
-                                arrival: cleanArrival,
-                              })
-                            );
-                          }}
+                          href={`/Stations/${stationSlug}/${restroSlug}?date=${deliveryDate}&train=${trainNumber}&boarding=${boarding}&arrival=${cleanArrival}`}
                           className="bg-orange-500 text-white px-4 py-2 rounded-lg text-sm"
                         >
                           Order Now
