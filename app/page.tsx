@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useAuth } from "./lib/useAuth";
 import { supabase } from "./lib/supabaseClient";
 
@@ -14,7 +14,6 @@ import FooterLinks from "./components/FooterLinks";
 
 export default function HomePage() {
   const search = useSearchParams();
-  const router = useRouter();
   const user = useAuth((s) => s.user);
 
   const [showBulkModal, setShowBulkModal] = useState(false);
@@ -153,9 +152,6 @@ export default function HomePage() {
     if (action === "feedback") {
       setShowFeedbackModal(true);
       localStorage.removeItem("afterLoginAction");
-    } else if (action === "bulk") {
-      setShowBulkModal(true);
-      localStorage.removeItem("afterLoginAction");
     }
   }, []);
 
@@ -173,15 +169,7 @@ export default function HomePage() {
         {/* BULK CARD */}
         <section className="mt-6">
           <div
-            onClick={() => {
-              if (!user) {
-                localStorage.setItem("redirectAfterLogin", "/");
-                localStorage.setItem("afterLoginAction", "bulk");
-                router.push("/login");
-              } else {
-                setShowBulkModal(true);
-              }
-            }}
+            onClick={() => setShowBulkModal(true)}
             className="bg-white p-4 rounded-xl shadow border cursor-pointer"
           >
             <h3 className="font-semibold text-base">
