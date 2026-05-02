@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/lib/useCart";
 import { useAuth } from "@/lib/useAuth";
-import { useBooking } from "../../lib/useBooking";
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -12,8 +11,17 @@ export default function CheckoutPage() {
   const { items, clearCart } = useCart();
   const { user, loadUser } = useAuth();
 
-  /* ================= USER ================= */
+  const [orderData, setOrderData] = useState<any>(null);
 
+  /* LOAD ORDER DATA */
+  useEffect(() => {
+    const data = localStorage.getItem("temp_order");
+    if (data) {
+      setOrderData(JSON.parse(data));
+    }
+  }, []);
+
+  /* USER */
   const [name, setName] = useState("");
   const [mobile, setMobile] = useState("");
   const [email, setEmail] = useState("");
@@ -30,20 +38,11 @@ export default function CheckoutPage() {
     }
   }, [user]);
 
-  /* ================= JOURNEY ================= */
-
+  /* FORM */
   const [pnr, setPnr] = useState("");
   const [trainNo, setTrainNo] = useState("");
-  const [coach, setCoach] = useState("");
-  const [seat, setSeat] = useState("");
 
-  /* ================= EXTRA ================= */
-
-  const [promo, setPromo] = useState("");
-  const [paymentMode, setPaymentMode] = useState("COD");
-
-  /* ================= CALCULATIONS ================= */
-
+  /* TOTAL */
   const subtotal = items.reduce(
     (sum, i) => sum + Number(i.price) * Number(i.qty),
     0
@@ -53,20 +52,12 @@ export default function CheckoutPage() {
   const delivery = subtotal > 0 ? 20 : 0;
   const total = subtotal + gst + delivery;
 
-  /* ================= ORDER ================= */
-
+  /* PLACE ORDER */
   const placeOrder = async () => {
     if (!items.length) {
       alert("Cart empty");
       return;
     }
-
-    if (!mobile) {
-      alert("Mobile required");
-      return;
-    }
-
-    const firstItem = items[0];
 
     try {
       const res = await fetch("/api/order/create", {
@@ -75,51 +66,21 @@ export default function CheckoutPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          // USER
-          customerName: name || "Guest",
+          customerName: name,
           customerMobile: mobile,
-          customerEmail: email || null,
+          customerEmail: email,
 
-          // TRAIN
-          pnr: pnr || null,
-          trainNumber: trainNo || "11016",
+          trainNumber: trainNo || orderData?.journey?.trainNumber,
 
-          // RESTRO + STATION
-          restroCode: firstItem?.restro_code,
-          restroName: firstItem?.restro_name,
-          stationCode: firstItem?.station_code,
-          stationName: firstItem?.station_name,
+          restroName: orderData?.vendorName,
+          stationCode: orderData?.journey?.boardingStation,
+          stationName: orderData?.journey?.stationName,
 
-          // DELIVERY (❗ अभी dynamic नहीं है → बाद में fix करना)
-          arrivalDate: new Date().toISOString().split("T")[0],
-          arrivalTime: new Date().toLocaleTimeString(),
+          arrivalDate: orderData?.journey?.arrivalDate,
+          arrivalTime: orderData?.journey?.arrivalTime,
 
-          // SEAT
-          coach: coach || null,
-          seat: seat || null,
-
-          // PAYMENT
-          paymentMode,
-
-          // PROMO
-          promoCode: promo || null,
-
-          // ITEMS
-          items: items.map((i) => ({
-            id: i.id,
-            name: i.name,
-            qty: i.qty,
-            selling_price: i.price,
-          })),
-
-          // SUMMARY
-          subtotal,
-          gst,
-          delivery,
+          items,
           total,
-
-          // META
-          bookingTime: new Date().toISOString(),
         }),
       });
 
@@ -134,24 +95,44 @@ export default function CheckoutPage() {
       router.push("/order-success");
 
     } catch (e) {
-      console.error(e);
-      alert("Server error");
+      alert("Error");
     }
   };
-
-  /* ================= UI ================= */
 
   return (
     <div className="max-w-md mx-auto p-4">
 
-      <h2 className="text-lg font-bold mb-3">Passenger Details</h2>
+      {/* 🔥 ORDER INFO */}
+      {orderData && (
+        <div className="bg-yellow-50 border p-3 mb-3 text-sm rounded">
+
+          <div>
+            <b>Delivery:</b>{" "}
+            {orderData.journey?.arrivalDate}{" "}
+            {orderData.journey?.arrivalTime}
+          </div>
+
+          <div>
+            <b>Station:</b>{" "}
+            {orderData.journey?.stationName} (
+            {orderData.journey?.stationCode})
+          </div>
+
+          <div>
+            <b>Vendor:</b>{" "}
+            {orderData.vendorName}
+          </div>
+
+        </div>
+      )}
+
+      <h2 className="font-bold mb-3">Passenger Details</h2>
 
       <input
         className="border p-2 w-full mb-2"
         placeholder="Name"
         value={name}
         onChange={(e) => setName(e.target.value)}
-        readOnly={!!user}
       />
 
       <input
@@ -159,7 +140,6 @@ export default function CheckoutPage() {
         placeholder="Mobile"
         value={mobile}
         onChange={(e) => setMobile(e.target.value)}
-        readOnly={!!user}
       />
 
       <input
@@ -167,16 +147,6 @@ export default function CheckoutPage() {
         placeholder="Email"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
-        readOnly={!!user}
-      />
-
-      {/* JOURNEY */}
-
-      <input
-        className="border p-2 w-full mb-2"
-        placeholder="PNR (optional)"
-        value={pnr}
-        onChange={(e) => setPnr(e.target.value)}
       />
 
       <input
@@ -185,33 +155,6 @@ export default function CheckoutPage() {
         value={trainNo}
         onChange={(e) => setTrainNo(e.target.value)}
       />
-
-      <div className="flex gap-2 mb-3">
-        <input
-          className="border p-2 w-1/2"
-          placeholder="Coach"
-          value={coach}
-          onChange={(e) => setCoach(e.target.value)}
-        />
-
-        <input
-          className="border p-2 w-1/2"
-          placeholder="Seat"
-          value={seat}
-          onChange={(e) => setSeat(e.target.value)}
-        />
-      </div>
-
-      {/* PROMO */}
-
-      <input
-        className="border p-2 w-full mb-3"
-        placeholder="Promo Code"
-        value={promo}
-        onChange={(e) => setPromo(e.target.value)}
-      />
-
-      {/* ORDER */}
 
       <div className="border p-3 rounded mb-3">
         <h3 className="font-semibold mb-2">Your Order</h3>
@@ -225,32 +168,10 @@ export default function CheckoutPage() {
 
         <hr className="my-2" />
 
-        <Row label="Subtotal" value={subtotal} />
-        <Row label="GST (5%)" value={gst} />
-        <Row label="Delivery" value={delivery} />
-        <Row label="Total" value={total} bold />
-      </div>
-
-      {/* PAYMENT */}
-
-      <div className="flex gap-3 mb-3">
-        <button
-          onClick={() => setPaymentMode("COD")}
-          className={`flex-1 border p-2 ${
-            paymentMode === "COD" ? "bg-green-600 text-white" : ""
-          }`}
-        >
-          COD
-        </button>
-
-        <button
-          onClick={() => setPaymentMode("ONLINE")}
-          className={`flex-1 border p-2 ${
-            paymentMode === "ONLINE" ? "bg-green-600 text-white" : ""
-          }`}
-        >
-          PPD
-        </button>
+        <div className="flex justify-between font-bold">
+          <span>Total</span>
+          <span>₹{total}</span>
+        </div>
       </div>
 
       <button
@@ -260,17 +181,6 @@ export default function CheckoutPage() {
         Place Order
       </button>
 
-    </div>
-  );
-}
-
-/* ================= ROW ================= */
-
-function Row({ label, value, bold = false }: any) {
-  return (
-    <div className={`flex justify-between ${bold ? "font-bold" : "text-sm"}`}>
-      <span>{label}</span>
-      <span>₹{value}</span>
     </div>
   );
 }
