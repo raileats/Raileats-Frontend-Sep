@@ -1,7 +1,7 @@
 "use client";
 
 import { useAuth } from "../../../lib/useAuth";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { useCart } from "../../../lib/useCart";
 import CartPillMobile from "../../../components/CartPillMobile";
 
@@ -40,20 +40,18 @@ export default function RestroMenuClient({ items, header }: any) {
   const [vegOnly, setVegOnly] = useState(false);
 
   /* 🔥 COMPUTE ONLY ONCE */
-  const [trainMin, setTrainMin] = useState<number | null>(null);
+  const trainMin = useMemo(() => {
+    if (typeof window === "undefined") return null;
 
-useEffect(() => {
-  const params = new URLSearchParams(window.location.search);
+    const params = new URLSearchParams(window.location.search);
+    const arrival = params.get("arrival");
 
-  const arrival =
-    params.get("deliveryTime") ||
-    params.get("arrival") ||
-    params.get("arrivalTime");
+    if (arrival && arrival.includes(":")) {
+      return toMin(arrival.slice(0, 5));
+    }
+    return null;
+  }, []);
 
-  if (arrival && arrival.includes(":")) {
-    setTrainMin(toMin(arrival.slice(0, 5)));
-  }
-}, []);
   /* 🔥 HEAVY FILTER OPTIMIZED */
   const visible = useMemo(() => {
     return items.filter((it: any) => {
@@ -96,104 +94,102 @@ useEffect(() => {
     });
   };
 
-return (
-  <div className="container-app space-y-4">
+  return (
+    <div className="p-3 max-w-xl mx-auto">
 
-    {/* HEADER */}
-    <div className="card flex justify-between items-center">
-      <div>
-        <h1 className="text-main font-semibold">
-          {header.outletName}
-        </h1>
-        <div className="text-sub text-xs">
-          {header.stationCode}
-        </div>
-      </div>
-
-      <label className="text-sm flex gap-1">
-        <input
-          type="checkbox"
-          checked={vegOnly}
-          onChange={(e) => setVegOnly(e.target.checked)}
-        />
-        Veg only
-      </label>
-    </div>
-
-    {/* EMPTY */}
-    {visible.length === 0 && (
-      <div className="card text-center text-sub">
-        No items available
-      </div>
-    )}
-
-    {/* ITEMS */}
-    <div className="space-y-3">
-      {visible.map((it: any) => {
-        const existing = cart[it.id];
-        const isVeg = isVegItem(it);
-
-        return (
-          <div
-            key={it.id}
-            className="card flex justify-between items-start"
-          >
-            <div>
-              <div className="flex gap-2 items-center">
-                <span
-                  className={`w-3 h-3 rounded-full ${
-                    isVeg ? "bg-green-600" : "bg-red-600"
-                  }`}
-                />
-                <span className="text-main text-sm font-medium">
-                  {it.item_name}
-                </span>
-              </div>
-
-              <div className="text-sub text-xs">
-                ⏱{" "}
-                {it.start_time && it.end_time
-                  ? `${it.start_time} - ${it.end_time}`
-                  : "All day"}
-              </div>
-
-              {it.item_description && (
-                <div className="text-sub text-xs">
-                  {it.item_description}
-                </div>
-              )}
-
-              <div className="text-main font-semibold">
-                ₹{it.base_price}
-              </div>
-            </div>
-
-            <div>
-              {!existing ? (
-                <button
-                  className="btn-primary text-sm"
-                  onClick={() => handleAdd(it)}
-                >
-                  Add
-                </button>
-              ) : (
-                <div className="flex gap-2 border border-borderLight px-2 py-1 rounded text-sm">
-                  <button onClick={() => changeQty(it.id, existing.qty - 1)}>
-                    -
-                  </button>
-                  <span>{existing.qty}</span>
-                  <button onClick={() => changeQty(it.id, existing.qty + 1)}>
-                    +
-                  </button>
-                </div>
-              )}
-            </div>
+      {/* HEADER */}
+      <div className="flex justify-between mb-3">
+        <div>
+          <h1 className="font-semibold">{header.outletName}</h1>
+          <div className="text-xs text-gray-500">
+            {header.stationCode}
           </div>
-        );
-      })}
-    </div>
+        </div>
 
-    <CartPillMobile />
-  </div>
-);
+        <label className="text-sm flex gap-1">
+          <input
+            type="checkbox"
+            checked={vegOnly}
+            onChange={(e) => setVegOnly(e.target.checked)}
+          />
+          Veg only
+        </label>
+      </div>
+
+      {/* EMPTY */}
+      {visible.length === 0 && (
+        <div className="text-center text-gray-500 mt-10">
+          No items available
+        </div>
+      )}
+
+      {/* ITEMS */}
+      <div className="space-y-3">
+        {visible.map((it: any) => {
+          const existing = cart[it.id];
+          const isVeg = isVegItem(it);
+
+          return (
+            <div
+              key={it.id}
+              className="border rounded-lg p-3 flex justify-between"
+            >
+              <div>
+                <div className="flex gap-2 items-center">
+                  <span
+                    className={`w-3 h-3 rounded-full ${
+                      isVeg ? "bg-green-600" : "bg-red-600"
+                    }`}
+                  />
+                  <span className="text-sm font-medium">
+                    {it.item_name}
+                  </span>
+                </div>
+
+                <div className="text-xs text-gray-500">
+                  ⏱{" "}
+                  {it.start_time && it.end_time
+                    ? `${it.start_time} - ${it.end_time}`
+                    : "All day"}
+                </div>
+
+                {it.item_description && (
+                  <div className="text-xs text-gray-600">
+                    {it.item_description}
+                  </div>
+                )}
+
+                <div className="font-semibold">
+                  ₹{it.base_price}
+                </div>
+              </div>
+
+              <div>
+                {!existing ? (
+                  <button
+                    className="border px-3 py-1 text-green-600 border-green-600 rounded text-sm"
+                    onClick={() => handleAdd(it)}
+                  >
+                    ADD
+                  </button>
+                ) : (
+                  <div className="flex gap-2 border px-2 py-1 rounded text-sm">
+                    <button onClick={() => changeQty(it.id, existing.qty - 1)}>
+                      -
+                    </button>
+                    <span>{existing.qty}</span>
+                    <button onClick={() => changeQty(it.id, existing.qty + 1)}>
+                      +
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <CartPillMobile />
+    </div>
+  );
 }
