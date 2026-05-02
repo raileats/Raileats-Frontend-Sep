@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { useBooking } from "../../../lib/useBooking";
-import SaveOrderData from "@/app/components/SaveOrderData";
+import SaveOrderData from "@/components/SaveOrderData";
 
 const SUPABASE_URL = "https://ygisiztmuzwxpnvhwrmr.supabase.co";
 
