@@ -40,22 +40,11 @@ async function fetchOnMenu(
 function isTimeInRange(arrival: string, start?: string, end?: string) {
   if (!start || !end) return true;
 
-  const toMin = (t: string) => {
-    const [h, m] = t.split(":").map(Number);
-    return h * 60 + m;
-  };
+  const a = arrival.slice(0, 5);
+  const s = start.slice(0, 5);
+  const e = end.slice(0, 5);
 
-  const a = toMin(arrival.slice(0, 5));
-  const s = toMin(start.slice(0, 5));
-  const e = toMin(end.slice(0, 5));
-
-  // normal case
-  if (s <= e) {
-    return a >= s && a <= e;
-  }
-
-  // overnight case (22:00 → 02:00)
-  return a >= s || a <= e;
+  return a >= s && a <= e;
 }
 
 /* ------------ PAGE ------------ */
@@ -68,7 +57,7 @@ export default async function Page({ params, searchParams }: any) {
   const stationName =
     params.slug?.split("-")?.slice(1)?.join(" ") || stationCode;
 
-  /* 🔥 URL DATA */
+  /* 🔥 CORRECT URL DATA (OLD SAFE LOGIC) */
   const deliveryDate =
     searchParams?.deliveryDate || searchParams?.date || "";
 
@@ -79,17 +68,21 @@ export default async function Page({ params, searchParams }: any) {
     "";
 
   const trainName = searchParams?.trainName || "";
+
+  const arrivalParam = searchParams?.arrival || searchParams?.arrivalTime;
+
   let arrivalTime = "12:00:00";
 
-if (deliveryTime) {
-  const clean = deliveryTime.slice(0, 5);
-  arrivalTime = clean + ":00";
-}
+  if (arrivalParam) {
+    const clean = arrivalParam.slice(0, 5);
+    arrivalTime = clean + ":00";
+  }
+
   /* ================= FETCH ================= */
 
   const rawItems = await fetchOnMenu(restroCode, arrivalTime);
 
-  /* ================= FILTER ================= */
+  /* ================= NORMALIZE + FILTER ================= */
 
   const items = (rawItems || [])
     .map((it: any) => ({
@@ -124,45 +117,68 @@ if (deliveryTime) {
   };
 
   return (
-    <main className="container-app">
+    <main className="max-w-5xl mx-auto px-3 sm:px-6 py-6">
 
-      {/* ✅ NEW CLEAN HEADER */}
-      <div className="mb-4 rounded-xl border border-yellow-300 bg-gradient-to-r from-yellow-50 to-orange-50 p-4 shadow-sm">
+      {/* HEADER */}
+      <div className="mb-6 rounded-lg border-2 border-orange-300 bg-gradient-to-r from-orange-50 to-yellow-50 p-5 shadow-sm">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
 
-  <div className="grid grid-cols-2 gap-4 items-start">
+          {/* LEFT */}
+          <div>
+            <div className="text-xs font-semibold text-gray-500">
+              Journey
+            </div>
 
-    {/* LEFT → Journey */}
-    <div>
-      <div className="text-xs text-gray-500 font-medium">Journey</div>
+            <div className="mt-2 space-y-1">
+              <div>
+                <div className="text-lg font-bold text-orange-700">
+                  {trainName || "Train"}
+                </div>
+                <div className="text-sm text-gray-600">
+                  #{searchParams?.train || ""}
+                </div>
+              </div>
 
-      <div className="text-base font-bold text-orange-700">
-        {trainName || "Train"}
+              <div className="mt-3">
+                <div className="text-base font-semibold text-gray-800">
+                  {stationName}
+                </div>
+                <div className="text-sm text-gray-600">
+                  {stationCode}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* RIGHT */}
+          <div>
+            <div className="text-xs font-semibold text-gray-500">
+              Delivery
+            </div>
+
+            <div className="mt-2 space-y-1">
+              <div>
+                <div className="text-xs text-gray-500">
+                  Arrival Date & Time
+                </div>
+                <div className="text-lg font-bold text-blue-700">
+                  {deliveryDate} {deliveryTime && `at ${deliveryTime}`}
+                </div>
+              </div>
+
+              <div className="mt-3">
+                <div className="text-xs text-gray-500">
+                  Outlet
+                </div>
+                <div className="text-base font-semibold text-gray-800">
+                  {outletName}
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
       </div>
-
-      <div className="text-xs text-gray-600">
-        #{searchParams?.train || ""}
-      </div>
-
-      <div className="mt-1 text-sm font-medium text-gray-800">
-        {stationName} ({stationCode})
-      </div>
-    </div>
-
-    {/* RIGHT → Delivery */}
-    <div className="text-right">
-      <div className="text-xs text-gray-500 font-medium">Delivery</div>
-
-      <div className="text-base font-bold text-blue-700">
-        {deliveryDate} {deliveryTime && `at ${deliveryTime}`}
-      </div>
-
-      <div className="text-sm text-gray-800 font-medium">
-        {outletName}
-      </div>
-    </div>
-
-  </div>
-</div>
 
       <RestroMenuClient
         header={header}
