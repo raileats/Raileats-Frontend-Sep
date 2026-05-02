@@ -40,11 +40,22 @@ async function fetchOnMenu(
 function isTimeInRange(arrival: string, start?: string, end?: string) {
   if (!start || !end) return true;
 
-  const a = arrival.slice(0, 5);
-  const s = start.slice(0, 5);
-  const e = end.slice(0, 5);
+  const toMin = (t: string) => {
+    const [h, m] = t.split(":").map(Number);
+    return h * 60 + m;
+  };
 
-  return a >= s && a <= e;
+  const a = toMin(arrival.slice(0, 5));
+  const s = toMin(start.slice(0, 5));
+  const e = toMin(end.slice(0, 5));
+
+  // ✅ normal case
+  if (s <= e) {
+    return a >= s && a <= e;
+  }
+
+  // ✅ overnight case (22:00 → 02:00)
+  return a >= s || a <= e;
 }
 
 /* ------------ PAGE ------------ */
