@@ -1,5 +1,3 @@
-"use client";
-
 import React from "react";
 import { extractStationCode } from "../../../lib/stationSlug";
 import { extractRestroCode } from "../../../lib/restroSlug";
@@ -38,43 +36,7 @@ async function fetchOnMenu(
   }
 }
 
-/* ------------ PAGE ------------ */
-export default async function Page({ params, searchParams }: any) {
-
-  const stationCode = extractStationCode(params.slug) || "";
-  const restroCode = extractRestroCode(params.restroSlug) || "";
-  const outletName = humanizeFromSlug(params.restroSlug);
-
-  const stationName =
-    params.slug?.split("-")?.slice(1)?.join(" ") || stationCode;
-
-  /* 🔥 URL DATA */
-  const deliveryDate =
-    searchParams?.deliveryDate || searchParams?.date || "";
-
-  const deliveryTime =
-    searchParams?.deliveryTime ||
-    searchParams?.arrival ||
-    searchParams?.arrivalTime ||
-    "";
-
-  const trainName = searchParams?.trainName || "";
-
-  /* 🔥 FIXED ARRIVAL TIME */
-  let arrivalTime = "12:00:00";
-
-  if (deliveryTime) {
-    const clean = deliveryTime.slice(0, 5);
-    arrivalTime = clean + ":00";
-  }
-
-  /* ================= FETCH ================= */
-
-  const rawItems = await fetchOnMenu(restroCode, arrivalTime);
-
-  /* ================= NORMALIZE ================= */
-
- // 🔥 helper: time compare
+/* ------------ TIME CHECK ------------ */
 function isTimeInRange(arrival: string, start?: string, end?: string) {
   if (!start || !end) return true;
 
@@ -85,24 +47,58 @@ function isTimeInRange(arrival: string, start?: string, end?: string) {
   return a >= s && a <= e;
 }
 
-/* ================= NORMALIZE + FILTER ================= */
+/* ------------ PAGE ------------ */
+export default async function Page({ params, searchParams }: any) {
 
-const items = (rawItems || [])
-  .map((it: any) => ({
-    id: Number(it?.id),
-    item_name: it?.item_name || "",
-    base_price: Number(it?.base_price || 0),
-    item_category: it?.item_category || "",
-    item_description: it?.item_description || it?.description || "",
-    start_time: it?.start_time || it?.item_start_time || null,
-    end_time: it?.end_time || it?.item_end_time || null,
-    status: String(it?.status || "ON").toUpperCase(),
-  }))
-  .filter((it: any) => {
-    if (it.status !== "ON") return false;
+  const stationCode = extractStationCode(params.slug) || "";
+  const restroCode = extractRestroCode(params.restroSlug) || "";
+  const outletName = humanizeFromSlug(params.restroSlug);
 
-    return isTimeInRange(arrivalTime, it.start_time, it.end_time);
-  });
+  const stationName =
+    params.slug?.split("-")?.slice(1)?.join(" ") || stationCode;
+
+  /* 🔥 CORRECT URL DATA (OLD SAFE LOGIC) */
+  const deliveryDate =
+    searchParams?.deliveryDate || searchParams?.date || "";
+
+  const deliveryTime =
+    searchParams?.deliveryTime ||
+    searchParams?.arrival?.slice(0, 5) ||
+    searchParams?.arrivalTime?.slice(0, 5) ||
+    "";
+
+  const trainName = searchParams?.trainName || "";
+
+  const arrivalParam = searchParams?.arrival || searchParams?.arrivalTime;
+
+  let arrivalTime = "12:00:00";
+
+  if (arrivalParam) {
+    const clean = arrivalParam.slice(0, 5);
+    arrivalTime = clean + ":00";
+  }
+
+  /* ================= FETCH ================= */
+
+  const rawItems = await fetchOnMenu(restroCode, arrivalTime);
+
+  /* ================= NORMALIZE + FILTER ================= */
+
+  const items = (rawItems || [])
+    .map((it: any) => ({
+      id: Number(it?.id),
+      item_name: it?.item_name || "",
+      base_price: Number(it?.base_price || 0),
+      item_category: it?.item_category || "",
+      item_description: it?.item_description || it?.description || "",
+      start_time: it?.start_time || it?.item_start_time || null,
+      end_time: it?.end_time || it?.item_end_time || null,
+      status: String(it?.status || "ON").toUpperCase(),
+    }))
+    .filter((it: any) => {
+      if (it.status !== "ON") return false;
+      return isTimeInRange(arrivalTime, it.start_time, it.end_time);
+    });
 
   const header = {
     stationCode,
@@ -127,35 +123,57 @@ const items = (rawItems || [])
       <div className="mb-6 rounded-lg border-2 border-orange-300 bg-gradient-to-r from-orange-50 to-yellow-50 p-5 shadow-sm">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
 
+          {/* LEFT */}
           <div>
             <div className="text-xs font-semibold text-gray-500">
               Journey
             </div>
-            <div className="mt-2">
-              <div className="text-lg font-bold text-orange-700">
-                {trainName || "Train"}
-              </div>
-              <div className="text-sm text-gray-600">
-                #{searchParams?.train || ""}
+
+            <div className="mt-2 space-y-1">
+              <div>
+                <div className="text-lg font-bold text-orange-700">
+                  {trainName || "Train"}
+                </div>
+                <div className="text-sm text-gray-600">
+                  #{searchParams?.train || ""}
+                </div>
               </div>
 
-              <div className="mt-3 font-semibold">
-                {stationName} ({stationCode})
+              <div className="mt-3">
+                <div className="text-base font-semibold text-gray-800">
+                  {stationName}
+                </div>
+                <div className="text-sm text-gray-600">
+                  {stationCode}
+                </div>
               </div>
             </div>
           </div>
 
+          {/* RIGHT */}
           <div>
             <div className="text-xs font-semibold text-gray-500">
               Delivery
             </div>
 
-            <div className="mt-2 text-lg font-bold text-blue-700">
-              {deliveryDate} {deliveryTime && `at ${deliveryTime}`}
-            </div>
+            <div className="mt-2 space-y-1">
+              <div>
+                <div className="text-xs text-gray-500">
+                  Arrival Date & Time
+                </div>
+                <div className="text-lg font-bold text-blue-700">
+                  {deliveryDate} {deliveryTime && `at ${deliveryTime}`}
+                </div>
+              </div>
 
-            <div className="mt-3 font-semibold">
-              {outletName}
+              <div className="mt-3">
+                <div className="text-xs text-gray-500">
+                  Outlet
+                </div>
+                <div className="text-base font-semibold text-gray-800">
+                  {outletName}
+                </div>
+              </div>
             </div>
           </div>
 
@@ -167,6 +185,7 @@ const items = (rawItems || [])
         items={items}
         nextParams={nextParams}
       />
+
     </main>
   );
 }
