@@ -176,17 +176,19 @@ export default function HomePage() {
 
         {/* BULK */}
         <section className="mt-6">
-          <div
-            onClick={() => setShowBulkModal(true)}
-            className="bg-white p-4 rounded-xl shadow border cursor-pointer"
-          >
-            Bulk Order Query
-          </div>
-        </section>
+  <div
+    onClick={() => setShowBulkModal(true)}
+    className="bg-white p-4 rounded-xl shadow border cursor-pointer"
+  >
+    <h3 className="font-semibold text-base">
+      Bulk Order Query
+    </h3>
 
-        <FooterLinks />
-      </div>
-
+    <p className="text-sm text-gray-500 mt-1">
+      Bulk Food Order for Groups in Train – Submit Your Enquiry
+    </p>
+  </div>
+</section>
       {/* BULK MODAL */}
 {showBulkModal && (
   <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
