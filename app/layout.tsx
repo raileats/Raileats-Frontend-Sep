@@ -76,3 +76,29 @@ export default function RootLayout({
     </html>
   );
 }
+
+/* ================= GLOBAL UI SYSTEM ================= */
+
+/* 🔥 CONTAINER */
+.container-app {
+  @apply max-w-md mx-auto px-3 py-4;
+}
+
+/* 🔥 CARD */
+.card {
+  @apply bg-white border border-borderLight rounded-xl p-4 shadow-sm;
+}
+
+/* 🔥 BUTTON */
+.btn-primary {
+  @apply bg-primary hover:bg-primaryDark text-white px-4 py-2 rounded-lg font-medium;
+}
+
+/* 🔥 TEXT */
+.text-main {
+  @apply text-textMain;
+}
+
+.text-sub {
+  @apply text-textSub;
+}
