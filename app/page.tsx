@@ -17,7 +17,6 @@ export default function HomePage() {
   const user = useAuth((s) => s.user);
 
   const [showBulkModal, setShowBulkModal] = useState(false);
-  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
 
   const [name, setName] = useState("");
   const [mobile, setMobile] = useState("");
@@ -29,10 +28,6 @@ export default function HomePage() {
 
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
-
-  const [rating, setRating] = useState(0);
-  const [comment, setComment] = useState("");
-  const [feedbackSuccess, setFeedbackSuccess] = useState(false);
 
   const formatMobile = (num: string) => {
     if (!num) return "";
@@ -100,33 +95,6 @@ export default function HomePage() {
     }
   };
 
-  const handleFeedbackSubmit = async () => {
-    if (!rating || !comment) {
-      alert("Please fill all fields");
-      return;
-    }
-
-    const { error } = await supabase
-      .from("feedbacks")
-      .insert([
-        {
-          name: user?.name,
-          mobile: user?.mobile,
-          rating: Number(rating),
-          message: comment,
-        },
-      ]);
-
-    if (error) {
-      alert("❌ Error submitting feedback");
-      return;
-    }
-
-    setFeedbackSuccess(true);
-    setRating(0);
-    setComment("");
-  };
-
   useEffect(() => {
     const goto = search.get("goto");
 
@@ -136,24 +104,6 @@ export default function HomePage() {
       });
     }
   }, [search]);
-
-  useEffect(() => {
-    const openFeedback = () => setShowFeedbackModal(true);
-    window.addEventListener("raileats:open-feedback", openFeedback);
-
-    return () => {
-      window.removeEventListener("raileats:open-feedback", openFeedback);
-    };
-  }, []);
-
-  useEffect(() => {
-    const action = localStorage.getItem("afterLoginAction");
-
-    if (action === "feedback") {
-      setShowFeedbackModal(true);
-      localStorage.removeItem("afterLoginAction");
-    }
-  }, []);
 
   useEffect(() => {
     if (user) {
@@ -250,68 +200,6 @@ export default function HomePage() {
                 >
                   Submit
                 </button>
-              </>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* FEEDBACK MODAL */}
-      {showFeedbackModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white p-5 rounded-xl w-[90%] max-w-md space-y-3 relative">
-
-            <button
-              onClick={() => setShowFeedbackModal(false)}
-              className="absolute top-3 right-3"
-            >
-              ✕
-            </button>
-
-            <h2 className="text-center font-semibold">
-              ⭐ Rate Your Experience
-            </h2>
-
-            {feedbackSuccess ? (
-              <div className="text-green-600 text-center">
-                ✅ Feedback submitted
-              </div>
-            ) : (
-              <>
-                <div className="flex justify-center gap-2 text-2xl">
-                  {[1,2,3,4,5].map((star)=>(
-                    <span
-                      key={star}
-                      onClick={()=>setRating(star)}
-                      className={star<=rating ? "text-yellow-400 cursor-pointer" : "text-gray-300 cursor-pointer"}
-                    >
-                      ★
-                    </span>
-                  ))}
-                </div>
-
-                <textarea
-                  placeholder="Write feedback..."
-                  value={comment}
-                  onChange={(e)=>setComment(e.target.value)}
-                  className="w-full border p-2 rounded-md"
-                />
-
-                <div className="flex flex-col gap-2 pt-2">
-                  <button
-                    onClick={handleFeedbackSubmit}
-                    className="w-full bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-2 rounded-lg"
-                  >
-                    Submit Feedback
-                  </button>
-
-                  <button
-                    onClick={() => setShowFeedbackModal(false)}
-                    className="w-full border border-gray-300 text-gray-600 py-2 rounded-lg"
-                  >
-                    Close
-                  </button>
-                </div>
               </>
             )}
           </div>
