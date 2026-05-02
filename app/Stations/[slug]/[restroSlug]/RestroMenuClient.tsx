@@ -95,13 +95,13 @@ export default function RestroMenuClient({ items, header }: any) {
   };
 
   return (
-    <div className="p-3 max-w-xl mx-auto">
+    <div className="container-app space-y-4">
 
       {/* HEADER */}
-      <div className="flex justify-between mb-3">
+     <div className="card flex justify-between items-center">
         <div>
-          <h1 className="font-semibold">{header.outletName}</h1>
-          <div className="text-xs text-gray-500">
+          <h1 className="text-main font-semibold">{header.outletName}</h1>
+          <div className="text-sub text-xs">
             {header.stationCode}
           </div>
         </div>
@@ -118,7 +118,7 @@ export default function RestroMenuClient({ items, header }: any) {
 
       {/* EMPTY */}
       {visible.length === 0 && (
-        <div className="text-center text-gray-500 mt-10">
+        <div className="card text-center text-sub">
           No items available
         </div>
       )}
@@ -132,7 +132,7 @@ export default function RestroMenuClient({ items, header }: any) {
           return (
             <div
               key={it.id}
-              className="border rounded-lg p-3 flex justify-between"
+              className="card flex justify-between items-start"
             >
               <div>
                 <div className="flex gap-2 items-center">
@@ -141,12 +141,12 @@ export default function RestroMenuClient({ items, header }: any) {
                       isVeg ? "bg-green-600" : "bg-red-600"
                     }`}
                   />
-                  <span className="text-sm font-medium">
+                  <span className="text-main text-sm font-medium">
                     {it.item_name}
                   </span>
                 </div>
 
-                <div className="text-xs text-gray-500">
+                <div className="text-sub text-xs">
                   ⏱{" "}
                   {it.start_time && it.end_time
                     ? `${it.start_time} - ${it.end_time}`
@@ -154,12 +154,12 @@ export default function RestroMenuClient({ items, header }: any) {
                 </div>
 
                 {it.item_description && (
-                  <div className="text-xs text-gray-600">
+                  <div className="text-sub text-xs">
                     {it.item_description}
                   </div>
                 )}
 
-                <div className="font-semibold">
+                <div className="text-main font-semibold">
                   ₹{it.base_price}
                 </div>
               </div>
@@ -167,13 +167,13 @@ export default function RestroMenuClient({ items, header }: any) {
               <div>
                 {!existing ? (
                   <button
-                    className="border px-3 py-1 text-green-600 border-green-600 rounded text-sm"
+                    className="btn-primary text-sm"
                     onClick={() => handleAdd(it)}
                   >
                     ADD
                   </button>
                 ) : (
-                  <div className="flex gap-2 border px-2 py-1 rounded text-sm">
+                  className="flex gap-2 border border-borderLight px-2 py-1 rounded text-sm"
                     <button onClick={() => changeQty(it.id, existing.qty - 1)}>
                       -
                     </button>
