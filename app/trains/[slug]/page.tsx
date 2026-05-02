@@ -1,9 +1,8 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { useParams, useSearchParams, useRouter } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { useBooking } from "../../../lib/useBooking";
-import { useCart } from "@/lib/useCart";
 
 const SUPABASE_URL = "https://ygisiztmuzwxpnvhwrmr.supabase.co";
 
@@ -75,8 +74,6 @@ export default function TrainPage() {
   const searchParams = useSearchParams();
 
   const { setTrain, setJourney } = useBooking();
-  const { setMeta } = useCart();
-  const router = useRouter();
 
   const slug = (params as any)?.slug || "";
   const trainNumber = slug.match(/^(\d+)/)?.[1] || "";
@@ -89,31 +86,7 @@ export default function TrainPage() {
 
   useNow();
 
-  /* 🔥 HANDLE ORDER NOW */
-  const handleOrderNow = (
-    vendorName: string,
-    stationName: string,
-    stationCode: string,
-    deliveryDate: string,
-    arrival: string
-  ) => {
-    setMeta({
-      trainNumber,
-      deliveryDate,
-      deliveryTime: arrival,
-      stationName,
-      stationCode,
-      vendorName,
-    });
-
-    // 🔥 SAME PAGE redirect
-    router.push(
-      `/Stations/${stationCode}-${stationName}/${vendorName
-        .replace(/\s+/g, "-")}?date=${deliveryDate}&train=${trainNumber}&boarding=${boarding}&arrival=${arrival}`
-    );
-  };
-
-  /* 🔥 NEW: STORE DATA FROM URL */
+  /* 🔥 STORE BOOKING */
   useEffect(() => {
     if (!trainNumber) return;
 
@@ -123,12 +96,6 @@ export default function TrainPage() {
     });
 
     setJourney(urlDate, boarding);
-
-    console.log("✅ Booking stored from URL:", {
-      trainNumber,
-      urlDate,
-      boarding,
-    });
   }, [trainNumber, urlDate, boarding]);
 
   useEffect(() => {
@@ -233,8 +200,6 @@ export default function TrainPage() {
                   img = `${SUPABASE_URL}/storage/v1/object/public/RestroDisplayPhoto/${file}`;
                 }
 
-                const stationSlug = `${stationCode}-${toSlug(stationName)}`;
-                const restroSlug = `${r.RestroCode}-${toSlug(r.RestroName)}`;
                 const cleanArrival = (arrives || "").slice(0, 5);
 
                 return (
@@ -268,20 +233,26 @@ export default function TrainPage() {
                       </div>
 
                       <div className="text-right">
-                        <button
-                          onClick={() =>
-                            handleOrderNow(
-                              r.RestroName,
-                              stationName,
-                              stationCode,
-                              deliveryDate,
-                              cleanArrival
-                            )
-                          }
+                        <a
+                          href={`/menu?restro=${r.RestroCode}&station=${stationCode}&date=${deliveryDate}&train=${trainNumber}&boarding=${boarding}&arrival=${cleanArrival}`}
+                          onClick={() => {
+                            localStorage.setItem(
+                              "selectedBooking",
+                              JSON.stringify({
+                                restro_name: r.RestroName,
+                                restro_code: r.RestroCode,
+                                station_name: stationName,
+                                station_code: stationCode,
+                                date: deliveryDate,
+                                train_number: trainNumber,
+                                arrival: cleanArrival,
+                              })
+                            );
+                          }}
                           className="bg-orange-500 text-white px-4 py-2 rounded-lg text-sm"
                         >
                           Order Now
-                        </button>
+                        </a>
                       </div>
                     </div>
                   </div>
