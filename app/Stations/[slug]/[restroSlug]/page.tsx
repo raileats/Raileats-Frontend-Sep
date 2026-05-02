@@ -47,8 +47,13 @@ export default async function Page({ params, searchParams }: any) {
     params.slug?.split("-")?.slice(1)?.join(" ") || stationCode;
 
   /* 🔥 IMPORTANT: GET DATA FROM URL */
-  const deliveryDate = searchParams?.deliveryDate || "";
-  const deliveryTime = searchParams?.deliveryTime || "";
+  const deliveryDate =
+    searchParams?.deliveryDate || searchParams?.date || "";
+  const deliveryTime =
+    searchParams?.deliveryTime ||
+    searchParams?.arrival?.slice(0, 5) ||
+    searchParams?.arrivalTime?.slice(0, 5) ||
+    "";
   const arrivalParam = searchParams?.arrival || searchParams?.arrivalTime;
 
   let arrivalTime = "12:00:00";
