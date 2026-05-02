@@ -241,7 +241,10 @@ export default function TrainPage() {
 
                 const stationSlug = `${stationCode}-${toSlug(stationName)}`;
                 const restroSlug = `${r.RestroCode}-${toSlug(r.RestroName)}`;
-                const cleanArrival = (arrives || "").slice(0, 5);
+                const cleanArrival =
+  arrives && arrives.includes(":")
+    ? arrives.slice(0, 5)
+    : null;
 
                 return (
                   <div key={r.RestroCode} className="bg-white p-3 rounded-lg border flex gap-3">
@@ -275,7 +278,12 @@ export default function TrainPage() {
 
                       <div className="text-right">
                         <a
-                          href={`/Stations/${stationSlug}/${restroSlug}?deliveryDate=${encodeURIComponent(deliveryDate)}&deliveryTime=${encodeURIComponent(cleanArrival)}&train=${encodeURIComponent(trainNumber)}&trainName=${encodeURIComponent(trainName)}&boarding=${encodeURIComponent(boarding)}&arrival=${encodeURIComponent(cleanArrival)}`}
+                          href={`/Stations/${stationSlug}/${restroSlug}?deliveryDate=${encodeURIComponent(deliveryDate)}
+${cleanArrival ? `&deliveryTime=${encodeURIComponent(cleanArrival)}` : ""}
+${cleanArrival ? `&arrival=${encodeURIComponent(cleanArrival)}` : ""}
+&train=${encodeURIComponent(trainNumber)}
+&trainName=${encodeURIComponent(trainName)}
+&boarding=${encodeURIComponent(boarding)}`}
                           className="bg-orange-500 text-white px-4 py-2 rounded-lg text-sm"
                         >
                           Order Now
