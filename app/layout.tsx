@@ -76,7 +76,9 @@ export default function RootLayout({
     </html>
   );
 }
-
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 /* ================= GLOBAL UI SYSTEM ================= */
 
 /* 🔥 CONTAINER */
