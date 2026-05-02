@@ -216,28 +216,28 @@ h1, h2, h3, p { margin-top: 0; }
 /* small tweak to make the floating bottom action panel look slightly elevated */
 .bottom-action-elevated { box-shadow: 0 -6px 18px rgba(0,0,0,0.06); border-radius: 10px; padding: .6rem; background: white; }
 
-/* ================= GLOBAL UI SYSTEM (NEW) ================= */
+/* ================= GLOBAL UI SYSTEM (FINAL FIX) ================= */
 
-/* 🔥 CONTAINER */
-.container-app {
-  @apply max-w-md mx-auto px-3 py-4;
-}
+@layer components {
 
-/* 🔥 CARD */
-.card {
-  @apply bg-white border border-borderLight rounded-xl p-4 shadow-sm;
-}
+  .container-app {
+    @apply max-w-md mx-auto px-3 py-4;
+  }
 
-/* 🔥 BUTTON */
-.btn-primary {
-  @apply bg-primary hover:bg-primaryDark text-white px-4 py-2 rounded-lg font-medium;
-}
+  .card {
+    @apply bg-white border border-borderLight rounded-xl p-4 shadow-sm;
+  }
 
-/* 🔥 TEXT */
-.text-main {
-  @apply text-textMain;
-}
+  .btn-primary {
+    @apply bg-primary hover:bg-primaryDark text-white px-4 py-2 rounded-lg font-medium;
+  }
 
-.text-sub {
-  @apply text-textSub;
+  .text-main {
+    @apply text-textMain;
+  }
+
+  .text-sub {
+    @apply text-textSub;
+  }
+
 }
