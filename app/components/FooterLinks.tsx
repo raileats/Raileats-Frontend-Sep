@@ -2,6 +2,18 @@
 import Link from "next/link";
 
 export default function FooterLinks() {
+
+  // 🔥 LOGIN CHECK FUNCTION
+  const handleProtectedRoute = () => {
+    const user = JSON.parse(localStorage.getItem("raileats_user") || "null");
+
+    if (!user) {
+      window.dispatchEvent(new CustomEvent("raileats:open-login"));
+    } else {
+      window.location.href = "/profile";
+    }
+  };
+
   return (
     <div className="rounded-xl border bg-white p-4">
       <h3 className="mb-3 text-base font-semibold">Explore</h3>
@@ -12,21 +24,34 @@ export default function FooterLinks() {
         <div>
           <p className="font-medium mb-1">Profile</p>
           <ul className="space-y-1">
+
             <li>
-              <Link href="/menu#profile" className="text-gray-600 hover:text-yellow-700">
+              <button
+                onClick={handleProtectedRoute}
+                className="text-gray-600 hover:text-yellow-700 text-left"
+              >
                 My Profile
-              </Link>
+              </button>
             </li>
+
             <li>
-              <Link href="/menu#orders" className="text-gray-600 hover:text-yellow-700">
+              <button
+                onClick={handleProtectedRoute}
+                className="text-gray-600 hover:text-yellow-700 text-left"
+              >
                 My Orders
-              </Link>
+              </button>
             </li>
+
             <li>
-              <Link href="/menu#wallet" className="text-gray-600 hover:text-yellow-700">
+              <button
+                onClick={handleProtectedRoute}
+                className="text-gray-600 hover:text-yellow-700 text-left"
+              >
                 Wallet Balance
-              </Link>
+              </button>
             </li>
+
           </ul>
         </div>
 
@@ -42,7 +67,7 @@ export default function FooterLinks() {
               </Link>
             </li>
 
-            {/* 🔥 Feedback FIX */}
+            {/* 🔥 Feedback */}
             <li>
               <button
                 onClick={() => {
