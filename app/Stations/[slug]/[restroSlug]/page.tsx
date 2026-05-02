@@ -79,15 +79,12 @@ export default async function Page({ params, searchParams }: any) {
     "";
 
   const trainName = searchParams?.trainName || "";
-  const arrivalParam = searchParams?.arrival || searchParams?.arrivalTime;
-
   let arrivalTime = "12:00:00";
 
-  if (arrivalParam) {
-    const clean = arrivalParam.slice(0, 5);
-    arrivalTime = clean + ":00";
-  }
-
+if (deliveryTime) {
+  const clean = deliveryTime.slice(0, 5);
+  arrivalTime = clean + ":00";
+}
   /* ================= FETCH ================= */
 
   const rawItems = await fetchOnMenu(restroCode, arrivalTime);
