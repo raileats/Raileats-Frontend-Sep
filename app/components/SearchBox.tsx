@@ -76,14 +76,11 @@ export default function SearchBox() {
 
       const trainNo =
         selectedTrain.train_no || selectedTrain.trainNumber;
-      const trainName =
-        selectedTrain.train_name || selectedTrain.trainName || "";
 
       const slug = makeTrainSlug(trainNo);
 
       window.location.href =
-        `/trains/${slug}?date=${date}&boarding=${boarding}` +
-        `&trainName=${encodeURIComponent(trainName)}`;
+        `/trains/${slug}?date=${date}&boarding=${boarding}`;
     }
   };
 
