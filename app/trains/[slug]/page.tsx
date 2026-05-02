@@ -141,6 +141,7 @@ export default function TrainPage() {
 
   return (
     <div className="max-w-3xl mx-auto p-4 space-y-6">
+      <SaveOrderData data={orderData} />
       {stations.map((st: any, index: number) => {
         const stationCode = st.StationCode;
         const stationName = st.StationName;
