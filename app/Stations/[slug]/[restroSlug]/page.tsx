@@ -49,12 +49,12 @@ function isTimeInRange(arrival: string, start?: string, end?: string) {
   const s = toMin(start.slice(0, 5));
   const e = toMin(end.slice(0, 5));
 
-  // ✅ normal case
+  // normal case
   if (s <= e) {
     return a >= s && a <= e;
   }
 
-  // ✅ overnight case (22:00 → 02:00)
+  // overnight case (22:00 → 02:00)
   return a >= s || a <= e;
 }
 
