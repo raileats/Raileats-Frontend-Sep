@@ -155,6 +155,16 @@ export default function HomePage() {
     }
   }, []);
 
+  useEffect(() => {
+    if (user) {
+      const action = localStorage.getItem("afterLoginAction");
+      if (action === "bulk") {
+        setShowBulkModal(true);
+        localStorage.removeItem("afterLoginAction");
+      }
+    }
+  }, [user]);
+
   return (
     <main className="bg-gray-50 min-h-screen">
 
@@ -169,7 +179,14 @@ export default function HomePage() {
         {/* BULK CARD */}
         <section className="mt-6">
           <div
-            onClick={() => setShowBulkModal(true)}
+            onClick={() => {
+              if (!user) {
+                localStorage.setItem("afterLoginAction", "bulk");
+                window.dispatchEvent(new CustomEvent("raileats:open-login"));
+              } else {
+                setShowBulkModal(true);
+              }
+            }}
             className="bg-white p-4 rounded-xl shadow border cursor-pointer"
           >
             <h3 className="font-semibold text-base">
