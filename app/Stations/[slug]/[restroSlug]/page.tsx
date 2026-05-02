@@ -74,7 +74,21 @@ export default async function Page({ params, searchParams }: any) {
 
   /* ================= NORMALIZE ================= */
 
-  const items = (rawItems || []).map((it: any) => ({
+ // 🔥 helper: time compare
+function isTimeInRange(arrival: string, start?: string, end?: string) {
+  if (!start || !end) return true;
+
+  const a = arrival.slice(0, 5);
+  const s = start.slice(0, 5);
+  const e = end.slice(0, 5);
+
+  return a >= s && a <= e;
+}
+
+/* ================= NORMALIZE + FILTER ================= */
+
+const items = (rawItems || [])
+  .map((it: any) => ({
     id: Number(it?.id),
     item_name: it?.item_name || "",
     base_price: Number(it?.base_price || 0),
@@ -83,7 +97,12 @@ export default async function Page({ params, searchParams }: any) {
     start_time: it?.start_time || it?.item_start_time || null,
     end_time: it?.end_time || it?.item_end_time || null,
     status: String(it?.status || "ON").toUpperCase(),
-  }));
+  }))
+  .filter((it: any) => {
+    if (it.status !== "ON") return false;
+
+    return isTimeInRange(arrivalTime, it.start_time, it.end_time);
+  });
 
   const header = {
     stationCode,
