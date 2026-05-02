@@ -22,6 +22,14 @@ export default function LoginModal() {
   const [pendingItem, setPendingItem] = useState<any>(null);
   const [loading, setLoading] = useState(false);
 
+  /* ✅ CLOSE MODAL FUNCTION */
+  const closeModal = () => {
+    setOpen(false);
+    setStep("mobile");
+    setMobile("");
+    setOtp("");
+  };
+
   /* 🔥 OPEN MODAL */
   useEffect(() => {
     const handler = (e: any) => {
@@ -87,7 +95,6 @@ export default function LoginModal() {
         return;
       }
 
-      // 🔥 CHECK USER
       const userRes = await fetch("/api/get-user", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -127,7 +134,6 @@ export default function LoginModal() {
 
       const user = { mobile: phone, name, email };
 
-      // 🔥 SAVE USER
       const res = await fetch("/api/save-user", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -141,17 +147,14 @@ export default function LoginModal() {
         return;
       }
 
-      // 🔥 UPDATE LAST LOGIN
       await fetch("/api/update-last-login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phone }),
       });
 
-      // ✅ SET USER
       setUser(user);
 
-      // 🛒 CONTINUE CART
       if (pendingItem) {
         add({
           id: pendingItem.id,
@@ -161,9 +164,8 @@ export default function LoginModal() {
         });
       }
 
-      setOpen(false);
+      closeModal(); // ✅ UPDATED
 
-      // 🔥 SOFT REFRESH (NO RELOAD)
       router.refresh();
 
     } catch {
@@ -176,8 +178,22 @@ export default function LoginModal() {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-      <div className="bg-white p-4 rounded-lg w-80 space-y-3">
+    <div
+      className="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
+      onClick={closeModal}
+    >
+      <div
+        className="relative bg-white p-4 rounded-lg w-80 space-y-3"
+        onClick={(e) => e.stopPropagation()}
+      >
+
+        {/* ❌ CLOSE BUTTON */}
+        <button
+          onClick={closeModal}
+          className="absolute top-2 right-2 text-gray-500 hover:text-black text-xl"
+        >
+          ✕
+        </button>
 
         {step === "mobile" && (
           <>
