@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { useParams, useSearchParams } from "next/navigation";
+import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { useBooking } from "../../../lib/useBooking";
+import { useCart } from "../../../lib/useCart";
 
 const SUPABASE_URL = "https://ygisiztmuzwxpnvhwrmr.supabase.co";
 
@@ -74,6 +75,8 @@ export default function TrainPage() {
   const searchParams = useSearchParams();
 
   const { setTrain, setJourney } = useBooking();
+  const { setMeta } = useCart();
+  const router = useRouter();
 
   const slug = (params as any)?.slug || "";
   const trainNumber = slug.match(/^(\d+)/)?.[1] || "";
@@ -85,6 +88,30 @@ export default function TrainPage() {
   const [loading, setLoading] = useState(true);
 
   useNow();
+
+  /* 🔥 HANDLE ORDER NOW */
+  const handleOrderNow = (
+    vendorName: string,
+    stationName: string,
+    stationCode: string,
+    deliveryDate: string,
+    arrival: string
+  ) => {
+    setMeta({
+      trainNumber,
+      deliveryDate,
+      deliveryTime: arrival,
+      stationName,
+      stationCode,
+      vendorName,
+    });
+
+    // 🔥 SAME PAGE redirect
+    router.push(
+      `/Stations/${stationCode}-${stationName}/${vendorName
+        .replace(/\s+/g, "-")}?date=${deliveryDate}&train=${trainNumber}&boarding=${boarding}&arrival=${arrival}`
+    );
+  };
 
   /* 🔥 NEW: STORE DATA FROM URL */
   useEffect(() => {
@@ -241,12 +268,20 @@ export default function TrainPage() {
                       </div>
 
                       <div className="text-right">
-                        <a
-                          href={`/Stations/${stationSlug}/${restroSlug}?date=${deliveryDate}&train=${trainNumber}&boarding=${boarding}&arrival=${cleanArrival}`}
+                        <button
+                          onClick={() =>
+                            handleOrderNow(
+                              r.RestroName,
+                              stationName,
+                              stationCode,
+                              deliveryDate,
+                              cleanArrival
+                            )
+                          }
                           className="bg-orange-500 text-white px-4 py-2 rounded-lg text-sm"
                         >
                           Order Now
-                        </a>
+                        </button>
                       </div>
                     </div>
                   </div>
