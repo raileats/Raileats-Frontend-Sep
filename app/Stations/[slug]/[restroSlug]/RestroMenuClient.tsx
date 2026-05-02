@@ -41,16 +41,21 @@ export default function RestroMenuClient({ items, header }: any) {
 
   /* 🔥 COMPUTE ONLY ONCE */
   const trainMin = useMemo(() => {
-    if (typeof window === "undefined") return null;
+  if (typeof window === "undefined") return null;
 
-    const params = new URLSearchParams(window.location.search);
-    const arrival = params.get("arrival");
+  const params = new URLSearchParams(window.location.search);
 
-    if (arrival && arrival.includes(":")) {
-      return toMin(arrival.slice(0, 5));
-    }
-    return null;
-  }, []);
+  const arrival =
+    params.get("deliveryTime") ||
+    params.get("arrival") ||
+    params.get("arrivalTime");
+
+  if (arrival && arrival.includes(":")) {
+    return toMin(arrival.slice(0, 5));
+  }
+
+  return null;
+}, []);
 
   /* 🔥 HEAVY FILTER OPTIMIZED */
   const visible = useMemo(() => {
