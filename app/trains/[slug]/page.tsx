@@ -81,6 +81,7 @@ export default function TrainPage() {
 
   const urlDate = searchParams.get("date") || "";
   const boarding = (searchParams.get("boarding") || "").toUpperCase();
+  const trainName = searchParams.get("trainName") || "";
 
   const [stations, setStations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -98,17 +99,18 @@ export default function TrainPage() {
 
     setTrain({
       number: trainNumber,
-      name: "",
+      name: trainName,
     });
 
     setJourney(urlDate, boarding);
 
     console.log("✅ Booking stored from URL:", {
       trainNumber,
+      trainName,
       urlDate,
       boarding,
     });
-  }, [trainNumber, urlDate, boarding]);
+  }, [trainNumber, trainName, urlDate, boarding]);
 
   useEffect(() => {
     async function fetchData() {
@@ -249,7 +251,7 @@ export default function TrainPage() {
 
                       <div className="text-right">
                         <a
-                          href={`/Stations/${stationSlug}/${restroSlug}?date=${deliveryDate}&train=${trainNumber}&boarding=${boarding}&arrival=${cleanArrival}`}
+                          href={`/Stations/${stationSlug}/${restroSlug}?deliveryDate=${encodeURIComponent(deliveryDate)}&deliveryTime=${encodeURIComponent(cleanArrival)}&train=${encodeURIComponent(trainNumber)}&trainName=${encodeURIComponent(trainName)}&boarding=${encodeURIComponent(boarding)}&arrival=${encodeURIComponent(cleanArrival)}`}
                           className="bg-orange-500 text-white px-4 py-2 rounded-lg text-sm"
                         >
                           Order Now
