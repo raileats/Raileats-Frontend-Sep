@@ -8,7 +8,6 @@ import Providers from "./components/Providers";
 import CartPopup from "./components/CartPopup";
 import LoginModal from "./components/LoginModal";
 import FeedbackModal from "./components/FeedbackModal";
-import BulkOrderModal from "./components/BulkOrderModal";
 import AuthLoader from "./components/AuthLoader"; // ✅ NEW
 
 import "slick-carousel/slick/slick.css";
