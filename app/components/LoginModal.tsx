@@ -164,7 +164,7 @@ export default function LoginModal() {
         });
       }
 
-      closeModal(); // ✅ UPDATED
+      closeModal();
 
       router.refresh();
 
@@ -178,19 +178,13 @@ export default function LoginModal() {
   if (!open) return null;
 
   return (
-    <div
-      className="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
-      onClick={closeModal}
-    >
-      <div
-        className="relative bg-white p-4 rounded-lg w-80 space-y-3"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+      <div className="relative bg-white p-5 rounded-xl w-80 space-y-4 shadow-lg">
 
-        {/* ❌ CLOSE BUTTON */}
+        {/* ❌ CLEAN RED CLOSE BUTTON */}
         <button
           onClick={closeModal}
-          className="absolute top-2 right-2 text-gray-500 hover:text-black text-xl"
+          className="absolute top-3 right-3 text-red-500 hover:text-red-700 text-lg font-bold"
         >
           ✕
         </button>
@@ -201,9 +195,9 @@ export default function LoginModal() {
               placeholder="Enter Mobile"
               value={mobile}
               onChange={(e) => setMobile(e.target.value)}
-              className="border p-2 w-full"
+              className="border p-2 w-full rounded-md"
             />
-            <button onClick={sendOtp} className="bg-blue-600 text-white w-full p-2">
+            <button onClick={sendOtp} className="bg-blue-600 text-white w-full p-2 rounded-md">
               {loading ? "Sending..." : "Send OTP"}
             </button>
           </>
@@ -215,9 +209,9 @@ export default function LoginModal() {
               placeholder="Enter OTP"
               value={otp}
               onChange={(e) => setOtp(e.target.value)}
-              className="border p-2 w-full"
+              className="border p-2 w-full rounded-md"
             />
-            <button onClick={verifyOtp} className="bg-green-600 text-white w-full p-2">
+            <button onClick={verifyOtp} className="bg-green-600 text-white w-full p-2 rounded-md">
               {loading ? "Verifying..." : "Verify OTP"}
             </button>
           </>
@@ -229,15 +223,15 @@ export default function LoginModal() {
               placeholder="Name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="border p-2 w-full"
+              className="border p-2 w-full rounded-md"
             />
             <input
               placeholder="Email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="border p-2 w-full"
+              className="border p-2 w-full rounded-md"
             />
-            <button onClick={saveProfile} className="bg-orange-600 text-white w-full p-2">
+            <button onClick={saveProfile} className="bg-orange-600 text-white w-full p-2 rounded-md">
               {loading ? "Saving..." : "Save"}
             </button>
           </>
