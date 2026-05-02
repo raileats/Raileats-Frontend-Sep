@@ -36,17 +36,6 @@ async function fetchOnMenu(
   }
 }
 
-/* ------------ TIME CHECK ------------ */
-function isTimeInRange(arrival: string, start?: string, end?: string) {
-  if (!start || !end) return true;
-
-  const a = arrival.slice(0, 5);
-  const s = start.slice(0, 5);
-  const e = end.slice(0, 5);
-
-  return a >= s && a <= e;
-}
-
 /* ------------ PAGE ------------ */
 export default async function Page({ params, searchParams }: any) {
 
@@ -57,18 +46,9 @@ export default async function Page({ params, searchParams }: any) {
   const stationName =
     params.slug?.split("-")?.slice(1)?.join(" ") || stationCode;
 
-  /* 🔥 CORRECT URL DATA (OLD SAFE LOGIC) */
-  const deliveryDate =
-    searchParams?.deliveryDate || searchParams?.date || "";
-
-  const deliveryTime =
-    searchParams?.deliveryTime ||
-    searchParams?.arrival?.slice(0, 5) ||
-    searchParams?.arrivalTime?.slice(0, 5) ||
-    "";
-
-  const trainName = searchParams?.trainName || "";
-
+  /* 🔥 IMPORTANT: GET DATA FROM URL */
+  const deliveryDate = searchParams?.deliveryDate || "";
+  const deliveryTime = searchParams?.deliveryTime || "";
   const arrivalParam = searchParams?.arrival || searchParams?.arrivalTime;
 
   let arrivalTime = "12:00:00";
@@ -82,23 +62,18 @@ export default async function Page({ params, searchParams }: any) {
 
   const rawItems = await fetchOnMenu(restroCode, arrivalTime);
 
-  /* ================= NORMALIZE + FILTER ================= */
+  /* ================= NORMALIZE ================= */
 
-  const items = (rawItems || [])
-    .map((it: any) => ({
-      id: Number(it?.id),
-      item_name: it?.item_name || "",
-      base_price: Number(it?.base_price || 0),
-      item_category: it?.item_category || "",
-      item_description: it?.item_description || it?.description || "",
-      start_time: it?.start_time || it?.item_start_time || null,
-      end_time: it?.end_time || it?.item_end_time || null,
-      status: String(it?.status || "ON").toUpperCase(),
-    }))
-    .filter((it: any) => {
-      if (it.status !== "ON") return false;
-      return isTimeInRange(arrivalTime, it.start_time, it.end_time);
-    });
+  const items = (rawItems || []).map((it: any) => ({
+    id: Number(it?.id),
+    item_name: it?.item_name || "",
+    base_price: Number(it?.base_price || 0),
+    item_category: it?.item_category || "",
+    item_description: it?.item_description || it?.description || "",
+    start_time: it?.start_time || it?.item_start_time || null,
+    end_time: it?.end_time || it?.item_end_time || null,
+    status: String(it?.status || "ON").toUpperCase(),
+  }));
 
   const header = {
     stationCode,
@@ -107,85 +82,30 @@ export default async function Page({ params, searchParams }: any) {
     stationName,
   };
 
+  /* 🔥 PASS ALL DATA FOR NEXT PAGE */
   const nextParams = {
     stationName,
     stationCode,
     deliveryDate,
     deliveryTime,
-    trainName,
     vendorName: outletName,
   };
 
   return (
     <main className="max-w-5xl mx-auto px-3 sm:px-6 py-6">
 
-      {/* HEADER */}
-      <div className="mb-6 rounded-lg border-2 border-orange-300 bg-gradient-to-r from-orange-50 to-yellow-50 p-5 shadow-sm">
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-
-          {/* LEFT */}
-          <div>
-            <div className="text-xs font-semibold text-gray-500">
-              Journey
-            </div>
-
-            <div className="mt-2 space-y-1">
-              <div>
-                <div className="text-lg font-bold text-orange-700">
-                  {trainName || "Train"}
-                </div>
-                <div className="text-sm text-gray-600">
-                  #{searchParams?.train || ""}
-                </div>
-              </div>
-
-              <div className="mt-3">
-                <div className="text-base font-semibold text-gray-800">
-                  {stationName}
-                </div>
-                <div className="text-sm text-gray-600">
-                  {stationCode}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* RIGHT */}
-          <div>
-            <div className="text-xs font-semibold text-gray-500">
-              Delivery
-            </div>
-
-            <div className="mt-2 space-y-1">
-              <div>
-                <div className="text-xs text-gray-500">
-                  Arrival Date & Time
-                </div>
-                <div className="text-lg font-bold text-blue-700">
-                  {deliveryDate} {deliveryTime && `at ${deliveryTime}`}
-                </div>
-              </div>
-
-              <div className="mt-3">
-                <div className="text-xs text-gray-500">
-                  Outlet
-                </div>
-                <div className="text-base font-semibold text-gray-800">
-                  {outletName}
-                </div>
-              </div>
-            </div>
-          </div>
-
-        </div>
+      {/* DEBUG (optional remove later) */}
+      <div className="mb-4 text-sm bg-gray-100 p-2 rounded">
+        <p><b>Delivery:</b> {deliveryDate} - {deliveryTime}</p>
+        <p><b>Station:</b> {stationName} ({stationCode})</p>
+        <p><b>Vendor:</b> {outletName}</p>
       </div>
 
       <RestroMenuClient
         header={header}
         items={items}
-        nextParams={nextParams}
+        nextParams={nextParams}   // 🔥 IMPORTANT
       />
-
     </main>
   );
 }
