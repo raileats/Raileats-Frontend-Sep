@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { useBooking } from "../../../lib/useBooking";
-import { useCart } from "../../../lib/useCart";
+import { useCart } from "@/app/lib/useCart";
 
 const SUPABASE_URL = "https://ygisiztmuzwxpnvhwrmr.supabase.co";
 
