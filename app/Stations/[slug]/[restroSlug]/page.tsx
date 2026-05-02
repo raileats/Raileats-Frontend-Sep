@@ -101,12 +101,55 @@ export default async function Page({ params, searchParams }: any) {
   return (
     <main className="max-w-5xl mx-auto px-3 sm:px-6 py-6">
 
-      {/* DEBUG (optional remove later) */}
-      <div className="mb-4 text-sm bg-gray-100 p-2 rounded">
-        <p><b>Delivery:</b> {deliveryDate} - {deliveryTime}</p>
-        <p><b>Train:</b> {trainName ? `${trainName} (#${searchParams?.train || ""})` : searchParams?.train || ""}</p>
-        <p><b>Station:</b> {stationName} ({stationCode})</p>
-        <p><b>Vendor:</b> {outletName}</p>
+      {/* ✨ JOURNEY INFO HEADER */}
+      <div className="mb-6 rounded-lg border-2 border-orange-300 bg-gradient-to-r from-orange-50 to-yellow-50 p-5 shadow-sm">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          {/* LEFT: Train & Station */}
+          <div>
+            <div className="text-xs font-semibold uppercase tracking-wider text-gray-500">
+              ✈️ Journey Details
+            </div>
+            <div className="mt-2 space-y-1">
+              <div>
+                <div className="text-lg font-bold text-orange-700">
+                  {trainName ? `${trainName}` : "Train"}
+                </div>
+                <div className="text-sm text-gray-600">
+                  #{searchParams?.train || ""}
+                </div>
+              </div>
+              <div className="mt-3">
+                <div className="text-base font-semibold text-gray-800">
+                  {stationName}
+                </div>
+                <div className="text-sm text-gray-600">
+                  {stationCode}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* RIGHT: Delivery & Vendor */}
+          <div>
+            <div className="text-xs font-semibold uppercase tracking-wider text-gray-500">
+              🍽️ Delivery Info
+            </div>
+            <div className="mt-2 space-y-1">
+              <div>
+                <div className="text-xs text-gray-500">Arrival Date & Time</div>
+                <div className="text-lg font-bold text-blue-700">
+                  {deliveryDate} {deliveryTime && `at ${deliveryTime}`}
+                </div>
+              </div>
+              <div className="mt-3">
+                <div className="text-xs text-gray-500">Outlet</div>
+                <div className="text-base font-semibold text-gray-800">
+                  {outletName}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <RestroMenuClient
