@@ -185,7 +185,7 @@ export default function HomePage() {
     </h3>
 
     <p className="text-sm text-gray-500 mt-1">
-      Bulk Food Order for Groups in Train – Submit Your Enquiry
+      Bulk Food Orders for Groups on Train – Get Best Pricing & Support
     </p>
   </div>
 </section>
