@@ -190,90 +190,57 @@ export default function HomePage() {
   </div>
 </section>
       {/* BULK MODAL */}
-{showBulkModal && (
-  <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-    <div className="bg-white p-5 rounded-xl w-[90%] max-w-md space-y-4 relative">
+      {showBulkModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white p-5 rounded-xl w-[90%] max-w-md space-y-3 relative">
 
-      {/* ❌ CLOSE */}
-      <button
-        onClick={() => setShowBulkModal(false)}
-        className="absolute top-3 right-3 text-gray-500 text-lg"
-      >
-        ✕
-      </button>
+            <button
+              onClick={() => setShowBulkModal(false)}
+              className="absolute top-3 right-3"
+            >
+              ✕
+            </button>
 
-      <h2 className="text-lg font-semibold text-center">
-        Bulk Order Query
-      </h2>
+            <h2 className="text-center font-semibold">Bulk Order</h2>
 
-      {success ? (
-        <div className="text-green-600 text-center">
-          ✅ Submitted successfully
+            {success ? (
+              <div className="text-green-600 text-center">
+                Submitted
+              </div>
+            ) : (
+              <>
+                <input
+                  placeholder="Train Number"
+                  value={trainNumber}
+                  onChange={(e) => setTrainNumber(e.target.value)}
+                  className="w-full border p-2 rounded"
+                />
+
+                <input
+                  type="date"
+                  value={journeyDate}
+                  onChange={(e) => setJourneyDate(e.target.value)}
+                  className="w-full border p-2 rounded"
+                />
+
+                <input
+                  placeholder="Quantity"
+                  value={quantity}
+                  onChange={(e) => setQuantity(e.target.value)}
+                  className="w-full border p-2 rounded"
+                />
+
+                <button
+                  onClick={handleSubmit}
+                  className="w-full bg-yellow-500 text-white py-2 rounded"
+                >
+                  Submit
+                </button>
+              </>
+            )}
+          </div>
         </div>
-      ) : (
-        <>
-          {/* TRAIN */}
-          <input
-            placeholder="Train Number"
-            value={trainNumber}
-            onChange={(e) => setTrainNumber(e.target.value)}
-            className="w-full border rounded-md px-3 py-2"
-          />
-
-          {/* DATE */}
-          <input
-            type="date"
-            value={journeyDate}
-            onChange={(e) => setJourneyDate(e.target.value)}
-            className="w-full border rounded-md px-3 py-2"
-          />
-
-          {/* QUANTITY */}
-          <input
-            placeholder="Quantity"
-            value={quantity}
-            onChange={(e) => setQuantity(e.target.value)}
-            className="w-full border rounded-md px-3 py-2"
-          />
-
-          {/* USER DETAILS (only if not logged in) */}
-          {!user && (
-            <>
-              <input
-                placeholder="Your Name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="w-full border rounded-md px-3 py-2"
-              />
-
-              <input
-                placeholder="Mobile Number"
-                value={mobile}
-                onChange={(e) => setMobile(e.target.value)}
-                className="w-full border rounded-md px-3 py-2"
-              />
-
-              <input
-                placeholder="Email (optional)"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full border rounded-md px-3 py-2"
-              />
-            </>
-          )}
-
-          {/* BUTTON */}
-          <button
-            onClick={handleSubmit}
-            className="w-full bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-2 rounded-lg"
-          >
-            Submit Enquiry
-          </button>
-        </>
       )}
-    </div>
-  </div>
-)}
       {/* 🔥 FEEDBACK MODAL */}
 {showFeedbackModal && (
   <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
