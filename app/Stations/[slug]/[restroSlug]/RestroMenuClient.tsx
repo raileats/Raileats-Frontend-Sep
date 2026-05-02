@@ -40,9 +40,9 @@ export default function RestroMenuClient({ items, header }: any) {
   const [vegOnly, setVegOnly] = useState(false);
 
   /* 🔥 COMPUTE ONLY ONCE */
-  const trainMin = useMemo(() => {
-  if (typeof window === "undefined") return null;
+  const [trainMin, setTrainMin] = useState<number | null>(null);
 
+useEffect(() => {
   const params = new URLSearchParams(window.location.search);
 
   const arrival =
@@ -51,12 +51,9 @@ export default function RestroMenuClient({ items, header }: any) {
     params.get("arrivalTime");
 
   if (arrival && arrival.includes(":")) {
-    return toMin(arrival.slice(0, 5));
+    setTrainMin(toMin(arrival.slice(0, 5)));
   }
-
-  return null;
 }, []);
-
   /* 🔥 HEAVY FILTER OPTIMIZED */
   const visible = useMemo(() => {
     return items.filter((it: any) => {
