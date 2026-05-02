@@ -118,7 +118,9 @@ export default function BulkOrderModal() {
         <h2 className="text-center font-semibold">Bulk Order</h2>
 
         {success ? (
-          <div className="text-green-600 text-center">Submitted</div>
+          <div className="text-green-600 text-center">
+            Submitted
+          </div>
         ) : (
           <>
             <input
@@ -142,37 +144,11 @@ export default function BulkOrderModal() {
               className="w-full border p-2 rounded"
             />
 
-            {!user && (
-              <>
-                <input
-                  placeholder="Name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full border p-2 rounded"
-                />
-
-                <input
-                  placeholder="Mobile"
-                  value={mobile}
-                  onChange={(e) => setMobile(e.target.value)}
-                  className="w-full border p-2 rounded"
-                />
-
-                <input
-                  placeholder="Email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full border p-2 rounded"
-                />
-              </>
-            )}
-
             <button
               onClick={handleSubmit}
-              disabled={loading}
-              className="w-full bg-yellow-500 text-white py-2 rounded disabled:opacity-60"
+              className="w-full bg-yellow-500 text-white py-2 rounded"
             >
-              {loading ? "Submitting..." : "Submit"}
+              Submit
             </button>
           </>
         )}
