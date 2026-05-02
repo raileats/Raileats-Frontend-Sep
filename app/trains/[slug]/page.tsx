@@ -86,6 +86,11 @@ export default function TrainPage() {
   const [loading, setLoading] = useState(true);
 
   useNow();
+  const orderData = {
+  train_number: trainNumber,
+  date: urlDate,
+  station_code: boarding,
+};
 
   /* 🔥 NEW: STORE DATA FROM URL */
   useEffect(() => {
