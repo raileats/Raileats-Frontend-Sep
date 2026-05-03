@@ -178,29 +178,37 @@ export default function TrainPage() {
 
   const remaining = getRemaining(arrives, deliveryDate, cutoff);
 
-  /* 🔥 TIME CHECK (NEW) */
-  const toMin = (t: string) => {
-    const [h, m] = t.slice(0, 5).split(":").map(Number);
-    return h * 60 + m;
-  };
+ /* 🔥 TIME CHECK (FINAL FIXED) */
 
-  const arrivalMin = toMin(arrives);
+// helper
+const toMin = (t: string) => {
+  const [h, m] = (t || "").slice(0, 5).split(":").map(Number);
+  return (h || 0) * 60 + (m || 0);
+};
 
-  const start = r.OpenTime || r.open_time;
-const end = r.CloseTime || r.close_time;
+// 🔥 CLEAN ARRIVAL (MOST IMPORTANT FIX)
+const cleanArrives = (arrives || "").slice(0, 5);
+const arrivalMin = toMin(cleanArrives);
 
-  let timeValid = true;
+// 🔥 CORRECT API FIELDS
+const start = r.OpenTime || r.open_time;
+const end = r.ClosedTime || r.closed_time;
 
-  if (start && end) {
-    const s = toMin(start);
-    const e = toMin(end);
+// 🔥 DEFAULT
+let timeValid = true;
 
-    if (e >= s) {
-      timeValid = arrivalMin >= s && arrivalMin <= e;
-    } else {
-      timeValid = arrivalMin >= s || arrivalMin <= e;
-    }
+if (start && end) {
+  const s = toMin(start);
+  const e = toMin(end);
+
+  if (e >= s) {
+    // normal case (same day)
+    timeValid = arrivalMin >= s && arrivalMin <= e;
+  } else {
+    // overnight case (22:00 → 04:00)
+    timeValid = arrivalMin >= s || arrivalMin <= e;
   }
+}
 
   /* ✅ FINAL (cutoff + timing both safe) */
   return remaining > 0 && timeValid;
