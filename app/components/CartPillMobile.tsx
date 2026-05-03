@@ -4,8 +4,9 @@ import React from "react";
 import { useCart } from "../lib/useCart";
 import { openCart } from "../lib/cartEvents";
 
-export default function CartPillMobile() {
+export default function CartPillMobile({ minOrder = 0 }: any) {
   const { count, total, clearCart } = useCart();
+  const isBlocked = total < minOrder;
 
   if (!count || count === 0) return null;
 
@@ -41,9 +42,17 @@ export default function CartPillMobile() {
           className="underline text-sm"
         >
           View Cart
-        </button>
-
-      </div>
-    </div>
-  );
-}
+        <button
+  onClick={() => {
+    if (isBlocked) {
+      alert(`Minimum order ₹${minOrder} complete karo`);
+      return;
+    }
+    openCart();
+  }}
+  className={`underline text-sm ${
+    isBlocked ? "opacity-50 cursor-not-allowed" : ""
+  }`}
+>
+  View Cart
+</button>
