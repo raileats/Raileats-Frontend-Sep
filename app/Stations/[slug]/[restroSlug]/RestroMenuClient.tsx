@@ -116,10 +116,6 @@ return (
           {header.stationCode}
         </div>
       </div>
-      <div className="text-sub text-xs">
-    Min Order: ₹{minOrder}
-  </div>
-</div>
 
       <label className="text-sm flex gap-1">
         <input
@@ -204,10 +200,6 @@ return (
       })}
     </div>
 
-    <CartPillMobile
-  cartTotal={cartTotal}
-  minOrder={minOrder}
-/>
+    <CartPillMobile />
   </div>
 );
-}
