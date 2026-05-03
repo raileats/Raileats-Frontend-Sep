@@ -204,7 +204,10 @@ return (
       })}
     </div>
 
-    <CartPillMobile />
+    <CartPillMobile
+  cartTotal={cartTotal}
+  minOrder={minOrder}
+/>
   </div>
 );
 }
