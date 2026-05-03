@@ -108,11 +108,12 @@ if (deliveryTime) {
     });
 
   const header = {
-    stationCode,
-    restroCode: String(restroCode),
-    outletName,
-    stationName,
-  };
+  stationCode,
+  restroCode: String(restroCode),
+  outletName,
+  stationName,
+  minimumOrder: Number(minOrderFromUrl), // 🔥 ADD THIS
+};
 
   const nextParams = {
     stationName,
