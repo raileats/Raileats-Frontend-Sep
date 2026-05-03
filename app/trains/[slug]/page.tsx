@@ -171,14 +171,40 @@ export default function TrainPage() {
         const vendors = st.vendors || [];
 
         const validVendors = vendors.filter((r: any) => {
-          const cutoff = parseInt(
-            String(r.CutOffTime ?? r.cutoff_time ?? "0").trim(),
-            10
-          ) || 0;
+  const cutoff = parseInt(
+    String(r.CutOffTime ?? r.cutoff_time ?? "0").trim(),
+    10
+  ) || 0;
 
-          const remaining = getRemaining(arrives, deliveryDate, cutoff);
-          return remaining > 0;
-        });
+  const remaining = getRemaining(arrives, deliveryDate, cutoff);
+
+  /* 🔥 TIME CHECK (NEW) */
+  const toMin = (t: string) => {
+    const [h, m] = t.slice(0, 5).split(":").map(Number);
+    return h * 60 + m;
+  };
+
+  const arrivalMin = toMin(arrives);
+
+  const start = r.StartTime || r.start_time;
+  const end = r.EndTime || r.end_time;
+
+  let timeValid = true;
+
+  if (start && end) {
+    const s = toMin(start);
+    const e = toMin(end);
+
+    if (e >= s) {
+      timeValid = arrivalMin >= s && arrivalMin <= e;
+    } else {
+      timeValid = arrivalMin >= s || arrivalMin <= e;
+    }
+  }
+
+  /* ✅ FINAL (cutoff + timing both safe) */
+  return remaining > 0 && timeValid;
+});
 
         if (!validVendors.length) return null;
 
