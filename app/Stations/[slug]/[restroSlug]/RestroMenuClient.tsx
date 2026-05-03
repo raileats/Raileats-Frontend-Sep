@@ -109,13 +109,20 @@ return (
     {/* HEADER */}
     <div className="card flex justify-between items-center">
       <div>
-        <h1 className="text-main font-semibold">
-          {header.outletName}
-        </h1>
-        <div className="text-sub text-xs">
-          {header.stationCode}
-        </div>
-      </div>
+        <div>
+  <h1 className="text-main font-semibold">
+    {header.outletName}
+  </h1>
+
+  <div className="text-sub text-xs">
+    {header.stationCode}
+  </div>
+
+  {/* 🔥 ADD THIS */}
+  <div className="text-sub text-xs">
+    Min Order: ₹{header?.minimumOrder || 0}
+  </div>
+</div>
 
       <label className="text-sm flex gap-1">
         <input
@@ -203,3 +210,4 @@ return (
     <CartPillMobile />
   </div>
 );
+}
