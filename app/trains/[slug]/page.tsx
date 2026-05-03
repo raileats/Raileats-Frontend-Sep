@@ -249,7 +249,10 @@ export default function TrainPage() {
 
                       <div className="text-right">
                         <a
-                          href={`/Stations/${stationSlug}/${restroSlug}?date=${deliveryDate}&train=${trainNumber}&boarding=${boarding}&arrival=${cleanArrival}`}
+                          href={`/Stations/${stationSlug}/${restroSlug}?deliveryDate=${encodeURIComponent(deliveryDate)}
+&deliveryTime=${encodeURIComponent(cleanArrival)}
+&train=${trainNumber}
+&boarding=${boarding}
                           className="bg-orange-500 text-white px-4 py-2 rounded-lg text-sm"
                         >
                           Order Now
