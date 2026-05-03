@@ -109,7 +109,6 @@ return (
     {/* HEADER */}
     <div className="card flex justify-between items-center">
       <div>
-        <div>
   <h1 className="text-main font-semibold">
     {header.outletName}
   </h1>
