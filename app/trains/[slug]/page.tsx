@@ -186,8 +186,8 @@ export default function TrainPage() {
 
   const arrivalMin = toMin(arrives);
 
-  const start = r.StartTime || r.start_time;
-  const end = r.EndTime || r.end_time;
+  const start = r.OpenTime || r.open_time;
+const end = r.CloseTime || r.close_time;
 
   let timeValid = true;
 
