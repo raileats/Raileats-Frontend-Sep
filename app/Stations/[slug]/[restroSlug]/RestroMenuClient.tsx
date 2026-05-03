@@ -34,8 +34,15 @@ const isItemActive = (it: any) => {
 };
 
 export default function RestroMenuClient({ items, header }: any) {
+  const minOrder = header?.minimumOrder || 0;
   const { user } = useAuth();
   const { add, changeQty, cart } = useCart();
+  const cartTotal = useMemo(() => {
+  return Object.values(cart).reduce(
+    (sum: number, item: any) => sum + item.price * item.qty,
+    0
+  );
+}, [cart]);
 
   const [vegOnly, setVegOnly] = useState(false);
 
@@ -109,6 +116,10 @@ return (
           {header.stationCode}
         </div>
       </div>
+      <div className="text-sub text-xs">
+    Min Order: ₹{minOrder}
+  </div>
+</div>
 
       <label className="text-sm flex gap-1">
         <input
