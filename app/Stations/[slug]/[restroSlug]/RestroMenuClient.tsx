@@ -38,37 +38,31 @@ export default function RestroMenuClient({ items, header }: any) {
   const { user } = useAuth();
   const { add, changeQty, cart } = useCart();
   const cartTotal = useMemo(() => {
-  return Object.values(cart).reduce(
-    (sum: number, item: any) => sum + item.price * item.qty,
-    0
-  );
-}, [cart]);
+    return Object.values(cart).reduce(
+      (sum: number, item: any) => sum + item.price * item.qty,
+      0
+    );
+  }, [cart]);
 
   const [vegOnly, setVegOnly] = useState(false);
-
-  /* 🔥 COMPUTE ONLY ONCE */
   const [trainMin, setTrainMin] = useState<number | null>(null);
 
-useEffect(() => {
-  const params = new URLSearchParams(window.location.search);
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const arrival =
+      params.get("deliveryTime") ||
+      params.get("arrival") ||
+      params.get("arrivalTime");
+    if (arrival && arrival.includes(":")) {
+      setTrainMin(toMin(arrival.slice(0, 5)));
+    }
+  }, []);
 
-  const arrival =
-    params.get("deliveryTime") ||
-    params.get("arrival") ||
-    params.get("arrivalTime");
-
-  if (arrival && arrival.includes(":")) {
-    setTrainMin(toMin(arrival.slice(0, 5)));
-  }
-}, []);
-  /* 🔥 HEAVY FILTER OPTIMIZED */
   const visible = useMemo(() => {
     return items.filter((it: any) => {
       if (!isItemActive(it)) return false;
-
       const s = toMin(it.start_time);
       const e = toMin(it.end_time);
-
       if (trainMin !== null && s !== null && e !== null) {
         if (e >= s) {
           if (trainMin < s || trainMin > e) return false;
@@ -76,14 +70,10 @@ useEffect(() => {
           if (trainMin < s && trainMin > e) return false;
         }
       }
-
       if (vegOnly && !isVegItem(it)) return false;
-
       return true;
     });
   }, [items, vegOnly, trainMin]);
-
-  /* ================= ADD ================= */
 
   const handleAdd = (it: any) => {
     if (!user) {
@@ -94,7 +84,6 @@ useEffect(() => {
       );
       return;
     }
-
     add({
       id: it.id,
       name: it.item_name,
@@ -103,8 +92,9 @@ useEffect(() => {
     });
   };
 
-return (
-  <div className="container-app space-y-4">
+  return (
+    <div className="container-app space-y-4">
+      {/* HEADER */}
 
     {/* HEADER */}
 <div className="card bg-white p-4 space-y-2">
