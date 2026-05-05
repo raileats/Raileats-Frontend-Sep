@@ -95,14 +95,10 @@ export default function RestroMenuClient({ items, header }: any) {
   return (
     <div className="container-app space-y-4">
       {/* HEADER */}
-
-    {/* HEADER */}
-<div className="card bg-white p-4 space-y-2">
-
-  <div className="flex justify-between items-start">
-
-    {/* LEFT */}
-    <div>
+      <div className="card bg-white p-4 space-y-2">
+        <div className="flex justify-between items-start">
+          {/* LEFT */}
+          <div>
       <div className="text-xs text-gray-500">Journey</div>
 
       {/* TRAIN NAME + NUMBER */}
