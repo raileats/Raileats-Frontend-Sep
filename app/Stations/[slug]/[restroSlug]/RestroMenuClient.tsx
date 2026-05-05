@@ -33,10 +33,12 @@ const isItemActive = (it: any) => {
   return String(raw || "").toUpperCase() === "ON";
 };
 
-export default function RestroMenuClient({ items, header, nextParams }: any)
+export default function RestroMenuClient({ items, header, nextParams }: any) {
+
   const minOrder = header?.minimumOrder || 0;
   const { user } = useAuth();
   const { add, changeQty, cart } = useCart();
+
   const cartTotal = useMemo(() => {
     return Object.values(cart).reduce(
       (sum: number, item: any) => sum + item.price * item.qty,
@@ -53,6 +55,7 @@ export default function RestroMenuClient({ items, header, nextParams }: any)
       params.get("deliveryTime") ||
       params.get("arrival") ||
       params.get("arrivalTime");
+
     if (arrival && arrival.includes(":")) {
       setTrainMin(toMin(arrival.slice(0, 5)));
     }
@@ -61,8 +64,10 @@ export default function RestroMenuClient({ items, header, nextParams }: any)
   const visible = useMemo(() => {
     return items.filter((it: any) => {
       if (!isItemActive(it)) return false;
+
       const s = toMin(it.start_time);
       const e = toMin(it.end_time);
+
       if (trainMin !== null && s !== null && e !== null) {
         if (e >= s) {
           if (trainMin < s || trainMin > e) return false;
@@ -70,7 +75,9 @@ export default function RestroMenuClient({ items, header, nextParams }: any)
           if (trainMin < s && trainMin > e) return false;
         }
       }
+
       if (vegOnly && !isVegItem(it)) return false;
+
       return true;
     });
   }, [items, vegOnly, trainMin]);
@@ -84,132 +91,132 @@ export default function RestroMenuClient({ items, header, nextParams }: any)
       );
       return;
     }
+
     add({
       id: it.id,
       name: it.item_name,
       price: it.base_price,
       qty: 1,
     });
-  
+  };
 
-    return (
-  <div className="container-app space-y-4">
+  /* 🔥 RETURN SHOULD BE HERE (OUTSIDE FUNCTIONS) */
+  return (
+    <div className="container-app space-y-4">
 
-    {/* HEADER */}
-    <div className="card bg-white p-4 space-y-2">
-      <div className="flex justify-between items-start">
+      {/* HEADER */}
+      <div className="card bg-white p-4 space-y-2">
+        <div className="flex justify-between items-start">
 
-        <div>
-          <div className="text-xs text-gray-500">Journey</div>
+          <div>
+            <div className="text-xs text-gray-500">Journey</div>
 
-          <div className="text-sm font-semibold text-orange-600">
-            {nextParams?.trainName || "Train"} #{nextParams?.trainNumber}
+            <div className="text-sm font-semibold text-orange-600">
+              {nextParams?.trainName || "Train"} #{nextParams?.trainNumber}
+            </div>
+
+            <div className="text-xs text-gray-500">
+              {nextParams?.stationName} ({header.stationCode})
+            </div>
+
+            <div className="text-xs text-blue-600 font-semibold">
+              {nextParams?.deliveryDate}
+              {nextParams?.deliveryTime && ` at ${nextParams.deliveryTime}`}
+            </div>
           </div>
 
-          <div className="text-xs text-gray-500">
-            {nextParams?.stationName} ({header.stationCode})
-          </div>
-
-          <div className="text-xs text-blue-600 font-semibold">
-            {nextParams?.deliveryDate}
-            {nextParams?.deliveryTime && ` at ${nextParams.deliveryTime}`}
-          </div>
+          <label className="text-sm flex gap-1 items-center">
+            <input
+              type="checkbox"
+              checked={vegOnly}
+              onChange={(e) => setVegOnly(e.target.checked)}
+            />
+            Veg only
+          </label>
         </div>
 
-        <label className="text-sm flex gap-1 items-center">
-          <input
-            type="checkbox"
-            checked={vegOnly}
-            onChange={(e) => setVegOnly(e.target.checked)}
-          />
-          Veg only
-        </label>
+        <div className="text-lg font-bold text-gray-800">
+          {header.outletName}
+        </div>
+
+        <div className="text-sm text-gray-600">
+          Min Order: ₹{header.minimumOrder}
+        </div>
       </div>
 
-      <div className="text-lg font-bold text-gray-800">
-        {header.outletName}
-      </div>
+      {/* EMPTY */}
+      {visible.length === 0 && (
+        <div className="card text-center text-sub">
+          No items available
+        </div>
+      )}
 
-      <div className="text-sm text-gray-600">
-        Min Order: ₹{header.minimumOrder}
-      </div>
-    </div>
+      {/* ITEMS */}
+      <div className="space-y-3">
+        {visible.map((it: any) => {
+          const existing = cart[it.id];
+          const isVeg = isVegItem(it);
 
-    {/* EMPTY */}
-    {visible.length === 0 && (
-      <div className="card text-center text-sub">
-        No items available
-      </div>
-    )}
+          return (
+            <div key={it.id} className="card flex justify-between items-start">
 
-    {/* ITEMS */}
-    <div className="space-y-3">
-      {visible.map((it: any) => {
-        const existing = cart[it.id];
-        const isVeg = isVegItem(it);
+              <div>
+                <div className="flex gap-2 items-center">
+                  <span
+                    className={`w-3 h-3 rounded-full ${
+                      isVeg ? "bg-green-600" : "bg-red-600"
+                    }`}
+                  />
+                  <span className="text-main text-sm font-medium">
+                    {it.item_name}
+                  </span>
+                </div>
 
-        return (
-          <div
-            key={it.id}
-            className="card flex justify-between items-start"
-          >
-            <div>
-              <div className="flex gap-2 items-center">
-                <span
-                  className={`w-3 h-3 rounded-full ${
-                    isVeg ? "bg-green-600" : "bg-red-600"
-                  }`}
-                />
-                <span className="text-main text-sm font-medium">
-                  {it.item_name}
-                </span>
-              </div>
-
-              <div className="text-sub text-xs">
-                ⏱{" "}
-                {it.start_time && it.end_time
-                  ? `${it.start_time} - ${it.end_time}`
-                  : "All day"}
-              </div>
-
-              {it.item_description && (
                 <div className="text-sub text-xs">
-                  {it.item_description}
+                  ⏱ {it.start_time && it.end_time
+                    ? `${it.start_time} - ${it.end_time}`
+                    : "All day"}
                 </div>
-              )}
 
-              <div className="text-main font-semibold">
-                ₹{it.base_price}
+                {it.item_description && (
+                  <div className="text-sub text-xs">
+                    {it.item_description}
+                  </div>
+                )}
+
+                <div className="text-main font-semibold">
+                  ₹{it.base_price}
+                </div>
               </div>
-            </div>
 
-            <div>
-              {!existing ? (
-                <button
-                  className="btn-primary text-sm"
-                  onClick={() => handleAdd(it)}
-                >
-                  Add
-                </button>
-              ) : (
-                <div className="flex gap-2 border border-borderLight px-2 py-1 rounded text-sm">
-                  <button onClick={() => changeQty(it.id, existing.qty - 1)}>
-                    -
+              <div>
+                {!existing ? (
+                  <button
+                    className="btn-primary text-sm"
+                    onClick={() => handleAdd(it)}
+                  >
+                    Add
                   </button>
-                  <span>{existing.qty}</span>
-                  <button onClick={() => changeQty(it.id, existing.qty + 1)}>
-                    +
-                  </button>
-                </div>
-              )}
+                ) : (
+                  <div className="flex gap-2 border px-2 py-1 rounded text-sm">
+                    <button onClick={() => changeQty(it.id, existing.qty - 1)}>
+                      -
+                    </button>
+                    <span>{existing.qty}</span>
+                    <button onClick={() => changeQty(it.id, existing.qty + 1)}>
+                      +
+                    </button>
+                  </div>
+                )}
+              </div>
+
             </div>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
+
+      <CartPillMobile minOrder={header.minimumOrder} />
+
     </div>
-
-    <CartPillMobile minOrder={header.minimumOrder} />
-
-  </div>
-);
+  );
 }
