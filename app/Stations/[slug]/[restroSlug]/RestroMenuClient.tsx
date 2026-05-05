@@ -107,106 +107,126 @@ return (
   <div className="container-app space-y-4">
 
     {/* HEADER */}
-    <div className="card flex justify-between items-center">
-      <div>
-  <h1 className="text-main font-semibold">
+<div className="card bg-white p-4 space-y-2">
+
+  <div className="flex justify-between items-start">
+
+    {/* LEFT */}
+    <div>
+      <div className="text-xs text-gray-500">Journey</div>
+
+      {/* TRAIN NAME + NUMBER */}
+      <div className="text-sm font-semibold text-orange-600">
+        {nextParams.trainName || "Train"} #{nextParams.trainNumber}
+      </div>
+
+      {/* STATION */}
+      <div className="text-xs text-gray-500">
+        {nextParams.stationName} ({header.stationCode})
+      </div>
+
+      {/* DATE + TIME */}
+      <div className="text-xs text-blue-600 font-semibold">
+        {nextParams.deliveryDate}
+        {nextParams.deliveryTime && ` at ${nextParams.deliveryTime}`}
+      </div>
+    </div>
+
+    {/* VEG TOGGLE */}
+    <label className="text-sm flex gap-1 items-center">
+      <input
+        type="checkbox"
+        checked={vegOnly}
+        onChange={(e) => setVegOnly(e.target.checked)}
+      />
+      Veg only
+    </label>
+
+  </div>
+
+  {/* RESTRO NAME */}
+  <div className="text-lg font-bold text-gray-800">
     {header.outletName}
-  </h1>
-
-  <div className="text-sub text-xs">
-    {header.stationCode}
   </div>
 
-  {/* 🔥 ADD THIS */}
-  <div className="text-sub text-xs">
-    Min Order: ₹{header?.minimumOrder || 0}
+  {/* MIN ORDER */}
+  <div className="text-sm text-gray-600">
+    Min Order: ₹{header.minimumOrder}
   </div>
+
 </div>
 
-      <label className="text-sm flex gap-1">
-        <input
-          type="checkbox"
-          checked={vegOnly}
-          onChange={(e) => setVegOnly(e.target.checked)}
-        />
-        Veg only
-      </label>
-    </div>
-
-    {/* EMPTY */}
-    {visible.length === 0 && (
-      <div className="card text-center text-sub">
-        No items available
-      </div>
-    )}
-
-    {/* ITEMS */}
-    <div className="space-y-3">
-      {visible.map((it: any) => {
-        const existing = cart[it.id];
-        const isVeg = isVegItem(it);
-
-        return (
-          <div
-            key={it.id}
-            className="card flex justify-between items-start"
-          >
-            <div>
-              <div className="flex gap-2 items-center">
-                <span
-                  className={`w-3 h-3 rounded-full ${
-                    isVeg ? "bg-green-600" : "bg-red-600"
-                  }`}
-                />
-                <span className="text-main text-sm font-medium">
-                  {it.item_name}
-                </span>
-              </div>
-
-              <div className="text-sub text-xs">
-                ⏱{" "}
-                {it.start_time && it.end_time
-                  ? `${it.start_time} - ${it.end_time}`
-                  : "All day"}
-              </div>
-
-              {it.item_description && (
-                <div className="text-sub text-xs">
-                  {it.item_description}
-                </div>
-              )}
-
-              <div className="text-main font-semibold">
-                ₹{it.base_price}
-              </div>
-            </div>
-
-            <div>
-              {!existing ? (
-                <button
-                  className="btn-primary text-sm"
-                  onClick={() => handleAdd(it)}
-                >
-                  Add
-                </button>
-              ) : (
-                <div className="flex gap-2 border border-borderLight px-2 py-1 rounded text-sm">
-                  <button onClick={() => changeQty(it.id, existing.qty - 1)}>
-                    -
-                  </button>
-                  <span>{existing.qty}</span>
-                  <button onClick={() => changeQty(it.id, existing.qty + 1)}>
-                    +
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        );
-      })}
-    </div>
-
-    <CartPillMobile />
+{/* EMPTY */}
+{visible.length === 0 && (
+  <div className="card text-center text-sub">
+    No items available
   </div>
-);
-}
+)}
+
+{/* ITEMS */}
+<div className="space-y-3">
+  {visible.map((it: any) => {
+    const existing = cart[it.id];
+    const isVeg = isVegItem(it);
+
+    return (
+      <div
+        key={it.id}
+        className="card flex justify-between items-start"
+      >
+        <div>
+          <div className="flex gap-2 items-center">
+            <span
+              className={`w-3 h-3 rounded-full ${
+                isVeg ? "bg-green-600" : "bg-red-600"
+              }`}
+            />
+            <span className="text-main text-sm font-medium">
+              {it.item_name}
+            </span>
+          </div>
+
+          <div className="text-sub text-xs">
+            ⏱{" "}
+            {it.start_time && it.end_time
+              ? `${it.start_time} - ${it.end_time}`
+              : "All day"}
+          </div>
+
+          {it.item_description && (
+            <div className="text-sub text-xs">
+              {it.item_description}
+            </div>
+          )}
+
+          <div className="text-main font-semibold">
+            ₹{it.base_price}
+          </div>
+        </div>
+
+        <div>
+          {!existing ? (
+            <button
+              className="btn-primary text-sm"
+              onClick={() => handleAdd(it)}
+            >
+              Add
+            </button>
+          ) : (
+            <div className="flex gap-2 border border-borderLight px-2 py-1 rounded text-sm">
+              <button onClick={() => changeQty(it.id, existing.qty - 1)}>
+                -
+              </button>
+              <span>{existing.qty}</span>
+              <button onClick={() => changeQty(it.id, existing.qty + 1)}>
+                +
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  })}
+</div>
+
+<CartPillMobile minOrder={header.minimumOrder} />
