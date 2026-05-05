@@ -92,54 +92,55 @@ export default function RestroMenuClient({ items, header }: any) {
     });
   };
 
-  return (
+    return (
     <div className="container-app space-y-4">
       {/* HEADER */}
       <div className="card bg-white p-4 space-y-2">
         <div className="flex justify-between items-start">
           {/* LEFT */}
           <div>
-      <div className="text-xs text-gray-500">Journey</div>
+            <div className="text-xs text-gray-500">Journey</div>
 
-      {/* TRAIN NAME + NUMBER */}
-      <div className="text-sm font-semibold text-orange-600">
-        {nextParams.trainName || "Train"} #{nextParams.trainNumber}
+            {/* TRAIN NAME + NUMBER */}
+            <div className="text-sm font-semibold text-orange-600">
+              {nextParams.trainName || "Train"} #{nextParams.trainNumber}
+            </div>
+
+            {/* STATION */}
+            <div className="text-xs text-gray-500">
+              {nextParams.stationName} ({header.stationCode})
+            </div>
+
+            {/* DATE + TIME */}
+            <div className="text-xs text-blue-600 font-semibold">
+              {nextParams.deliveryDate}
+              {nextParams.deliveryTime && ` at ${nextParams.deliveryTime}`}
+            </div>
+          </div>
+
+          {/* VEG TOGGLE */}
+          <label className="text-sm flex gap-1 items-center">
+            <input
+              type="checkbox"
+              checked={vegOnly}
+              onChange={(e) => setVegOnly(e.target.checked)}
+            />
+            Veg only
+          </label>
+        </div>
+
+        {/* RESTRO NAME */}
+        <div className="text-lg font-bold text-gray-800">
+          {header.outletName}
+        </div>
+
+        {/* MIN ORDER */}
+        <div className="text-sm text-gray-600">
+          Min Order: ₹{header.minimumOrder}
+        </div>
       </div>
-
-      {/* STATION */}
-      <div className="text-xs text-gray-500">
-        {nextParams.stationName} ({header.stationCode})
-      </div>
-
-      {/* DATE + TIME */}
-      <div className="text-xs text-blue-600 font-semibold">
-        {nextParams.deliveryDate}
-        {nextParams.deliveryTime && ` at ${nextParams.deliveryTime}`}
-      </div>
-    </div>
-
-    {/* VEG TOGGLE */}
-    <label className="text-sm flex gap-1 items-center">
-      <input
-        type="checkbox"
-        checked={vegOnly}
-        onChange={(e) => setVegOnly(e.target.checked)}
-      />
-      Veg only
-    </label>
-
-  </div>
-
-  {/* RESTRO NAME */}
-  <div className="text-lg font-bold text-gray-800">
-    {header.outletName}
-  </div>
-
-  {/* MIN ORDER */}
-  <div className="text-sm text-gray-600">
-    Min Order: ₹{header.minimumOrder}
-  </div>
-
+      
+      {/* remaining JSX */}
 </div>
 
 {/* EMPTY */}
