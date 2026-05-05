@@ -281,50 +281,61 @@ if (start && end) {
     : null;
 
                 return (
-                  <div key={r.RestroCode} className="bg-white p-3 rounded-lg border flex gap-3">
-                    <div className="w-24 h-24 bg-gray-100 rounded-md overflow-hidden">
-                      {img ? (
-                        <img src={img} className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="flex items-center justify-center h-full text-xs text-gray-400">
-                          No Image
-                        </div>
-                      )}
-                    </div>
+  <div key={r.RestroCode} className="bg-white p-3 rounded-lg border flex gap-3">
+    
+    {/* IMAGE */}
+    <div className="w-24 h-24 bg-gray-100 rounded-md overflow-hidden">
+      {img ? (
+        <img src={img} className="w-full h-full object-cover" />
+      ) : (
+        <div className="flex items-center justify-center h-full text-xs text-gray-400">
+          No Image
+        </div>
+      )}
+    </div>
 
-                    <div className="flex-1 flex flex-col justify-between">
-                      <div>
-                        <div className="font-semibold">{r.RestroName}</div>
+    {/* RIGHT CONTENT */}
+    <div className="flex-1 flex flex-col justify-between">
 
-                        <div className="text-xs text-gray-500">
-                          Min. Order: ₹{r.MinimumOrderValue}
-                        </div>
+      <div>
+        <div className="font-semibold">{r.RestroName}</div>
 
-                        <div className="text-green-600 text-xs font-semibold">
-                          ● Pure Veg
-                        </div>
+        <div className="text-xs text-gray-500">
+          Min. Order: ₹{r.MinimumOrderValue}
+        </div>
 
-                        <div className={`text-xs font-bold mt-1 ${isClosingSoon ? "text-red-600" : "text-blue-600"}`}>
-                          ⏳ Order before: {timeText}
-                          {isClosingSoon && " ⚠ Closing soon"}
-                        </div>
-                      </div>
+        <div className="text-green-600 text-xs font-semibold">
+          ● Pure Veg
+        </div>
 
-                      <div className="text-right">
-                        <a
-                          const trainNameFinal = trainName && trainName.trim() !== "" 
-  ? trainName 
-  : `Train ${trainNumber}`;
+        <div className={`text-xs font-bold mt-1 ${
+          isClosingSoon ? "text-red-600" : "text-blue-600"
+        }`}>
+          ⏳ Order before: {timeText}
+          {isClosingSoon && " ⚠ Closing soon"}
+        </div>
+      </div>
 
-<a
-  href={`/Stations/${stationSlug}/${restroSlug}?deliveryDate=${encodeURIComponent(deliveryDate)}
+      {/* 🔥 FIXED LINK */}
+      <div className="text-right">
+        <a
+          href={`/Stations/${stationSlug}/${restroSlug}?deliveryDate=${encodeURIComponent(deliveryDate)}
 ${cleanArrival ? `&deliveryTime=${encodeURIComponent(cleanArrival)}` : ""}
 ${cleanArrival ? `&arrival=${encodeURIComponent(cleanArrival)}` : ""}
 &train=${encodeURIComponent(trainNumber)}
-&trainName=${encodeURIComponent(trainNameFinal)}
+&trainName=${encodeURIComponent(
+  trainName && trainName.trim() !== "" 
+    ? trainName 
+    : `Train ${trainNumber}`
+)}
 &boarding=${encodeURIComponent(boarding)}
 &minOrder=${encodeURIComponent(r.MinimumOrderValue || 0)}`}
-  className="bg-orange-500 text-white px-4 py-2 rounded-lg text-sm"
->
-  Order Now
-</a>
+          className="bg-orange-500 text-white px-4 py-2 rounded-lg text-sm"
+        >
+          Order Now
+        </a>
+      </div>
+
+    </div>
+  </div>
+);
