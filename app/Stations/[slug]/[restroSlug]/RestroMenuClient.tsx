@@ -33,7 +33,7 @@ const isItemActive = (it: any) => {
   return String(raw || "").toUpperCase() === "ON";
 };
 
-export default function RestroMenuClient({ items, header }: any) {
+export default function RestroMenuClient({ items, header, nextParams }: any)
   const minOrder = header?.minimumOrder || 0;
   const { user } = useAuth();
   const { add, changeQty, cart } = useCart();
