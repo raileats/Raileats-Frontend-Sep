@@ -81,8 +81,11 @@ export default function TrainPage() {
 
   const urlDate = searchParams.get("date") || "";
   const boarding = (searchParams.get("boarding") || "").toUpperCase();
-  const trainName = searchParams.get("trainName") || "";
-
+  const rawTrainName = searchParams.get("trainName") || "";
+const trainName =
+  rawTrainName && rawTrainName.trim() !== ""
+    ? rawTrainName
+    : `Train ${trainNumber}`;
   const [stations, setStations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
