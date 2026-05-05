@@ -90,7 +90,7 @@ export default function RestroMenuClient({ items, header, nextParams }: any)
       price: it.base_price,
       qty: 1,
     });
-  };
+  
 
     return (
   <div className="container-app space-y-4">
