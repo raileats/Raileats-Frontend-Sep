@@ -138,10 +138,8 @@ export default function RestroMenuClient({ items, header }: any) {
         <div className="text-sm text-gray-600">
           Min Order: ₹{header.minimumOrder}
         </div>
-      </div>
+     
       
-      {/* remaining JSX */}
-</div>
 
 {/* EMPTY */}
 {visible.length === 0 && (
