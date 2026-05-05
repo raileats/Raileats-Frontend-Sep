@@ -312,26 +312,19 @@ if (start && end) {
 
                       <div className="text-right">
                         <a
-                          href={`/Stations/${stationSlug}/${restroSlug}?deliveryDate=${encodeURIComponent(deliveryDate)}
+                          const trainNameFinal = trainName && trainName.trim() !== "" 
+  ? trainName 
+  : `Train ${trainNumber}`;
+
+<a
+  href={`/Stations/${stationSlug}/${restroSlug}?deliveryDate=${encodeURIComponent(deliveryDate)}
 ${cleanArrival ? `&deliveryTime=${encodeURIComponent(cleanArrival)}` : ""}
 ${cleanArrival ? `&arrival=${encodeURIComponent(cleanArrival)}` : ""}
 &train=${encodeURIComponent(trainNumber)}
-&trainName=${encodeURIComponent(trainName)}
+&trainName=${encodeURIComponent(trainNameFinal)}
 &boarding=${encodeURIComponent(boarding)}
 &minOrder=${encodeURIComponent(r.MinimumOrderValue || 0)}`}
-                          className="bg-orange-500 text-white px-4 py-2 rounded-lg text-sm"
-                        >
-                          Order Now
-                        </a>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
+  className="bg-orange-500 text-white px-4 py-2 rounded-lg text-sm"
+>
+  Order Now
+</a>
