@@ -79,6 +79,7 @@ export default async function Page({ params, searchParams }: any) {
     "";
 
   const trainName = searchParams?.trainName || "";
+  const minOrderFromUrl = searchParams?.minOrder || "0";
   let arrivalTime = "12:00:00";
 
 if (deliveryTime) {
@@ -127,50 +128,14 @@ if (deliveryTime) {
   return (
     <main className="container-app">
 
-      {/* ✅ NEW CLEAN HEADER */}
-      <div className="mb-4 rounded-xl border border-yellow-300 bg-gradient-to-r from-yellow-50 to-orange-50 p-4 shadow-sm">
+     {/* 🔥 REMOVE OLD YELLOW HEADER — अब जरूरत नहीं */}
 
-  <div className="grid grid-cols-2 gap-4 items-start">
+<RestroMenuClient
+  header={header}
+  items={items}
+  nextParams={nextParams}
+/>
 
-    {/* LEFT → Journey */}
-    <div>
-      <div className="text-xs text-gray-500 font-medium">Journey</div>
-
-      <div className="text-base font-bold text-orange-700">
-        {trainName || "Train"}
-      </div>
-
-      <div className="text-xs text-gray-600">
-        #{searchParams?.train || ""}
-      </div>
-
-      <div className="mt-1 text-sm font-medium text-gray-800">
-        {stationName} ({stationCode})
-      </div>
-    </div>
-
-    {/* RIGHT → Delivery */}
-    <div className="text-right">
-      <div className="text-xs text-gray-500 font-medium">Delivery</div>
-
-      <div className="text-base font-bold text-blue-700">
-        {deliveryDate} {deliveryTime && `at ${deliveryTime}`}
-      </div>
-
-      <div className="text-sm text-gray-800 font-medium">
-        {outletName}
-      </div>
-    </div>
-
-  </div>
-</div>
-
-      <RestroMenuClient
-        header={header}
-        items={items}
-        nextParams={nextParams}
-      />
-
-    </main>
-  );
+</main>
+);
 }
