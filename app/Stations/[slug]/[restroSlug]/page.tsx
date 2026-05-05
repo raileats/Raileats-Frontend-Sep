@@ -79,6 +79,7 @@ export default async function Page({ params, searchParams }: any) {
     "";
 
   const trainName = searchParams?.trainName || "";
+  const trainNumber = searchParams?.train || "";
   const minOrderFromUrl = searchParams?.minOrder || "0";
   let arrivalTime = "12:00:00";
 
@@ -117,13 +118,14 @@ if (deliveryTime) {
 };
 
   const nextParams = {
-    stationName,
-    stationCode,
-    deliveryDate,
-    deliveryTime,
-    trainName,
-    vendorName: outletName,
-  };
+  stationName,
+  stationCode,
+  deliveryDate,
+  deliveryTime,
+  trainName,
+  trainNumber, // 🔥 YE ADD KARNA HAI
+  vendorName: outletName,
+};
 
   return (
     <main className="container-app">
