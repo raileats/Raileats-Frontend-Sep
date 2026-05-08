@@ -85,7 +85,7 @@ export default function TrainPage() {
 const trainName =
   rawTrainName && rawTrainName.trim() !== ""
     ? rawTrainName
-    : `Train ${trainNumber}`;
+    : "";
   const [stations, setStations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
