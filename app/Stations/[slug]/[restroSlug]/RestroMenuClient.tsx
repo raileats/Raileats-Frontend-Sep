@@ -112,8 +112,10 @@ export default function RestroMenuClient({ items, header, nextParams }: any) {
             <div className="text-xs text-gray-500">Journey</div>
 
             <div className="text-sm font-semibold text-orange-600">
-              {nextParams?.trainName || "Train"} #{nextParams?.trainNumber}
-            </div>
+  {nextParams?.trainName
+    ? `${nextParams.trainName} #${nextParams.trainNumber}`
+    : `Train #${nextParams?.trainNumber}`}
+</div>
 
             <div className="text-xs text-gray-500">
               {nextParams?.stationName} ({header.stationCode})
