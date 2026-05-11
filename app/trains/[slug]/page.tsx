@@ -277,11 +277,17 @@ if (start && end) {
                 }
 
                 const stationSlug = `${stationCode}-${toSlug(stationName)}`;
-                const restroSlug = `${r.RestroCode}-${toSlug(r.RestroName)}`;
-                const cleanArrival =
+const restroSlug = `${r.RestroCode}-${toSlug(r.RestroName)}`;
+
+const cleanArrival =
   arrives && arrives.includes(":")
     ? arrives.slice(0, 5)
     : null;
+
+const finalTrainName =
+  trainName && trainName.trim()
+    ? trainName
+    : "Train";
 
                 return (
                   <div key={r.RestroCode} className="bg-white p-3 rounded-lg border flex gap-3">
