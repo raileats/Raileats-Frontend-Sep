@@ -81,12 +81,19 @@ export default function CheckoutPage() {
     const cleanRestroCode = rawRestroCode ? parseInt(rawRestroCode.toString(), 10) : 0;
 
     try {
-      // Direct root level array mappings for strict backend validations
+      // 🔥 FIX: Saari missing keys (description, category, cuisine, menu_type) yahan map ho rahi hain
       const formattedItems = items.map((i) => ({
         id: i.id,
         name: i.name,
         qty: i.qty,
         price: i.price,
+        description: i.description || i.ItemDescription || null,
+        category: i.category || i.ItemCategory || null,
+        cuisine: i.cuisine || i.Cuisine || null,
+        menu_type: i.menu_type || i.menuType || i.MenuType || null,
+        gst_percent: i.gst_percent || 5.00,
+        // Yahan item ke sath unique CreatedAt timestamps ja raha hai database compatibility ke liye
+        CreatedAt: new Date().toISOString(),
       }));
 
       const res = await fetch("/api/order/create", {
@@ -112,7 +119,7 @@ export default function CheckoutPage() {
           TotalAmount: total,
           PaymentMode: paymentMode,
           Status: "Booked",
-          Items: formattedItems, // Root entry fixing "Cart empty" bugs
+          Items: formattedItems, 
           JourneyPayload: {
             pnr: pnr || null,
             promoCode: promo || null,
@@ -130,7 +137,6 @@ export default function CheckoutPage() {
         return;
       }
 
-      // Dynamic generated order id parse logic
       const targetOrderId = data.orderId || data.OrderId;
 
       if (!targetOrderId) {
@@ -139,8 +145,6 @@ export default function CheckoutPage() {
         return;
       }
 
-      // 🔥 CRITICAL RE-RENDER REDIRECT FIX
-      // Pehle strict URL switch karenge fir hook memory drop/flush handle karenge 
       router.push(`/order-success?orderId=${targetOrderId}`);
 
       setTimeout(() => {
