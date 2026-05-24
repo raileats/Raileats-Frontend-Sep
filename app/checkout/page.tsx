@@ -78,47 +78,54 @@ export default function CheckoutPage() {
 
     const firstItem = items[0];
 
+    // RestroCode ko safe format bigint compatible integer me validate karne ka rule
+    const rawRestroCode = journey?.restroCode || firstItem?.restro_code;
+    const cleanRestroCode = rawRestroCode ? parseInt(rawRestroCode.toString(), 10) : 0;
+
     try {
       const res = await fetch("/api/order/create", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
+        // Database schemas constraints se key map matching
         body: JSON.stringify({
-          customerName: name || "Guest",
-          customerMobile: mobile,
-          customerEmail: email || null,
-          pnr: pnr || null,
-          trainNumber: trainNumber,
-          trainName: trainName,
-          restroCode: journey?.restroCode || firstItem?.restro_code,
-          restroName: vendorName !== "N/A" ? vendorName : firstItem?.restro_name,
-          stationCode: stationCode || firstItem?.station_code,
-          stationName: stationName !== "N/A" ? stationName : firstItem?.station_name,
-          arrivalDate: deliveryDate,
-          arrivalTime: deliveryTime,
-          coach: coach || null,
-          seat: seat || null,
-          paymentMode,
-          promoCode: promo || null,
-          items: items.map((i) => ({
-            id: i.id,
-            name: i.name,
-            qty: i.qty,
-            selling_price: i.price,
-          })),
-          subtotal,
-          gst,
-          delivery,
-          total,
-          bookingTime: new Date().toISOString(),
+          RestroCode: cleanRestroCode,
+          RestroName: vendorName !== "N/A" ? vendorName : (firstItem?.restro_name || "N/A"),
+          StationCode: stationCode || firstItem?.station_code || "N/A",
+          StationName: stationName !== "N/A" ? stationName : (firstItem?.station_name || "N/A"),
+          DeliveryDate: deliveryDate, 
+          DeliveryTime: deliveryTime,
+          TrainNumber: trainNumber || "N/A",
+          Coach: coach || null,
+          Seat: seat || null,
+          CustomerName: name || "Guest",
+          CustomerMobile: mobile,
+          SubTotal: subtotal,
+          GSTAmount: gst,
+          PlatformCharge: delivery,
+          TotalAmount: total,
+          PaymentMode: paymentMode,
+          Status: "Booked", // Trigger automated logging standard matrix sync
+          JourneyPayload: {
+            pnr: pnr || null,
+            promoCode: promo || null,
+            trainName: trainName,
+            customerEmail: email || null,
+            items: items.map((i) => ({
+              id: i.id,
+              name: i.name,
+              qty: i.qty,
+              price: i.price,
+            })),
+          },
         }),
       });
 
-      const data = await res.json();
+      const data = await res.res ? res.json() : await res.json();
 
-      if (!data.ok) {
-        alert("Order failed");
+      if (!res.ok || !data.ok) {
+        alert(data.message || "Order failed");
         return;
       }
 
@@ -178,7 +185,7 @@ export default function CheckoutPage() {
             </div>
           </div>
 
-          {/* INPUT FORM (3% Balanced Font Reduction & Read-only Tweaks) */}
+          {/* INPUT FORM */}
           <div className="space-y-3 text-[14px]">
             {/* NAME + MOBILE */}
             <div className="flex items-center gap-2.5">
@@ -290,7 +297,7 @@ export default function CheckoutPage() {
       <div className="fixed bottom-[56px] left-0 right-0 bg-white border-t border-slate-100 shadow-[0_-4px_25px_rgba(0,0,0,0.05)] z-40">
         <div className="max-w-md mx-auto p-4">
           
-          {/* PAYMENT MODE SELECTOR (DYNAMIC GREEN SELECTION) */}
+          {/* PAYMENT MODE SELECTOR */}
           <div className="flex items-center justify-between mb-3.5">
             <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-lg">
               <button
