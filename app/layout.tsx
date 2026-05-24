@@ -28,15 +28,13 @@ export default function RootLayout({
 
     <html
       lang="en"
-      className="h-full overflow-hidden"
+      className="h-full"
     >
 
       <body
         className="
           h-full
-          overflow-hidden
           bg-white
-          overscroll-none
           touch-pan-y
         "
       >
@@ -74,9 +72,11 @@ export default function RootLayout({
             className="
               h-screen
               overflow-y-auto
-              overscroll-none
               scrollbar-hide
             "
+            style={{
+              WebkitOverflowScrolling: "touch",
+            }}
           >
 
             {/* MAIN */}
