@@ -48,14 +48,14 @@ export default function CheckoutPage() {
   const total = subtotal + gst + delivery;
 
   /* ================= SAFE COALESCING VARIABLES ================= */
-  // Ye block handleAdd() function ki har tarah ki camelCase aur snake_case keys ko secure karta hai
-  const trainName = journey?.trainName || journey?.train_name || "N/A";
-  const trainNumber = journey?.trainNumber || journey?.train_number || "";
-  const stationName = journey?.stationName || journey?.station_name || "N/A";
-  const stationCode = journey?.stationCode || journey?.station_code || "";
-  const deliveryDate = journey?.deliveryDate || journey?.delivery_date || journey?.date || "N/A";
-  const deliveryTime = journey?.deliveryTime || journey?.delivery_time || journey?.time || "N/A";
-  const vendorName = journey?.vendorName || journey?.vendor_name || journey?.restroName || journey?.restro_name || "N/A";
+  // TypeScript strictly interface follow kare isliye unassigned keys ko clean kar diya hai
+  const trainName = journey?.trainName || "N/A";
+  const trainNumber = journey?.trainNumber || "";
+  const stationName = journey?.stationName || "N/A";
+  const stationCode = journey?.stationCode || "";
+  const deliveryDate = journey?.deliveryDate || "N/A";
+  const deliveryTime = journey?.deliveryTime || "N/A";
+  const vendorName = journey?.vendorName || "N/A";
 
   /* ================= PLACE ORDER ================= */
   const placeOrder = async () => {
@@ -84,7 +84,7 @@ export default function CheckoutPage() {
           pnr: pnr || null,
           trainNumber: trainNumber,
           trainName: trainName,
-          restroCode: journey?.restroCode || journey?.restro_code || firstItem?.restro_code,
+          restroCode: journey?.restroCode || firstItem?.restro_code,
           restroName: vendorName !== "N/A" ? vendorName : firstItem?.restro_name,
           stationCode: stationCode || firstItem?.station_code,
           stationName: stationName !== "N/A" ? stationName : firstItem?.station_name,
@@ -171,7 +171,7 @@ export default function CheckoutPage() {
             </div>
           </div>
 
-          {/* INPUT FORM (BOOSTED BY 5%) */}
+          {/* INPUT FORM */}
           <div className="space-y-3 text-[15px]">
             {/* NAME + MOBILE */}
             <div className="grid grid-cols-2 gap-2.5">
@@ -205,7 +205,7 @@ export default function CheckoutPage() {
               />
             </div>
 
-            {/* LAST ROW: SEAT + COACH + PROMO (RESPONSIVE FLEX FOR SMALL MOBILE SCREENS) */}
+            {/* LAST ROW: SEAT + COACH + PROMO */}
             <div className="flex items-center gap-2 w-full">
               <input
                 className="border border-slate-200 rounded-lg py-3 text-[15px] text-center focus:outline-none focus:border-amber-500 bg-slate-50/50 w-[58px] shrink-0 font-semibold"
