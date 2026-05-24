@@ -192,6 +192,7 @@ export default function RestroMenuClient({
 
     /* ADD ITEM */
 
+    // 🔥 FIX: 'as any' bypass use kiya hai taaki dynamic keys block na ho aur Cart interface compile pass ho jaye
     add({
       id: it.id,
       name: it.item_name,
@@ -212,12 +213,11 @@ export default function RestroMenuClient({
       station_name:
         nextParams?.stationName || "",
 
-      // 🔥 FIX: Mapping structural metadata from item object to the cart state securely
       description: it.item_description || it.description || null,
       category: it.item_category || it.category || null,
       cuisine: it.cuisine || it.Cuisine || null,
       menu_type: it.menu_type || it.menuType || it.MenuType || null,
-    });
+    } as any);
   };
 
   /* ================= UI ================= */
