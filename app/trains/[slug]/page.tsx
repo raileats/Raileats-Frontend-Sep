@@ -332,3 +332,15 @@ ${cleanArrival ? `&arrival=${encodeURIComponent(cleanArrival)}` : ""}
 >
   Order Now
 </a>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
