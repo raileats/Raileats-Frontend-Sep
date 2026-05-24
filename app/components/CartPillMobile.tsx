@@ -5,6 +5,7 @@ import { useCart } from "../lib/useCart";
 import { openCart } from "../lib/cartEvents";
 
 export default function CartPillMobile({ minOrder = 0 }: any) {
+
   const { count, total, clearCart } = useCart();
 
   // 🚫 Minimum order check
@@ -14,8 +15,20 @@ export default function CartPillMobile({ minOrder = 0 }: any) {
   if (!count || count === 0) return null;
 
   return (
-    <div className="fixed bottom-[75px] left-1/2 -translate-x-1/2 z-[9999] w-[92%] max-w-md md:hidden">
+    <div
+      className="
+        fixed
+        bottom-[78px]
+        left-1/2
+        -translate-x-1/2
+        z-[9999]
+        w-[92%]
+        max-w-md
+        md:hidden
+      "
+    >
 
+      {/* MAIN BAR */}
       <div
         className="
           bg-green-600
@@ -27,11 +40,13 @@ export default function CartPillMobile({ minOrder = 0 }: any) {
           flex
           items-center
           justify-between
-          animate-[slideUp_0.3s_ease]
+          border
+          border-green-500
+          backdrop-blur
         "
       >
 
-        {/* LEFT */}
+        {/* LEFT SIDE */}
         <div className="flex flex-col leading-tight">
 
           <span className="font-bold text-sm">
@@ -44,12 +59,13 @@ export default function CartPillMobile({ minOrder = 0 }: any) {
 
         </div>
 
-        {/* RIGHT */}
-        <div className="flex items-center gap-3">
+        {/* RIGHT SIDE */}
+        <div className="flex items-center gap-2">
 
-          {/* VIEW CART */}
+          {/* VIEW CART BUTTON */}
           <button
             onClick={() => {
+
               if (isBlocked) {
                 alert(`Minimum order ₹${minOrder} complete karo`);
                 return;
@@ -65,7 +81,9 @@ export default function CartPillMobile({ minOrder = 0 }: any) {
               px-4
               py-2
               rounded-xl
-              transition
+              transition-all
+              duration-200
+              active:scale-95
               ${
                 isBlocked
                   ? "opacity-50 cursor-not-allowed"
@@ -76,7 +94,7 @@ export default function CartPillMobile({ minOrder = 0 }: any) {
             View Cart
           </button>
 
-          {/* CLEAR */}
+          {/* CLEAR BUTTON */}
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -92,6 +110,7 @@ export default function CartPillMobile({ minOrder = 0 }: any) {
               flex
               items-center
               justify-center
+              active:scale-95
             "
           >
             ✕
@@ -101,9 +120,9 @@ export default function CartPillMobile({ minOrder = 0 }: any) {
 
       </div>
 
-      {/* MIN ORDER MESSAGE */}
+      {/* MIN ORDER WARNING */}
       {isBlocked && (
-        <div className="mt-2 text-center text-xs text-red-500 font-medium">
+        <div className="mt-2 text-center text-xs font-medium text-red-500">
           Minimum order ₹{minOrder} complete karo
         </div>
       )}
