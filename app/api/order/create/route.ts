@@ -8,7 +8,6 @@ export async function POST(req: Request) {
     const body = await req.json();
     console.log("RECEIVING FRONTEND BODY =>", body);
 
-    // Frontend se direct PascalCase mapping ko destructure kar rahe hain
     const {
       RestroCode,
       RestroName,
@@ -27,66 +26,109 @@ export async function POST(req: Request) {
       TotalAmount,
       PaymentMode,
       Status,
-      JourneyPayload,
+      Items, // Frontend se array list aayegi
     } = body;
 
-    // Validation
+    // 1. Validations
     if (!CustomerMobile) {
       return NextResponse.json(
-        { ok: false, error: "customer_mobile_missing", message: "Mobile number required" },
+        { ok: false, error: "mobile_required", message: "Mobile number is required" },
         { status: 400 }
       );
     }
 
-    // Double Check Calculations (Backend Safeguard)
-    const backendSubTotal = Number(SubTotal || 0);
-    const backendGst = Number(GSTAmount || Math.round(backendSubTotal * 0.05));
-    const backendDelivery = Number(PlatformCharge || 20);
-    const backendTotal = Number(TotalAmount || (backendSubTotal + backendGst + backendDelivery));
+    if (!Items || Items.length === 0) {
+      return NextResponse.json(
+        { ok: false, error: "cart_empty", message: "No items found in cart" },
+        { status: 400 }
+      );
+    }
 
-    // Inserting strictly matching your Supabase Table Constraints
-    const { data, error } = await serviceClient
+    // 2. Insert Main Order into "Orders" Table
+    const { data: orderData, error: orderError } = await serviceClient
       .from("Orders")
       .insert({
-        // OrderId column yahan pass nahi kar rahe, database default logic sequence trigger karega
         RestroCode: Number(RestroCode || 0),
         RestroName: RestroName || "Unknown Restaurant",
         StationCode: StationCode || "N/A",
         StationName: StationName || "N/A",
         DeliveryDate: DeliveryDate,
         DeliveryTime: DeliveryTime,
-        TrainNumber: TrainNumber || "N/A",
+        TrainNumber: trainNumber || TrainNumber || "N/A", // handles both cases
         Coach: Coach || null,
         Seat: Seat || null,
         CustomerName: CustomerName || "Guest",
         CustomerMobile: CustomerMobile,
-        SubTotal: backendSubTotal,
-        GSTAmount: backendGst,
-        PlatformCharge: backendDelivery,
-        TotalAmount: backendTotal,
+        SubTotal: Number(SubTotal || 0),
+        GSTAmount: Number(GSTAmount || 0),
+        PlatformCharge: Number(PlatformCharge || 0),
+        TotalAmount: Number(TotalAmount || 0),
         PaymentMode: PaymentMode || "COD",
-        Status: Status || "Booked", // Sync with initial booked stage logging trigger
-        JourneyPayload: JourneyPayload || {}, // Holds custom nested structured array item details safely
+        Status: Status || "Booked",
+        JourneyPayload: body, // Complete backup stack
       })
       .select()
       .single();
 
-    if (error) {
-      console.error("SUPABASE INTERACTION ERROR =>", JSON.stringify(error, null, 2));
+    if (orderError) {
+      console.error("SUPABASE MAIN ORDER INSERT ERROR =>", JSON.stringify(orderError, null, 2));
       return NextResponse.json(
-        { ok: false, error: error.code, message: error.message },
+        { ok: false, error: orderError.code, message: orderError.message },
         { status: 500 }
       );
     }
 
+    // 3. Extract the Auto-generated OrderId
+    const targetOrderId = orderData.OrderId;
+
+    // 4. Map Frontend Items to Match Your Exact "OrderItems" Schema
+    const orderItemsPayload = Items.map((item: any) => {
+      const singleItemPrice = Number(item.price || item.selling_price || 0);
+      const itemQty = Number(item.qty || item.quantity || 1);
+
+      return {
+        OrderId: targetOrderId,
+        RestroCode: Number(RestroCode || 0),
+        ItemCode: item.id ? BigInt(item.id) : 0, // Safe numerical cast for item tracking
+        ItemName: item.name || "Unknown Item",
+        ItemDescription: item.description || null,
+        ItemCategory: item.category || null,
+        Cuisine: item.cuisine || null,
+        MenuType: item.menu_type || null,
+        BasePrice: singleItemPrice, 
+        GSTPercent: Number(item.gst_percent || 5.00), // Default 5% food GST matrix standard
+        SellingPrice: singleItemPrice,
+        Quantity: itemQty,
+        LineTotal: singleItemPrice * itemQty, // Auto calculations safeguard
+      };
+    });
+
+    // 5. Bulk Insert Rows into "OrderItems" Table
+    const { error: itemsError } = await serviceClient
+      .from("OrderItems")
+      .insert(orderItemsPayload);
+
+    if (itemsError) {
+      console.error("SUPABASE ORDER ITEMS BULK INSERT ERROR =>", JSON.stringify(itemsError, null, 2));
+      
+      // Rollback logic: Agar items fail ho gaye, to main order record drop karo inconsistency se bachne ke liye
+      await serviceClient.from("Orders").delete().eq("OrderId", targetOrderId);
+
+      return NextResponse.json(
+        { ok: false, error: itemsError.code, message: "Transaction failed at items level." },
+        { status: 500 }
+      );
+    }
+
+    // 6. Perfect Response Return
     return NextResponse.json({
       ok: true,
-      orderId: data.OrderId, // Supabase ka return kiya hua default database ID mil jayega
-      totalAmount: backendTotal,
+      orderId: targetOrderId,
+      totalAmount: orderData.TotalAmount,
     });
 
   } catch (e: any) {
-    console.error("CRITICAL ROUTE SERVER ERROR =>", e);
+    console.error("CRITICAL EXCEPTION IN API ROUTE =>", e);
     return NextResponse.json(
       { ok: false, error: "server_crash", message: e.message },
       { status: 500 }
