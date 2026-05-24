@@ -26,8 +26,12 @@ export async function POST(req: Request) {
       TotalAmount,
       PaymentMode,
       Status,
-      Items, 
+      Items, // Capital mapping fallback
+      items, // Lowercase mapping fallback
     } = body;
+
+    // Strict array extraction handle (chahe frontend lowercase bheje ya uppercase)
+    const finalItemsArray = Items || items;
 
     // 1. Strict Validations
     if (!CustomerMobile) {
@@ -37,9 +41,9 @@ export async function POST(req: Request) {
       );
     }
 
-    if (!Items || Items.length === 0) {
+    if (!finalItemsArray || finalItemsArray.length === 0) {
       return NextResponse.json(
-        { ok: false, error: "cart_empty", message: "No items found in cart" },
+        { ok: false, error: "cart_empty", message: "No items found in cart. Cart is empty!" },
         { status: 400 }
       );
     }
@@ -91,11 +95,10 @@ export async function POST(req: Request) {
     const targetOrderId = orderData.OrderId;
 
     // 4. Map Frontend Items to Match Your Exact "OrderItems" Schema
-    const orderItemsPayload = Items.map((item: any) => {
+    const orderItemsPayload = finalItemsArray.map((item: any) => {
       const singleItemPrice = Number(item.price || item.selling_price || 0);
       const itemQty = Number(item.qty || item.quantity || 1);
       
-      // Fast safe standard base-10 numerical parsing for ItemCode
       const parsedItemCode = item.id ? parseInt(item.id.toString(), 10) : 0;
 
       return {
