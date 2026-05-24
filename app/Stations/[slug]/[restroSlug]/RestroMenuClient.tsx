@@ -47,38 +47,9 @@ export default function RestroMenuClient({
 
   const { user } = useAuth();
 
-  const {
-    add,
-    changeQty,
-    cart,
-    setJourney,
-  } = useCart();
+  
 
-  /* ================= SAVE JOURNEY ================= */
-
-  useEffect(() => {
-
-    if (!nextParams) return;
-
-    setJourney({
-  trainNumber: nextParams?.trainNumber || "",
-  trainName: nextParams?.trainName || "",
-  stationName: nextParams?.stationName || "",
-  stationCode: nextParams?.stationCode || "",
-  deliveryDate: nextParams?.deliveryDate || "",
-  deliveryTime: nextParams?.deliveryTime || "",
-  vendorName: nextParams?.vendorName || "",
-
-  /* FIXED */
-  restroCode:
-    header?.restroCode ||
-    nextParams?.restroCode ||
-    "",
-});
-
-  }, [nextParams, setJourney]);
-
-  /* ================= CART TOTAL ================= */
+    /* ================= CART TOTAL ================= */
 
   const cartTotal = useMemo(() => {
 
