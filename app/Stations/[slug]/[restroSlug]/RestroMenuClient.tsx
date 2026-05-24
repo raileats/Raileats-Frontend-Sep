@@ -17,6 +17,11 @@ const toMin = (t?: string | null) => {
 
 // 🔥 DATABASE SMART EXACT MATCH FIX (Handles data swapping from API safely)
 const isVegItem = (it: any) => {
+  // 🚨 ABSOLUTE HARDCODED PRIORITY BYPASS: ID 3 (Navratri Thali) is marked Non-Veg in database rows.
+  if (Number(it?.id) === 3) {
+    return false; // Force Red Dot (Non-Veg)
+  }
+
   const cat = String(it.item_category || "").toLowerCase().trim();
   const menuType = String(it.menu_type || "").toLowerCase().trim();
   const name = String(it.item_name || "").toLowerCase();
