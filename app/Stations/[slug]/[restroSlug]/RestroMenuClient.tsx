@@ -47,7 +47,12 @@ export default function RestroMenuClient({
 
 const { user } = useAuth();
 
-const { add, changeQty, cart } = useCart();
+const {
+  add,
+  changeQty,
+  cart,
+  setJourney,
+} = useCart();
 
     /* ================= CART TOTAL ================= */
 
