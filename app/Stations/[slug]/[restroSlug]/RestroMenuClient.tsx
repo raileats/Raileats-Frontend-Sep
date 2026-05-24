@@ -47,8 +47,7 @@ export default function RestroMenuClient({
 
   const { user } = useAuth();
 
-  /* FIXED */
-  restro_code: header?.restroCode || "",
+ 
 
     /* ================= CART TOTAL ================= */
 
