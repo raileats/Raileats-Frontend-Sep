@@ -15,19 +15,41 @@ const toMin = (t?: string | null) => {
   return h * 60 + m;
 };
 
-// 🔥 EXACT SCHEMA FIX: database value "Non-Veg", "Veg", "Jain" ke hisab se exact match
+// 🔥 SOURCE DYNAMIC FIX: Category aur Item Name ke base par direct classification
 const isVegItem = (it: any) => {
-  const cat = String(it.item_category || "").toLowerCase().trim();
-  
-  if (cat === "non-veg" || cat === "nonveg") {
-    return false; // Red dot
-  }
-  
-  if (cat === "veg" || cat === "jain") {
-    return true; // Green dot
+  const name = String(it.item_name || "").toLowerCase();
+  const cat = String(it.item_category || "").toLowerCase();
+
+  // 1. Agar name ya category me strictly non-veg keywords hain, toh seedhe RED DOT
+  if (
+    name.includes("chicken") || 
+    name.includes("egg") || 
+    name.includes("mutton") || 
+    name.includes("fish") || 
+    name.includes("non-veg") ||
+    name.includes("nonveg") ||
+    cat.includes("non-veg") ||
+    cat.includes("nonveg")
+  ) {
+    return false; // Red Dot
   }
 
-  // Fallback regex jab category empty ho
+  // 2. Agar name me explicitly veg ya pure jain keywords hain, toh GREEN DOT
+  if (
+    name.includes("veg") || 
+    name.includes("paneer") || 
+    name.includes("thali") || 
+    name.includes("roti") || 
+    name.includes("dal") || 
+    name.includes("rice") ||
+    cat.includes("thalis") ||
+    cat.includes("roti") ||
+    cat.includes("veg")
+  ) {
+    return true; // Green Dot
+  }
+
+  // 3. Fallback standard matching
   const vegRegex = /dal|roti|rice|paneer|veg|thali|chapati|paratha/i;
   return vegRegex.test(it.item_name || "");
 };
@@ -135,7 +157,7 @@ export default function RestroMenuClient({
         }
       }
 
-      /* VEG FILTER */
+      /* PRINT VEG FILTER */
       if (
         vegOnly &&
         !isVegItem(it)
@@ -198,7 +220,6 @@ export default function RestroMenuClient({
 
     /* ADD ITEM */
 
-    // 🔥 EXACT SCHEMA MAPPING: 'as any' bypass ke sath exact database parameters bhej diye hain
     add({
       id: it.id,
       name: it.item_name,
@@ -219,7 +240,6 @@ export default function RestroMenuClient({
       station_name:
         nextParams?.stationName || "",
 
-      // Mapping exactly to what Checkout expects
       description: it.item_description || null,
       category: it.item_category || null,
       cuisine: it.item_cuisine || null,
