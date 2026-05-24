@@ -32,8 +32,16 @@ export default function CheckoutPage() {
   useEffect(() => {
     if (user) {
       setName(user.name || "");
-      setMobile(user.mobile || "");
       setEmail(user.email || "");
+      
+      // Mobile se +91 strip karne ke liye logic
+      let rawMobile = user.mobile || "";
+      if (rawMobile.startsWith("+91")) {
+        rawMobile = rawMobile.replace("+91", "").trim();
+      } else if (rawMobile.length > 10 && rawMobile.startsWith("91")) {
+        rawMobile = rawMobile.substring(2);
+      }
+      setMobile(rawMobile);
     }
   }, [user]);
 
@@ -48,7 +56,6 @@ export default function CheckoutPage() {
   const total = subtotal + gst + delivery;
 
   /* ================= SAFE COALESCING VARIABLES ================= */
-  // TypeScript strictly interface follow kare isliye unassigned keys ko clean kar diya hai
   const trainName = journey?.trainName || "N/A";
   const trainNumber = journey?.trainNumber || "";
   const stationName = journey?.stationName || "N/A";
@@ -171,36 +178,38 @@ export default function CheckoutPage() {
             </div>
           </div>
 
-          {/* INPUT FORM */}
-          <div className="space-y-3 text-[15px]">
+          {/* INPUT FORM (3% Balanced Font Reduction & Read-only Tweaks) */}
+          <div className="space-y-3 text-[14px]">
             {/* NAME + MOBILE */}
-            <div className="grid grid-cols-2 gap-2.5">
+            <div className="flex items-center gap-2.5">
               <input
-                className="border border-slate-200 rounded-lg px-3 py-3 text-[15px] focus:outline-none focus:border-amber-500 bg-slate-50/50 font-medium"
+                className="border border-slate-200 rounded-lg px-3 py-2.5 text-[14px] focus:outline-none bg-slate-100/70 text-slate-500 font-medium cursor-not-allowed flex-1 min-w-0"
                 placeholder="Passenger Name"
                 value={name}
-                onChange={(e) => setName(e.target.value)}
+                readOnly
               />
               <input
-                className="border border-slate-200 rounded-lg px-3 py-3 text-[15px] focus:outline-none focus:border-amber-500 bg-slate-50/50 font-medium"
-                placeholder="Mobile Number"
+                className="border border-slate-200 rounded-lg px-2 py-2.5 text-[14px] focus:outline-none bg-slate-100/70 text-slate-500 font-medium cursor-not-allowed w-[110px] shrink-0 text-center"
+                placeholder="Mobile"
                 value={mobile}
-                onChange={(e) => setMobile(e.target.value)}
+                maxLength={10}
+                readOnly
               />
             </div>
 
             {/* EMAIL + PNR */}
-            <div className="grid grid-cols-2 gap-2.5">
+            <div className="flex items-center gap-2.5">
               <input
-                className="border border-slate-200 rounded-lg px-3 py-3 text-[15px] focus:outline-none focus:border-amber-500 bg-slate-50/50 font-medium"
-                placeholder="Email ID (Optional)"
+                className="border border-slate-200 rounded-lg px-3 py-2.5 text-[14px] focus:outline-none bg-slate-100/70 text-slate-500 font-medium cursor-not-allowed flex-1 min-w-0"
+                placeholder="Email ID"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                readOnly
               />
               <input
-                className="border border-slate-200 rounded-lg px-3 py-3 text-[15px] focus:outline-none focus:border-amber-500 bg-slate-50/50 font-bold tracking-wide text-slate-700"
+                className="border border-slate-200 rounded-lg px-2 py-2.5 text-[14px] focus:outline-none focus:border-amber-500 bg-slate-50/50 font-bold tracking-wide text-slate-700 w-[110px] shrink-0 text-center"
                 placeholder="10-Digit PNR"
                 value={pnr}
+                maxLength={10}
                 onChange={(e) => setPnr(e.target.value)}
               />
             </div>
@@ -208,25 +217,25 @@ export default function CheckoutPage() {
             {/* LAST ROW: SEAT + COACH + PROMO */}
             <div className="flex items-center gap-2 w-full">
               <input
-                className="border border-slate-200 rounded-lg py-3 text-[15px] text-center focus:outline-none focus:border-amber-500 bg-slate-50/50 w-[58px] shrink-0 font-semibold"
+                className="border border-slate-200 rounded-lg py-2.5 text-[14px] text-center focus:outline-none focus:border-amber-500 bg-slate-50/50 w-[55px] shrink-0 font-semibold"
                 placeholder="Seat"
                 value={seat}
                 onChange={(e) => setSeat(e.target.value)}
               />
               <input
-                className="border border-slate-200 rounded-lg py-3 text-[15px] text-center focus:outline-none focus:border-amber-500 bg-slate-50/50 w-[68px] shrink-0 font-semibold"
+                className="border border-slate-200 rounded-lg py-2.5 text-[14px] text-center focus:outline-none focus:border-amber-500 bg-slate-50/50 w-[62px] shrink-0 font-semibold"
                 placeholder="Coach"
                 value={coach}
                 onChange={(e) => setCoach(e.target.value)}
               />
               <div className="flex items-center border border-slate-200 rounded-lg bg-slate-50/50 flex-1 min-w-0 focus-within:border-amber-500 overflow-hidden">
                 <input
-                  className="px-2.5 py-3 text-[15px] bg-transparent focus:outline-none uppercase w-full min-w-0 font-semibold tracking-wider"
+                  className="px-2.5 py-2.5 text-[14px] bg-transparent focus:outline-none uppercase w-full min-w-0 font-semibold tracking-wider"
                   placeholder="PROMO"
                   value={promo}
                   onChange={(e) => setPromo(e.target.value)}
                 />
-                <button className="bg-slate-900 text-xs font-bold text-white px-3 py-3.5 h-full transition hover:bg-slate-800 active:scale-95 shrink-0 border-l border-slate-200 uppercase">
+                <button className="bg-slate-900 text-xs font-bold text-white px-3 py-3 h-full transition hover:bg-slate-800 active:scale-95 shrink-0 border-l border-slate-200 uppercase">
                   Apply
                 </button>
               </div>
@@ -281,14 +290,14 @@ export default function CheckoutPage() {
       <div className="fixed bottom-[56px] left-0 right-0 bg-white border-t border-slate-100 shadow-[0_-4px_25px_rgba(0,0,0,0.05)] z-40">
         <div className="max-w-md mx-auto p-4">
           
-          {/* PAYMENT MODE SELECTOR & MINI BILL */}
+          {/* PAYMENT MODE SELECTOR (DYNAMIC GREEN SELECTION) */}
           <div className="flex items-center justify-between mb-3.5">
             <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-lg">
               <button
                 onClick={() => setPaymentMode("COD")}
                 className={`rounded-md px-3.5 py-2 text-xs font-bold transition-all ${
                   paymentMode === "COD"
-                    ? "bg-white text-slate-900 shadow-sm"
+                    ? "bg-green-600 text-white shadow-sm"
                     : "text-slate-500 hover:text-slate-800"
                 }`}
               >
@@ -299,7 +308,7 @@ export default function CheckoutPage() {
                 onClick={() => setPaymentMode("ONLINE")}
                 className={`rounded-md px-3.5 py-2 text-xs font-bold transition-all ${
                   paymentMode === "ONLINE"
-                    ? "bg-white text-slate-900 shadow-sm"
+                    ? "bg-green-600 text-white shadow-sm"
                     : "text-slate-500 hover:text-slate-800"
                 }`}
               >
