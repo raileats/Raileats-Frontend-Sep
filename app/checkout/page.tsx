@@ -231,109 +231,129 @@ export default function CheckoutPage() {
 
   return (
 
-    <div className="max-w-md mx-auto bg-[#f6f6f6] min-h-screen pb-40">
+    <div className="
+      max-w-md
+      mx-auto
+      bg-[#f6f6f6]
+      h-screen
+      overflow-hidden
+    ">
 
-      {/* TOP */}
+      {/* SCROLL AREA */}
 
-      <div className="px-4 pt-4">
+      <div className="
+        h-full
+        overflow-y-auto
+        pb-[180px]
+      ">
 
-        <div className="
-          border
-          rounded-2xl
-          bg-white
-          p-3
-          shadow-sm
-        ">
+        {/* TOP */}
+
+        <div className="px-4 pt-4">
 
           <div className="
-            flex
-            justify-between
-            gap-3
+            border
+            rounded-2xl
+            bg-white
+            p-3
+            shadow-sm
+            min-h-[100px]
           ">
 
-            {/* LEFT */}
-
-            <div className="flex-1">
-
-              <div className="
-                text-base
-                font-bold
-                mb-2
-              ">
-                Journey Details
-              </div>
-
-              <div className="
-                text-sm
-                font-semibold
-              ">
-
-                {journey?.trainName
-                  ? `${journey.trainName} #${journey.trainNumber}`
-                  : `Train #${journey?.trainNumber}`}
-
-              </div>
-
-              <div className="
-                text-xs
-                text-gray-500
-                mt-1
-              ">
-
-                {journey?.stationName}
-                {" "}
-                ({journey?.stationCode})
-
-              </div>
-
-            </div>
-
-            {/* RIGHT */}
-
             <div className="
-              text-right
-              min-w-[120px]
+              flex
+              justify-between
+              gap-3
             ">
 
-              <div className="
-                text-xs
-                text-gray-500
-              ">
-                Delivery
+              {/* LEFT */}
+
+              <div className="flex-1">
+
+                <div className="
+                  text-sm
+                  font-bold
+                  mb-1
+                ">
+                  Journey Details
+                </div>
+
+                <div className="
+                  text-sm
+                  font-semibold
+                  leading-5
+                ">
+
+                  {journey?.trainName
+                    ? `${journey.trainName} #${journey.trainNumber}`
+                    : `Train #${journey?.trainNumber}`}
+
+                </div>
+
+                <div className="
+                  text-xs
+                  text-gray-500
+                  mt-1
+                ">
+
+                  {journey?.stationName}
+                  {" "}
+                  ({journey?.stationCode})
+
+                </div>
+
               </div>
 
-              <div className="
-                text-sm
-                font-medium
-              ">
-
-                {journey?.deliveryDate}
-
-              </div>
+              {/* RIGHT */}
 
               <div className="
-                text-sm
-                font-medium
+                text-right
+                min-w-[110px]
               ">
 
-                {journey?.deliveryTime}
+                <div className="
+                  text-[11px]
+                  text-gray-500
+                ">
+                  Delivery
+                </div>
 
-              </div>
+                <div className="
+                  text-sm
+                  font-medium
+                  leading-4
+                ">
 
-              <div className="
-                text-xs
-                text-gray-500
-                mt-2
-              ">
-                Restaurant
-              </div>
+                  {journey?.deliveryDate}
 
-              <div className="
-                text-sm
-                font-medium
-              ">
+                </div>
 
-                {journey?.vendorName}
+                <div className="
+                  text-sm
+                  font-medium
+                ">
+
+                  {journey?.deliveryTime}
+
+                </div>
+
+                <div className="
+                  text-[11px]
+                  text-gray-500
+                  mt-2
+                ">
+                  Restaurant
+                </div>
+
+                <div className="
+                  text-sm
+                  font-medium
+                  leading-4
+                ">
+
+                  {journey?.vendorName}
+
+                </div>
 
               </div>
 
@@ -343,46 +363,34 @@ export default function CheckoutPage() {
 
         </div>
 
-      </div>
+        {/* PASSENGER */}
 
-      {/* PASSENGER */}
-
-      <div className="px-4 mt-4">
-
-        <div className="
-          bg-white
-          border
-          rounded-2xl
-          p-3
-          shadow-sm
-        ">
+        <div className="px-4 mt-3">
 
           <div className="
-            text-base
-            font-bold
-            mb-3
-          ">
-            Passenger Details
-          </div>
-
-          {/* ROW 1 */}
-
-          <div className="
-            grid
-            grid-cols-2
-            gap-2
-            mb-2
+            bg-white
+            border
+            rounded-2xl
+            p-3
+            shadow-sm
           ">
 
-            <div>
+            <div className="
+              text-sm
+              font-bold
+              mb-3
+            ">
+              Passenger Details
+            </div>
 
-              <div className="
-                text-[11px]
-                text-gray-500
-                mb-1
-              ">
-                Name
-              </div>
+            {/* ROW 1 */}
+
+            <div className="
+              grid
+              grid-cols-2
+              gap-2
+              mb-2
+            ">
 
               <input
                 className="
@@ -392,6 +400,7 @@ export default function CheckoutPage() {
                   text-sm
                   w-full
                 "
+                placeholder="Name"
                 value={name}
                 onChange={(e) =>
                   setName(
@@ -400,18 +409,6 @@ export default function CheckoutPage() {
                 }
               />
 
-            </div>
-
-            <div>
-
-              <div className="
-                text-[11px]
-                text-gray-500
-                mb-1
-              ">
-                Mobile
-              </div>
-
               <input
                 className="
                   border
@@ -420,6 +417,7 @@ export default function CheckoutPage() {
                   text-sm
                   w-full
                 "
+                placeholder="Mobile"
                 value={mobile}
                 onChange={(e) =>
                   setMobile(
@@ -430,26 +428,14 @@ export default function CheckoutPage() {
 
             </div>
 
-          </div>
+            {/* ROW 2 */}
 
-          {/* ROW 2 */}
-
-          <div className="
-            grid
-            grid-cols-2
-            gap-2
-            mb-2
-          ">
-
-            <div>
-
-              <div className="
-                text-[11px]
-                text-gray-500
-                mb-1
-              ">
-                Email
-              </div>
+            <div className="
+              grid
+              grid-cols-2
+              gap-2
+              mb-2
+            ">
 
               <input
                 className="
@@ -459,6 +445,7 @@ export default function CheckoutPage() {
                   text-sm
                   w-full
                 "
+                placeholder="Email"
                 value={email}
                 onChange={(e) =>
                   setEmail(
@@ -467,18 +454,6 @@ export default function CheckoutPage() {
                 }
               />
 
-            </div>
-
-            <div>
-
-              <div className="
-                text-[11px]
-                text-gray-500
-                mb-1
-              ">
-                PNR
-              </div>
-
               <input
                 className="
                   border
@@ -487,6 +462,7 @@ export default function CheckoutPage() {
                   text-sm
                   w-full
                 "
+                placeholder="PNR"
                 value={pnr}
                 onChange={(e) =>
                   setPnr(
@@ -497,26 +473,14 @@ export default function CheckoutPage() {
 
             </div>
 
-          </div>
+            {/* ROW 3 */}
 
-          {/* ROW 3 */}
-
-          <div className="
-            grid
-            grid-cols-2
-            gap-2
-            mb-3
-          ">
-
-            <div>
-
-              <div className="
-                text-[11px]
-                text-gray-500
-                mb-1
-              ">
-                Seat
-              </div>
+            <div className="
+              grid
+              grid-cols-2
+              gap-2
+              mb-3
+            ">
 
               <input
                 className="
@@ -526,6 +490,7 @@ export default function CheckoutPage() {
                   text-sm
                   w-full
                 "
+                placeholder="Seat"
                 value={seat}
                 onChange={(e) =>
                   setSeat(
@@ -534,18 +499,6 @@ export default function CheckoutPage() {
                 }
               />
 
-            </div>
-
-            <div>
-
-              <div className="
-                text-[11px]
-                text-gray-500
-                mb-1
-              ">
-                Coach
-              </div>
-
               <input
                 className="
                   border
@@ -554,6 +507,7 @@ export default function CheckoutPage() {
                   text-sm
                   w-full
                 "
+                placeholder="Coach"
                 value={coach}
                 onChange={(e) =>
                   setCoach(
@@ -564,177 +518,177 @@ export default function CheckoutPage() {
 
             </div>
 
-          </div>
+            {/* PROMO */}
 
-          {/* PROMO */}
+            <div className="
+              flex
+              gap-2
+            ">
 
-          <div className="
-            flex
-            gap-2
-          ">
+              <input
+                className="
+                  border
+                  rounded-xl
+                  p-2.5
+                  text-sm
+                  flex-1
+                "
+                placeholder="Promo Code"
+                value={promo}
+                onChange={(e) =>
+                  setPromo(
+                    e.target.value
+                  )
+                }
+              />
 
-            <input
-              className="
-                border
-                rounded-xl
-                p-2.5
-                text-sm
-                flex-1
-              "
-              placeholder="Promo Code"
-              value={promo}
-              onChange={(e) =>
-                setPromo(
-                  e.target.value
-                )
-              }
-            />
+              <button
+                className="
+                  bg-black
+                  text-white
+                  px-4
+                  rounded-xl
+                  text-sm
+                  font-medium
+                "
+              >
+                Apply
+              </button>
 
-            <button
-              className="
-                bg-black
-                text-white
-                px-4
-                rounded-xl
-                text-sm
-                font-medium
-              "
-            >
-              Apply
-            </button>
+            </div>
 
           </div>
 
         </div>
 
-      </div>
+        {/* ORDER */}
 
-      {/* ORDER */}
-
-      <div className="px-4 mt-4">
-
-        <div className="
-          bg-white
-          border
-          rounded-2xl
-          shadow-sm
-        ">
-
-          {/* HEADER */}
+        <div className="px-4 mt-3">
 
           <div className="
-            p-3
-            border-b
-            font-bold
-            text-base
-          ">
-            Your Order
-          </div>
-
-          {/* SCROLLABLE ITEMS */}
-
-          <div className="
-            max-h-[220px]
-            overflow-y-auto
-            p-3
-            space-y-3
+            bg-white
+            border
+            rounded-2xl
+            shadow-sm
           ">
 
-            {items.map((i) => (
+            {/* HEADER */}
 
-              <div
-                key={i.id}
-                className="
-                  flex
-                  justify-between
-                  gap-3
-                "
-              >
+            <div className="
+              p-3
+              border-b
+              font-bold
+              text-sm
+            ">
+              Your Order
+            </div>
 
-                <div className="flex-1">
+            {/* SCROLLABLE ITEMS */}
+
+            <div className="
+              max-h-[130px]
+              overflow-y-auto
+              p-3
+              space-y-3
+            ">
+
+              {items.map((i) => (
+
+                <div
+                  key={i.id}
+                  className="
+                    flex
+                    justify-between
+                    gap-3
+                  "
+                >
+
+                  <div className="flex-1">
+
+                    <div className="
+                      text-sm
+                      font-medium
+                    ">
+                      {i.name}
+                    </div>
+
+                    <div className="
+                      text-xs
+                      text-gray-500
+                      mt-1
+                    ">
+
+                      ₹{i.price}
+                      {" "}
+                      ×
+                      {" "}
+                      {i.qty}
+
+                    </div>
+
+                  </div>
 
                   <div className="
                     text-sm
-                    font-medium
-                  ">
-                    {i.name}
-                  </div>
-
-                  <div className="
-                    text-xs
-                    text-gray-500
-                    mt-1
+                    font-semibold
                   ">
 
-                    ₹{i.price}
-                    {" "}
-                    ×
-                    {" "}
-                    {i.qty}
+                    ₹{i.price * i.qty}
 
                   </div>
 
+                </div>
+
+              ))}
+
+            </div>
+
+            {/* BILL */}
+
+            <div className="
+              border-t
+              p-3
+              space-y-2
+            ">
+
+              <Row
+                label="Subtotal"
+                value={subtotal}
+              />
+
+              <Row
+                label="GST (5%)"
+                value={gst}
+              />
+
+              <Row
+                label="Delivery"
+                value={delivery}
+              />
+
+              <div className="
+                flex
+                justify-between
+                items-center
+                pt-2
+                border-t
+                mt-2
+              ">
+
+                <div className="
+                  text-base
+                  font-bold
+                ">
+                  Total Payable
                 </div>
 
                 <div className="
-                  text-sm
-                  font-semibold
+                  text-2xl
+                  font-bold
                 ">
-
-                  ₹{i.price * i.qty}
-
+                  ₹{total}
                 </div>
 
-              </div>
-
-            ))}
-
-          </div>
-
-          {/* BILL */}
-
-          <div className="
-            border-t
-            p-3
-            space-y-2
-          ">
-
-            <Row
-              label="Subtotal"
-              value={subtotal}
-            />
-
-            <Row
-              label="GST (5%)"
-              value={gst}
-            />
-
-            <Row
-              label="Delivery Charges"
-              value={delivery}
-            />
-
-            <div className="
-              flex
-              justify-between
-              items-center
-              pt-2
-              border-t
-              mt-2
-            ">
-
-              <div className="
-                text-base
-                font-bold
-              ">
-                Total Payable
-              </div>
-
-              <div className="
-                text-2xl
-                font-bold
-              ">
-                ₹{total}
               </div>
 
             </div>
@@ -743,79 +697,79 @@ export default function CheckoutPage() {
 
         </div>
 
-      </div>
+        {/* PAYMENT */}
 
-      {/* PAYMENT */}
-
-      <div className="px-4 mt-4">
-
-        <div className="
-          bg-white
-          border
-          rounded-2xl
-          p-3
-          shadow-sm
-        ">
+        <div className="px-4 mt-3">
 
           <div className="
-            text-base
-            font-bold
-            mb-3
-          ">
-            Payment Method
-          </div>
-
-          <div className="
-            grid
-            grid-cols-2
-            gap-2
+            bg-white
+            border
+            rounded-2xl
+            p-3
+            shadow-sm
           ">
 
-            <button
-              onClick={() =>
-                setPaymentMode(
-                  "COD"
-                )
-              }
-              className={`
-                border
-                rounded-xl
-                p-3
-                text-sm
-                font-semibold
-                transition
-                ${
-                  paymentMode === "COD"
-                    ? "bg-green-600 text-white border-green-600"
-                    : "bg-white"
-                }
-              `}
-            >
-              COD
-            </button>
+            <div className="
+              text-sm
+              font-bold
+              mb-3
+            ">
+              Payment Method
+            </div>
 
-            <button
-              onClick={() =>
-                setPaymentMode(
-                  "ONLINE"
-                )
-              }
-              className={`
-                border
-                rounded-xl
-                p-3
-                text-sm
-                font-semibold
-                transition
-                ${
-                  paymentMode === "ONLINE"
-                    ? "bg-green-600 text-white border-green-600"
-                    : "bg-white"
+            <div className="
+              grid
+              grid-cols-2
+              gap-2
+            ">
+
+              <button
+                onClick={() =>
+                  setPaymentMode(
+                    "COD"
+                  )
                 }
-              `}
-            >
-              Prepaid
-            </button>
+                className={`
+                  border
+                  rounded-xl
+                  p-3
+                  text-sm
+                  font-semibold
+                  transition
+                  ${
+                    paymentMode === "COD"
+                      ? "bg-green-600 text-white border-green-600"
+                      : "bg-white"
+                  }
+                `}
+              >
+                COD
+              </button>
+
+              <button
+                onClick={() =>
+                  setPaymentMode(
+                    "ONLINE"
+                  )
+                }
+                className={`
+                  border
+                  rounded-xl
+                  p-3
+                  text-sm
+                  font-semibold
+                  transition
+                  ${
+                    paymentMode === "ONLINE"
+                      ? "bg-green-600 text-white border-green-600"
+                      : "bg-white"
+                  }
+                `}
+              >
+                Prepaid
+              </button>
+
+            </div>
 
           </div>
 
