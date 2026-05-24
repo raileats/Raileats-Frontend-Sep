@@ -5,86 +5,95 @@ import { useState, useMemo, useEffect } from "react";
 import { useCart } from "../../../lib/useCart";
 import CartPillMobile from "../../../components/CartPillMobile";
 
-/* ================= FAST HELPERS ================= */
+/* ================= HELPERS ================= */
 
 const toMin = (t?: string | null) => {
+
   if (!t) return null;
 
-  const [h, m] = t.slice(0, 5).split(":").map(Number);
+  const [h, m] = t
+    .slice(0, 5)
+    .split(":")
+    .map(Number);
 
   return h * 60 + m;
 };
 
-// 🏛️ SUPABASE HEADINGS RECONSTRUCTION MAPPER
-// Yeh function backend ke galat/swapped columns ko Supabase table heading ke anusar 100% correct karta hai.
-const getTrueFields = (it: any) => {
-  const code = Number(it?.id || 0); // Frontend JSON ki 'id' database ka 'item_code' hai
-  const name = String(it?.item_name || "").toLowerCase().trim();
-  
-  // Default fallbacks matching frontend schema
-  let trueItemCategory = "Veg"; // Supabase Heading: item_category (Veg/Non-Veg/Jain)
-  let trueMenuType = it?.item_category || ""; // Supabase Heading: menu_type (Thalis/Combos/etc.)
+/* ================= CATEGORY HELPERS ================= */
 
-  // Exact Supabase Row-by-Row mapping based on uploaded table
-  if (code === 1 || name.includes("navratri") || name.includes("vrat")) {
-    trueItemCategory = "Non-Veg"; // Supabase table me explicit "Non-Veg" mapped hai
-    trueMenuType = "Thalis";
-  } else if (code === 4 || name.includes("chicken rice combo")) {
-    trueItemCategory = "Non-Veg";
-    trueMenuType = "Combos";
-  } else if (code === 5 || name.includes("dal fry")) {
-    trueItemCategory = "Veg";
-    trueMenuType = "Rice And Biryani";
-  } else if (code === 6 || name.includes("tawa rotis")) {
-    trueItemCategory = "Jain";
-    trueMenuType = "Roti Paratha";
-  } else if (code === 7 || name.includes("chicken curry")) {
-    trueItemCategory = "Non-Veg";
-    trueMenuType = "Combos";
-  } else if (code === 8 || name.includes("veg special thali")) {
-    trueItemCategory = "Jain";
-    trueMenuType = "Thalis";
-  } else if (code === 9 || code === 10 || code === 11 || code === 15 || name.includes("veg mini thali")) {
-    trueItemCategory = "Veg";
-    trueMenuType = "Thalis";
-  } else if (code === 12 || name.includes("veg combo")) {
-    trueItemCategory = "Veg";
-    trueMenuType = "Thalis";
-  } else if (code === 14) {
-    trueItemCategory = "Veg";
-    trueMenuType = "Beverages";
-  } else {
-    // Future safe keywords logic if new items are added
-    if (name.includes("chicken") || name.includes("egg") || name.includes("mutton") || name.includes("fish")) {
-      trueItemCategory = "Non-Veg";
-    } else if (name.includes("jain")) {
-      trueItemCategory = "Jain";
-    } else {
-      trueItemCategory = "Veg";
-    }
+const getItemCategory = (it: any) => {
+
+  const category = String(
+    it?.item_category || ""
+  )
+    .trim()
+    .toLowerCase();
+
+  if (
+    category === "veg" ||
+    category === "jain"
+  ) {
+    return "Veg";
   }
 
-  return {
-    item_category: trueItemCategory,
-    menu_type: trueMenuType
-  };
+  if (
+    category === "non-veg" ||
+    category === "non veg"
+  ) {
+    return "Non-Veg";
+  }
+
+  /* AUTO FALLBACK */
+
+  const name = String(
+    it?.item_name || ""
+  ).toLowerCase();
+
+  if (
+    name.includes("chicken") ||
+    name.includes("egg") ||
+    name.includes("fish") ||
+    name.includes("mutton")
+  ) {
+    return "Non-Veg";
+  }
+
+  return "Veg";
 };
 
-// 🔥 SMART VEG CHECKER (Uses correct Supabase item_category values)
-const isVegItem = (it: any) => {
-  const fields = getTrueFields(it);
-  // Veg aur Jain items Green Dot show karenge, Non-Veg items Red Dot show karenge
-  return fields.item_category === "Veg" || fields.item_category === "Jain";
+const getMenuType = (it: any) => {
+
+  return String(
+    it?.menu_type || "Other"
+  ).trim();
+
 };
+
+/* ================= VEG CHECK ================= */
+
+const isVegItem = (it: any) => {
+
+  const category =
+    getItemCategory(it);
+
+  return category === "Veg";
+
+};
+
+/* ================= STATUS ================= */
 
 const isItemActive = (it: any) => {
+
   const raw =
     it.status ??
     it.item_status ??
     it.is_active ??
     it.active;
 
-  return String(raw || "").toUpperCase() === "ON";
+  return String(raw || "")
+    .trim()
+    .toUpperCase() === "ON";
+
 };
 
 export default function RestroMenuClient({
@@ -92,8 +101,6 @@ export default function RestroMenuClient({
   header,
   nextParams,
 }: any) {
-
-  const minOrder = header?.minimumOrder || 0;
 
   const { user } = useAuth();
 
@@ -104,83 +111,99 @@ export default function RestroMenuClient({
     setJourney,
   } = useCart();
 
-  /* ================= CART TOTAL ================= */
-
-  const cartTotal = useMemo(() => {
-    return Object.values(cart).reduce(
-      (sum: number, item: any) =>
-        sum + item.price * item.qty,
-      0
-    );
-  }, [cart]);
-
   /* ================= STATES ================= */
 
-  const [vegOnly, setVegOnly] = useState(false);
+  const [vegOnly, setVegOnly] =
+    useState(false);
 
   const [trainMin, setTrainMin] =
     useState<number | null>(null);
 
-  /* ================= ARRIVAL TIME ================= */
+  /* ================= ARRIVAL ================= */
 
   useEffect(() => {
-    const params = new URLSearchParams(
-      window.location.search
-    );
+
+    const params =
+      new URLSearchParams(
+        window.location.search
+      );
 
     const arrival =
       params.get("deliveryTime") ||
       params.get("arrival") ||
       params.get("arrivalTime");
 
-    if (arrival && arrival.includes(":")) {
+    if (
+      arrival &&
+      arrival.includes(":")
+    ) {
+
       setTrainMin(
-        toMin(arrival.slice(0, 5))
+        toMin(
+          arrival.slice(0, 5)
+        )
       );
+
     }
+
   }, []);
 
-  /* ================= FILTER ITEMS ================= */
+  /* ================= FILTER ================= */
 
   const visible = useMemo(() => {
+
     return items.filter((it: any) => {
 
-      /* STATUS CHECK */
-      if (!isItemActive(it)) return false;
+      /* STATUS */
 
-      const s = toMin(it.start_time);
-      const e = toMin(it.end_time);
+      if (!isItemActive(it)) {
+        return false;
+      }
 
-      /* TIME CHECK */
+      /* TIME */
+
+      const s =
+        toMin(it.start_time);
+
+      const e =
+        toMin(it.end_time);
+
       if (
         trainMin !== null &&
         s !== null &&
-        s !== undefined &&
-        e !== null &&
-        e !== undefined
+        e !== null
       ) {
 
-        /* NORMAL RANGE */
+        /* NORMAL */
+
         if (e >= s) {
+
           if (
             trainMin < s ||
             trainMin > e
           ) {
             return false;
           }
+
         }
-        /* OVERNIGHT RANGE */
+
+        /* OVERNIGHT */
+
         else {
+
           if (
             trainMin < s &&
             trainMin > e
           ) {
             return false;
           }
+
         }
+
       }
 
       /* VEG FILTER */
+
       if (
         vegOnly &&
         !isVegItem(it)
@@ -189,31 +212,39 @@ export default function RestroMenuClient({
       }
 
       return true;
+
     });
+
   }, [
     items,
     vegOnly,
     trainMin,
   ]);
 
-  /* ================= ADD TO CART ================= */
+  /* ================= ADD ================= */
 
   const handleAdd = (it: any) => {
+
     if (!user) {
+
       window.dispatchEvent(
         new CustomEvent(
           "raileats:open-login",
           {
-            detail: { item: it },
+            detail: {
+              item: it,
+            },
           }
         )
       );
+
       return;
     }
 
     /* SAVE JOURNEY */
 
     setJourney({
+
       trainNumber:
         nextParams?.trainNumber || "",
 
@@ -239,16 +270,27 @@ export default function RestroMenuClient({
         header?.restroCode ||
         nextParams?.restroCode ||
         "",
+
     });
 
-    const trueFields = getTrueFields(it);
+    const trueFields = {
+      item_category:
+        getItemCategory(it),
 
-    /* ADD ITEM WITH CORRECTED SUPABASE HEADINGS */
+      menu_type:
+        getMenuType(it),
+    };
+
+    /* ADD TO CART */
 
     add({
+
       id: it.id,
+
       name: it.item_name,
+
       price: it.base_price,
+
       qty: 1,
 
       restro_code:
@@ -265,51 +307,76 @@ export default function RestroMenuClient({
       station_name:
         nextParams?.stationName || "",
 
-      description: it.item_description || null,
-      category: trueFields.item_category, // Corrected Heading: "Veg" / "Non-Veg" / "Jain"
-      cuisine: it.item_cuisine || null,
-      menu_type: trueFields.menu_type,    // Corrected Heading: "Thalis" / "Combos" etc.
+      description:
+        it.item_description || null,
+
+      category:
+        trueFields.item_category,
+
+      cuisine:
+        it.item_cuisine || null,
+
+      menu_type:
+        trueFields.menu_type,
+
     } as any);
+
   };
 
   /* ================= UI ================= */
 
   return (
+
     <div className="container-app space-y-4">
 
-      {/* ================= HEADER ================= */}
+      {/* HEADER */}
 
       <div className="card bg-white p-4 space-y-2">
 
         <div className="flex justify-between items-start">
 
           <div>
+
             <div className="text-xs text-gray-500">
               Journey
             </div>
 
             <div className="text-sm font-semibold text-orange-600">
+
               {nextParams?.trainName
                 ? `${nextParams.trainName} #${nextParams.trainNumber}`
                 : `Train #${nextParams?.trainNumber}`}
+
             </div>
 
             <div className="text-xs text-gray-500">
+
               {nextParams?.stationName}
+
               {" "}
-              ({header?.stationCode || nextParams?.stationCode})
+
+              (
+              {header?.stationCode ||
+                nextParams?.stationCode}
+              )
+
             </div>
 
             <div className="text-xs text-blue-600 font-semibold">
+
               {nextParams?.deliveryDate}
+
               {nextParams?.deliveryTime &&
                 ` at ${nextParams.deliveryTime}`}
+
             </div>
+
           </div>
 
           {/* VEG TOGGLE */}
 
           <label className="text-sm flex gap-1 items-center">
+
             <input
               type="checkbox"
               checked={vegOnly}
@@ -319,7 +386,9 @@ export default function RestroMenuClient({
                 )
               }
             />
+
             Veg only
+
           </label>
 
         </div>
@@ -333,37 +402,55 @@ export default function RestroMenuClient({
         {/* MIN ORDER */}
 
         <div className="text-sm text-gray-600">
+
           Min Order:
+
           {" "}
+
           ₹{header?.minimumOrder}
+
         </div>
 
       </div>
 
-      {/* ================= EMPTY ================= */}
+      {/* EMPTY */}
 
       {visible.length === 0 && (
+
         <div className="card text-center text-sub">
           No items available
         </div>
+
       )}
 
-      {/* ================= ITEMS ================= */}
+      {/* ITEMS */}
 
       <div className="space-y-3">
+
         {visible.map((it: any) => {
-          const existing = cart[it.id];
-          const isVeg = isVegItem(it);
+
+          const existing =
+            cart[it.id];
+
+          const isVeg =
+            isVegItem(it);
+
+          const category =
+            getItemCategory(it);
 
           return (
+
             <div
               key={it.id}
               className="card flex justify-between items-start"
             >
+
               {/* LEFT */}
 
-              <div>
+              <div className="flex-1 pr-3">
+
                 <div className="flex gap-2 items-center">
+
                   <span
                     className={`w-3 h-3 rounded-full shrink-0 ${
                       isVeg
@@ -375,37 +462,60 @@ export default function RestroMenuClient({
                   <span className="text-main text-sm font-medium">
                     {it.item_name}
                   </span>
+
+                </div>
+
+                {/* CATEGORY */}
+
+                <div className="text-[11px] text-gray-500 mt-1">
+
+                  {category}
+
+                  {" • "}
+
+                  {getMenuType(it)}
+
                 </div>
 
                 {/* TIME */}
 
-                <div className="text-sub text-xs">
-                  ⏱{" "}
+                <div className="text-sub text-xs mt-1">
+
+                  ⏱
+
+                  {" "}
+
                   {it.start_time &&
                   it.end_time
                     ? `${it.start_time} - ${it.end_time}`
                     : "All day"}
+
                 </div>
 
                 {/* DESCRIPTION */}
 
                 {it.item_description && (
-                  <div className="text-sub text-xs">
+
+                  <div className="text-sub text-xs mt-1">
                     {it.item_description}
                   </div>
+
                 )}
 
                 {/* PRICE */}
 
-                <div className="text-main font-semibold">
+                <div className="text-main font-semibold mt-2">
                   ₹{it.base_price}
                 </div>
+
               </div>
 
               {/* RIGHT */}
 
-              <div>
+              <div className="shrink-0">
+
                 {!existing ? (
+
                   <button
                     className="btn-primary text-sm"
                     onClick={() =>
@@ -414,8 +524,11 @@ export default function RestroMenuClient({
                   >
                     Add
                   </button>
+
                 ) : (
+
                   <div className="flex gap-2 border px-2 py-1 rounded text-sm">
+
                     <button
                       onClick={() =>
                         changeQty(
@@ -441,21 +554,30 @@ export default function RestroMenuClient({
                     >
                       +
                     </button>
+
                   </div>
+
                 )}
+
               </div>
 
             </div>
+
           );
+
         })}
+
       </div>
 
-      {/* ================= FLOATING CART ================= */}
+      {/* FLOATING CART */}
 
       <CartPillMobile
-        minOrder={header?.minimumOrder}
+        minOrder={
+          header?.minimumOrder
+        }
       />
 
     </div>
+
   );
 }
