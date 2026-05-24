@@ -15,21 +15,27 @@ export default function CheckoutPage() {
     journey,
   } = useCart();
 
-  const {
-    user,
-    loadUser,
-  } = useAuth();
+  const { user, loadUser } = useAuth();
 
   /* ================= USER ================= */
 
-  const [name, setName] =
-    useState("");
+  const [name, setName] = useState("");
+  const [mobile, setMobile] = useState("");
+  const [email, setEmail] = useState("");
 
-  const [mobile, setMobile] =
-    useState("");
+  /* ================= JOURNEY ================= */
 
-  const [email, setEmail] =
-    useState("");
+  const [pnr, setPnr] = useState("");
+  const [coach, setCoach] = useState("");
+  const [seat, setSeat] = useState("");
+
+  /* ================= EXTRA ================= */
+
+  const [promo, setPromo] = useState("");
+  const [paymentMode, setPaymentMode] =
+    useState("COD");
+
+  /* ================= LOAD USER ================= */
 
   useEffect(() => {
     loadUser();
@@ -40,321 +46,202 @@ export default function CheckoutPage() {
     if (user) {
 
       setName(user.name || "");
-
-      setMobile(
-        user.mobile || ""
-      );
-
-      setEmail(
-        user.email || ""
-      );
+      setMobile(user.mobile || "");
+      setEmail(user.email || "");
 
     }
 
   }, [user]);
 
-  /* ================= EXTRA ================= */
-
-  const [pnr, setPnr] =
-    useState("");
-
-  const [seat, setSeat] =
-    useState("");
-
-  const [coach, setCoach] =
-    useState("");
-
-  const [promo, setPromo] =
-    useState("");
-
-  const [paymentMode, setPaymentMode] =
-    useState("COD");
-
   /* ================= CALCULATIONS ================= */
 
-  const subtotal =
-    items.reduce(
-      (sum, i) =>
-        sum +
-        Number(i.price) *
-          Number(i.qty),
-      0
-    );
-
-  const gst = Math.round(
-    subtotal * 0.05
+  const subtotal = items.reduce(
+    (sum, i) =>
+      sum + Number(i.price) * Number(i.qty),
+    0
   );
 
-  const delivery =
-    subtotal > 0 ? 20 : 0;
+  const gst = Math.round(subtotal * 0.05);
+
+  const delivery = subtotal > 0 ? 20 : 0;
 
   const total =
-    subtotal +
-    gst +
-    delivery;
+    subtotal + gst + delivery;
 
-  /* ================= ORDER ================= */
+  /* ================= PLACE ORDER ================= */
 
-  const placeOrder =
-    async () => {
+  const placeOrder = async () => {
 
-      if (!items.length) {
-        alert("Cart empty");
-        return;
-      }
+    if (!items.length) {
+      alert("Cart empty");
+      return;
+    }
 
-      if (!mobile) {
-        alert("Mobile required");
-        return;
-      }
+    if (!mobile) {
+      alert("Mobile required");
+      return;
+    }
 
-      const firstItem =
-        items[0];
+    const firstItem = items[0];
 
-      try {
+    try {
 
-        const res =
-          await fetch(
-            "/api/order/create",
-            {
-              method: "POST",
+      const res = await fetch(
+        "/api/order/create",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
 
-              headers: {
-                "Content-Type":
-                  "application/json",
-              },
+          body: JSON.stringify({
 
-              body: JSON.stringify({
+            customerName:
+              name || "Guest",
 
-                customerName:
-                  name || "Guest",
+            customerMobile: mobile,
 
-                customerMobile:
-                  mobile,
+            customerEmail:
+              email || null,
 
-                customerEmail:
-                  email || null,
+            pnr: pnr || null,
 
-                pnr:
-                  pnr || null,
+            trainNumber:
+              journey?.trainNumber || "",
 
-                trainNumber:
-                  journey?.trainNumber ||
-                  null,
+            trainName:
+              journey?.trainName || "",
 
-                trainName:
-                  journey?.trainName ||
-                  null,
+            restroCode:
+              journey?.restroCode ||
+              firstItem?.restro_code,
 
-                restroCode:
-                  journey?.restroCode ||
-                  firstItem?.restro_code,
+            restroName:
+              journey?.vendorName ||
+              firstItem?.restro_name,
 
-                restroName:
-                  journey?.vendorName ||
-                  firstItem?.restro_name,
+            stationCode:
+              journey?.stationCode ||
+              firstItem?.station_code,
 
-                stationCode:
-                  journey?.stationCode ||
-                  firstItem?.station_code,
+            stationName:
+              journey?.stationName ||
+              firstItem?.station_name,
 
-                stationName:
-                  journey?.stationName ||
-                  firstItem?.station_name,
+            arrivalDate:
+              journey?.deliveryDate || "",
 
-                arrivalDate:
-                  journey?.deliveryDate ||
-                  null,
+            arrivalTime:
+              journey?.deliveryTime || "",
 
-                arrivalTime:
-                  journey?.deliveryTime ||
-                  null,
+            coach:
+              coach || null,
 
-                coach:
-                  coach || null,
+            seat:
+              seat || null,
 
-                seat:
-                  seat || null,
+            paymentMode,
 
-                paymentMode,
+            promoCode:
+              promo || null,
 
-                promoCode:
-                  promo || null,
+            items: items.map((i) => ({
+              id: i.id,
+              name: i.name,
+              qty: i.qty,
+              selling_price: i.price,
+            })),
 
-                items: items.map(
-                  (i) => ({
-                    id: i.id,
-                    name: i.name,
-                    qty: i.qty,
-                    selling_price:
-                      i.price,
-                  })
-                ),
+            subtotal,
+            gst,
+            delivery,
+            total,
 
-                subtotal,
-                gst,
-                delivery,
-                total,
+            bookingTime:
+              new Date().toISOString(),
 
-                bookingTime:
-                  new Date().toISOString(),
-
-              }),
-            }
-          );
-
-        const data =
-          await res.json();
-
-        if (!data.ok) {
-          alert("Order failed");
-          return;
+          }),
         }
+      );
 
-        clearCart();
+      const data = await res.json();
 
-        router.push(
-          "/order-success"
-        );
-
-      } catch (e) {
-
-        console.error(e);
-
-        alert("Server error");
-
+      if (!data.ok) {
+        alert("Order failed");
+        return;
       }
 
-    };
+      clearCart();
+
+      router.push("/order-success");
+
+    } catch (e) {
+
+      console.error(e);
+
+      alert("Server error");
+
+    }
+
+  };
 
   /* ================= UI ================= */
 
   return (
 
-    <div className="
-      max-w-md
-      mx-auto
-      bg-[#f6f6f6]
-      h-screen
-      overflow-hidden
-    ">
+    <div className="max-w-md mx-auto h-screen overflow-hidden flex flex-col bg-[#f5f5f5] pb-24">
 
       {/* SCROLL AREA */}
 
-      <div className="
-        h-full
-        overflow-y-auto
-        pb-[180px]
-      ">
+      <div className="flex-1 overflow-y-auto p-3 space-y-3">
 
-        {/* TOP */}
+        {/* SECURITY */}
 
-        <div className="px-4 pt-4">
+        <div className="bg-green-50 border border-green-100 rounded-2xl p-2 text-center text-xs text-green-700">
+          🔒 Your data is 100% secure and safe
+        </div>
 
-          <div className="
-            border
-            rounded-2xl
-            bg-white
-            p-3
-            shadow-sm
-            min-h-[100px]
-          ">
+        {/* JOURNEY */}
 
-            <div className="
-              flex
-              justify-between
-              gap-3
-            ">
+        <div className="bg-white rounded-2xl border p-4 shadow-sm">
 
-              {/* LEFT */}
+          <div className="flex justify-between items-start">
 
-              <div className="flex-1">
+            <div>
 
-                <div className="
-                  text-sm
-                  font-bold
-                  mb-1
-                ">
-                  Journey Details
-                </div>
-
-                <div className="
-                  text-sm
-                  font-semibold
-                  leading-5
-                ">
-
-                  {journey?.trainName
-                    ? `${journey.trainName} #${journey.trainNumber}`
-                    : `Train #${journey?.trainNumber}`}
-
-                </div>
-
-                <div className="
-                  text-xs
-                  text-gray-500
-                  mt-1
-                ">
-
-                  {journey?.stationName}
-                  {" "}
-                  ({journey?.stationCode})
-
-                </div>
-
+              <div className="font-bold text-base">
+                Journey Details
               </div>
 
-              {/* RIGHT */}
+              <div className="mt-2 font-semibold text-[15px]">
+                {journey?.trainName
+                  ? `${journey.trainName} #${journey.trainNumber}`
+                  : `Train #${journey?.trainNumber}`}
+              </div>
 
-              <div className="
-                text-right
-                min-w-[110px]
-              ">
+              <div className="text-sm text-gray-500">
+                {journey?.stationName}
+                {journey?.stationCode
+                  ? ` (${journey.stationCode})`
+                  : ""}
+              </div>
 
-                <div className="
-                  text-[11px]
-                  text-gray-500
-                ">
-                  Delivery
-                </div>
+            </div>
 
-                <div className="
-                  text-sm
-                  font-medium
-                  leading-4
-                ">
+            <div className="text-right">
 
-                  {journey?.deliveryDate}
+              <div className="text-[10px] text-gray-400">
+                Delivery
+              </div>
 
-                </div>
+              <div className="font-semibold text-sm">
+                {journey?.deliveryDate}{" "}
+                {journey?.deliveryTime}
+              </div>
 
-                <div className="
-                  text-sm
-                  font-medium
-                ">
-
-                  {journey?.deliveryTime}
-
-                </div>
-
-                <div className="
-                  text-[11px]
-                  text-gray-500
-                  mt-2
-                ">
-                  Restaurant
-                </div>
-
-                <div className="
-                  text-sm
-                  font-medium
-                  leading-4
-                ">
-
-                  {journey?.vendorName}
-
-                </div>
-
+              <div className="mt-3 font-semibold text-[15px]">
+                {journey?.vendorName}
               </div>
 
             </div>
@@ -365,197 +252,88 @@ export default function CheckoutPage() {
 
         {/* PASSENGER */}
 
-        <div className="px-4 mt-3">
+        <div className="bg-white rounded-2xl border p-4 shadow-sm space-y-3">
 
-          <div className="
-            bg-white
-            border
-            rounded-2xl
-            p-3
-            shadow-sm
-          ">
+          <div className="font-bold text-base">
+            Passenger Details
+          </div>
 
-            <div className="
-              text-sm
-              font-bold
-              mb-3
-            ">
-              Passenger Details
-            </div>
+          <div className="grid grid-cols-2 gap-2">
 
-            {/* ROW 1 */}
+            <input
+              className="border rounded-xl px-3 py-3 text-sm"
+              placeholder="Name"
+              value={name}
+              onChange={(e) =>
+                setName(e.target.value)
+              }
+            />
 
-            <div className="
-              grid
-              grid-cols-2
-              gap-2
-              mb-2
-            ">
+            <input
+              className="border rounded-xl px-3 py-3 text-sm"
+              placeholder="Mobile"
+              value={mobile}
+              onChange={(e) =>
+                setMobile(e.target.value)
+              }
+            />
 
-              <input
-                className="
-                  border
-                  rounded-xl
-                  p-2.5
-                  text-sm
-                  w-full
-                "
-                placeholder="Name"
-                value={name}
-                onChange={(e) =>
-                  setName(
-                    e.target.value
-                  )
-                }
-              />
+          </div>
 
-              <input
-                className="
-                  border
-                  rounded-xl
-                  p-2.5
-                  text-sm
-                  w-full
-                "
-                placeholder="Mobile"
-                value={mobile}
-                onChange={(e) =>
-                  setMobile(
-                    e.target.value
-                  )
-                }
-              />
+          <div className="grid grid-cols-2 gap-2">
 
-            </div>
+            <input
+              className="border rounded-xl px-3 py-3 text-sm"
+              placeholder="Email"
+              value={email}
+              onChange={(e) =>
+                setEmail(e.target.value)
+              }
+            />
 
-            {/* ROW 2 */}
+            <input
+              className="border rounded-xl px-3 py-3 text-sm"
+              placeholder="PNR"
+              value={pnr}
+              onChange={(e) =>
+                setPnr(e.target.value)
+              }
+            />
 
-            <div className="
-              grid
-              grid-cols-2
-              gap-2
-              mb-2
-            ">
+          </div>
 
-              <input
-                className="
-                  border
-                  rounded-xl
-                  p-2.5
-                  text-sm
-                  w-full
-                "
-                placeholder="Email"
-                value={email}
-                onChange={(e) =>
-                  setEmail(
-                    e.target.value
-                  )
-                }
-              />
+          <div className="grid grid-cols-[1fr_1fr_1.1fr_auto] gap-2">
 
-              <input
-                className="
-                  border
-                  rounded-xl
-                  p-2.5
-                  text-sm
-                  w-full
-                "
-                placeholder="PNR"
-                value={pnr}
-                onChange={(e) =>
-                  setPnr(
-                    e.target.value
-                  )
-                }
-              />
+            <input
+              className="border rounded-xl px-3 py-3 text-sm"
+              placeholder="Seat"
+              value={seat}
+              onChange={(e) =>
+                setSeat(e.target.value)
+              }
+            />
 
-            </div>
+            <input
+              className="border rounded-xl px-3 py-3 text-sm"
+              placeholder="Coach"
+              value={coach}
+              onChange={(e) =>
+                setCoach(e.target.value)
+              }
+            />
 
-            {/* ROW 3 */}
+            <input
+              className="border rounded-xl px-3 py-3 text-sm"
+              placeholder="Promo"
+              value={promo}
+              onChange={(e) =>
+                setPromo(e.target.value)
+              }
+            />
 
-            <div className="
-              grid
-              grid-cols-2
-              gap-2
-              mb-3
-            ">
-
-              <input
-                className="
-                  border
-                  rounded-xl
-                  p-2.5
-                  text-sm
-                  w-full
-                "
-                placeholder="Seat"
-                value={seat}
-                onChange={(e) =>
-                  setSeat(
-                    e.target.value
-                  )
-                }
-              />
-
-              <input
-                className="
-                  border
-                  rounded-xl
-                  p-2.5
-                  text-sm
-                  w-full
-                "
-                placeholder="Coach"
-                value={coach}
-                onChange={(e) =>
-                  setCoach(
-                    e.target.value
-                  )
-                }
-              />
-
-            </div>
-
-            {/* PROMO */}
-
-            <div className="
-              flex
-              gap-2
-            ">
-
-              <input
-                className="
-                  border
-                  rounded-xl
-                  p-2.5
-                  text-sm
-                  flex-1
-                "
-                placeholder="Promo Code"
-                value={promo}
-                onChange={(e) =>
-                  setPromo(
-                    e.target.value
-                  )
-                }
-              />
-
-              <button
-                className="
-                  bg-black
-                  text-white
-                  px-4
-                  rounded-xl
-                  text-sm
-                  font-medium
-                "
-              >
-                Apply
-              </button>
-
-            </div>
+            <button className="bg-black text-white px-4 rounded-xl text-sm font-semibold">
+              Apply
+            </button>
 
           </div>
 
@@ -563,78 +341,39 @@ export default function CheckoutPage() {
 
         {/* ORDER */}
 
-        <div className="px-4 mt-3">
+        <div className="bg-white rounded-2xl border overflow-hidden shadow-sm">
 
-          <div className="
-            bg-white
-            border
-            rounded-2xl
-            shadow-sm
-          ">
+          <div className="p-4 font-bold border-b">
+            Your Order
+          </div>
 
-            {/* HEADER */}
+          {/* ONLY ITEMS SCROLL */}
 
-            <div className="
-              p-3
-              border-b
-              font-bold
-              text-sm
-            ">
-              Your Order
-            </div>
+          <div className="max-h-[180px] overflow-y-auto">
 
-            {/* SCROLLABLE ITEMS */}
-
-            <div className="
-              max-h-[130px]
-              overflow-y-auto
-              p-3
-              space-y-3
-            ">
+            <div className="p-4 space-y-4">
 
               {items.map((i) => (
 
                 <div
                   key={i.id}
-                  className="
-                    flex
-                    justify-between
-                    gap-3
-                  "
+                  className="flex justify-between gap-3"
                 >
 
-                  <div className="flex-1">
+                  <div className="flex-1 min-w-0">
 
-                    <div className="
-                      text-sm
-                      font-medium
-                    ">
+                    <div className="font-medium text-sm leading-tight">
                       {i.name}
                     </div>
 
-                    <div className="
-                      text-xs
-                      text-gray-500
-                      mt-1
-                    ">
-
-                      ₹{i.price}
-                      {" "}
-                      ×
-                      {" "}
-                      {i.qty}
-
+                    <div className="text-xs text-gray-500 mt-1">
+                      ₹{i.price} × {i.qty}
                     </div>
 
                   </div>
 
-                  <div className="
-                    text-sm
-                    font-semibold
-                  ">
-
+                  <div className="font-semibold text-sm whitespace-nowrap">
                     ₹{i.price * i.qty}
-
                   </div>
 
                 </div>
@@ -643,53 +382,32 @@ export default function CheckoutPage() {
 
             </div>
 
-            {/* BILL */}
+          </div>
 
-            <div className="
-              border-t
-              p-3
-              space-y-2
-            ">
+          {/* SUMMARY */}
 
-              <Row
-                label="Subtotal"
-                value={subtotal}
-              />
+          <div className="border-t p-4 space-y-2 text-sm">
 
-              <Row
-                label="GST (5%)"
-                value={gst}
-              />
+            <Row
+              label="Subtotal"
+              value={subtotal}
+            />
 
-              <Row
-                label="Delivery"
-                value={delivery}
-              />
+            <Row
+              label="GST (5%)"
+              value={gst}
+            />
 
-              <div className="
-                flex
-                justify-between
-                items-center
-                pt-2
-                border-t
-                mt-2
-              ">
+            <Row
+              label="Delivery Charges"
+              value={delivery}
+            />
 
-                <div className="
-                  text-base
-                  font-bold
-                ">
-                  Total Payable
-                </div>
+            <div className="flex justify-between font-bold text-xl pt-2">
 
-                <div className="
-                  text-2xl
-                  font-bold
-                ">
-                  ₹{total}
-                </div>
+              <span>Total Payable</span>
 
-              </div>
+              <span>₹{total}</span>
 
             </div>
 
@@ -699,77 +417,39 @@ export default function CheckoutPage() {
 
         {/* PAYMENT */}
 
-        <div className="px-4 mt-3">
+        <div className="bg-white rounded-2xl border p-4 shadow-sm">
 
-          <div className="
-            bg-white
-            border
-            rounded-2xl
-            p-3
-            shadow-sm
-          ">
+          <div className="font-bold mb-3">
+            Payment Method
+          </div>
 
-            <div className="
-              text-sm
-              font-bold
-              mb-3
-            ">
-              Payment Method
-            </div>
+          <div className="grid grid-cols-2 gap-2">
 
-            <div className="
-              grid
-              grid-cols-2
-              gap-2
-            ">
+            <button
+              onClick={() =>
+                setPaymentMode("COD")
+              }
+              className={`border rounded-xl py-4 text-sm font-semibold transition ${
+                paymentMode === "COD"
+                  ? "bg-green-600 text-white border-green-600"
+                  : "bg-white"
+              }`}
+            >
+              COD
+            </button>
 
-              <button
-                onClick={() =>
-                  setPaymentMode(
-                    "COD"
-                  )
-                }
-                className={`
-                  border
-                  rounded-xl
-                  p-3
-                  text-sm
-                  font-semibold
-                  transition
-                  ${
-                    paymentMode === "COD"
-                      ? "bg-green-600 text-white border-green-600"
-                      : "bg-white"
-                  }
-                `}
-              >
-                COD
-              </button>
-
-              <button
-                onClick={() =>
-                  setPaymentMode(
-                    "ONLINE"
-                  )
-                }
-                className={`
-                  border
-                  rounded-xl
-                  p-3
-                  text-sm
-                  font-semibold
-                  transition
-                  ${
-                    paymentMode === "ONLINE"
-                      ? "bg-green-600 text-white border-green-600"
-                      : "bg-white"
-                  }
-                `}
-              >
-                Prepaid
-              </button>
-
-            </div>
+            <button
+              onClick={() =>
+                setPaymentMode("ONLINE")
+              }
+              className={`border rounded-xl py-4 text-sm font-semibold transition ${
+                paymentMode === "ONLINE"
+                  ? "bg-green-600 text-white border-green-600"
+                  : "bg-white"
+              }`}
+            >
+              Prepaid
+            </button>
 
           </div>
 
@@ -777,40 +457,19 @@ export default function CheckoutPage() {
 
       </div>
 
-      {/* FOOTER */}
+      {/* FIXED FOOTER */}
 
-      <div className="
-        fixed
-        bottom-[58px]
-        left-0
-        right-0
-        bg-white
-        border-t
-        p-3
-        z-40
-      ">
+      <div className="fixed bottom-[56px] left-0 right-0 bg-white border-t px-3 py-3">
 
-        <div className="
-          max-w-md
-          mx-auto
-          flex
-          items-center
-          gap-3
-        ">
+        <div className="max-w-md mx-auto flex items-center gap-3">
 
-          <div>
+          <div className="min-w-[70px]">
 
-            <div className="
-              text-2xl
-              font-bold
-            ">
+            <div className="text-3xl font-bold leading-none">
               ₹{total}
             </div>
 
-            <div className="
-              text-[11px]
-              text-gray-500
-            ">
+            <div className="text-[11px] text-gray-500">
               Total Amount
             </div>
 
@@ -818,15 +477,7 @@ export default function CheckoutPage() {
 
           <button
             onClick={placeOrder}
-            className="
-              flex-1
-              bg-green-600
-              text-white
-              py-3
-              rounded-2xl
-              font-bold
-              text-base
-            "
+            className="flex-1 bg-green-600 text-white font-bold py-4 rounded-2xl text-lg"
           >
             Place Order
           </button>
@@ -838,7 +489,6 @@ export default function CheckoutPage() {
     </div>
 
   );
-
 }
 
 /* ================= ROW ================= */
@@ -850,26 +500,15 @@ function Row({
 
   return (
 
-    <div className="
-      flex
-      justify-between
-      text-sm
-    ">
+    <div className="flex justify-between">
 
-      <span className="
-        text-gray-600
-      ">
-        {label}
-      </span>
+      <span>{label}</span>
 
-      <span className="
-        font-semibold
-      ">
+      <span className="font-medium">
         ₹{value}
       </span>
 
     </div>
 
   );
-
 }
