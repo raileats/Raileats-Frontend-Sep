@@ -196,9 +196,11 @@ export default function CheckoutPage() {
 
       <div className="flex-1 overflow-y-auto p-2 space-y-2">
 
-        {/* JOURNEY */}
+        {/* JOURNEY + PASSENGER */}
 
-        <div className="bg-white rounded-2xl border p-3 shadow-sm">
+        <div className="bg-white rounded-2xl border p-3 shadow-sm space-y-3">
+
+          {/* TOP */}
 
           <div className="flex justify-between items-start gap-3">
 
@@ -241,11 +243,11 @@ export default function CheckoutPage() {
 
           </div>
 
-        </div>
+          {/* DIVIDER */}
 
-        {/* PASSENGER */}
+          <div className="border-t" />
 
-        <div className="bg-white rounded-2xl border p-3 shadow-sm space-y-2">
+          {/* PASSENGER */}
 
           <div className="font-bold text-[15px]">
             Passenger Details
@@ -295,9 +297,9 @@ export default function CheckoutPage() {
 
           </div>
 
-          {/* COMPACT ROW */}
+          {/* LAST ROW */}
 
-          <div className="grid grid-cols-[0.8fr_0.8fr_1fr_auto] gap-2">
+          <div className="grid grid-cols-[65px_65px_1fr_62px] gap-2">
 
             <input
               className="border rounded-xl px-2 py-2.5 text-sm"
@@ -318,7 +320,7 @@ export default function CheckoutPage() {
             />
 
             <input
-              className="border rounded-xl px-2 py-2.5 text-sm"
+              className="border rounded-xl px-2 py-2.5 text-sm min-w-0"
               placeholder="Promo"
               value={promo}
               onChange={(e) =>
@@ -326,7 +328,7 @@ export default function CheckoutPage() {
               }
             />
 
-            <button className="bg-black text-white px-3 rounded-xl text-sm font-semibold">
+            <button className="bg-black text-white rounded-xl text-sm font-semibold">
               Apply
             </button>
 
