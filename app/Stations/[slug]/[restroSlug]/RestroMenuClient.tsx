@@ -15,28 +15,66 @@ const toMin = (t?: string | null) => {
   return h * 60 + m;
 };
 
-// 🔥 SWAPPED API DATA SMART TEXT-KEYWORDS INDICATOR FIX
+// 🏛️ SUPABASE HEADINGS RECONSTRUCTION MAPPER
+// Yeh function backend ke galat/swapped columns ko Supabase table heading ke anusar 100% correct karta hai.
+const getTrueFields = (it: any) => {
+  const code = Number(it?.id || 0); // Frontend JSON ki 'id' database ka 'item_code' hai
+  const name = String(it?.item_name || "").toLowerCase().trim();
+  
+  // Default fallbacks matching frontend schema
+  let trueItemCategory = "Veg"; // Supabase Heading: item_category (Veg/Non-Veg/Jain)
+  let trueMenuType = it?.item_category || ""; // Supabase Heading: menu_type (Thalis/Combos/etc.)
+
+  // Exact Supabase Row-by-Row mapping based on uploaded table
+  if (code === 1 || name.includes("navratri") || name.includes("vrat")) {
+    trueItemCategory = "Non-Veg"; // Supabase table me explicit "Non-Veg" mapped hai
+    trueMenuType = "Thalis";
+  } else if (code === 4 || name.includes("chicken rice combo")) {
+    trueItemCategory = "Non-Veg";
+    trueMenuType = "Combos";
+  } else if (code === 5 || name.includes("dal fry")) {
+    trueItemCategory = "Veg";
+    trueMenuType = "Rice And Biryani";
+  } else if (code === 6 || name.includes("tawa rotis")) {
+    trueItemCategory = "Jain";
+    trueMenuType = "Roti Paratha";
+  } else if (code === 7 || name.includes("chicken curry")) {
+    trueItemCategory = "Non-Veg";
+    trueMenuType = "Combos";
+  } else if (code === 8 || name.includes("veg special thali")) {
+    trueItemCategory = "Jain";
+    trueMenuType = "Thalis";
+  } else if (code === 9 || code === 10 || code === 11 || code === 15 || name.includes("veg mini thali")) {
+    trueItemCategory = "Veg";
+    trueMenuType = "Thalis";
+  } else if (code === 12 || name.includes("veg combo")) {
+    trueItemCategory = "Veg";
+    trueMenuType = "Thalis";
+  } else if (code === 14) {
+    trueItemCategory = "Veg";
+    trueMenuType = "Beverages";
+  } else {
+    // Future safe keywords logic if new items are added
+    if (name.includes("chicken") || name.includes("egg") || name.includes("mutton") || name.includes("fish")) {
+      trueItemCategory = "Non-Veg";
+    } else if (name.includes("jain")) {
+      trueItemCategory = "Jain";
+    } else {
+      trueItemCategory = "Veg";
+    }
+  }
+
+  return {
+    item_category: trueItemCategory,
+    menu_type: trueMenuType
+  };
+};
+
+// 🔥 SMART VEG CHECKER (Uses correct Supabase item_category values)
 const isVegItem = (it: any) => {
-  const name = String(it?.item_name || "").toLowerCase();
-  const frontendId = Number(it?.id || 0);
-
-  // 🚨 1. DIRECT TARGET FOR NAVRATRI THALI (Frontend source me id = 1 aa rahi hai)
-  if (frontendId === 1 || name.includes("navratri") || name.includes("vrat")) {
-    return false; // Strict Red Dot (Non-Veg) jaisa aapke database row me mapped hai
-  }
-
-  // 2. Strict text-matching keywords check for Non-Veg items
-  if (
-    name.includes("chicken") || 
-    name.includes("egg") || 
-    name.includes("mutton") || 
-    name.includes("fish")
-  ) {
-    return false; // Red Dot
-  }
-
-  // 3. Kyunki database ka Veg/Non-Veg data backend se gayab/swapped hai, baki sab Veg (Green Dot) rahega
-  return true; 
+  const fields = getTrueFields(it);
+  // Veg aur Jain items Green Dot show karenge, Non-Veg items Red Dot show karenge
+  return fields.item_category === "Veg" || fields.item_category === "Jain";
 };
 
 const isItemActive = (it: any) => {
@@ -203,7 +241,9 @@ export default function RestroMenuClient({
         "",
     });
 
-    /* ADD ITEM */
+    const trueFields = getTrueFields(it);
+
+    /* ADD ITEM WITH CORRECTED SUPABASE HEADINGS */
 
     add({
       id: it.id,
@@ -226,9 +266,9 @@ export default function RestroMenuClient({
         nextParams?.stationName || "",
 
       description: it.item_description || null,
-      category: it.item_category || null,
+      category: trueFields.item_category, // Corrected Heading: "Veg" / "Non-Veg" / "Jain"
       cuisine: it.item_cuisine || null,
-      menu_type: it.menu_type || null,
+      menu_type: trueFields.menu_type,    // Corrected Heading: "Thalis" / "Combos" etc.
     } as any);
   };
 
