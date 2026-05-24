@@ -269,7 +269,7 @@ export default function CheckoutPage() {
 
     <div className="max-w-2xl mx-auto p-4 pb-32 space-y-4 bg-[#f7f7f7] min-h-screen">
 
-      {/* HEADER */}
+      {/* SECURITY */}
 
       <div className="bg-green-50 border border-green-100 rounded-2xl px-4 py-3 text-sm text-green-700 font-medium text-center">
 
@@ -279,51 +279,55 @@ export default function CheckoutPage() {
 
       {/* JOURNEY */}
 
-      <div className="bg-white rounded-2xl shadow-sm border p-4">
+      <div className="bg-[#eef8f0] rounded-2xl border border-[#dceede] p-4 shadow-sm">
 
         <div className="flex items-start justify-between">
 
           <div>
 
-            <div className="text-lg font-bold text-gray-800">
+            <div className="text-xl font-bold text-black">
               Journey Details
             </div>
 
-            <div className="mt-3 font-semibold text-gray-800">
+            <div className="mt-4">
 
-              {journey?.trainName
-                ? `${journey.trainName} #${journey.trainNumber}`
-                : journey?.trainNumber || "-"}
+              <div className="font-semibold text-lg text-black">
 
-            </div>
+                {journey?.trainName
+                  ? `${journey.trainName} #${journey.trainNumber}`
+                  : journey?.trainNumber || "-"}
 
-            <div className="text-gray-600 text-sm mt-1">
+              </div>
 
-              {journey?.stationName}
-              {" "}
-              ({journey?.stationCode})
+              <div className="text-gray-700 mt-1">
 
-            </div>
+                {journey?.stationName}
+                {" "}
+                ({journey?.stationCode})
 
-            <div className="text-gray-500 text-sm mt-1">
+              </div>
 
-              {journey?.deliveryDate}
-              {" "}
-              {journey?.deliveryTime
-                ? `at ${journey.deliveryTime}`
-                : ""}
+              <div className="text-gray-600 mt-1">
 
-            </div>
+                {journey?.deliveryDate}
+                {" "}
+                •
+                {" "}
+                {journey?.deliveryTime}
 
-            <div className="text-gray-700 text-sm mt-2 font-medium">
+              </div>
 
-              {journey?.vendorName}
+              <div className="text-gray-800 mt-2 font-medium">
+
+                {journey?.vendorName}
+
+              </div>
 
             </div>
 
           </div>
 
-          <div className="bg-green-100 text-green-700 text-xs font-semibold px-3 py-1 rounded-full">
+          <div className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-semibold">
 
             Active
 
@@ -335,9 +339,9 @@ export default function CheckoutPage() {
 
       {/* PASSENGER */}
 
-      <div className="bg-white rounded-2xl shadow-sm border p-4">
+      <div className="bg-white rounded-2xl border shadow-sm p-4">
 
-        <div className="text-lg font-bold mb-4">
+        <div className="text-xl font-bold mb-4">
           Passenger Details
         </div>
 
@@ -345,83 +349,134 @@ export default function CheckoutPage() {
 
         <div className="grid grid-cols-2 gap-3 mb-3">
 
-          <input
-            className="border p-3 rounded-xl text-sm"
-            placeholder="Name"
-            value={name}
-            onChange={(e) =>
-              setName(
-                e.target.value
-              )
-            }
-            readOnly={!!user}
-          />
+          <div>
 
-          <input
-            className="border p-3 rounded-xl text-sm"
-            placeholder="Mobile"
-            value={mobile}
-            onChange={(e) =>
-              setMobile(
-                e.target.value
-              )
-            }
-            readOnly={!!user}
-          />
+            <div className="text-xs font-medium text-gray-500 mb-1">
+              Name
+            </div>
+
+            <input
+              className="border p-3 rounded-xl text-sm w-full"
+              placeholder="Name"
+              value={name}
+              onChange={(e) =>
+                setName(
+                  e.target.value
+                )
+              }
+              readOnly={!!user}
+            />
+
+          </div>
+
+          <div>
+
+            <div className="text-xs font-medium text-gray-500 mb-1">
+              Mobile
+            </div>
+
+            <input
+              className="border p-3 rounded-xl text-sm w-full"
+              placeholder="Mobile"
+              value={mobile}
+              onChange={(e) =>
+                setMobile(
+                  e.target.value
+                )
+              }
+              readOnly={!!user}
+            />
+
+          </div>
 
         </div>
 
-        {/* EMAIL */}
-
-        <input
-          className="border p-3 w-full mb-3 rounded-xl text-sm"
-          placeholder="Email"
-          value={email}
-          onChange={(e) =>
-            setEmail(
-              e.target.value
-            )
-          }
-          readOnly={!!user}
-        />
-
-        {/* PNR + SEAT */}
+        {/* EMAIL + PNR */}
 
         <div className="grid grid-cols-2 gap-3 mb-3">
 
-          <input
-            className="border p-3 rounded-xl text-sm"
-            placeholder="PNR (optional)"
-            value={pnr}
-            onChange={(e) =>
-              setPnr(
-                e.target.value
-              )
-            }
-          />
+          <div>
 
-          <input
-            className="border p-3 rounded-xl text-sm"
-            placeholder="Seat / Coach"
-            value={`${coach}${seat ? ` / ${seat}` : ""}`}
-            onChange={(e) => {
+            <div className="text-xs font-medium text-gray-500 mb-1">
+              Email
+            </div>
 
-              const val =
-                e.target.value;
+            <input
+              className="border p-3 rounded-xl text-sm w-full"
+              placeholder="Email"
+              value={email}
+              onChange={(e) =>
+                setEmail(
+                  e.target.value
+                )
+              }
+              readOnly={!!user}
+            />
 
-              const parts =
-                val.split("/");
+          </div>
 
-              setCoach(
-                parts[0]?.trim() || ""
-              );
+          <div>
 
-              setSeat(
-                parts[1]?.trim() || ""
-              );
+            <div className="text-xs font-medium text-gray-500 mb-1">
+              PNR
+            </div>
 
-            }}
-          />
+            <input
+              className="border p-3 rounded-xl text-sm w-full"
+              placeholder="PNR"
+              value={pnr}
+              onChange={(e) =>
+                setPnr(
+                  e.target.value
+                )
+              }
+            />
+
+          </div>
+
+        </div>
+
+        {/* SEAT + COACH */}
+
+        <div className="grid grid-cols-2 gap-3 mb-3">
+
+          <div>
+
+            <div className="text-xs font-medium text-gray-500 mb-1">
+              Seat
+            </div>
+
+            <input
+              className="border p-3 rounded-xl text-sm w-full"
+              placeholder="Seat"
+              value={seat}
+              onChange={(e) =>
+                setSeat(
+                  e.target.value
+                )
+              }
+            />
+
+          </div>
+
+          <div>
+
+            <div className="text-xs font-medium text-gray-500 mb-1">
+              Coach
+            </div>
+
+            <input
+              className="border p-3 rounded-xl text-sm w-full"
+              placeholder="Coach"
+              value={coach}
+              onChange={(e) =>
+                setCoach(
+                  e.target.value
+                )
+              }
+            />
+
+          </div>
 
         </div>
 
@@ -447,7 +502,7 @@ export default function CheckoutPage() {
               px-5
               rounded-xl
               text-sm
-              font-medium
+              font-semibold
             "
           >
             Apply
@@ -459,15 +514,13 @@ export default function CheckoutPage() {
 
       {/* ORDER */}
 
-      <div className="bg-white rounded-2xl shadow-sm border p-4">
+      <div className="bg-white rounded-2xl border shadow-sm p-4">
 
-        <h3 className="font-bold text-lg mb-4">
-
+        <div className="text-xl font-bold mb-4">
           Your Order
+        </div>
 
-        </h3>
-
-        <div className="space-y-3">
+        <div className="space-y-4">
 
           {items.map((i) => (
 
@@ -478,24 +531,18 @@ export default function CheckoutPage() {
 
               <div>
 
-                <div className="font-medium text-sm">
-
+                <div className="font-medium text-black">
                   {i.name}
-
                 </div>
 
-                <div className="text-xs text-gray-500">
-
+                <div className="text-sm text-gray-500">
                   ₹{i.price} × {i.qty}
-
                 </div>
 
               </div>
 
-              <div className="font-semibold">
-
+              <div className="font-bold">
                 ₹{i.price * i.qty}
-
               </div>
 
             </div>
@@ -525,13 +572,13 @@ export default function CheckoutPage() {
 
         </div>
 
-        <div className="bg-green-50 rounded-xl p-3 mt-4 flex justify-between items-center">
+        <div className="bg-[#eef8f0] rounded-xl p-4 mt-4 flex justify-between items-center">
 
-          <div className="font-bold text-green-700">
+          <div className="text-xl font-bold text-green-700">
             Total Payable
           </div>
 
-          <div className="text-2xl font-bold text-green-700">
+          <div className="text-3xl font-bold text-green-700">
             ₹{total}
           </div>
 
@@ -541,12 +588,10 @@ export default function CheckoutPage() {
 
       {/* PAYMENT */}
 
-      <div className="bg-white rounded-2xl shadow-sm border p-4">
+      <div className="bg-white rounded-2xl border shadow-sm p-4">
 
-        <div className="font-bold text-lg mb-4">
-
+        <div className="text-xl font-bold mb-4">
           Payment Method
-
         </div>
 
         <div className="grid grid-cols-2 gap-3">
@@ -557,19 +602,15 @@ export default function CheckoutPage() {
                 "COD"
               )
             }
-            className={`border rounded-2xl p-4 text-left transition ${
+            className={`border rounded-2xl p-4 text-left ${
               paymentMode === "COD"
                 ? "border-green-600 bg-green-50"
                 : ""
             }`}
           >
 
-            <div className="font-semibold">
-              COD
-            </div>
-
-            <div className="text-xs text-gray-500 mt-1">
-              Pay on delivery
+            <div className="font-bold">
+              Cash
             </div>
 
           </button>
@@ -580,19 +621,15 @@ export default function CheckoutPage() {
                 "ONLINE"
               )
             }
-            className={`border rounded-2xl p-4 text-left transition ${
+            className={`border rounded-2xl p-4 text-left ${
               paymentMode === "ONLINE"
                 ? "border-green-600 bg-green-50"
                 : ""
             }`}
           >
 
-            <div className="font-semibold">
-              PPD
-            </div>
-
-            <div className="text-xs text-gray-500 mt-1">
-              Pay online
+            <div className="font-bold">
+              Prepaid
             </div>
 
           </button>
@@ -601,7 +638,7 @@ export default function CheckoutPage() {
 
       </div>
 
-      {/* FIXED BOTTOM BAR */}
+      {/* FIXED FOOTER */}
 
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t p-4 z-50">
 
@@ -609,16 +646,12 @@ export default function CheckoutPage() {
 
           <div>
 
-            <div className="text-2xl font-bold">
-
+            <div className="text-3xl font-bold">
               ₹{total}
-
             </div>
 
             <div className="text-xs text-gray-500">
-
               Safe • Secure • Reliable
-
             </div>
 
           </div>
@@ -663,7 +696,7 @@ function Row({
         {label}
       </span>
 
-      <span className="font-medium">
+      <span className="font-semibold">
         ₹{value}
       </span>
 
