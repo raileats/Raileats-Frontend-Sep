@@ -213,17 +213,25 @@ export default function CheckoutPage() {
                   Journey Details
                 </div>
 
-                <div className="mt-2 font-bold text-[16px] leading-tight truncate">
-                  {journey?.trainName
-                    ? `${journey.trainName} #${journey.trainNumber}`
-                    : `Train #${journey?.trainNumber}`}
+                <div className="mt-2 font-bold text-[16px] leading-tight truncate flex items-center gap-2">
+                  <span>🚆</span>
+
+                  <span>
+                    {journey?.trainName
+                      ? `${journey.trainName} #${journey.trainNumber}`
+                      : `Train #${journey?.trainNumber}`}
+                  </span>
                 </div>
 
-                <div className="text-sm text-gray-500 mt-1">
-                  {journey?.stationName}
-                  {journey?.stationCode
-                    ? ` (${journey.stationCode})`
-                    : ""}
+                <div className="text-sm text-gray-500 mt-1 flex items-center gap-2">
+                  <span>📍</span>
+
+                  <span>
+                    {journey?.stationName}
+                    {journey?.stationCode
+                      ? ` (${journey.stationCode})`
+                      : ""}
+                  </span>
                 </div>
 
               </div>
@@ -232,16 +240,19 @@ export default function CheckoutPage() {
 
               <div className="text-right shrink-0">
 
-                <div className="font-semibold text-[13px] leading-tight">
-                  {journey?.deliveryDate}
+                <div className="font-semibold text-[13px] leading-tight flex items-center justify-end gap-1">
+                  <span>📅</span>
+                  <span>{journey?.deliveryDate}</span>
                 </div>
 
-                <div className="font-semibold text-[13px]">
-                  {journey?.deliveryTime}
+                <div className="font-semibold text-[13px] flex items-center justify-end gap-1">
+                  <span>⏰</span>
+                  <span>{journey?.deliveryTime}</span>
                 </div>
 
-                <div className="mt-3 font-bold text-[15px] leading-tight">
-                  {journey?.vendorName}
+                <div className="mt-3 font-bold text-[15px] leading-tight flex items-center justify-end gap-2">
+                  <span>🍴</span>
+                  <span>{journey?.vendorName}</span>
                 </div>
 
               </div>
