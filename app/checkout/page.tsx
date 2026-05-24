@@ -77,8 +77,6 @@ export default function CheckoutPage() {
     }
 
     const firstItem = items[0];
-
-    // RestroCode ko safe format bigint compatible integer me validate karne ka rule
     const rawRestroCode = journey?.restroCode || firstItem?.restro_code;
     const cleanRestroCode = rawRestroCode ? parseInt(rawRestroCode.toString(), 10) : 0;
 
@@ -88,7 +86,6 @@ export default function CheckoutPage() {
         headers: {
           "Content-Type": "application/json",
         },
-        // Database schemas constraints se exact key map matching
         body: JSON.stringify({
           RestroCode: cleanRestroCode,
           RestroName: vendorName !== "N/A" ? vendorName : (firstItem?.restro_name || "N/A"),
@@ -106,7 +103,7 @@ export default function CheckoutPage() {
           PlatformCharge: delivery,
           TotalAmount: total,
           PaymentMode: paymentMode,
-          Status: "Booked", // Trigger automated logging standard matrix sync
+          Status: "Booked",
           JourneyPayload: {
             pnr: pnr || null,
             promoCode: promo || null,
@@ -122,7 +119,6 @@ export default function CheckoutPage() {
         }),
       });
 
-      // Fixed line 125 typo error here safely
       const data = await res.json();
 
       if (!res.ok || !data.ok) {
@@ -139,7 +135,7 @@ export default function CheckoutPage() {
   };
 
   return (
-    <div className="max-w-md mx-auto h-screen flex flex-col bg-slate-50 pb-[160px]">
+    <div className="max-w-md mx-auto h-screen flex flex-col bg-slate-50 pb-[150px]">
       {/* SCROLL AREA */}
       <div className="flex-1 overflow-y-auto p-3 space-y-4 scrollbar-hide pt-2">
         
@@ -222,19 +218,19 @@ export default function CheckoutPage() {
               />
             </div>
 
-            {/* LAST ROW: SEAT + COACH + PROMO */}
+            {/* LAST ROW: COACH + SEAT + PROMO (Swapped Positions Here) */}
             <div className="flex items-center gap-2 w-full">
-              <input
-                className="border border-slate-200 rounded-lg py-2.5 text-[14px] text-center focus:outline-none focus:border-amber-500 bg-slate-50/50 w-[55px] shrink-0 font-semibold"
-                placeholder="Seat"
-                value={seat}
-                onChange={(e) => setSeat(e.target.value)}
-              />
               <input
                 className="border border-slate-200 rounded-lg py-2.5 text-[14px] text-center focus:outline-none focus:border-amber-500 bg-slate-50/50 w-[62px] shrink-0 font-semibold"
                 placeholder="Coach"
                 value={coach}
                 onChange={(e) => setCoach(e.target.value)}
+              />
+              <input
+                className="border border-slate-200 rounded-lg py-2.5 text-[14px] text-center focus:outline-none focus:border-amber-500 bg-slate-50/50 w-[55px] shrink-0 font-semibold"
+                placeholder="Seat"
+                value={seat}
+                onChange={(e) => setSeat(e.target.value)}
               />
               <div className="flex items-center border border-slate-200 rounded-lg bg-slate-50/50 flex-1 min-w-0 focus-within:border-amber-500 overflow-hidden">
                 <input
@@ -324,21 +320,21 @@ export default function CheckoutPage() {
               </button>
             </div>
 
-            {/* CORNER QUICK BILL DISPLAY */}
-            <div className="text-right">
-              <div className="text-[19px] font-extrabold text-slate-900 leading-none">
+            {/* CORNER QUICK BILL DISPLAY (Fixed right alignment overflow) */}
+            <div className="text-right min-w-[75px] shrink-0 pl-1">
+              <div className="text-[19px] font-extrabold text-slate-900 leading-none whitespace-nowrap">
                 ₹{total}
               </div>
-              <div className="text-xs text-slate-400 font-bold mt-1">
+              <div className="text-[11px] text-slate-400 font-bold mt-1 uppercase tracking-wider">
                 To Pay
               </div>
             </div>
           </div>
 
-          {/* PRIMARY ACTION BUTTON */}
+          {/* PRIMARY ACTION BUTTON (Sleeker & Streamlined aspect ratio) */}
           <button
             onClick={placeOrder}
-            className="w-full bg-green-600 text-white font-extrabold py-3.5 rounded-xl text-[16px] transition-all active:scale-[0.98] shadow-md shadow-green-600/10 hover:bg-green-700 tracking-wide"
+            className="w-full bg-green-600 text-white font-extrabold py-3 rounded-lg text-[15px] transition-all active:scale-[0.98] shadow-md shadow-green-600/10 hover:bg-green-700 tracking-wide uppercase"
           >
             Place Order
           </button>
