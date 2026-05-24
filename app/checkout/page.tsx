@@ -53,18 +53,16 @@ export default function CheckoutPage() {
 
   }, [user]);
 
-  /* ================= JOURNEY ================= */
+  /* ================= EXTRA ================= */
 
   const [pnr, setPnr] =
-    useState("");
-
-  const [coach, setCoach] =
     useState("");
 
   const [seat, setSeat] =
     useState("");
 
-  /* ================= EXTRA ================= */
+  const [coach, setCoach] =
+    useState("");
 
   const [promo, setPromo] =
     useState("");
@@ -101,18 +99,12 @@ export default function CheckoutPage() {
     async () => {
 
       if (!items.length) {
-
         alert("Cart empty");
-
         return;
       }
 
       if (!mobile) {
-
-        alert(
-          "Mobile required"
-        );
-
+        alert("Mobile required");
         return;
       }
 
@@ -134,8 +126,6 @@ export default function CheckoutPage() {
 
               body: JSON.stringify({
 
-                /* USER */
-
                 customerName:
                   name || "Guest",
 
@@ -144,8 +134,6 @@ export default function CheckoutPage() {
 
                 customerEmail:
                   email || null,
-
-                /* TRAIN */
 
                 pnr:
                   pnr || null,
@@ -158,8 +146,6 @@ export default function CheckoutPage() {
                   journey?.trainName ||
                   null,
 
-                /* RESTRO */
-
                 restroCode:
                   journey?.restroCode ||
                   firstItem?.restro_code,
@@ -167,8 +153,6 @@ export default function CheckoutPage() {
                 restroName:
                   journey?.vendorName ||
                   firstItem?.restro_name,
-
-                /* STATION */
 
                 stationCode:
                   journey?.stationCode ||
@@ -178,8 +162,6 @@ export default function CheckoutPage() {
                   journey?.stationName ||
                   firstItem?.station_name,
 
-                /* DELIVERY */
-
                 arrivalDate:
                   journey?.deliveryDate ||
                   null,
@@ -188,24 +170,16 @@ export default function CheckoutPage() {
                   journey?.deliveryTime ||
                   null,
 
-                /* SEAT */
-
                 coach:
                   coach || null,
 
                 seat:
                   seat || null,
 
-                /* PAYMENT */
-
                 paymentMode,
-
-                /* PROMO */
 
                 promoCode:
                   promo || null,
-
-                /* ITEMS */
 
                 items: items.map(
                   (i) => ({
@@ -217,14 +191,10 @@ export default function CheckoutPage() {
                   })
                 ),
 
-                /* SUMMARY */
-
                 subtotal,
                 gst,
                 delivery,
                 total,
-
-                /* META */
 
                 bookingTime:
                   new Date().toISOString(),
@@ -237,11 +207,7 @@ export default function CheckoutPage() {
           await res.json();
 
         if (!data.ok) {
-
-          alert(
-            "Order failed"
-          );
-
+          alert("Order failed");
           return;
         }
 
@@ -255,9 +221,7 @@ export default function CheckoutPage() {
 
         console.error(e);
 
-        alert(
-          "Server error"
-        );
+        alert("Server error");
 
       }
 
@@ -267,39 +231,54 @@ export default function CheckoutPage() {
 
   return (
 
-    <div className="max-w-2xl mx-auto p-4 pb-32 space-y-4 bg-[#f7f7f7] min-h-screen">
+    <div className="max-w-md mx-auto bg-[#f6f6f6] min-h-screen pb-40">
 
-      {/* SECURITY */}
+      {/* TOP */}
 
-      <div className="bg-green-50 border border-green-100 rounded-2xl px-4 py-3 text-sm text-green-700 font-medium text-center">
+      <div className="px-4 pt-4">
 
-        🔒 Your data is 100% secure and safe
+        <div className="
+          border
+          rounded-2xl
+          bg-white
+          p-3
+          shadow-sm
+        ">
 
-      </div>
+          <div className="
+            flex
+            justify-between
+            gap-3
+          ">
 
-      {/* JOURNEY */}
+            {/* LEFT */}
 
-      <div className="bg-[#eef8f0] rounded-2xl border border-[#dceede] p-4 shadow-sm">
+            <div className="flex-1">
 
-        <div className="flex items-start justify-between">
+              <div className="
+                text-base
+                font-bold
+                mb-2
+              ">
+                Journey Details
+              </div>
 
-          <div>
-
-            <div className="text-xl font-bold text-black">
-              Journey Details
-            </div>
-
-            <div className="mt-4">
-
-              <div className="font-semibold text-lg text-black">
+              <div className="
+                text-sm
+                font-semibold
+              ">
 
                 {journey?.trainName
                   ? `${journey.trainName} #${journey.trainNumber}`
-                  : journey?.trainNumber || "-"}
+                  : `Train #${journey?.trainNumber}`}
 
               </div>
 
-              <div className="text-gray-700 mt-1">
+              <div className="
+                text-xs
+                text-gray-500
+                mt-1
+              ">
 
                 {journey?.stationName}
                 {" "}
@@ -307,17 +286,52 @@ export default function CheckoutPage() {
 
               </div>
 
-              <div className="text-gray-600 mt-1">
+            </div>
+
+            {/* RIGHT */}
+
+            <div className="
+              text-right
+              min-w-[120px]
+            ">
+
+              <div className="
+                text-xs
+                text-gray-500
+              ">
+                Delivery
+              </div>
+
+              <div className="
+                text-sm
+                font-medium
+              ">
 
                 {journey?.deliveryDate}
-                {" "}
-                •
-                {" "}
+
+              </div>
+
+              <div className="
+                text-sm
+                font-medium
+              ">
+
                 {journey?.deliveryTime}
 
               </div>
 
-              <div className="text-gray-800 mt-2 font-medium">
+              <div className="
+                text-xs
+                text-gray-500
+                mt-2
+              ">
+                Restaurant
+              </div>
+
+              <div className="
+                text-sm
+                font-medium
+              ">
 
                 {journey?.vendorName}
 
@@ -327,186 +341,269 @@ export default function CheckoutPage() {
 
           </div>
 
-          <div className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-semibold">
-
-            Active
-
-          </div>
-
         </div>
 
       </div>
 
       {/* PASSENGER */}
 
-      <div className="bg-white rounded-2xl border shadow-sm p-4">
+      <div className="px-4 mt-4">
 
-        <div className="text-xl font-bold mb-4">
-          Passenger Details
-        </div>
+        <div className="
+          bg-white
+          border
+          rounded-2xl
+          p-3
+          shadow-sm
+        ">
 
-        {/* NAME + MOBILE */}
+          <div className="
+            text-base
+            font-bold
+            mb-3
+          ">
+            Passenger Details
+          </div>
 
-        <div className="grid grid-cols-2 gap-3 mb-3">
+          {/* ROW 1 */}
 
-          <div>
+          <div className="
+            grid
+            grid-cols-2
+            gap-2
+            mb-2
+          ">
 
-            <div className="text-xs font-medium text-gray-500 mb-1">
-              Name
+            <div>
+
+              <div className="
+                text-[11px]
+                text-gray-500
+                mb-1
+              ">
+                Name
+              </div>
+
+              <input
+                className="
+                  border
+                  rounded-xl
+                  p-2.5
+                  text-sm
+                  w-full
+                "
+                value={name}
+                onChange={(e) =>
+                  setName(
+                    e.target.value
+                  )
+                }
+              />
+
             </div>
 
-            <input
-              className="border p-3 rounded-xl text-sm w-full"
-              placeholder="Name"
-              value={name}
-              onChange={(e) =>
-                setName(
-                  e.target.value
-                )
-              }
-              readOnly={!!user}
-            />
+            <div>
+
+              <div className="
+                text-[11px]
+                text-gray-500
+                mb-1
+              ">
+                Mobile
+              </div>
+
+              <input
+                className="
+                  border
+                  rounded-xl
+                  p-2.5
+                  text-sm
+                  w-full
+                "
+                value={mobile}
+                onChange={(e) =>
+                  setMobile(
+                    e.target.value
+                  )
+                }
+              />
+
+            </div>
 
           </div>
 
-          <div>
+          {/* ROW 2 */}
 
-            <div className="text-xs font-medium text-gray-500 mb-1">
-              Mobile
+          <div className="
+            grid
+            grid-cols-2
+            gap-2
+            mb-2
+          ">
+
+            <div>
+
+              <div className="
+                text-[11px]
+                text-gray-500
+                mb-1
+              ">
+                Email
+              </div>
+
+              <input
+                className="
+                  border
+                  rounded-xl
+                  p-2.5
+                  text-sm
+                  w-full
+                "
+                value={email}
+                onChange={(e) =>
+                  setEmail(
+                    e.target.value
+                  )
+                }
+              />
+
             </div>
 
-            <input
-              className="border p-3 rounded-xl text-sm w-full"
-              placeholder="Mobile"
-              value={mobile}
-              onChange={(e) =>
-                setMobile(
-                  e.target.value
-                )
-              }
-              readOnly={!!user}
-            />
+            <div>
+
+              <div className="
+                text-[11px]
+                text-gray-500
+                mb-1
+              ">
+                PNR
+              </div>
+
+              <input
+                className="
+                  border
+                  rounded-xl
+                  p-2.5
+                  text-sm
+                  w-full
+                "
+                value={pnr}
+                onChange={(e) =>
+                  setPnr(
+                    e.target.value
+                  )
+                }
+              />
+
+            </div>
 
           </div>
 
-        </div>
+          {/* ROW 3 */}
 
-        {/* EMAIL + PNR */}
+          <div className="
+            grid
+            grid-cols-2
+            gap-2
+            mb-3
+          ">
 
-        <div className="grid grid-cols-2 gap-3 mb-3">
+            <div>
 
-          <div>
+              <div className="
+                text-[11px]
+                text-gray-500
+                mb-1
+              ">
+                Seat
+              </div>
 
-            <div className="text-xs font-medium text-gray-500 mb-1">
-              Email
+              <input
+                className="
+                  border
+                  rounded-xl
+                  p-2.5
+                  text-sm
+                  w-full
+                "
+                value={seat}
+                onChange={(e) =>
+                  setSeat(
+                    e.target.value
+                  )
+                }
+              />
+
             </div>
 
-            <input
-              className="border p-3 rounded-xl text-sm w-full"
-              placeholder="Email"
-              value={email}
-              onChange={(e) =>
-                setEmail(
-                  e.target.value
-                )
-              }
-              readOnly={!!user}
-            />
+            <div>
+
+              <div className="
+                text-[11px]
+                text-gray-500
+                mb-1
+              ">
+                Coach
+              </div>
+
+              <input
+                className="
+                  border
+                  rounded-xl
+                  p-2.5
+                  text-sm
+                  w-full
+                "
+                value={coach}
+                onChange={(e) =>
+                  setCoach(
+                    e.target.value
+                  )
+                }
+              />
+
+            </div>
 
           </div>
 
-          <div>
+          {/* PROMO */}
 
-            <div className="text-xs font-medium text-gray-500 mb-1">
-              PNR
-            </div>
+          <div className="
+            flex
+            gap-2
+          ">
 
             <input
-              className="border p-3 rounded-xl text-sm w-full"
-              placeholder="PNR"
-              value={pnr}
+              className="
+                border
+                rounded-xl
+                p-2.5
+                text-sm
+                flex-1
+              "
+              placeholder="Promo Code"
+              value={promo}
               onChange={(e) =>
-                setPnr(
+                setPromo(
                   e.target.value
                 )
               }
             />
 
-          </div>
-
-        </div>
-
-        {/* SEAT + COACH */}
-
-        <div className="grid grid-cols-2 gap-3 mb-3">
-
-          <div>
-
-            <div className="text-xs font-medium text-gray-500 mb-1">
-              Seat
-            </div>
-
-            <input
-              className="border p-3 rounded-xl text-sm w-full"
-              placeholder="Seat"
-              value={seat}
-              onChange={(e) =>
-                setSeat(
-                  e.target.value
-                )
-              }
-            />
+            <button
+              className="
+                bg-black
+                text-white
+                px-4
+                rounded-xl
+                text-sm
+                font-medium
+              "
+            >
+              Apply
+            </button>
 
           </div>
-
-          <div>
-
-            <div className="text-xs font-medium text-gray-500 mb-1">
-              Coach
-            </div>
-
-            <input
-              className="border p-3 rounded-xl text-sm w-full"
-              placeholder="Coach"
-              value={coach}
-              onChange={(e) =>
-                setCoach(
-                  e.target.value
-                )
-              }
-            />
-
-          </div>
-
-        </div>
-
-        {/* PROMO */}
-
-        <div className="flex gap-2">
-
-          <input
-            className="border p-3 flex-1 rounded-xl text-sm"
-            placeholder="Promo Code"
-            value={promo}
-            onChange={(e) =>
-              setPromo(
-                e.target.value
-              )
-            }
-          />
-
-          <button
-            className="
-              bg-green-600
-              text-white
-              px-5
-              rounded-xl
-              text-sm
-              font-semibold
-            "
-          >
-            Apply
-          </button>
 
         </div>
 
@@ -514,72 +611,134 @@ export default function CheckoutPage() {
 
       {/* ORDER */}
 
-      <div className="bg-white rounded-2xl border shadow-sm p-4">
+      <div className="px-4 mt-4">
 
-        <div className="text-xl font-bold mb-4">
-          Your Order
-        </div>
+        <div className="
+          bg-white
+          border
+          rounded-2xl
+          shadow-sm
+        ">
 
-        <div className="space-y-4">
+          {/* HEADER */}
 
-          {items.map((i) => (
+          <div className="
+            p-3
+            border-b
+            font-bold
+            text-base
+          ">
+            Your Order
+          </div>
 
-            <div
-              key={i.id}
-              className="flex justify-between items-center"
-            >
+          {/* SCROLLABLE ITEMS */}
 
-              <div>
+          <div className="
+            max-h-[220px]
+            overflow-y-auto
+            p-3
+            space-y-3
+          ">
 
-                <div className="font-medium text-black">
-                  {i.name}
+            {items.map((i) => (
+
+              <div
+                key={i.id}
+                className="
+                  flex
+                  justify-between
+                  gap-3
+                "
+              >
+
+                <div className="flex-1">
+
+                  <div className="
+                    text-sm
+                    font-medium
+                  ">
+                    {i.name}
+                  </div>
+
+                  <div className="
+                    text-xs
+                    text-gray-500
+                    mt-1
+                  ">
+
+                    ₹{i.price}
+                    {" "}
+                    ×
+                    {" "}
+                    {i.qty}
+
+                  </div>
+
                 </div>
 
-                <div className="text-sm text-gray-500">
-                  ₹{i.price} × {i.qty}
+                <div className="
+                  text-sm
+                  font-semibold
+                ">
+
+                  ₹{i.price * i.qty}
+
                 </div>
 
               </div>
 
-              <div className="font-bold">
-                ₹{i.price * i.qty}
+            ))}
+
+          </div>
+
+          {/* BILL */}
+
+          <div className="
+            border-t
+            p-3
+            space-y-2
+          ">
+
+            <Row
+              label="Subtotal"
+              value={subtotal}
+            />
+
+            <Row
+              label="GST (5%)"
+              value={gst}
+            />
+
+            <Row
+              label="Delivery Charges"
+              value={delivery}
+            />
+
+            <div className="
+              flex
+              justify-between
+              items-center
+              pt-2
+              border-t
+              mt-2
+            ">
+
+              <div className="
+                text-base
+                font-bold
+              ">
+                Total Payable
+              </div>
+
+              <div className="
+                text-2xl
+                font-bold
+              ">
+                ₹{total}
               </div>
 
             </div>
 
-          ))}
-
-        </div>
-
-        <hr className="my-4" />
-
-        <div className="space-y-2">
-
-          <Row
-            label="Subtotal"
-            value={subtotal}
-          />
-
-          <Row
-            label="GST (5%)"
-            value={gst}
-          />
-
-          <Row
-            label="Delivery Charges"
-            value={delivery}
-          />
-
-        </div>
-
-        <div className="bg-[#eef8f0] rounded-xl p-4 mt-4 flex justify-between items-center">
-
-          <div className="text-xl font-bold text-green-700">
-            Total Payable
-          </div>
-
-          <div className="text-3xl font-bold text-green-700">
-            ₹{total}
           </div>
 
         </div>
@@ -588,70 +747,117 @@ export default function CheckoutPage() {
 
       {/* PAYMENT */}
 
-      <div className="bg-white rounded-2xl border shadow-sm p-4">
+      <div className="px-4 mt-4">
 
-        <div className="text-xl font-bold mb-4">
-          Payment Method
-        </div>
+        <div className="
+          bg-white
+          border
+          rounded-2xl
+          p-3
+          shadow-sm
+        ">
 
-        <div className="grid grid-cols-2 gap-3">
+          <div className="
+            text-base
+            font-bold
+            mb-3
+          ">
+            Payment Method
+          </div>
 
-          <button
-            onClick={() =>
-              setPaymentMode(
-                "COD"
-              )
-            }
-            className={`border rounded-2xl p-4 text-left ${
-              paymentMode === "COD"
-                ? "border-green-600 bg-green-50"
-                : ""
-            }`}
-          >
+          <div className="
+            grid
+            grid-cols-2
+            gap-2
+          ">
 
-            <div className="font-bold">
-              Cash
-            </div>
+            <button
+              onClick={() =>
+                setPaymentMode(
+                  "COD"
+                )
+              }
+              className={`
+                border
+                rounded-xl
+                p-3
+                text-sm
+                font-semibold
+                transition
+                ${
+                  paymentMode === "COD"
+                    ? "bg-green-600 text-white border-green-600"
+                    : "bg-white"
+                }
+              `}
+            >
+              COD
+            </button>
 
-          </button>
-
-          <button
-            onClick={() =>
-              setPaymentMode(
-                "ONLINE"
-              )
-            }
-            className={`border rounded-2xl p-4 text-left ${
-              paymentMode === "ONLINE"
-                ? "border-green-600 bg-green-50"
-                : ""
-            }`}
-          >
-
-            <div className="font-bold">
+            <button
+              onClick={() =>
+                setPaymentMode(
+                  "ONLINE"
+                )
+              }
+              className={`
+                border
+                rounded-xl
+                p-3
+                text-sm
+                font-semibold
+                transition
+                ${
+                  paymentMode === "ONLINE"
+                    ? "bg-green-600 text-white border-green-600"
+                    : "bg-white"
+                }
+              `}
+            >
               Prepaid
-            </div>
+            </button>
 
-          </button>
+          </div>
 
         </div>
 
       </div>
 
-      {/* FIXED FOOTER */}
+      {/* FOOTER */}
 
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t p-4 z-50">
+      <div className="
+        fixed
+        bottom-[58px]
+        left-0
+        right-0
+        bg-white
+        border-t
+        p-3
+        z-40
+      ">
 
-        <div className="max-w-2xl mx-auto flex items-center gap-4">
+        <div className="
+          max-w-md
+          mx-auto
+          flex
+          items-center
+          gap-3
+        ">
 
           <div>
 
-            <div className="text-3xl font-bold">
+            <div className="
+              text-2xl
+              font-bold
+            ">
               ₹{total}
             </div>
 
-            <div className="text-xs text-gray-500">
-              Safe • Secure • Reliable
+            <div className="
+              text-[11px]
+              text-gray-500
+            ">
+              Total Amount
             </div>
 
           </div>
@@ -662,10 +868,10 @@ export default function CheckoutPage() {
               flex-1
               bg-green-600
               text-white
-              py-4
+              py-3
               rounded-2xl
               font-bold
-              text-lg
+              text-base
             "
           >
             Place Order
@@ -690,13 +896,21 @@ function Row({
 
   return (
 
-    <div className="flex justify-between text-sm">
+    <div className="
+      flex
+      justify-between
+      text-sm
+    ">
 
-      <span className="text-gray-600">
+      <span className="
+        text-gray-600
+      ">
         {label}
       </span>
 
-      <span className="font-semibold">
+      <span className="
+        font-semibold
+      ">
         ₹{value}
       </span>
 
