@@ -15,41 +15,31 @@ const toMin = (t?: string | null) => {
   return h * 60 + m;
 };
 
-// 🔥 SOURCE DYNAMIC FIX: Category aur Item Name ke base par direct classification
+// 🔥 DATABASE EXACT MATCH FIX
 const isVegItem = (it: any) => {
+  // Aapke database ka 'item_category' column (Veg, Non-Veg, Jain)
+  const cat = String(it.item_category || "").toLowerCase().trim();
   const name = String(it.item_name || "").toLowerCase();
-  const cat = String(it.item_category || "").toLowerCase();
 
-  // 1. Agar name ya category me strictly non-veg keywords hain, toh seedhe RED DOT
+  // 1. PRIORITY 1: Database column 'item_category' ki exact check
+  if (cat === "non-veg" || cat === "nonveg") {
+    return false; // Red Dot (Chahe name me 'Veg' hi kyu na likha ho)
+  }
+  if (cat === "veg" || cat === "jain") {
+    return true; // Green Dot
+  }
+
+  // 2. PRIORITY 2: Agar kisi vajah se category blank ho, tabhi name keywords check honge
   if (
     name.includes("chicken") || 
     name.includes("egg") || 
     name.includes("mutton") || 
-    name.includes("fish") || 
-    name.includes("non-veg") ||
-    name.includes("nonveg") ||
-    cat.includes("non-veg") ||
-    cat.includes("nonveg")
+    name.includes("fish")
   ) {
     return false; // Red Dot
   }
 
-  // 2. Agar name me explicitly veg ya pure jain keywords hain, toh GREEN DOT
-  if (
-    name.includes("veg") || 
-    name.includes("paneer") || 
-    name.includes("thali") || 
-    name.includes("roti") || 
-    name.includes("dal") || 
-    name.includes("rice") ||
-    cat.includes("thalis") ||
-    cat.includes("roti") ||
-    cat.includes("veg")
-  ) {
-    return true; // Green Dot
-  }
-
-  // 3. Fallback standard matching
+  // 3. Last fallback
   const vegRegex = /dal|roti|rice|paneer|veg|thali|chapati|paratha/i;
   return vegRegex.test(it.item_name || "");
 };
@@ -157,7 +147,7 @@ export default function RestroMenuClient({
         }
       }
 
-      /* PRINT VEG FILTER */
+      /* VEG FILTER */
       if (
         vegOnly &&
         !isVegItem(it)
