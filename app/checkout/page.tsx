@@ -23,15 +23,13 @@ export default function CheckoutPage() {
   const [mobile, setMobile] = useState("");
   const [email, setEmail] = useState("");
 
-  /* ================= JOURNEY ================= */
+  /* ================= EXTRA ================= */
 
   const [pnr, setPnr] = useState("");
   const [coach, setCoach] = useState("");
   const [seat, setSeat] = useState("");
-
-  /* ================= EXTRA ================= */
-
   const [promo, setPromo] = useState("");
+
   const [paymentMode, setPaymentMode] =
     useState("COD");
 
@@ -90,6 +88,7 @@ export default function CheckoutPage() {
         "/api/order/create",
         {
           method: "POST",
+
           headers: {
             "Content-Type":
               "application/json",
@@ -190,7 +189,7 @@ export default function CheckoutPage() {
 
   return (
 
-    <div className="max-w-md mx-auto h-screen overflow-hidden flex flex-col bg-[#f5f5f5] pb-24">
+    <div className="max-w-md mx-auto h-screen overflow-hidden flex flex-col bg-[#f5f5f5] pb-[145px]">
 
       {/* SCROLL AREA */}
 
@@ -198,139 +197,151 @@ export default function CheckoutPage() {
 
         {/* JOURNEY + PASSENGER */}
 
-        <div className="bg-white rounded-2xl border p-3 shadow-sm space-y-3">
+        <div className="bg-white rounded-2xl border shadow-sm overflow-hidden">
 
-          {/* TOP */}
+          <div className="p-3">
 
-          <div className="flex justify-between items-start gap-3">
+            {/* TOP */}
 
-            <div className="min-w-0 flex-1">
+            <div className="flex justify-between gap-3">
 
-              <div className="font-bold text-[15px]">
-                Journey Details
+              {/* LEFT */}
+
+              <div className="flex-1 min-w-0">
+
+                <div className="font-bold text-[16px]">
+                  Journey Details
+                </div>
+
+                <div className="mt-2 font-bold text-[16px] leading-tight truncate">
+                  {journey?.trainName
+                    ? `${journey.trainName} #${journey.trainNumber}`
+                    : `Train #${journey?.trainNumber}`}
+                </div>
+
+                <div className="text-sm text-gray-500 mt-1">
+                  {journey?.stationName}
+                  {journey?.stationCode
+                    ? ` (${journey.stationCode})`
+                    : ""}
+                </div>
+
               </div>
 
-              <div className="mt-1 font-semibold text-[15px] truncate">
-                {journey?.trainName
-                  ? `${journey.trainName} #${journey.trainNumber}`
-                  : `Train #${journey?.trainNumber}`}
-              </div>
+              {/* RIGHT */}
 
-              <div className="text-xs text-gray-500">
-                {journey?.stationName}
-                {journey?.stationCode
-                  ? ` (${journey.stationCode})`
-                  : ""}
+              <div className="text-right shrink-0">
+
+                <div className="font-semibold text-[13px] leading-tight">
+                  {journey?.deliveryDate}
+                </div>
+
+                <div className="font-semibold text-[13px]">
+                  {journey?.deliveryTime}
+                </div>
+
+                <div className="mt-3 font-bold text-[15px] leading-tight">
+                  {journey?.vendorName}
+                </div>
+
               </div>
 
             </div>
 
-            <div className="text-right shrink-0">
+            {/* DIVIDER */}
 
-              <div className="text-[11px] font-semibold leading-tight">
-                {journey?.deliveryDate}
-              </div>
+            <div className="border-t my-3" />
 
-              <div className="text-[11px] font-semibold">
-                {journey?.deliveryTime}
-              </div>
+            {/* USER INPUTS */}
 
-              <div className="mt-2 font-semibold text-[14px] leading-tight">
-                {journey?.vendorName}
-              </div>
+            <div className="grid grid-cols-2 gap-2 mb-2">
+
+              <input
+                className="border rounded-xl px-3 py-3 text-sm"
+                placeholder="Name"
+                value={name}
+                onChange={(e) =>
+                  setName(e.target.value)
+                }
+              />
+
+              <input
+                className="border rounded-xl px-3 py-3 text-sm"
+                placeholder="Mobile"
+                value={mobile}
+                onChange={(e) =>
+                  setMobile(e.target.value)
+                }
+              />
 
             </div>
 
-          </div>
+            <div className="grid grid-cols-2 gap-2 mb-2">
 
-          {/* DIVIDER */}
+              <input
+                className="border rounded-xl px-3 py-3 text-sm"
+                placeholder="Email"
+                value={email}
+                onChange={(e) =>
+                  setEmail(e.target.value)
+                }
+              />
 
-          <div className="border-t" />
+              <input
+                className="border rounded-xl px-3 py-3 text-sm"
+                placeholder="PNR"
+                value={pnr}
+                onChange={(e) =>
+                  setPnr(e.target.value)
+                }
+              />
 
-          {/* PASSENGER */}
+            </div>
 
-          <div className="font-bold text-[15px]">
-            Passenger Details
-          </div>
+            {/* LAST ROW */}
 
-          <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-[58px_70px_1fr_68px] gap-2">
 
-            <input
-              className="border rounded-xl px-3 py-2.5 text-sm"
-              placeholder="Name"
-              value={name}
-              onChange={(e) =>
-                setName(e.target.value)
-              }
-            />
+              <input
+                className="border rounded-xl px-2 py-3 text-sm"
+                placeholder="Seat"
+                value={seat}
+                onChange={(e) =>
+                  setSeat(e.target.value)
+                }
+              />
 
-            <input
-              className="border rounded-xl px-3 py-2.5 text-sm"
-              placeholder="Mobile"
-              value={mobile}
-              onChange={(e) =>
-                setMobile(e.target.value)
-              }
-            />
+              <input
+                className="border rounded-xl px-2 py-3 text-sm"
+                placeholder="Coach"
+                value={coach}
+                onChange={(e) =>
+                  setCoach(e.target.value)
+                }
+              />
 
-          </div>
+              <input
+                className="border rounded-xl px-3 py-3 text-sm min-w-0"
+                placeholder="Promo"
+                value={promo}
+                onChange={(e) =>
+                  setPromo(e.target.value)
+                }
+              />
 
-          <div className="grid grid-cols-2 gap-2">
+              <button
+                className="
+                  bg-black
+                  text-white
+                  rounded-xl
+                  text-sm
+                  font-semibold
+                "
+              >
+                Apply
+              </button>
 
-            <input
-              className="border rounded-xl px-3 py-2.5 text-sm"
-              placeholder="Email"
-              value={email}
-              onChange={(e) =>
-                setEmail(e.target.value)
-              }
-            />
-
-            <input
-              className="border rounded-xl px-3 py-2.5 text-sm"
-              placeholder="PNR"
-              value={pnr}
-              onChange={(e) =>
-                setPnr(e.target.value)
-              }
-            />
-
-          </div>
-
-          {/* LAST ROW */}
-
-          <div className="grid grid-cols-[65px_65px_1fr_62px] gap-2">
-
-            <input
-              className="border rounded-xl px-2 py-2.5 text-sm"
-              placeholder="Seat"
-              value={seat}
-              onChange={(e) =>
-                setSeat(e.target.value)
-              }
-            />
-
-            <input
-              className="border rounded-xl px-2 py-2.5 text-sm"
-              placeholder="Coach"
-              value={coach}
-              onChange={(e) =>
-                setCoach(e.target.value)
-              }
-            />
-
-            <input
-              className="border rounded-xl px-2 py-2.5 text-sm min-w-0"
-              placeholder="Promo"
-              value={promo}
-              onChange={(e) =>
-                setPromo(e.target.value)
-              }
-            />
-
-            <button className="bg-black text-white rounded-xl text-sm font-semibold">
-              Apply
-            </button>
+            </div>
 
           </div>
 
@@ -338,17 +349,17 @@ export default function CheckoutPage() {
 
         {/* ORDER */}
 
-        <div className="bg-white rounded-2xl border overflow-hidden shadow-sm flex flex-col">
+        <div className="bg-white rounded-2xl border shadow-sm overflow-hidden">
 
-          <div className="p-3 font-bold border-b text-[15px]">
+          <div className="p-3 border-b font-bold text-[16px]">
             Your Order
           </div>
 
           {/* ONLY ITEMS SCROLL */}
 
-          <div className="max-h-[170px] overflow-y-auto">
+          <div className="max-h-[180px] overflow-y-auto">
 
-            <div className="p-3 space-y-3">
+            <div className="p-3 space-y-4">
 
               {items.map((i) => (
 
@@ -359,7 +370,7 @@ export default function CheckoutPage() {
 
                   <div className="flex-1 min-w-0">
 
-                    <div className="font-medium text-sm leading-tight">
+                    <div className="font-semibold text-[15px] leading-tight">
                       {i.name}
                     </div>
 
@@ -369,7 +380,7 @@ export default function CheckoutPage() {
 
                   </div>
 
-                  <div className="font-semibold text-sm whitespace-nowrap">
+                  <div className="font-bold text-[15px] whitespace-nowrap">
                     ₹{i.price * i.qty}
                   </div>
 
@@ -383,7 +394,7 @@ export default function CheckoutPage() {
 
           {/* SUMMARY */}
 
-          <div className="border-t p-3 space-y-1.5 text-sm">
+          <div className="border-t p-3 space-y-1.5">
 
             <Row
               label="Subtotal"
@@ -400,11 +411,15 @@ export default function CheckoutPage() {
               value={delivery}
             />
 
-            <div className="flex justify-between font-bold text-2xl pt-1">
+            <div className="flex justify-between items-center pt-1">
 
-              <span>Total</span>
+              <span className="font-bold text-[18px]">
+                Total
+              </span>
 
-              <span>₹{total}</span>
+              <span className="font-bold text-[22px]">
+                ₹{total}
+              </span>
 
             </div>
 
@@ -412,24 +427,26 @@ export default function CheckoutPage() {
 
         </div>
 
-        {/* PAYMENT */}
+      </div>
 
-        <div className="bg-white rounded-2xl border p-3 shadow-sm">
+      {/* FIXED PAYMENT + PLACE ORDER */}
 
-          <div className="font-bold text-[15px] mb-2">
-            Payment Method
-          </div>
+      <div className="fixed bottom-[56px] left-0 right-0 bg-white border-t shadow-[0_-2px_10px_rgba(0,0,0,0.06)] z-50">
 
-          <div className="grid grid-cols-2 gap-2">
+        <div className="max-w-md mx-auto px-2 py-2">
+
+          {/* PAYMENT */}
+
+          <div className="grid grid-cols-[95px_95px_1fr] gap-2 mb-2">
 
             <button
               onClick={() =>
                 setPaymentMode("COD")
               }
-              className={`border rounded-xl py-3 text-sm font-semibold transition ${
+              className={`rounded-xl py-2.5 text-sm font-semibold border transition ${
                 paymentMode === "COD"
                   ? "bg-green-600 text-white border-green-600"
-                  : "bg-white"
+                  : "bg-white text-black border-gray-300"
               }`}
             >
               COD
@@ -439,42 +456,47 @@ export default function CheckoutPage() {
               onClick={() =>
                 setPaymentMode("ONLINE")
               }
-              className={`border rounded-xl py-3 text-sm font-semibold transition ${
+              className={`rounded-xl py-2.5 text-sm font-semibold border transition ${
                 paymentMode === "ONLINE"
                   ? "bg-green-600 text-white border-green-600"
-                  : "bg-white"
+                  : "bg-white text-black border-gray-300"
               }`}
             >
               Prepaid
             </button>
 
-          </div>
+            <div className="flex items-center justify-end pr-2">
 
-        </div>
+              <div>
 
-      </div>
+                <div className="text-2xl font-bold leading-none text-right">
+                  ₹{total}
+                </div>
 
-      {/* FIXED FOOTER */}
+                <div className="text-[10px] text-gray-500 text-right">
+                  Total
+                </div>
 
-      <div className="fixed bottom-[56px] left-0 right-0 bg-white border-t px-2 py-2">
+              </div>
 
-        <div className="max-w-md mx-auto flex items-center gap-2">
-
-          <div className="min-w-[75px]">
-
-            <div className="text-2xl font-bold leading-none">
-              ₹{total}
-            </div>
-
-            <div className="text-[10px] text-gray-500">
-              Total
             </div>
 
           </div>
+
+          {/* BUTTON */}
 
           <button
             onClick={placeOrder}
-            className="flex-1 bg-green-600 text-white font-bold py-3 rounded-2xl text-base"
+            className="
+              w-full
+              bg-green-600
+              text-white
+              font-bold
+              py-3.5
+              rounded-2xl
+              text-base
+              active:scale-[0.99]
+            "
           >
             Place Order
           </button>
@@ -497,11 +519,11 @@ function Row({
 
   return (
 
-    <div className="flex justify-between">
+    <div className="flex justify-between text-sm">
 
       <span>{label}</span>
 
-      <span className="font-medium">
+      <span className="font-semibold">
         ₹{value}
       </span>
 
