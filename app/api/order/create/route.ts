@@ -26,12 +26,14 @@ export async function POST(req: Request) {
       TotalAmount,
       PaymentMode,
       Status,
-      Items, // Capital mapping fallback
-      items, // Lowercase mapping fallback
+      Items,
+      items,
+      JourneyPayload, // Extracting nested payload
     } = body;
 
-    // Strict array extraction handle (chahe frontend lowercase bheje ya uppercase)
-    const finalItemsArray = Items || items;
+    // 🔥 FIX: Deep extraction safeguard
+    // Pehle root ke Items check karega, fir root ke items, aur agar dono nahi hain to JourneyPayload ke andar waale items nikalega
+    const finalItemsArray = Items || items || (JourneyPayload?.items);
 
     // 1. Strict Validations
     if (!CustomerMobile) {
@@ -41,9 +43,9 @@ export async function POST(req: Request) {
       );
     }
 
-    if (!finalItemsArray || finalItemsArray.length === 0) {
+    if (!finalItemsArray || !Array.isArray(finalItemsArray) || finalItemsArray.length === 0) {
       return NextResponse.json(
-        { ok: false, error: "cart_empty", message: "No items found in cart. Cart is empty!" },
+        { ok: false, error: "cart_empty", message: "No items found in cart. Transaction stopped!" },
         { status: 400 }
       );
     }
