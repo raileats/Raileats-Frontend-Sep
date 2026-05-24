@@ -15,15 +15,23 @@ const toMin = (t?: string | null) => {
   return h * 60 + m;
 };
 
-const vegRegex =
-  /dal|roti|rice|paneer|veg|thali|chapati|paratha/i;
-
+// 🔥 FIX: Check logic ko secure kiya taaki Non-Veg strictly catch ho sake
 const isVegItem = (it: any) => {
-  return (
-    String(it.item_category || "").toLowerCase() === "veg" ||
-    String(it.item_category || "").toLowerCase() === "jain" ||
-    vegRegex.test(it.item_name)
-  );
+  const cat = String(it.item_category || "").toLowerCase().trim();
+  
+  // Agar strictly non-veg likha hai, toh seedhe false return karo (Red dot)
+  if (cat === "non-veg" || cat === "nonveg") {
+    return false;
+  }
+  
+  // Agar category veg ya jain hai, toh true (Green dot)
+  if (cat === "veg" || cat === "jain") {
+    return true;
+  }
+
+  // Fallback regex sirf tab chalega jab category blank ho
+  const vegRegex = /dal|roti|rice|paneer|veg|thali|chapati|paratha/i;
+  return vegRegex.test(it.item_name || "");
 };
 
 const isItemActive = (it: any) => {
@@ -192,7 +200,6 @@ export default function RestroMenuClient({
 
     /* ADD ITEM */
 
-    // 🔥 FIX: 'as any' bypass use kiya hai taaki dynamic keys block na ho aur Cart interface compile pass ho jaye
     add({
       id: it.id,
       name: it.item_name,
@@ -312,8 +319,9 @@ export default function RestroMenuClient({
 
               <div>
                 <div className="flex gap-2 items-center">
+                  {/* 🔥 FIX: Veg/Jain par green dot aur Non-Veg par perfect red dot display */}
                   <span
-                    className={`w-3 h-3 rounded-full ${
+                    className={`w-3 h-3 rounded-full shrink-0 ${
                       isVeg
                         ? "bg-green-600"
                         : "bg-red-600"
