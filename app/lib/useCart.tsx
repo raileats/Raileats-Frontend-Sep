@@ -32,6 +32,9 @@ export type JourneyDetails = {
   deliveryDate?: string;
   deliveryTime?: string;
   vendorName?: string;
+
+  /* 🔥 IMPORTANT */
+  restroCode?: string;
 };
 
 export type CartContextValue = {
@@ -41,19 +44,39 @@ export type CartContextValue = {
   total: number;
 
   journey: JourneyDetails;
-  setJourney: (data: JourneyDetails) => void;
+
+  setJourney: (
+    data: JourneyDetails
+  ) => void;
 
   add: (line: CartLine) => void;
-  changeQty: (id: number, qty: number) => void;
-  increaseQty: (id: number) => void;
-  decreaseQty: (id: number) => void;
-  remove: (id: number) => void;
+
+  changeQty: (
+    id: number,
+    qty: number
+  ) => void;
+
+  increaseQty: (
+    id: number
+  ) => void;
+
+  decreaseQty: (
+    id: number
+  ) => void;
+
+  remove: (
+    id: number
+  ) => void;
+
   clearCart: () => void;
 };
 
 /* ================= CONTEXT ================= */
 
-const CartCtx = createContext<CartContextValue | null>(null);
+const CartCtx =
+  createContext<CartContextValue | null>(
+    null
+  );
 
 /* ================= PROVIDER ================= */
 
@@ -63,16 +86,20 @@ export function CartProvider({
   children: React.ReactNode;
 }) {
 
-  const [cart, setCart] = useState<CartMap>({});
+  const [cart, setCart] =
+    useState<CartMap>({});
 
-  const [journey, setJourneyState] =
-    useState<JourneyDetails>({});
+  const [
+    journey,
+    setJourneyState,
+  ] = useState<JourneyDetails>({});
 
   /* ================= LOAD ================= */
 
   useEffect(() => {
 
-    const saved = localStorage.getItem("cart");
+    const saved =
+      localStorage.getItem("cart");
 
     if (saved) {
       try {
@@ -85,7 +112,9 @@ export function CartProvider({
 
     if (savedJourney) {
       try {
-        setJourneyState(JSON.parse(savedJourney));
+        setJourneyState(
+          JSON.parse(savedJourney)
+        );
       } catch {}
     }
 
@@ -117,7 +146,10 @@ export function CartProvider({
       setJourneyState({});
 
       localStorage.removeItem("cart");
-      localStorage.removeItem("journey");
+
+      localStorage.removeItem(
+        "journey"
+      );
     };
 
     window.addEventListener(
@@ -126,48 +158,72 @@ export function CartProvider({
     );
 
     return () => {
+
       window.removeEventListener(
         "raileats:logout",
         handleLogout
       );
+
     };
 
   }, []);
 
   /* ================= JOURNEY ================= */
 
-  const setJourney = (data: JourneyDetails) => {
+  const setJourney = (
+    data: JourneyDetails
+  ) => {
+
     setJourneyState(data);
+
   };
 
   /* ================= ADD ================= */
 
-  const add = (line: CartLine) => {
+  const add = (
+    line: CartLine
+  ) => {
 
     if (!line || !line.id) return;
 
     setCart((c) => {
 
-      const existing = c[line.id];
+      const existing =
+        c[line.id];
 
       if (!existing) {
+
         return {
           ...c,
+
           [line.id]: {
             ...line,
-            qty: Math.max(1, line.qty || 1),
+            qty: Math.max(
+              1,
+              line.qty || 1
+            ),
           },
         };
+
       }
 
       return {
+
         ...c,
+
         [line.id]: {
+
           ...existing,
+
           qty:
             existing.qty +
-            Math.max(1, line.qty || 1),
+            Math.max(
+              1,
+              line.qty || 1
+            ),
+
         },
+
       };
 
     });
@@ -189,14 +245,23 @@ export function CartProvider({
 
       if (qty <= 0) {
 
-        const { [id]: _, ...rest } = c;
-        return rest;
+        const {
+          [id]: _,
+          ...rest
+        } = c;
 
+        return rest;
       }
 
       return {
+
         ...c,
-        [id]: { ...row, qty },
+
+        [id]: {
+          ...row,
+          qty,
+        },
+
       };
 
     });
@@ -205,7 +270,9 @@ export function CartProvider({
 
   /* ================= INCREASE ================= */
 
-  const increaseQty = (id: number) => {
+  const increaseQty = (
+    id: number
+  ) => {
 
     setCart((c) => {
 
@@ -214,11 +281,18 @@ export function CartProvider({
       if (!row) return c;
 
       return {
+
         ...c,
+
         [id]: {
+
           ...row,
-          qty: row.qty + 1,
+
+          qty:
+            row.qty + 1,
+
         },
+
       };
 
     });
@@ -227,7 +301,9 @@ export function CartProvider({
 
   /* ================= DECREASE ================= */
 
-  const decreaseQty = (id: number) => {
+  const decreaseQty = (
+    id: number
+  ) => {
 
     setCart((c) => {
 
@@ -237,17 +313,27 @@ export function CartProvider({
 
       if (row.qty <= 1) {
 
-        const { [id]: _, ...rest } = c;
-        return rest;
+        const {
+          [id]: _,
+          ...rest
+        } = c;
 
+        return rest;
       }
 
       return {
+
         ...c,
+
         [id]: {
+
           ...row,
-          qty: row.qty - 1,
+
+          qty:
+            row.qty - 1,
+
         },
+
       };
 
     });
@@ -256,11 +342,16 @@ export function CartProvider({
 
   /* ================= REMOVE ================= */
 
-  const remove = (id: number) => {
+  const remove = (
+    id: number
+  ) => {
 
     setCart((c) => {
 
-      const { [id]: _, ...rest } = c;
+      const {
+        [id]: _,
+        ...rest
+      } = c;
 
       return rest;
 
@@ -273,65 +364,91 @@ export function CartProvider({
   const clearCart = () => {
 
     setCart({});
+
     setJourneyState({});
 
-    localStorage.removeItem("cart");
-    localStorage.removeItem("journey");
+    localStorage.removeItem(
+      "cart"
+    );
+
+    localStorage.removeItem(
+      "journey"
+    );
 
   };
 
   /* ================= MEMO ================= */
 
-  const value = useMemo<CartContextValue>(() => {
+  const value =
+    useMemo<CartContextValue>(() => {
 
-    const items = Object.values(cart);
+      const items =
+        Object.values(cart);
 
-    const count = items.reduce(
-      (a, b) => a + b.qty,
-      0
-    );
+      const count =
+        items.reduce(
+          (a, b) =>
+            a + b.qty,
+          0
+        );
 
-    const total = items.reduce(
-      (a, b) => a + b.qty * b.price,
-      0
-    );
+      const total =
+        items.reduce(
+          (a, b) =>
+            a +
+            b.qty * b.price,
+          0
+        );
 
-    return {
-      cart,
-      items,
-      count,
-      total,
+      return {
 
-      journey,
-      setJourney,
+        cart,
+        items,
+        count,
+        total,
 
-      add,
-      changeQty,
-      increaseQty,
-      decreaseQty,
-      remove,
-      clearCart,
-    };
+        journey,
+        setJourney,
 
-  }, [cart, journey]);
+        add,
+        changeQty,
+        increaseQty,
+        decreaseQty,
+        remove,
+        clearCart,
+
+      };
+
+    }, [cart, journey]);
 
   return (
-    <CartCtx.Provider value={value}>
+
+    <CartCtx.Provider
+      value={value}
+    >
+
       {children}
+
     </CartCtx.Provider>
+
   );
+
 }
 
 /* ================= HOOK ================= */
 
-export function useCart(): CartContextValue {
+export function useCart():
+  CartContextValue {
 
-  const ctx = useContext(CartCtx);
+  const ctx =
+    useContext(CartCtx);
 
   if (!ctx) {
+
     throw new Error(
       "useCart must be used within CartProvider"
     );
+
   }
 
   return ctx;
