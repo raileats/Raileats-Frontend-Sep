@@ -54,7 +54,7 @@ export async function POST(req: Request) {
         StationName: StationName || "N/A",
         DeliveryDate: DeliveryDate,
         DeliveryTime: DeliveryTime,
-        TrainNumber: TrainNumber || "N/A", // Fixed compilation mismatch typo here
+        TrainNumber: TrainNumber || "N/A", 
         Coach: Coach || null,
         Seat: Seat || null,
         CustomerName: CustomerName || "Guest",
@@ -114,7 +114,7 @@ export async function POST(req: Request) {
     if (itemsError) {
       console.error("SUPABASE ORDER ITEMS BULK INSERT ERROR =>", JSON.stringify(itemsError, null, 2));
       
-      -- Rollback structure safeguard: Items fail ho jayein to partial main order delete kar do database consistency ke liye
+      // Fixed the comment syntax error here (changed '--' to '//')
       await serviceClient.from("Orders").delete().eq("OrderId", targetOrderId);
 
       return NextResponse.json(
