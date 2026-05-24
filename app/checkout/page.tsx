@@ -47,6 +47,16 @@ export default function CheckoutPage() {
   const delivery = subtotal > 0 ? 20 : 0;
   const total = subtotal + gst + delivery;
 
+  /* ================= SAFE COALESCING VARIABLES ================= */
+  // Agar context ya hook me naming convention ka difference hai to ye auto-handle kar lega
+  const trainName = journey?.trainName || journey?.train_name || "N/A";
+  const trainNumber = journey?.trainNumber || journey?.train_number || "";
+  const stationName = journey?.stationName || journey?.station_name || "N/A";
+  const stationCode = journey?.stationCode || journey?.station_code || "";
+  const deliveryDate = journey?.deliveryDate || journey?.delivery_date || journey?.date || "N/A";
+  const deliveryTime = journey?.deliveryTime || journey?.delivery_time || journey?.time || "N/A";
+  const vendorName = journey?.vendorName || journey?.vendor_name || journey?.restroName || journey?.restro_name || "N/A";
+
   /* ================= PLACE ORDER ================= */
   const placeOrder = async () => {
     if (!items.length) {
@@ -72,14 +82,14 @@ export default function CheckoutPage() {
           customerMobile: mobile,
           customerEmail: email || null,
           pnr: pnr || null,
-          trainNumber: journey?.trainNumber || "",
-          trainName: journey?.trainName || "",
-          restroCode: journey?.restroCode || firstItem?.restro_code,
-          restroName: journey?.vendorName || firstItem?.restro_name,
-          stationCode: journey?.stationCode || firstItem?.station_code,
-          stationName: journey?.stationName || firstItem?.station_name,
-          arrivalDate: journey?.deliveryDate || "",
-          arrivalTime: journey?.deliveryTime || "",
+          trainNumber: trainNumber,
+          trainName: trainName,
+          restroCode: journey?.restroCode || journey?.restro_code || firstItem?.restro_code,
+          restroName: vendorName !== "N/A" ? vendorName : firstItem?.restro_name,
+          stationCode: stationCode || firstItem?.station_code,
+          stationName: stationName !== "N/A" ? stationName : firstItem?.station_name,
+          arrivalDate: deliveryDate,
+          arrivalTime: deliveryTime,
           coach: coach || null,
           seat: seat || null,
           paymentMode,
@@ -127,40 +137,41 @@ export default function CheckoutPage() {
                 <span className="w-1.5 h-4 bg-amber-500 rounded-full inline-block"></span>
                 Journey Details
               </h2>
+              
+              {/* Train Name & Number */}
               <div className="mt-2 font-bold text-sm text-slate-700 truncate flex items-center gap-1">
                 <span>🚆</span>
                 <span>
-                  {journey?.trainName
-                    ? `${journey.trainName} (${journey.trainNumber})`
-                    : `Train #${journey?.trainNumber}`}
+                  {trainName} {trainNumber ? `(${trainNumber})` : ""}
                 </span>
               </div>
-              <div className="text-xs text-slate-400 mt-1 flex items-center gap-1 truncate">
+
+              {/* Station Name & Code */}
+              <div className="text-xs text-slate-500 mt-1 flex items-center gap-1 truncate">
                 <span>📍</span>
                 <span>
-                  {journey?.stationName}
-                  {journey?.stationCode ? ` (${journey.stationCode})` : ""}
+                  {stationName} {stationCode ? `(${stationCode})` : ""}
                 </span>
               </div>
             </div>
 
-            {/* RIGHT DATETIME */}
-            <div className="text-right text-xs font-medium text-slate-600 shrink-0 bg-slate-50 p-2 rounded-lg space-y-1">
+            {/* RIGHT DATETIME & RESTAURANT */}
+            <div className="text-right text-xs font-medium text-slate-600 shrink-0 bg-slate-50 p-2 rounded-lg space-y-1 min-w-[100px]">
               <div className="flex items-center justify-end gap-1">
                 <span>📅</span>
-                <span>{journey?.deliveryDate}</span>
+                <span>{deliveryDate}</span>
               </div>
               <div className="flex items-center justify-end gap-1">
                 <span>⏰</span>
-                <span>{journey?.deliveryTime}</span>
+                <span>{deliveryTime}</span>
               </div>
-              <div className="text-xs font-bold text-amber-600 truncate max-w-[110px]">
-                {journey?.vendorName}
+              <div className="text-[11px] font-bold text-amber-600 truncate max-w-[120px] mt-0.5 border-t border-slate-200/60 pt-0.5">
+                🎪 {vendorName}
               </div>
             </div>
           </div>
 
-          {/* INPUT FORM (10% LARGER & SCREEN RESPONSIVE) */}
+          {/* INPUT FORM */}
           <div className="space-y-2.5 text-sm">
             {/* NAME + MOBILE */}
             <div className="grid grid-cols-2 gap-2">
@@ -194,7 +205,7 @@ export default function CheckoutPage() {
               />
             </div>
 
-            {/* LAST ROW: SEAT + COACH + PROMO (FIXED MOBILE OVERFLOW WITH FLEX) */}
+            {/* LAST ROW: SEAT + COACH + PROMO */}
             <div className="flex items-center gap-1.5 w-full">
               <input
                 className="border border-slate-200 rounded-lg py-2.5 text-sm text-center focus:outline-none focus:border-amber-500 bg-slate-50/50 w-[54px] shrink-0"
