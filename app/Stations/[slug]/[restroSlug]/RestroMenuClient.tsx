@@ -15,34 +15,36 @@ const toMin = (t?: string | null) => {
   return h * 60 + m;
 };
 
-// 🔥 DATABASE SMART EXACT MATCH FIX (Handles data swapping from API safely)
+// 🔥 SUPABASE COLUMN EXACT SYNC FIX
 const isVegItem = (it: any) => {
-  // 🚨 ABSOLUTE HARDCODED PRIORITY BYPASS: ID 3 (Navratri Thali) is marked Non-Veg in database rows.
+  // 🚨 1. NAVRATRI THALI ABSOLUTE HARDCODED LOCK (ID 3)
   if (Number(it?.id) === 3) {
-    return false; // Force Red Dot (Non-Veg)
+    return false; // Har haal me Red Dot (Non-Veg) hi rahega kyunki db me yahi mapped hai
   }
 
-  const cat = String(it.item_category || "").toLowerCase().trim();
-  const menuType = String(it.menu_type || "").toLowerCase().trim();
-  const name = String(it.item_name || "").toLowerCase();
+  // Supabase me 'menu_type' me Veg/Non-Veg save hai aur 'item_category' me Thalis/Combos hai.
+  // Isliye hum dono columns ko lower-case karke strictly cross-check karenge.
+  const menuType = String(it?.menu_type || "").toLowerCase().trim();
+  const cat = String(it?.item_category || "").toLowerCase().trim();
+  const name = String(it?.item_name || "").toLowerCase();
 
-  // 1. PRIORITY 1: Strict Check for Non-Veg in database fields (menu_type OR item_category)
+  // 2. PRIORITY 1: Check if 'menu_type' or 'item_category' contains "non-veg"
   if (
-    cat === "non-veg" || cat === "nonveg" ||
-    menuType === "non-veg" || menuType === "nonveg"
+    menuType === "non-veg" || menuType === "nonveg" ||
+    cat === "non-veg" || cat === "nonveg"
   ) {
-    return false; // Strict Red Dot (Kyunki DB row me Non-Veg category mapped hai)
+    return false; // Red Dot
   }
 
-  // 2. PRIORITY 2: Strict Check for Veg or Jain in database fields
+  // 3. PRIORITY 2: Check if 'menu_type' or 'item_category' contains "veg" or "jain"
   if (
-    cat === "veg" || cat === "jain" ||
-    menuType === "veg" || menuType === "jain"
+    menuType === "veg" || menuType === "jain" ||
+    cat === "veg" || cat === "jain"
   ) {
-    return true; // Strict Green Dot
+    return true; // Green Dot
   }
 
-  // 3. PRIORITY 3: Fallback Name Text Keywords (sirf tabhi jab DB me kuch na mile ya blank ho)
+  // 4. PRIORITY 3: Fallback Text Keywords (Agar database ke columns blank ya empty hon)
   if (
     name.includes("chicken") || 
     name.includes("egg") || 
@@ -52,9 +54,9 @@ const isVegItem = (it: any) => {
     return false; // Red Dot
   }
 
-  // 4. Last fallback regex for general safety
+  // 5. Last fallback regex for general safety
   const vegRegex = /dal|roti|rice|paneer|veg|thali|chapati|paratha/i;
-  return vegRegex.test(it.item_name || "");
+  return vegRegex.test(it?.item_name || "");
 };
 
 const isItemActive = (it: any) => {
