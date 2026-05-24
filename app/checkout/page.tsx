@@ -252,9 +252,9 @@ export default function CheckoutPage() {
 
             <div className="border-t my-3" />
 
-            {/* USER INPUTS */}
+            {/* NAME + MOBILE */}
 
-            <div className="grid grid-cols-2 gap-2 mb-2">
+            <div className="grid grid-cols-[1.25fr_1fr] gap-2 mb-2">
 
               <input
                 className="border rounded-xl px-3 py-3 text-sm"
@@ -276,7 +276,9 @@ export default function CheckoutPage() {
 
             </div>
 
-            <div className="grid grid-cols-2 gap-2 mb-2">
+            {/* EMAIL + PNR */}
+
+            <div className="grid grid-cols-[1.25fr_1fr] gap-2 mb-2">
 
               <input
                 className="border rounded-xl px-3 py-3 text-sm"
