@@ -194,33 +194,27 @@ export default function CheckoutPage() {
 
       {/* SCROLL AREA */}
 
-      <div className="flex-1 overflow-y-auto p-3 space-y-3">
-
-        {/* SECURITY */}
-
-        <div className="bg-green-50 border border-green-100 rounded-2xl p-2 text-center text-xs text-green-700">
-          🔒 Your data is 100% secure and safe
-        </div>
+      <div className="flex-1 overflow-y-auto p-2 space-y-2">
 
         {/* JOURNEY */}
 
-        <div className="bg-white rounded-2xl border p-4 shadow-sm">
+        <div className="bg-white rounded-2xl border p-3 shadow-sm">
 
-          <div className="flex justify-between items-start">
+          <div className="flex justify-between items-start gap-3">
 
-            <div>
+            <div className="min-w-0 flex-1">
 
-              <div className="font-bold text-base">
+              <div className="font-bold text-[15px]">
                 Journey Details
               </div>
 
-              <div className="mt-2 font-semibold text-[15px]">
+              <div className="mt-1 font-semibold text-[15px] truncate">
                 {journey?.trainName
                   ? `${journey.trainName} #${journey.trainNumber}`
                   : `Train #${journey?.trainNumber}`}
               </div>
 
-              <div className="text-sm text-gray-500">
+              <div className="text-xs text-gray-500">
                 {journey?.stationName}
                 {journey?.stationCode
                   ? ` (${journey.stationCode})`
@@ -229,18 +223,17 @@ export default function CheckoutPage() {
 
             </div>
 
-            <div className="text-right">
+            <div className="text-right shrink-0">
 
-              <div className="text-[10px] text-gray-400">
-                Delivery
+              <div className="text-[11px] font-semibold leading-tight">
+                {journey?.deliveryDate}
               </div>
 
-              <div className="font-semibold text-sm">
-                {journey?.deliveryDate}{" "}
+              <div className="text-[11px] font-semibold">
                 {journey?.deliveryTime}
               </div>
 
-              <div className="mt-3 font-semibold text-[15px]">
+              <div className="mt-2 font-semibold text-[14px] leading-tight">
                 {journey?.vendorName}
               </div>
 
@@ -252,16 +245,16 @@ export default function CheckoutPage() {
 
         {/* PASSENGER */}
 
-        <div className="bg-white rounded-2xl border p-4 shadow-sm space-y-3">
+        <div className="bg-white rounded-2xl border p-3 shadow-sm space-y-2">
 
-          <div className="font-bold text-base">
+          <div className="font-bold text-[15px]">
             Passenger Details
           </div>
 
           <div className="grid grid-cols-2 gap-2">
 
             <input
-              className="border rounded-xl px-3 py-3 text-sm"
+              className="border rounded-xl px-3 py-2.5 text-sm"
               placeholder="Name"
               value={name}
               onChange={(e) =>
@@ -270,7 +263,7 @@ export default function CheckoutPage() {
             />
 
             <input
-              className="border rounded-xl px-3 py-3 text-sm"
+              className="border rounded-xl px-3 py-2.5 text-sm"
               placeholder="Mobile"
               value={mobile}
               onChange={(e) =>
@@ -283,7 +276,7 @@ export default function CheckoutPage() {
           <div className="grid grid-cols-2 gap-2">
 
             <input
-              className="border rounded-xl px-3 py-3 text-sm"
+              className="border rounded-xl px-3 py-2.5 text-sm"
               placeholder="Email"
               value={email}
               onChange={(e) =>
@@ -292,7 +285,7 @@ export default function CheckoutPage() {
             />
 
             <input
-              className="border rounded-xl px-3 py-3 text-sm"
+              className="border rounded-xl px-3 py-2.5 text-sm"
               placeholder="PNR"
               value={pnr}
               onChange={(e) =>
@@ -302,10 +295,12 @@ export default function CheckoutPage() {
 
           </div>
 
-          <div className="grid grid-cols-[1fr_1fr_1.1fr_auto] gap-2">
+          {/* COMPACT ROW */}
+
+          <div className="grid grid-cols-[0.8fr_0.8fr_1fr_auto] gap-2">
 
             <input
-              className="border rounded-xl px-3 py-3 text-sm"
+              className="border rounded-xl px-2 py-2.5 text-sm"
               placeholder="Seat"
               value={seat}
               onChange={(e) =>
@@ -314,7 +309,7 @@ export default function CheckoutPage() {
             />
 
             <input
-              className="border rounded-xl px-3 py-3 text-sm"
+              className="border rounded-xl px-2 py-2.5 text-sm"
               placeholder="Coach"
               value={coach}
               onChange={(e) =>
@@ -323,7 +318,7 @@ export default function CheckoutPage() {
             />
 
             <input
-              className="border rounded-xl px-3 py-3 text-sm"
+              className="border rounded-xl px-2 py-2.5 text-sm"
               placeholder="Promo"
               value={promo}
               onChange={(e) =>
@@ -331,7 +326,7 @@ export default function CheckoutPage() {
               }
             />
 
-            <button className="bg-black text-white px-4 rounded-xl text-sm font-semibold">
+            <button className="bg-black text-white px-3 rounded-xl text-sm font-semibold">
               Apply
             </button>
 
@@ -341,17 +336,17 @@ export default function CheckoutPage() {
 
         {/* ORDER */}
 
-        <div className="bg-white rounded-2xl border overflow-hidden shadow-sm">
+        <div className="bg-white rounded-2xl border overflow-hidden shadow-sm flex flex-col">
 
-          <div className="p-4 font-bold border-b">
+          <div className="p-3 font-bold border-b text-[15px]">
             Your Order
           </div>
 
           {/* ONLY ITEMS SCROLL */}
 
-          <div className="max-h-[180px] overflow-y-auto">
+          <div className="max-h-[170px] overflow-y-auto">
 
-            <div className="p-4 space-y-4">
+            <div className="p-3 space-y-3">
 
               {items.map((i) => (
 
@@ -386,7 +381,7 @@ export default function CheckoutPage() {
 
           {/* SUMMARY */}
 
-          <div className="border-t p-4 space-y-2 text-sm">
+          <div className="border-t p-3 space-y-1.5 text-sm">
 
             <Row
               label="Subtotal"
@@ -399,13 +394,13 @@ export default function CheckoutPage() {
             />
 
             <Row
-              label="Delivery Charges"
+              label="Delivery"
               value={delivery}
             />
 
-            <div className="flex justify-between font-bold text-xl pt-2">
+            <div className="flex justify-between font-bold text-2xl pt-1">
 
-              <span>Total Payable</span>
+              <span>Total</span>
 
               <span>₹{total}</span>
 
@@ -417,9 +412,9 @@ export default function CheckoutPage() {
 
         {/* PAYMENT */}
 
-        <div className="bg-white rounded-2xl border p-4 shadow-sm">
+        <div className="bg-white rounded-2xl border p-3 shadow-sm">
 
-          <div className="font-bold mb-3">
+          <div className="font-bold text-[15px] mb-2">
             Payment Method
           </div>
 
@@ -429,7 +424,7 @@ export default function CheckoutPage() {
               onClick={() =>
                 setPaymentMode("COD")
               }
-              className={`border rounded-xl py-4 text-sm font-semibold transition ${
+              className={`border rounded-xl py-3 text-sm font-semibold transition ${
                 paymentMode === "COD"
                   ? "bg-green-600 text-white border-green-600"
                   : "bg-white"
@@ -442,7 +437,7 @@ export default function CheckoutPage() {
               onClick={() =>
                 setPaymentMode("ONLINE")
               }
-              className={`border rounded-xl py-4 text-sm font-semibold transition ${
+              className={`border rounded-xl py-3 text-sm font-semibold transition ${
                 paymentMode === "ONLINE"
                   ? "bg-green-600 text-white border-green-600"
                   : "bg-white"
@@ -459,25 +454,25 @@ export default function CheckoutPage() {
 
       {/* FIXED FOOTER */}
 
-      <div className="fixed bottom-[56px] left-0 right-0 bg-white border-t px-3 py-3">
+      <div className="fixed bottom-[56px] left-0 right-0 bg-white border-t px-2 py-2">
 
-        <div className="max-w-md mx-auto flex items-center gap-3">
+        <div className="max-w-md mx-auto flex items-center gap-2">
 
-          <div className="min-w-[70px]">
+          <div className="min-w-[75px]">
 
-            <div className="text-3xl font-bold leading-none">
+            <div className="text-2xl font-bold leading-none">
               ₹{total}
             </div>
 
-            <div className="text-[11px] text-gray-500">
-              Total Amount
+            <div className="text-[10px] text-gray-500">
+              Total
             </div>
 
           </div>
 
           <button
             onClick={placeOrder}
-            className="flex-1 bg-green-600 text-white font-bold py-4 rounded-2xl text-lg"
+            className="flex-1 bg-green-600 text-white font-bold py-3 rounded-2xl text-base"
           >
             Place Order
           </button>
