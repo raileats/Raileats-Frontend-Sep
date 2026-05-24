@@ -88,7 +88,7 @@ export default function CheckoutPage() {
         headers: {
           "Content-Type": "application/json",
         },
-        // Database schemas constraints se key map matching
+        // Database schemas constraints se exact key map matching
         body: JSON.stringify({
           RestroCode: cleanRestroCode,
           RestroName: vendorName !== "N/A" ? vendorName : (firstItem?.restro_name || "N/A"),
@@ -122,7 +122,8 @@ export default function CheckoutPage() {
         }),
       });
 
-      const data = await res.res ? res.json() : await res.json();
+      // Fixed line 125 typo error here safely
+      const data = await res.json();
 
       if (!res.ok || !data.ok) {
         alert(data.message || "Order failed");
