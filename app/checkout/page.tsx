@@ -114,20 +114,20 @@ export default function CheckoutPage() {
   };
 
   return (
-    <div className="max-w-md mx-auto h-screen flex flex-col bg-slate-50 pb-[140px]">
+    <div className="max-w-md mx-auto h-screen flex flex-col bg-slate-50 pb-[150px]">
       {/* SCROLL AREA */}
-      <div className="flex-1 overflow-y-auto p-3 space-y-3 scrollbar-hide pt-2">
+      <div className="flex-1 overflow-y-auto p-3 space-y-3.5 scrollbar-hide pt-2">
         
         {/* 1. JOURNEY + PASSENGER DETAILS */}
-        <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-3">
+        <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-3.5">
           {/* HEADER */}
-          <div className="flex justify-between items-start gap-2 border-b border-slate-50 pb-2.5 mb-3">
+          <div className="flex justify-between items-start gap-2 border-b border-slate-100 pb-3 mb-3.5">
             <div className="min-w-0 flex-1">
-              <h2 className="font-semibold text-sm text-slate-800 tracking-tight flex items-center gap-1.5">
-                <span className="w-1.5 h-3.5 bg-amber-500 rounded-full inline-block"></span>
+              <h2 className="font-semibold text-[15px] text-slate-800 tracking-tight flex items-center gap-1.5">
+                <span className="w-1.5 h-4 bg-amber-500 rounded-full inline-block"></span>
                 Journey Details
               </h2>
-              <div className="mt-1.5 font-bold text-xs text-slate-700 truncate flex items-center gap-1">
+              <div className="mt-2 font-bold text-sm text-slate-700 truncate flex items-center gap-1">
                 <span>🚆</span>
                 <span>
                   {journey?.trainName
@@ -135,7 +135,7 @@ export default function CheckoutPage() {
                     : `Train #${journey?.trainNumber}`}
                 </span>
               </div>
-              <div className="text-[11px] text-slate-400 mt-0.5 flex items-center gap-1 truncate">
+              <div className="text-xs text-slate-400 mt-1 flex items-center gap-1 truncate">
                 <span>📍</span>
                 <span>
                   {journey?.stationName}
@@ -145,7 +145,7 @@ export default function CheckoutPage() {
             </div>
 
             {/* RIGHT DATETIME */}
-            <div className="text-right text-[11px] font-medium text-slate-500 shrink-0 bg-slate-50 p-1.5 rounded-lg space-y-0.5">
+            <div className="text-right text-xs font-medium text-slate-600 shrink-0 bg-slate-50 p-2 rounded-lg space-y-1">
               <div className="flex items-center justify-end gap-1">
                 <span>📅</span>
                 <span>{journey?.deliveryDate}</span>
@@ -154,24 +154,24 @@ export default function CheckoutPage() {
                 <span>⏰</span>
                 <span>{journey?.deliveryTime}</span>
               </div>
-              <div className="text-[11px] font-bold text-amber-600 truncate max-w-[100px]">
+              <div className="text-xs font-bold text-amber-600 truncate max-w-[110px]">
                 {journey?.vendorName}
               </div>
             </div>
           </div>
 
-          {/* INPUT FORM (COMPACT & SLEEK) */}
-          <div className="space-y-2 text-xs">
+          {/* INPUT FORM (10% LARGER & SCREEN RESPONSIVE) */}
+          <div className="space-y-2.5 text-sm">
             {/* NAME + MOBILE */}
             <div className="grid grid-cols-2 gap-2">
               <input
-                className="border border-slate-200 rounded-lg px-2.5 py-2 text-xs focus:outline-none focus:border-amber-500 bg-slate-50/50"
+                className="border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-amber-500 bg-slate-50/50"
                 placeholder="Passenger Name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
               />
               <input
-                className="border border-slate-200 rounded-lg px-2.5 py-2 text-xs focus:outline-none focus:border-amber-500 bg-slate-50/50"
+                className="border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-amber-500 bg-slate-50/50"
                 placeholder="Mobile Number"
                 value={mobile}
                 onChange={(e) => setMobile(e.target.value)}
@@ -181,68 +181,70 @@ export default function CheckoutPage() {
             {/* EMAIL + PNR */}
             <div className="grid grid-cols-2 gap-2">
               <input
-                className="border border-slate-200 rounded-lg px-2.5 py-2 text-xs focus:outline-none focus:border-amber-500 bg-slate-50/50"
+                className="border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-amber-500 bg-slate-50/50"
                 placeholder="Email ID (Optional)"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
               <input
-                className="border border-slate-200 rounded-lg px-2.5 py-2 text-xs focus:outline-none focus:border-amber-500 bg-slate-50/50"
+                className="border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-amber-500 bg-slate-50/50"
                 placeholder="10-Digit PNR"
                 value={pnr}
                 onChange={(e) => setPnr(e.target.value)}
               />
             </div>
 
-            {/* LAST ROW: SEAT + COACH + PROMO */}
-            <div className="grid grid-cols-[55px_65px_1fr_65px] gap-2">
+            {/* LAST ROW: SEAT + COACH + PROMO (FIXED MOBILE OVERFLOW WITH FLEX) */}
+            <div className="flex items-center gap-1.5 w-full">
               <input
-                className="border border-slate-200 rounded-lg px-1.5 py-2 text-xs text-center focus:outline-none focus:border-amber-500 bg-slate-50/50"
+                className="border border-slate-200 rounded-lg py-2.5 text-sm text-center focus:outline-none focus:border-amber-500 bg-slate-50/50 w-[54px] shrink-0"
                 placeholder="Seat"
                 value={seat}
                 onChange={(e) => setSeat(e.target.value)}
               />
               <input
-                className="border border-slate-200 rounded-lg px-1.5 py-2 text-xs text-center focus:outline-none focus:border-amber-500 bg-slate-50/50"
+                className="border border-slate-200 rounded-lg py-2.5 text-sm text-center focus:outline-none focus:border-amber-500 bg-slate-50/50 w-[64px] shrink-0"
                 placeholder="Coach"
                 value={coach}
                 onChange={(e) => setCoach(e.target.value)}
               />
-              <input
-                className="border border-slate-200 rounded-lg px-2.5 py-2 text-xs focus:outline-none focus:border-amber-500 bg-slate-50/50 uppercase"
-                placeholder="PROMO"
-                value={promo}
-                onChange={(e) => setPromo(e.target.value)}
-              />
-              <button className="bg-slate-900 text-white rounded-lg text-xs font-semibold hover:bg-slate-800 transition active:scale-95">
-                Apply
-              </button>
+              <div className="flex items-center border border-slate-200 rounded-lg bg-slate-50/50 flex-1 min-w-0 focus-within:border-amber-500 overflow-hidden">
+                <input
+                  className="px-2 py-2.5 text-sm bg-transparent focus:outline-none uppercase w-full min-w-0"
+                  placeholder="PROMO"
+                  value={promo}
+                  onChange={(e) => setPromo(e.target.value)}
+                />
+                <button className="bg-slate-900 text-white text-xs font-semibold px-2.5 py-2.5 h-full transition hover:bg-slate-800 active:scale-95 shrink-0 border-l border-slate-200">
+                  Apply
+                </button>
+              </div>
             </div>
           </div>
         </div>
 
         {/* 2. YOUR ORDER CARD */}
         <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden">
-          <div className="p-3 border-b border-slate-50">
-            <h2 className="font-semibold text-sm text-slate-800 tracking-tight flex items-center gap-1.5">
-              <span className="w-1.5 h-3.5 bg-amber-500 rounded-full inline-block"></span>
+          <div className="p-3.5 border-b border-slate-100">
+            <h2 className="font-semibold text-[15px] text-slate-800 tracking-tight flex items-center gap-1.5">
+              <span className="w-1.5 h-4 bg-amber-500 rounded-full inline-block"></span>
               Your Order
             </h2>
           </div>
 
           {/* ITEM ROWS */}
-          <div className="max-h-[160px] overflow-y-auto divide-y divide-slate-50 px-3">
+          <div className="max-h-[170px] overflow-y-auto divide-y divide-slate-100 px-3.5">
             {items.map((i) => (
-              <div key={i.id} className="flex justify-between items-center py-2 gap-3">
+              <div key={i.id} className="flex justify-between items-center py-2.5 gap-3">
                 <div className="min-w-0 flex-1">
-                  <div className="font-medium text-xs text-slate-700 truncate">
+                  <div className="font-medium text-sm text-slate-700 truncate">
                     {i.name}
                   </div>
-                  <div className="text-[11px] text-slate-400 mt-0.5">
+                  <div className="text-xs text-slate-400 mt-0.5">
                     ₹{i.price} × {i.qty}
                   </div>
                 </div>
-                <div className="font-semibold text-xs text-slate-800 whitespace-nowrap">
+                <div className="font-semibold text-sm text-slate-800 whitespace-nowrap">
                   ₹{i.price * i.qty}
                 </div>
               </div>
@@ -250,30 +252,30 @@ export default function CheckoutPage() {
           </div>
 
           {/* FINAL BREAKDOWN SUMMARY */}
-          <div className="border-t border-slate-100 p-3 bg-slate-50/30 space-y-1.5 border-dashed">
+          <div className="border-t border-slate-100 p-3.5 bg-slate-50/40 space-y-2 border-dashed">
             <Row label="Subtotal" value={subtotal} />
             <Row label="GST (5%)" value={gst} />
             <Row label="Delivery Charges" value={delivery} />
             
-            <div className="flex justify-between items-center pt-2 border-t border-slate-100 border-solid mt-1">
-              <span className="font-bold text-xs text-slate-800">Grand Total</span>
-              <span className="font-bold text-sm text-slate-900">₹{total}</span>
+            <div className="flex justify-between items-center pt-2.5 border-t border-slate-200 border-solid mt-1">
+              <span className="font-bold text-sm text-slate-800">Grand Total</span>
+              <span className="font-bold text-[16px] text-slate-900">₹{total}</span>
             </div>
           </div>
         </div>
 
       </div>
 
-      {/* 3. PREMIUM FIXED PAYMENT BOTTOM BAR */}
+      {/* 3. FIXED PAYMENT BOTTOM BAR */}
       <div className="fixed bottom-[56px] left-0 right-0 bg-white border-t border-slate-100 shadow-[0_-4px_20px_rgba(0,0,0,0.04)] z-40">
-        <div className="max-w-md mx-auto p-3">
+        <div className="max-w-md mx-auto p-3.5">
           
           {/* PAYMENT MODE SELECTOR & MINI BILL */}
-          <div className="flex items-center justify-between mb-2.5">
+          <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-lg">
               <button
                 onClick={() => setPaymentMode("COD")}
-                className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-all ${
+                className={`rounded-md px-3 py-2 text-xs font-semibold transition-all ${
                   paymentMode === "COD"
                     ? "bg-white text-slate-900 shadow-sm"
                     : "text-slate-500 hover:text-slate-800"
@@ -284,7 +286,7 @@ export default function CheckoutPage() {
 
               <button
                 onClick={() => setPaymentMode("ONLINE")}
-                className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-all ${
+                className={`rounded-md px-3 py-2 text-xs font-semibold transition-all ${
                   paymentMode === "ONLINE"
                     ? "bg-white text-slate-900 shadow-sm"
                     : "text-slate-500 hover:text-slate-800"
@@ -296,19 +298,19 @@ export default function CheckoutPage() {
 
             {/* CORNER QUICK BILL DISPLAY */}
             <div className="text-right">
-              <div className="text-base font-bold text-slate-900 leading-none">
+              <div className="text-[17px] font-bold text-slate-900 leading-none">
                 ₹{total}
               </div>
-              <div className="text-[10px] text-slate-400 font-medium mt-0.5">
+              <div className="text-[11px] text-slate-400 font-medium mt-1">
                 To Pay
               </div>
             </div>
           </div>
 
-          {/* PRIMARY CT ACTION BUTTON */}
+          {/* PRIMARY ACTION BUTTON */}
           <button
             onClick={placeOrder}
-            className="w-full bg-green-600 text-white font-bold py-3 rounded-xl text-sm transition-all active:scale-[0.98] shadow-md shadow-green-600/10 hover:bg-green-700"
+            className="w-full bg-green-600 text-white font-bold py-3.5 rounded-xl text-[15px] transition-all active:scale-[0.98] shadow-md shadow-green-600/10 hover:bg-green-700"
           >
             Place Order
           </button>
@@ -321,7 +323,7 @@ export default function CheckoutPage() {
 /* ================= COMPACT ROW COMPONENT ================= */
 function Row({ label, value }: { label: string; value: number }) {
   return (
-    <div className="flex justify-between text-[11px] text-slate-500">
+    <div className="flex justify-between text-xs text-slate-500">
       <span>{label}</span>
       <span className="font-medium text-slate-700">₹{value}</span>
     </div>
