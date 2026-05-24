@@ -4,273 +4,615 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/lib/useCart";
 import { useAuth } from "@/lib/useAuth";
-import { useBooking } from "../../lib/useBooking";
 
 export default function CheckoutPage() {
+
   const router = useRouter();
 
-  const { items, clearCart } = useCart();
-  const { user, loadUser } = useAuth();
+  const {
+    items,
+    clearCart,
+    journey,
+  } = useCart();
+
+  const {
+    user,
+    loadUser,
+  } = useAuth();
 
   /* ================= USER ================= */
 
-  const [name, setName] = useState("");
-  const [mobile, setMobile] = useState("");
-  const [email, setEmail] = useState("");
+  const [name, setName] =
+    useState("");
+
+  const [mobile, setMobile] =
+    useState("");
+
+  const [email, setEmail] =
+    useState("");
 
   useEffect(() => {
     loadUser();
   }, []);
 
   useEffect(() => {
+
     if (user) {
+
       setName(user.name || "");
-      setMobile(user.mobile || "");
-      setEmail(user.email || "");
+
+      setMobile(
+        user.mobile || ""
+      );
+
+      setEmail(
+        user.email || ""
+      );
+
     }
+
   }, [user]);
 
   /* ================= JOURNEY ================= */
 
-  const [pnr, setPnr] = useState("");
-  const [trainNo, setTrainNo] = useState("");
-  const [coach, setCoach] = useState("");
-  const [seat, setSeat] = useState("");
+  const [pnr, setPnr] =
+    useState("");
+
+  const [trainNo, setTrainNo] =
+    useState("");
+
+  const [coach, setCoach] =
+    useState("");
+
+  const [seat, setSeat] =
+    useState("");
+
+  /* 🔥 AUTO FILL TRAIN */
+
+  useEffect(() => {
+
+    if (journey?.trainNumber) {
+
+      setTrainNo(
+        journey.trainNumber
+      );
+
+    }
+
+  }, [journey]);
 
   /* ================= EXTRA ================= */
 
-  const [promo, setPromo] = useState("");
-  const [paymentMode, setPaymentMode] = useState("COD");
+  const [promo, setPromo] =
+    useState("");
+
+  const [paymentMode, setPaymentMode] =
+    useState("COD");
 
   /* ================= CALCULATIONS ================= */
 
-  const subtotal = items.reduce(
-    (sum, i) => sum + Number(i.price) * Number(i.qty),
-    0
+  const subtotal =
+    items.reduce(
+      (sum, i) =>
+        sum +
+        Number(i.price) *
+          Number(i.qty),
+      0
+    );
+
+  const gst = Math.round(
+    subtotal * 0.05
   );
 
-  const gst = Math.round(subtotal * 0.05);
-  const delivery = subtotal > 0 ? 20 : 0;
-  const total = subtotal + gst + delivery;
+  const delivery =
+    subtotal > 0 ? 20 : 0;
+
+  const total =
+    subtotal +
+    gst +
+    delivery;
 
   /* ================= ORDER ================= */
 
-  const placeOrder = async () => {
-    if (!items.length) {
-      alert("Cart empty");
-      return;
-    }
+  const placeOrder =
+    async () => {
 
-    if (!mobile) {
-      alert("Mobile required");
-      return;
-    }
+      if (!items.length) {
 
-    const firstItem = items[0];
+        alert("Cart empty");
 
-    try {
-      const res = await fetch("/api/order/create", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          // USER
-          customerName: name || "Guest",
-          customerMobile: mobile,
-          customerEmail: email || null,
-
-          // TRAIN
-          pnr: pnr || null,
-          trainNumber: trainNo || "11016",
-
-          // RESTRO + STATION
-          restroCode: firstItem?.restro_code,
-          restroName: firstItem?.restro_name,
-          stationCode: firstItem?.station_code,
-          stationName: firstItem?.station_name,
-
-          // DELIVERY (❗ अभी dynamic नहीं है → बाद में fix करना)
-          arrivalDate: new Date().toISOString().split("T")[0],
-          arrivalTime: new Date().toLocaleTimeString(),
-
-          // SEAT
-          coach: coach || null,
-          seat: seat || null,
-
-          // PAYMENT
-          paymentMode,
-
-          // PROMO
-          promoCode: promo || null,
-
-          // ITEMS
-          items: items.map((i) => ({
-            id: i.id,
-            name: i.name,
-            qty: i.qty,
-            selling_price: i.price,
-          })),
-
-          // SUMMARY
-          subtotal,
-          gst,
-          delivery,
-          total,
-
-          // META
-          bookingTime: new Date().toISOString(),
-        }),
-      });
-
-      const data = await res.json();
-
-      if (!data.ok) {
-        alert("Order failed");
         return;
       }
 
-      clearCart();
-      router.push("/order-success");
+      if (!mobile) {
 
-    } catch (e) {
-      console.error(e);
-      alert("Server error");
-    }
-  };
+        alert(
+          "Mobile required"
+        );
+
+        return;
+      }
+
+      const firstItem =
+        items[0];
+
+      try {
+
+        const res =
+          await fetch(
+            "/api/order/create",
+            {
+              method: "POST",
+
+              headers: {
+                "Content-Type":
+                  "application/json",
+              },
+
+              body: JSON.stringify({
+
+                /* ================= USER ================= */
+
+                customerName:
+                  name || "Guest",
+
+                customerMobile:
+                  mobile,
+
+                customerEmail:
+                  email || null,
+
+                /* ================= TRAIN ================= */
+
+                pnr:
+                  pnr || null,
+
+                trainNumber:
+                  trainNo ||
+                  journey?.trainNumber ||
+                  null,
+
+                trainName:
+                  journey?.trainName ||
+                  null,
+
+                /* ================= RESTRO ================= */
+
+                restroCode:
+                  journey?.restroCode ||
+                  firstItem?.restro_code,
+
+                restroName:
+                  journey?.vendorName ||
+                  firstItem?.restro_name,
+
+                /* ================= STATION ================= */
+
+                stationCode:
+                  journey?.stationCode ||
+                  firstItem?.station_code,
+
+                stationName:
+                  journey?.stationName ||
+                  firstItem?.station_name,
+
+                /* ================= DELIVERY ================= */
+
+                arrivalDate:
+                  journey?.deliveryDate ||
+                  null,
+
+                arrivalTime:
+                  journey?.deliveryTime ||
+                  null,
+
+                /* ================= SEAT ================= */
+
+                coach:
+                  coach || null,
+
+                seat:
+                  seat || null,
+
+                /* ================= PAYMENT ================= */
+
+                paymentMode,
+
+                /* ================= PROMO ================= */
+
+                promoCode:
+                  promo || null,
+
+                /* ================= ITEMS ================= */
+
+                items: items.map(
+                  (i) => ({
+                    id: i.id,
+                    name: i.name,
+                    qty: i.qty,
+                    selling_price:
+                      i.price,
+                  })
+                ),
+
+                /* ================= SUMMARY ================= */
+
+                subtotal,
+                gst,
+                delivery,
+                total,
+
+                /* ================= META ================= */
+
+                bookingTime:
+                  new Date().toISOString(),
+
+              }),
+            }
+          );
+
+        const data =
+          await res.json();
+
+        if (!data.ok) {
+
+          alert(
+            "Order failed"
+          );
+
+          return;
+        }
+
+        clearCart();
+
+        router.push(
+          "/order-success"
+        );
+
+      } catch (e) {
+
+        console.error(e);
+
+        alert(
+          "Server error"
+        );
+
+      }
+
+    };
 
   /* ================= UI ================= */
 
   return (
-    <div className="max-w-md mx-auto p-4">
 
-      <h2 className="text-lg font-bold mb-3">Passenger Details</h2>
+    <div className="max-w-md mx-auto p-4 space-y-4">
 
-      <input
-        className="border p-2 w-full mb-2"
-        placeholder="Name"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        readOnly={!!user}
-      />
+      {/* ================= JOURNEY CARD ================= */}
 
-      <input
-        className="border p-2 w-full mb-2"
-        placeholder="Mobile"
-        value={mobile}
-        onChange={(e) => setMobile(e.target.value)}
-        readOnly={!!user}
-      />
+      <div className="border rounded-xl p-4 bg-orange-50">
 
-      <input
-        className="border p-2 w-full mb-3"
-        placeholder="Email"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        readOnly={!!user}
-      />
+        <div className="font-bold text-lg mb-2">
 
-      {/* JOURNEY */}
+          Journey Details
 
-      <input
-        className="border p-2 w-full mb-2"
-        placeholder="PNR (optional)"
-        value={pnr}
-        onChange={(e) => setPnr(e.target.value)}
-      />
+        </div>
 
-      <input
-        className="border p-2 w-full mb-2"
-        placeholder="Train No"
-        value={trainNo}
-        onChange={(e) => setTrainNo(e.target.value)}
-      />
+        <div className="text-sm space-y-1">
 
-      <div className="flex gap-2 mb-3">
-        <input
-          className="border p-2 w-1/2"
-          placeholder="Coach"
-          value={coach}
-          onChange={(e) => setCoach(e.target.value)}
-        />
+          <div>
 
-        <input
-          className="border p-2 w-1/2"
-          placeholder="Seat"
-          value={seat}
-          onChange={(e) => setSeat(e.target.value)}
-        />
+            <span className="font-semibold">
+              Train:
+            </span>{" "}
+
+            {journey?.trainName
+              ? `${journey.trainName} #${journey.trainNumber}`
+              : journey?.trainNumber || "-"}
+
+          </div>
+
+          <div>
+
+            <span className="font-semibold">
+              Station:
+            </span>{" "}
+
+            {journey?.stationName}
+            {" "}
+            ({journey?.stationCode})
+
+          </div>
+
+          <div>
+
+            <span className="font-semibold">
+              Delivery:
+            </span>{" "}
+
+            {journey?.deliveryDate}
+            {" "}
+            {journey?.deliveryTime
+              ? `at ${journey.deliveryTime}`
+              : ""}
+
+          </div>
+
+          <div>
+
+            <span className="font-semibold">
+              Restro:
+            </span>{" "}
+
+            {journey?.vendorName}
+
+          </div>
+
+          <div>
+
+            <span className="font-semibold">
+              Restro Code:
+            </span>{" "}
+
+            {journey?.restroCode}
+
+          </div>
+
+        </div>
+
       </div>
 
-      {/* PROMO */}
+      {/* ================= PASSENGER ================= */}
+
+      <div>
+
+        <h2 className="text-lg font-bold mb-3">
+
+          Passenger Details
+
+        </h2>
+
+        <input
+          className="border p-2 w-full mb-2 rounded"
+          placeholder="Name"
+          value={name}
+          onChange={(e) =>
+            setName(
+              e.target.value
+            )
+          }
+          readOnly={!!user}
+        />
+
+        <input
+          className="border p-2 w-full mb-2 rounded"
+          placeholder="Mobile"
+          value={mobile}
+          onChange={(e) =>
+            setMobile(
+              e.target.value
+            )
+          }
+          readOnly={!!user}
+        />
+
+        <input
+          className="border p-2 w-full mb-3 rounded"
+          placeholder="Email"
+          value={email}
+          onChange={(e) =>
+            setEmail(
+              e.target.value
+            )
+          }
+          readOnly={!!user}
+        />
+
+      </div>
+
+      {/* ================= TRAIN ================= */}
+
+      <div>
+
+        <input
+          className="border p-2 w-full mb-2 rounded"
+          placeholder="PNR (optional)"
+          value={pnr}
+          onChange={(e) =>
+            setPnr(
+              e.target.value
+            )
+          }
+        />
+
+        <input
+          className="border p-2 w-full mb-2 rounded bg-gray-100"
+          placeholder="Train No"
+          value={trainNo}
+          readOnly
+        />
+
+        <div className="flex gap-2 mb-3">
+
+          <input
+            className="border p-2 w-1/2 rounded"
+            placeholder="Coach"
+            value={coach}
+            onChange={(e) =>
+              setCoach(
+                e.target.value
+              )
+            }
+          />
+
+          <input
+            className="border p-2 w-1/2 rounded"
+            placeholder="Seat"
+            value={seat}
+            onChange={(e) =>
+              setSeat(
+                e.target.value
+              )
+            }
+          />
+
+        </div>
+
+      </div>
+
+      {/* ================= PROMO ================= */}
 
       <input
-        className="border p-2 w-full mb-3"
+        className="border p-2 w-full rounded"
         placeholder="Promo Code"
         value={promo}
-        onChange={(e) => setPromo(e.target.value)}
+        onChange={(e) =>
+          setPromo(
+            e.target.value
+          )
+        }
       />
 
-      {/* ORDER */}
+      {/* ================= ORDER ================= */}
 
-      <div className="border p-3 rounded mb-3">
-        <h3 className="font-semibold mb-2">Your Order</h3>
+      <div className="border p-3 rounded-xl">
+
+        <h3 className="font-semibold mb-2">
+
+          Your Order
+
+        </h3>
 
         {items.map((i) => (
-          <div key={i.id} className="flex justify-between text-sm">
-            <span>{i.name} x {i.qty}</span>
-            <span>₹{i.price * i.qty}</span>
+
+          <div
+            key={i.id}
+            className="flex justify-between text-sm mb-1"
+          >
+
+            <span>
+              {i.name} x {i.qty}
+            </span>
+
+            <span>
+              ₹{i.price * i.qty}
+            </span>
+
           </div>
+
         ))}
 
         <hr className="my-2" />
 
-        <Row label="Subtotal" value={subtotal} />
-        <Row label="GST (5%)" value={gst} />
-        <Row label="Delivery" value={delivery} />
-        <Row label="Total" value={total} bold />
+        <Row
+          label="Subtotal"
+          value={subtotal}
+        />
+
+        <Row
+          label="GST (5%)"
+          value={gst}
+        />
+
+        <Row
+          label="Delivery"
+          value={delivery}
+        />
+
+        <Row
+          label="Total"
+          value={total}
+          bold
+        />
+
       </div>
 
-      {/* PAYMENT */}
+      {/* ================= PAYMENT ================= */}
 
-      <div className="flex gap-3 mb-3">
+      <div className="flex gap-3">
+
         <button
-          onClick={() => setPaymentMode("COD")}
-          className={`flex-1 border p-2 ${
-            paymentMode === "COD" ? "bg-green-600 text-white" : ""
+          onClick={() =>
+            setPaymentMode(
+              "COD"
+            )
+          }
+          className={`flex-1 border p-2 rounded ${
+            paymentMode === "COD"
+              ? "bg-green-600 text-white"
+              : ""
           }`}
         >
           COD
         </button>
 
         <button
-          onClick={() => setPaymentMode("ONLINE")}
-          className={`flex-1 border p-2 ${
-            paymentMode === "ONLINE" ? "bg-green-600 text-white" : ""
+          onClick={() =>
+            setPaymentMode(
+              "ONLINE"
+            )
+          }
+          className={`flex-1 border p-2 rounded ${
+            paymentMode ===
+            "ONLINE"
+              ? "bg-green-600 text-white"
+              : ""
           }`}
         >
           PPD
         </button>
+
       </div>
+
+      {/* ================= BUTTON ================= */}
 
       <button
         onClick={placeOrder}
-        className="w-full bg-green-600 text-white py-2 rounded"
+        className="
+          w-full
+          bg-green-600
+          text-white
+          py-3
+          rounded-xl
+          font-semibold
+        "
       >
         Place Order
       </button>
 
     </div>
+
   );
+
 }
 
 /* ================= ROW ================= */
 
-function Row({ label, value, bold = false }: any) {
+function Row({
+  label,
+  value,
+  bold = false,
+}: any) {
+
   return (
-    <div className={`flex justify-between ${bold ? "font-bold" : "text-sm"}`}>
-      <span>{label}</span>
-      <span>₹{value}</span>
+
+    <div
+      className={`flex justify-between ${
+        bold
+          ? "font-bold"
+          : "text-sm"
+      }`}
+    >
+
+      <span>
+        {label}
+      </span>
+
+      <span>
+        ₹{value}
+      </span>
+
     </div>
+
   );
+
 }
