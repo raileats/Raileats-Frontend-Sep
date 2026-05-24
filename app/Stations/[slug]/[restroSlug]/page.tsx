@@ -76,7 +76,7 @@ export default async function Page({ params, searchParams }: any) {
     searchParams?.deliveryTime ||
     searchParams?.arrival?.slice(0, 5) ||
     searchParams?.arrivalTime?.slice(0, 5) ||
-    "";
+    "/";
 
   const trainName = searchParams?.trainName || "";
   const trainNumber = searchParams?.train || "";
@@ -104,8 +104,6 @@ export default async function Page({ params, searchParams }: any) {
       start_time: it?.start_time || null,
       end_time: it?.end_time || null,
       status: String(it?.status || "ON").toUpperCase(),
-      
-      // 🔥 EXACT SCHEMA MATCH: Database ke schema column 'item_cuisine' se map kiya
       item_cuisine: it?.item_cuisine || null,
       menu_type: it?.menu_type || null,
     }))
