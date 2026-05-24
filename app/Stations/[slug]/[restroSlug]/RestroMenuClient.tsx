@@ -45,9 +45,9 @@ export default function RestroMenuClient({
 
   const minOrder = header?.minimumOrder || 0;
 
-  const { user } = useAuth();
+const { user } = useAuth();
 
- 
+const { add, changeQty, cart } = useCart();
 
     /* ================= CART TOTAL ================= */
 
