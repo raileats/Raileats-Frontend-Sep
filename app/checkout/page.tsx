@@ -81,6 +81,14 @@ export default function CheckoutPage() {
     const cleanRestroCode = rawRestroCode ? parseInt(rawRestroCode.toString(), 10) : 0;
 
     try {
+      // Direct root level array mappings for strict backend validations
+      const formattedItems = items.map((i) => ({
+        id: i.id,
+        name: i.name,
+        qty: i.qty,
+        price: i.price,
+      }));
+
       const res = await fetch("/api/order/create", {
         method: "POST",
         headers: {
@@ -104,17 +112,13 @@ export default function CheckoutPage() {
           TotalAmount: total,
           PaymentMode: paymentMode,
           Status: "Booked",
+          Items: formattedItems, // Root entry fixing "Cart empty" bugs
           JourneyPayload: {
             pnr: pnr || null,
             promoCode: promo || null,
             trainName: trainName,
             customerEmail: email || null,
-            items: items.map((i) => ({
-              id: i.id,
-              name: i.name,
-              qty: i.qty,
-              price: i.price,
-            })),
+            items: formattedItems,
           },
         }),
       });
@@ -122,15 +126,30 @@ export default function CheckoutPage() {
       const data = await res.json();
 
       if (!res.ok || !data.ok) {
-        alert(data.message || "Order failed");
+        alert(data.message || "Order placement failed on backend database.");
         return;
       }
 
-      clearCart();
-      router.push("/order-success");
+      // Dynamic generated order id parse logic
+      const targetOrderId = data.orderId || data.OrderId;
+
+      if (!targetOrderId) {
+        alert("Order completed, but unique transaction tracker ID is missing.");
+        router.push("/order-success");
+        return;
+      }
+
+      // 🔥 CRITICAL RE-RENDER REDIRECT FIX
+      // Pehle strict URL switch karenge fir hook memory drop/flush handle karenge 
+      router.push(`/order-success?orderId=${targetOrderId}`);
+
+      setTimeout(() => {
+        clearCart();
+      }, 400);
+
     } catch (e) {
       console.error(e);
-      alert("Server error");
+      alert("Network or Server script runtime error.");
     }
   };
 
@@ -218,7 +237,7 @@ export default function CheckoutPage() {
               />
             </div>
 
-            {/* LAST ROW: COACH + SEAT + PROMO (Swapped Positions Here) */}
+            {/* LAST ROW: COACH + SEAT + PROMO */}
             <div className="flex items-center gap-2 w-full">
               <input
                 className="border border-slate-200 rounded-lg py-2.5 text-[14px] text-center focus:outline-none focus:border-amber-500 bg-slate-50/50 w-[62px] shrink-0 font-semibold"
@@ -298,6 +317,7 @@ export default function CheckoutPage() {
           <div className="flex items-center justify-between mb-3.5">
             <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-lg">
               <button
+                type="button"
                 onClick={() => setPaymentMode("COD")}
                 className={`rounded-md px-3.5 py-2 text-xs font-bold transition-all ${
                   paymentMode === "COD"
@@ -309,6 +329,7 @@ export default function CheckoutPage() {
               </button>
 
               <button
+                type="button"
                 onClick={() => setPaymentMode("ONLINE")}
                 className={`rounded-md px-3.5 py-2 text-xs font-bold transition-all ${
                   paymentMode === "ONLINE"
@@ -320,7 +341,7 @@ export default function CheckoutPage() {
               </button>
             </div>
 
-            {/* CORNER QUICK BILL DISPLAY (Fixed right alignment overflow) */}
+            {/* CORNER QUICK BILL DISPLAY */}
             <div className="text-right min-w-[75px] shrink-0 pl-1">
               <div className="text-[19px] font-extrabold text-slate-900 leading-none whitespace-nowrap">
                 ₹{total}
@@ -331,8 +352,9 @@ export default function CheckoutPage() {
             </div>
           </div>
 
-          {/* PRIMARY ACTION BUTTON (Sleeker & Streamlined aspect ratio) */}
+          {/* PRIMARY ACTION BUTTON */}
           <button
+            type="button"
             onClick={placeOrder}
             className="w-full bg-green-600 text-white font-extrabold py-3 rounded-lg text-[15px] transition-all active:scale-[0.98] shadow-md shadow-green-600/10 hover:bg-green-700 tracking-wide uppercase"
           >
