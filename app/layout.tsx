@@ -1,4 +1,5 @@
 import "./globals.css";
+import { Inter } from "next/font/google";
 
 import Navbar from "./components/Navbar";
 import BottomNav from "./components/BottomNav";
@@ -13,9 +14,15 @@ import AuthLoader from "./components/AuthLoader";
 import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
 
+// Premium & modern typography package
+const inter = Inter({ 
+  subsets: ["latin"],
+  variable: "--font-inter",
+});
+
 export const metadata = {
-  title: "RailEats",
-  description: "Fresh Food on Trains | RailEats",
+  title: "RailEats | Fresh Food Delivery on Trains",
+  description: "Order premium, hygienic, and fresh food directly to your train seat. Partnered with top IRCTC restaurants.",
 };
 
 export default function RootLayout({
@@ -23,99 +30,72 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-
   return (
-
     <html
       lang="en"
-      className="h-full"
+      className={`${inter.variable} h-full scroll-smooth`}
     >
-
       <body
         className="
-          h-full
-          bg-white
+          min-h-screen
+          bg-slate-50/60
+          text-slate-900
+          font-sans
+          antialiased
+          selection:bg-amber-500
+          selection:text-white
           touch-pan-y
         "
       >
-
         <Providers>
-
           {/* 🔥 LOAD USER */}
           <AuthLoader />
-
-          {/* NAVBAR */}
-          <Navbar />
 
           {/* BACK RELOAD FIX */}
           <ForceReloadOnBack />
 
-          {/* SPINNER */}
-          <div id="global-raileats-spinner" aria-hidden>
-
+          {/* GLOBAL SPINNER (PREMIUM DESIGN READY) */}
+          <div id="global-raileats-spinner" aria-hidden className="pointer-events-none transition-all duration-300">
             <div className="outer-ring" aria-hidden>
-
               <div className="inner-logo" aria-hidden>
                 <img
                   src="/raileats-logo.png"
                   alt="RailEats"
+                  className="w-full h-full object-contain"
                 />
               </div>
-
             </div>
-
           </div>
 
-          {/* APP SCROLL AREA */}
+          {/* WORLD CLASS FLEX LAYOUT */}
+          <div className="flex flex-col min-h-screen isolation-isolate">
+            
+            {/* FIXED FIXED/STICKY NAVBAR */}
+            <Navbar />
 
-          <div
-            className="
-              h-screen
-              overflow-y-auto
-              scrollbar-hide
-            "
-            style={{
-              WebkitOverflowScrolling: "touch",
-            }}
-          >
-
-            {/* MAIN */}
-
-            <main className="main-content h-full">
-
+            {/* MAIN APP CONTENT */}
+            <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <div
-                className="site-container"
+                className="site-container w-full h-full pt-4"
                 style={{
-                  paddingBottom:
-                    "calc(env(safe-area-inset-bottom, 0px) + 90px)",
+                  paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 100px)",
                 }}
               >
-
                 {children}
-
               </div>
-
             </main>
 
           </div>
 
-          {/* CART */}
+          {/* INTERACTIVE OVERLAYS & MODALS */}
           <CartPopup />
-
-          {/* LOGIN */}
           <LoginModal />
-
-          {/* FEEDBACK */}
           <FeedbackModal />
 
-          {/* BOTTOM NAV */}
+          {/* PREMIUM BOTTOM NAVIGATION BAR */}
           <BottomNav />
-
         </Providers>
-
       </body>
-
     </html>
-
   );
 }
