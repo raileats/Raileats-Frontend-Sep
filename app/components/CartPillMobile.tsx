@@ -1,8 +1,12 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useCart } from "../lib/useCart";
-import { openCart } from "../lib/cartEvents";
+import {
+  openCart,
+  onOpenCart,
+  onCloseCart,
+} from "../lib/cartEvents";
 
 export default function CartPillMobile({ minOrder = 0 }: any) {
 
@@ -11,8 +15,31 @@ export default function CartPillMobile({ minOrder = 0 }: any) {
   // 🚫 Minimum order check
   const isBlocked = total < minOrder;
 
-  // 🚫 Hide if cart empty
+  // 🔥 Track cart popup state
+  const [cartOpen, setCartOpen] = useState(false);
+
+  useEffect(() => {
+
+    const removeOpen = onOpenCart(() => {
+      setCartOpen(true);
+    });
+
+    const removeClose = onCloseCart(() => {
+      setCartOpen(false);
+    });
+
+    return () => {
+      removeOpen();
+      removeClose();
+    };
+
+  }, []);
+
+  // 🚫 Hide if empty
   if (!count || count === 0) return null;
+
+  // 🚫 Hide when popup open
+  if (cartOpen) return null;
 
   return (
     <div
@@ -42,11 +69,10 @@ export default function CartPillMobile({ minOrder = 0 }: any) {
           justify-between
           border
           border-green-500
-          backdrop-blur
         "
       >
 
-        {/* LEFT SIDE */}
+        {/* LEFT */}
         <div className="flex flex-col leading-tight">
 
           <span className="font-bold text-sm">
@@ -59,10 +85,10 @@ export default function CartPillMobile({ minOrder = 0 }: any) {
 
         </div>
 
-        {/* RIGHT SIDE */}
+        {/* RIGHT */}
         <div className="flex items-center gap-2">
 
-          {/* VIEW CART BUTTON */}
+          {/* VIEW CART */}
           <button
             onClick={() => {
 
@@ -94,7 +120,7 @@ export default function CartPillMobile({ minOrder = 0 }: any) {
             View Cart
           </button>
 
-          {/* CLEAR BUTTON */}
+          {/* CLEAR */}
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -120,7 +146,7 @@ export default function CartPillMobile({ minOrder = 0 }: any) {
 
       </div>
 
-      {/* MIN ORDER WARNING */}
+      {/* MIN ORDER */}
       {isBlocked && (
         <div className="mt-2 text-center text-xs font-medium text-red-500">
           Minimum order ₹{minOrder} complete karo
