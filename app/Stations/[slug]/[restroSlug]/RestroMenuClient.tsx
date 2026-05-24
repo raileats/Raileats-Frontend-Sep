@@ -27,7 +27,6 @@ const isVegItem = (it: any) => {
 };
 
 const isItemActive = (it: any) => {
-
   const raw =
     it.status ??
     it.item_status ??
@@ -45,25 +44,23 @@ export default function RestroMenuClient({
 
   const minOrder = header?.minimumOrder || 0;
 
-const { user } = useAuth();
+  const { user } = useAuth();
 
-const {
-  add,
-  changeQty,
-  cart,
-  setJourney,
-} = useCart();
+  const {
+    add,
+    changeQty,
+    cart,
+    setJourney,
+  } = useCart();
 
-    /* ================= CART TOTAL ================= */
+  /* ================= CART TOTAL ================= */
 
   const cartTotal = useMemo(() => {
-
     return Object.values(cart).reduce(
       (sum: number, item: any) =>
         sum + item.price * item.qty,
       0
     );
-
   }, [cart]);
 
   /* ================= STATES ================= */
@@ -76,7 +73,6 @@ const {
   /* ================= ARRIVAL TIME ================= */
 
   useEffect(() => {
-
     const params = new URLSearchParams(
       window.location.search
     );
@@ -91,13 +87,11 @@ const {
         toMin(arrival.slice(0, 5))
       );
     }
-
   }, []);
 
   /* ================= FILTER ITEMS ================= */
 
   const visible = useMemo(() => {
-
     return items.filter((it: any) => {
 
       /* STATUS CHECK */
@@ -110,33 +104,29 @@ const {
       if (
         trainMin !== null &&
         s !== null &&
-        e !== null
+        s !== undefined &&
+        e !== null &&
+        e !== undefined
       ) {
 
         /* NORMAL RANGE */
         if (e >= s) {
-
           if (
             trainMin < s ||
             trainMin > e
           ) {
             return false;
           }
-
         }
-
         /* OVERNIGHT RANGE */
         else {
-
           if (
             trainMin < s &&
             trainMin > e
           ) {
             return false;
           }
-
         }
-
       }
 
       /* VEG FILTER */
@@ -148,9 +138,7 @@ const {
       }
 
       return true;
-
     });
-
   }, [
     items,
     vegOnly,
@@ -160,79 +148,77 @@ const {
   /* ================= ADD TO CART ================= */
 
   const handleAdd = (it: any) => {
+    if (!user) {
+      window.dispatchEvent(
+        new CustomEvent(
+          "raileats:open-login",
+          {
+            detail: { item: it },
+          }
+        )
+      );
+      return;
+    }
 
-  if (!user) {
+    /* SAVE JOURNEY */
 
-    window.dispatchEvent(
-      new CustomEvent(
-        "raileats:open-login",
-        {
-          detail: { item: it },
-        }
-      )
-    );
+    setJourney({
+      trainNumber:
+        nextParams?.trainNumber || "",
 
-    return;
-  }
+      trainName:
+        nextParams?.trainName || "",
 
-  /* SAVE JOURNEY */
+      stationName:
+        nextParams?.stationName || "",
 
-  setJourney({
+      stationCode:
+        nextParams?.stationCode || "",
 
-    trainNumber:
-      nextParams?.trainNumber || "",
+      deliveryDate:
+        nextParams?.deliveryDate || "",
 
-    trainName:
-      nextParams?.trainName || "",
+      deliveryTime:
+        nextParams?.deliveryTime || "",
 
-    stationName:
-      nextParams?.stationName || "",
+      vendorName:
+        nextParams?.vendorName || "",
 
-    stationCode:
-      nextParams?.stationCode || "",
+      restroCode:
+        header?.restroCode ||
+        nextParams?.restroCode ||
+        "",
+    });
 
-    deliveryDate:
-      nextParams?.deliveryDate || "",
+    /* ADD ITEM */
 
-    deliveryTime:
-      nextParams?.deliveryTime || "",
+    add({
+      id: it.id,
+      name: it.item_name,
+      price: it.base_price,
+      qty: 1,
 
-    vendorName:
-      nextParams?.vendorName || "",
+      restro_code:
+        header?.restroCode ||
+        nextParams?.restroCode ||
+        "",
 
-    restroCode:
-      header?.restroCode ||
-      nextParams?.restroCode ||
-      "",
+      restro_name:
+        nextParams?.vendorName || "",
 
-  });
+      station_code:
+        nextParams?.stationCode || "",
 
-  /* ADD ITEM */
+      station_name:
+        nextParams?.stationName || "",
 
-  add({
-
-    id: it.id,
-    name: it.item_name,
-    price: it.base_price,
-    qty: 1,
-
-    restro_code:
-      header?.restroCode ||
-      nextParams?.restroCode ||
-      "",
-
-    restro_name:
-      nextParams?.vendorName || "",
-
-    station_code:
-      nextParams?.stationCode || "",
-
-    station_name:
-      nextParams?.stationName || "",
-
-  });
-
-};
+      // 🔥 FIX: Mapping structural metadata from item object to the cart state securely
+      description: it.item_description || it.description || null,
+      category: it.item_category || it.category || null,
+      cuisine: it.cuisine || it.Cuisine || null,
+      menu_type: it.menu_type || it.menuType || it.MenuType || null,
+    });
+  };
 
   /* ================= UI ================= */
 
@@ -246,42 +232,32 @@ const {
         <div className="flex justify-between items-start">
 
           <div>
-
             <div className="text-xs text-gray-500">
               Journey
             </div>
 
             <div className="text-sm font-semibold text-orange-600">
-
               {nextParams?.trainName
                 ? `${nextParams.trainName} #${nextParams.trainNumber}`
                 : `Train #${nextParams?.trainNumber}`}
-
             </div>
 
             <div className="text-xs text-gray-500">
-
               {nextParams?.stationName}
               {" "}
-              ({header.stationCode})
-
+              ({header?.stationCode || nextParams?.stationCode})
             </div>
 
             <div className="text-xs text-blue-600 font-semibold">
-
               {nextParams?.deliveryDate}
-
               {nextParams?.deliveryTime &&
                 ` at ${nextParams.deliveryTime}`}
-
             </div>
-
           </div>
 
           {/* VEG TOGGLE */}
 
           <label className="text-sm flex gap-1 items-center">
-
             <input
               type="checkbox"
               checked={vegOnly}
@@ -291,29 +267,23 @@ const {
                 )
               }
             />
-
             Veg only
-
           </label>
 
         </div>
 
         {/* RESTAURANT */}
 
-<div className="text-lg font-bold text-gray-800">
-
-  {header.outletName}
-
-</div>
+        <div className="text-lg font-bold text-gray-800">
+          {header?.outletName}
+        </div>
 
         {/* MIN ORDER */}
 
         <div className="text-sm text-gray-600">
-
           Min Order:
           {" "}
-          ₹{header.minimumOrder}
-
+          ₹{header?.minimumOrder}
         </div>
 
       </div>
@@ -321,38 +291,27 @@ const {
       {/* ================= EMPTY ================= */}
 
       {visible.length === 0 && (
-
         <div className="card text-center text-sub">
-
           No items available
-
         </div>
-
       )}
 
       {/* ================= ITEMS ================= */}
 
       <div className="space-y-3">
-
         {visible.map((it: any) => {
-
           const existing = cart[it.id];
-
           const isVeg = isVegItem(it);
 
           return (
-
             <div
               key={it.id}
               className="card flex justify-between items-start"
             >
-
               {/* LEFT */}
 
               <div>
-
                 <div className="flex gap-2 items-center">
-
                   <span
                     className={`w-3 h-3 rounded-full ${
                       isVeg
@@ -362,54 +321,39 @@ const {
                   />
 
                   <span className="text-main text-sm font-medium">
-
                     {it.item_name}
-
                   </span>
-
                 </div>
 
                 {/* TIME */}
 
                 <div className="text-sub text-xs">
-
                   ⏱{" "}
-
                   {it.start_time &&
                   it.end_time
                     ? `${it.start_time} - ${it.end_time}`
                     : "All day"}
-
                 </div>
 
                 {/* DESCRIPTION */}
 
                 {it.item_description && (
-
                   <div className="text-sub text-xs">
-
                     {it.item_description}
-
                   </div>
-
                 )}
 
                 {/* PRICE */}
 
                 <div className="text-main font-semibold">
-
                   ₹{it.base_price}
-
                 </div>
-
               </div>
 
               {/* RIGHT */}
 
               <div>
-
                 {!existing ? (
-
                   <button
                     className="btn-primary text-sm"
                     onClick={() =>
@@ -418,11 +362,8 @@ const {
                   >
                     Add
                   </button>
-
                 ) : (
-
                   <div className="flex gap-2 border px-2 py-1 rounded text-sm">
-
                     <button
                       onClick={() =>
                         changeQty(
@@ -448,25 +389,19 @@ const {
                     >
                       +
                     </button>
-
                   </div>
-
                 )}
-
               </div>
 
             </div>
-
           );
-
         })}
-
       </div>
 
       {/* ================= FLOATING CART ================= */}
 
       <CartPillMobile
-        minOrder={header.minimumOrder}
+        minOrder={header?.minimumOrder}
       />
 
     </div>
