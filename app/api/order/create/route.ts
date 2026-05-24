@@ -26,7 +26,7 @@ export async function POST(req: Request) {
       TotalAmount,
       PaymentMode,
       Status,
-      Items, // Frontend se array list aayegi
+      Items, // Frontend mapped array list
     } = body;
 
     // 1. Validations
@@ -54,7 +54,7 @@ export async function POST(req: Request) {
         StationName: StationName || "N/A",
         DeliveryDate: DeliveryDate,
         DeliveryTime: DeliveryTime,
-        TrainNumber: trainNumber || TrainNumber || "N/A", // handles both cases
+        TrainNumber: TrainNumber || "N/A", // Fixed compilation mismatch typo here
         Coach: Coach || null,
         Seat: Seat || null,
         CustomerName: CustomerName || "Guest",
@@ -65,7 +65,7 @@ export async function POST(req: Request) {
         TotalAmount: Number(TotalAmount || 0),
         PaymentMode: PaymentMode || "COD",
         Status: Status || "Booked",
-        JourneyPayload: body, // Complete backup stack
+        JourneyPayload: body, // Backup raw snapshot reference
       })
       .select()
       .single();
@@ -85,21 +85,24 @@ export async function POST(req: Request) {
     const orderItemsPayload = Items.map((item: any) => {
       const singleItemPrice = Number(item.price || item.selling_price || 0);
       const itemQty = Number(item.qty || item.quantity || 1);
+      
+      // Parse safe fallback value for item tracker bigint column type constraint
+      const parsedItemCode = item.id ? parseInt(item.id.toString(), 10) : 0;
 
       return {
         OrderId: targetOrderId,
         RestroCode: Number(RestroCode || 0),
-        ItemCode: item.id ? BigInt(item.id) : 0, // Safe numerical cast for item tracking
+        ItemCode: isNaN(parsedItemCode) ? 0 : parsedItemCode, 
         ItemName: item.name || "Unknown Item",
         ItemDescription: item.description || null,
         ItemCategory: item.category || null,
         Cuisine: item.cuisine || null,
         MenuType: item.menu_type || null,
         BasePrice: singleItemPrice, 
-        GSTPercent: Number(item.gst_percent || 5.00), // Default 5% food GST matrix standard
+        GSTPercent: Number(item.gst_percent || 5.00), 
         SellingPrice: singleItemPrice,
         Quantity: itemQty,
-        LineTotal: singleItemPrice * itemQty, // Auto calculations safeguard
+        LineTotal: singleItemPrice * itemQty, 
       };
     });
 
@@ -111,11 +114,11 @@ export async function POST(req: Request) {
     if (itemsError) {
       console.error("SUPABASE ORDER ITEMS BULK INSERT ERROR =>", JSON.stringify(itemsError, null, 2));
       
-      // Rollback logic: Agar items fail ho gaye, to main order record drop karo inconsistency se bachne ke liye
+      -- Rollback structure safeguard: Items fail ho jayein to partial main order delete kar do database consistency ke liye
       await serviceClient.from("Orders").delete().eq("OrderId", targetOrderId);
 
       return NextResponse.json(
-        { ok: false, error: itemsError.code, message: "Transaction failed at items level." },
+        { ok: false, error: itemsError.code, message: "Transaction failed at items insertion block." },
         { status: 500 }
       );
     }
