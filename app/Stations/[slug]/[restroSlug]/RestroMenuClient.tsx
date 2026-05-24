@@ -156,43 +156,78 @@ const { add, changeQty, cart } = useCart();
 
   const handleAdd = (it: any) => {
 
-    if (!user) {
+  if (!user) {
 
-      window.dispatchEvent(
-        new CustomEvent(
-          "raileats:open-login",
-          {
-            detail: { item: it },
-          }
-        )
-      );
+    window.dispatchEvent(
+      new CustomEvent(
+        "raileats:open-login",
+        {
+          detail: { item: it },
+        }
+      )
+    );
 
-      return;
-    }
+    return;
+  }
 
-    add({
-      id: it.id,
-      name: it.item_name,
-      price: it.base_price,
-      qty: 1,
+  /* SAVE JOURNEY */
 
-      /* IMPORTANT */
-      restro_code:
-  header?.restroCode ||
-  nextParams?.restroCode ||
-  "",
+  setJourney({
 
-      restro_name:
-        nextParams?.vendorName || "",
+    trainNumber:
+      nextParams?.trainNumber || "",
 
-      station_code:
-        nextParams?.stationCode || "",
+    trainName:
+      nextParams?.trainName || "",
 
-      station_name:
-        nextParams?.stationName || "",
-    });
+    stationName:
+      nextParams?.stationName || "",
 
-  };
+    stationCode:
+      nextParams?.stationCode || "",
+
+    deliveryDate:
+      nextParams?.deliveryDate || "",
+
+    deliveryTime:
+      nextParams?.deliveryTime || "",
+
+    vendorName:
+      nextParams?.vendorName || "",
+
+    restroCode:
+      header?.restroCode ||
+      nextParams?.restroCode ||
+      "",
+
+  });
+
+  /* ADD ITEM */
+
+  add({
+
+    id: it.id,
+    name: it.item_name,
+    price: it.base_price,
+    qty: 1,
+
+    restro_code:
+      header?.restroCode ||
+      nextParams?.restroCode ||
+      "",
+
+    restro_name:
+      nextParams?.vendorName || "",
+
+    station_code:
+      nextParams?.stationCode || "",
+
+    station_name:
+      nextParams?.stationName || "",
+
+  });
+
+};
 
   /* ================= UI ================= */
 
