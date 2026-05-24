@@ -14,7 +14,6 @@ import AuthLoader from "./components/AuthLoader";
 import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
 
-// Premium & modern typography package
 const inter = Inter({ 
   subsets: ["latin"],
   variable: "--font-inter",
@@ -22,7 +21,7 @@ const inter = Inter({
 
 export const metadata = {
   title: "RailEats | Fresh Food Delivery on Trains",
-  description: "Order premium, hygienic, and fresh food directly to your train seat. Partnered with top IRCTC restaurants.",
+  description: "Order premium, hygienic, and fresh food directly to your train seat.",
 };
 
 export default function RootLayout({
@@ -54,7 +53,7 @@ export default function RootLayout({
           {/* BACK RELOAD FIX */}
           <ForceReloadOnBack />
 
-          {/* GLOBAL SPINNER (PREMIUM DESIGN READY) */}
+          {/* GLOBAL SPINNER */}
           <div id="global-raileats-spinner" aria-hidden className="pointer-events-none transition-all duration-300">
             <div className="outer-ring" aria-hidden>
               <div className="inner-logo" aria-hidden>
@@ -70,13 +69,16 @@ export default function RootLayout({
           {/* WORLD CLASS FLEX LAYOUT */}
           <div className="flex flex-col min-h-screen isolation-isolate">
             
-            {/* FIXED FIXED/STICKY NAVBAR */}
+            {/* FIXED/STICKY NAVBAR CONTAINER */}
             <Navbar />
 
-            {/* MAIN APP CONTENT */}
-            <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            {/* MAIN APP CONTENT 
+              👉 Added `pt-20` (Padding Top) taaki top navbar ki wajah se content kabhi hide na ho.
+              Agar aapka navbar aur bada hai to aap ise `pt-24` bhi kar sakte hain.
+            */}
+            <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20">
               <div
-                className="site-container w-full h-full pt-4"
+                className="site-container w-full h-full"
                 style={{
                   paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 100px)",
                 }}
@@ -92,7 +94,7 @@ export default function RootLayout({
           <LoginModal />
           <FeedbackModal />
 
-          {/* PREMIUM BOTTOM NAVIGATION BAR */}
+          {/* BOTTOM NAVIGATION BAR */}
           <BottomNav />
         </Providers>
       </body>
