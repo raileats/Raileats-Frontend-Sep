@@ -260,20 +260,11 @@ const { add, changeQty, cart } = useCart();
 
         {/* RESTAURANT */}
 
-        <div className="text-lg font-bold text-gray-800">
+<div className="text-lg font-bold text-gray-800">
 
-          {header.outletName}
+  {header.outletName}
 
-        </div>
-
-        {/* RESTRO CODE */}
-
-        <div className="text-xs text-gray-500">
-
-          Restro Code:
-{header?.restroCode}
-
-        </div>
+</div>
 
         {/* MIN ORDER */}
 
