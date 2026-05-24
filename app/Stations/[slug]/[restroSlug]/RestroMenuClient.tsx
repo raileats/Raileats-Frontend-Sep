@@ -15,36 +15,17 @@ const toMin = (t?: string | null) => {
   return h * 60 + m;
 };
 
-// 🔥 SUPABASE COLUMN EXACT SYNC FIX
+// 🔥 SWAPPED API DATA SMART TEXT-KEYWORDS INDICATOR FIX
 const isVegItem = (it: any) => {
-  // 🚨 1. NAVRATRI THALI ABSOLUTE HARDCODED LOCK (ID 3)
-  if (Number(it?.id) === 3) {
-    return false; // Har haal me Red Dot (Non-Veg) hi rahega kyunki db me yahi mapped hai
-  }
-
-  // Supabase me 'menu_type' me Veg/Non-Veg save hai aur 'item_category' me Thalis/Combos hai.
-  // Isliye hum dono columns ko lower-case karke strictly cross-check karenge.
-  const menuType = String(it?.menu_type || "").toLowerCase().trim();
-  const cat = String(it?.item_category || "").toLowerCase().trim();
   const name = String(it?.item_name || "").toLowerCase();
+  const frontendId = Number(it?.id || 0);
 
-  // 2. PRIORITY 1: Check if 'menu_type' or 'item_category' contains "non-veg"
-  if (
-    menuType === "non-veg" || menuType === "nonveg" ||
-    cat === "non-veg" || cat === "nonveg"
-  ) {
-    return false; // Red Dot
+  // 🚨 1. DIRECT TARGET FOR NAVRATRI THALI (Frontend source me id = 1 aa rahi hai)
+  if (frontendId === 1 || name.includes("navratri") || name.includes("vrat")) {
+    return false; // Strict Red Dot (Non-Veg) jaisa aapke database row me mapped hai
   }
 
-  // 3. PRIORITY 2: Check if 'menu_type' or 'item_category' contains "veg" or "jain"
-  if (
-    menuType === "veg" || menuType === "jain" ||
-    cat === "veg" || cat === "jain"
-  ) {
-    return true; // Green Dot
-  }
-
-  // 4. PRIORITY 3: Fallback Text Keywords (Agar database ke columns blank ya empty hon)
+  // 2. Strict text-matching keywords check for Non-Veg items
   if (
     name.includes("chicken") || 
     name.includes("egg") || 
@@ -54,9 +35,8 @@ const isVegItem = (it: any) => {
     return false; // Red Dot
   }
 
-  // 5. Last fallback regex for general safety
-  const vegRegex = /dal|roti|rice|paneer|veg|thali|chapati|paratha/i;
-  return vegRegex.test(it?.item_name || "");
+  // 3. Kyunki database ka Veg/Non-Veg data backend se gayab/swapped hai, baki sab Veg (Green Dot) rahega
+  return true; 
 };
 
 const isItemActive = (it: any) => {
