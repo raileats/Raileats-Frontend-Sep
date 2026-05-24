@@ -61,15 +61,20 @@ export default function RestroMenuClient({
     if (!nextParams) return;
 
     setJourney({
-      trainNumber: nextParams?.trainNumber || "",
-      trainName: nextParams?.trainName || "",
-      stationName: nextParams?.stationName || "",
-      stationCode: nextParams?.stationCode || "",
-      deliveryDate: nextParams?.deliveryDate || "",
-      deliveryTime: nextParams?.deliveryTime || "",
-      vendorName: nextParams?.vendorName || "",
-      restroCode: nextParams?.restroCode || "",
-    });
+  trainNumber: nextParams?.trainNumber || "",
+  trainName: nextParams?.trainName || "",
+  stationName: nextParams?.stationName || "",
+  stationCode: nextParams?.stationCode || "",
+  deliveryDate: nextParams?.deliveryDate || "",
+  deliveryTime: nextParams?.deliveryTime || "",
+  vendorName: nextParams?.vendorName || "",
+
+  /* FIXED */
+  restroCode:
+    header?.restroCode ||
+    nextParams?.restroCode ||
+    "",
+});
 
   }, [nextParams, setJourney]);
 
@@ -202,7 +207,9 @@ export default function RestroMenuClient({
 
       /* IMPORTANT */
       restro_code:
-        nextParams?.restroCode || "",
+  header?.restroCode ||
+  nextParams?.restroCode ||
+  "",
 
       restro_name:
         nextParams?.vendorName || "",
@@ -293,8 +300,7 @@ export default function RestroMenuClient({
         <div className="text-xs text-gray-500">
 
           Restro Code:
-          {" "}
-          {nextParams?.restroCode || header?.restroCode}
+{header?.restroCode}
 
         </div>
 
