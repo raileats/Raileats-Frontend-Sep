@@ -15,21 +15,19 @@ const toMin = (t?: string | null) => {
   return h * 60 + m;
 };
 
-// 🔥 FIX: Check logic ko secure kiya taaki Non-Veg strictly catch ho sake
+// 🔥 EXACT SCHEMA FIX: database value "Non-Veg", "Veg", "Jain" ke hisab se exact match
 const isVegItem = (it: any) => {
   const cat = String(it.item_category || "").toLowerCase().trim();
   
-  // Agar strictly non-veg likha hai, toh seedhe false return karo (Red dot)
   if (cat === "non-veg" || cat === "nonveg") {
-    return false;
+    return false; // Red dot
   }
   
-  // Agar category veg ya jain hai, toh true (Green dot)
   if (cat === "veg" || cat === "jain") {
-    return true;
+    return true; // Green dot
   }
 
-  // Fallback regex sirf tab chalega jab category blank ho
+  // Fallback regex jab category empty ho
   const vegRegex = /dal|roti|rice|paneer|veg|thali|chapati|paratha/i;
   return vegRegex.test(it.item_name || "");
 };
@@ -200,6 +198,7 @@ export default function RestroMenuClient({
 
     /* ADD ITEM */
 
+    // 🔥 EXACT SCHEMA MAPPING: 'as any' bypass ke sath exact database parameters bhej diye hain
     add({
       id: it.id,
       name: it.item_name,
@@ -220,10 +219,11 @@ export default function RestroMenuClient({
       station_name:
         nextParams?.stationName || "",
 
-      description: it.item_description || it.description || null,
-      category: it.item_category || it.category || null,
-      cuisine: it.cuisine || it.Cuisine || null,
-      menu_type: it.menu_type || it.menuType || it.MenuType || null,
+      // Mapping exactly to what Checkout expects
+      description: it.item_description || null,
+      category: it.item_category || null,
+      cuisine: it.item_cuisine || null,
+      menu_type: it.menu_type || null,
     } as any);
   };
 
@@ -319,7 +319,6 @@ export default function RestroMenuClient({
 
               <div>
                 <div className="flex gap-2 items-center">
-                  {/* 🔥 FIX: Veg/Jain par green dot aur Non-Veg par perfect red dot display */}
                   <span
                     className={`w-3 h-3 rounded-full shrink-0 ${
                       isVeg
