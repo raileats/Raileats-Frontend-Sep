@@ -26,10 +26,10 @@ export async function POST(req: Request) {
       TotalAmount,
       PaymentMode,
       Status,
-      Items, // Frontend mapped array list
+      Items, 
     } = body;
 
-    // 1. Validations
+    // 1. Strict Validations
     if (!CustomerMobile) {
       return NextResponse.json(
         { ok: false, error: "mobile_required", message: "Mobile number is required" },
@@ -44,11 +44,20 @@ export async function POST(req: Request) {
       );
     }
 
+    // Safety fallback for RestroCode to prevent strict constraint crashes
+    const validRestroCode = RestroCode ? Number(RestroCode) : null;
+    if (!validRestroCode) {
+      return NextResponse.json(
+        { ok: false, error: "invalid_restro_code", message: "Valid Restaurant Code is required" },
+        { status: 400 }
+      );
+    }
+
     // 2. Insert Main Order into "Orders" Table
     const { data: orderData, error: orderError } = await serviceClient
       .from("Orders")
       .insert({
-        RestroCode: Number(RestroCode || 0),
+        RestroCode: validRestroCode,
         RestroName: RestroName || "Unknown Restaurant",
         StationCode: StationCode || "N/A",
         StationName: StationName || "N/A",
@@ -65,13 +74,13 @@ export async function POST(req: Request) {
         TotalAmount: Number(TotalAmount || 0),
         PaymentMode: PaymentMode || "COD",
         Status: Status || "Booked",
-        JourneyPayload: body, // Backup raw snapshot reference
+        JourneyPayload: body, 
       })
       .select()
       .single();
 
     if (orderError) {
-      console.error("SUPABASE MAIN ORDER INSERT ERROR =>", JSON.stringify(orderError, null, 2));
+      console.error("SUPABASE MAIN ORDER INSERT ERROR =>", orderError.message);
       return NextResponse.json(
         { ok: false, error: orderError.code, message: orderError.message },
         { status: 500 }
@@ -86,12 +95,12 @@ export async function POST(req: Request) {
       const singleItemPrice = Number(item.price || item.selling_price || 0);
       const itemQty = Number(item.qty || item.quantity || 1);
       
-      // Parse safe fallback value for item tracker bigint column type constraint
+      // Fast safe standard base-10 numerical parsing for ItemCode
       const parsedItemCode = item.id ? parseInt(item.id.toString(), 10) : 0;
 
       return {
         OrderId: targetOrderId,
-        RestroCode: Number(RestroCode || 0),
+        RestroCode: validRestroCode,
         ItemCode: isNaN(parsedItemCode) ? 0 : parsedItemCode, 
         ItemName: item.name || "Unknown Item",
         ItemDescription: item.description || null,
@@ -112,9 +121,9 @@ export async function POST(req: Request) {
       .insert(orderItemsPayload);
 
     if (itemsError) {
-      console.error("SUPABASE ORDER ITEMS BULK INSERT ERROR =>", JSON.stringify(itemsError, null, 2));
+      console.error("SUPABASE ORDER ITEMS BULK INSERT ERROR =>", itemsError.message);
       
-      // Fixed the comment syntax error here (changed '--' to '//')
+      // Safe Rollback Transaction logic
       await serviceClient.from("Orders").delete().eq("OrderId", targetOrderId);
 
       return NextResponse.json(
@@ -123,7 +132,7 @@ export async function POST(req: Request) {
       );
     }
 
-    // 6. Perfect Response Return
+    // 6. Perfect Clean Response Return
     return NextResponse.json({
       ok: true,
       orderId: targetOrderId,
@@ -131,7 +140,7 @@ export async function POST(req: Request) {
     });
 
   } catch (e: any) {
-    console.error("CRITICAL EXCEPTION IN API ROUTE =>", e);
+    console.error("CRITICAL EXCEPTION IN API ROUTE =>", e.message);
     return NextResponse.json(
       { ok: false, error: "server_crash", message: e.message },
       { status: 500 }
