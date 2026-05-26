@@ -266,10 +266,11 @@ export default function RestroMenuClient({
       vendorName:
         nextParams?.vendorName || "",
 
-      restroCode:
-        header?.restroCode ||
-        nextParams?.restroCode ||
-        "",
+      restroCode: Number(
+  header?.restroCode ||
+  nextParams?.restroCode ||
+  0
+),
 
     });
 
@@ -293,10 +294,11 @@ export default function RestroMenuClient({
 
       qty: 1,
 
-      restro_code:
-        header?.restroCode ||
-        nextParams?.restroCode ||
-        "",
+      restro_code: String(
+  header?.restroCode ||
+  nextParams?.restroCode ||
+  ""
+),
 
       restro_name:
         nextParams?.vendorName || "",
