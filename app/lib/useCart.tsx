@@ -34,7 +34,7 @@ export type JourneyDetails = {
   vendorName?: string;
 
   /* 🔥 IMPORTANT */
-  restroCode?: string;
+  restroCode?: number;
 };
 
 export type CartContextValue = {
