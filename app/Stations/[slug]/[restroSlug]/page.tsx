@@ -1,4 +1,5 @@
 import React from "react";
+import type { Metadata } from "next";
 import { extractStationCode } from "../../../lib/stationSlug";
 import { extractRestroCode } from "../../../lib/restroSlug";
 import RestroMenuClient from "./RestroMenuClient";
@@ -6,428 +7,332 @@ import RestroMenuClient from "./RestroMenuClient";
 export const revalidate = 60;
 export const runtime = "nodejs";
 
-/* ================= HELPERS ================= */
+const SITE_URL = "https://www.raileats.in";
 
-function humanizeFromSlug(
-  restroSlug: string
-) {
-
-  return decodeURIComponent(
-    restroSlug
-  )
-    .replace(/^\d+-/, "")
-    .replace(/-\d+$/, "")
-    .replace(/-/g, " ")
-    .trim()
-    .split(" ")
-    .map(
-      (w) =>
-        w[0]?.toUpperCase() +
-        w.slice(1)
-    )
-    .join(" ");
-
+function humanizeFromSlug(slug: string) {
+  return decodeURIComponent(slug || "")
+    .split("-")
+    .filter(Boolean)
+    .slice(1)
+    .join(" ")
+    .trim();
 }
 
-/* ================= FETCH ================= */
+function cleanTitle(value: string) {
+  return String(value || "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
 
-async function fetchOnMenu(
-  restroCode:
-    | string
-    | number,
-  arrivalTime: string
-) {
+function normalizeTime(value: any) {
+  const raw = String(value || "").trim();
+  if (!raw) return "12:00:00";
+  if (/^\d{2}:\d{2}$/.test(raw)) return `${raw}:00`;
+  return raw;
+}
 
-  try {
+function buildCanonical(params: any, searchParams: any) {
+  const query = new URLSearchParams();
 
-    const res = await fetch(
-
-      `https://raileats.in/api/restro-menu?restro=${restroCode}&arrivalTime=${arrivalTime}`,
-
-      {
-        cache: "no-store",
+  ["deliveryDate", "deliveryTime", "arrival", "train", "trainName", "boarding", "minOrder"].forEach(
+    (key) => {
+      const value = searchParams?.[key];
+      if (value !== undefined && value !== null && String(value).trim() !== "") {
+        query.set(key, String(value));
       }
+    }
+  );
 
-    );
+  const qs = query.toString();
+  return `${SITE_URL}/Stations/${params.slug}/${params.restroSlug}${qs ? `?${qs}` : ""}`;
+}
 
-    const json =
-      await res.json();
+async function fetchOnMenu(restroCode: string, arrivalTime: string) {
+  try {
+    const url = `https://raileats.in/api/restro-menu?restro=${encodeURIComponent(
+      restroCode
+    )}&arrivalTime=${encodeURIComponent(arrivalTime)}`;
 
-    return json?.items || [];
+    const res = await fetch(url, { cache: "no-store" });
+    const json = await res.json().catch(() => ({}));
 
-  } catch (e) {
-
+    return Array.isArray(json?.items) ? json.items : [];
+  } catch (error) {
+    console.error("menu fetch failed", error);
     return [];
-
   }
-
 }
 
-/* ================= TIME CHECK ================= */
-
-function isTimeInRange(
-  arrival: string,
-  start?: string,
-  end?: string
-) {
-
-  if (!start || !end) {
-    return true;
-  }
-
-  const toMin = (
-    t: string
-  ) => {
-
-    const [h, m] = t
-      .split(":")
-      .map(Number);
-
-    return h * 60 + m;
-
-  };
-
-  const a = toMin(
-    arrival.slice(0, 5)
-  );
-
-  const s = toMin(
-    start.slice(0, 5)
-  );
-
-  const e = toMin(
-    end.slice(0, 5)
-  );
-
-  /* NORMAL */
-
-  if (s <= e) {
-
-    return (
-      a >= s &&
-      a <= e
-    );
-
-  }
-
-  /* OVERNIGHT */
-
-  return (
-    a >= s ||
-    a <= e
-  );
-
+function toMin(time: string) {
+  const [h = "0", m = "0"] = String(time || "00:00").split(":");
+  return Number(h) * 60 + Number(m);
 }
 
-/* ================= NORMALIZE CATEGORY ================= */
+function isTimeInRange(arrival: string, start: string, end: string) {
+  if (!start || !end) return true;
 
-function normalizeCategory(
-  category?: string | null,
-  itemName?: string | null
-) {
+  const a = toMin(arrival);
+  const s = toMin(start);
+  const e = toMin(end);
 
-  const cat = String(
-    category || ""
-  )
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, "-");
+  if (s <= e) return a >= s && a <= e;
+  return a >= s || a <= e;
+}
 
-  /* DB VALUE */
+function normalizeCategory(category: any, itemName: any) {
+  const raw = String(category || "").trim();
+  if (raw) return raw;
 
-  if (
-    cat === "non-veg" ||
-    cat === "nonveg"
-  ) {
-    return "Non-Veg";
-  }
+  const name = String(itemName || "").toLowerCase();
 
-  if (
-    cat === "veg" ||
-    cat === "jain"
-  ) {
-    return "Veg";
-  }
-
-  /* AUTO FALLBACK */
-
-  const name = String(
-    itemName || ""
-  ).toLowerCase();
-
-  if (
-    name.includes(
-      "chicken"
-    ) ||
-    name.includes("egg") ||
-    name.includes("fish") ||
-    name.includes(
-      "mutton"
-    )
-  ) {
-    return "Non-Veg";
-  }
+  if (/(chicken|mutton|fish|egg|non[-\s]?veg)/i.test(name)) return "Non-Veg";
+  if (/jain/i.test(name)) return "Jain";
 
   return "Veg";
-
 }
 
-/* ================= PAGE ================= */
+function formatDateLabel(value: any) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
 
-export default async function Page({
-  params,
-  searchParams,
-}: any) {
+  try {
+    const date = new Date(raw);
+    if (Number.isNaN(date.getTime())) return raw;
+    return date.toLocaleDateString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  } catch {
+    return raw;
+  }
+}
 
-  /* PARAMS */
-
-  const stationCode =
-    extractStationCode(
-      params.slug
-    ) || "";
-
-  const restroCode =
-    extractRestroCode(
-      params.restroSlug
-    ) || "";
+function buildPageContext(params: any, searchParams: any) {
+  const stationCode = extractStationCode(params.slug);
+  const restroCode = extractRestroCode(params.restroSlug);
 
   const outletName =
-    humanizeFromSlug(
-      params.restroSlug
-    );
+    humanizeFromSlug(params.restroSlug) || `Restaurant ${restroCode}`;
 
   const stationName =
-    params.slug
-      ?.split("-")
-      ?.slice(1)
-      ?.join(" ") ||
-    stationCode;
+    decodeURIComponent(params.slug || "")
+      .split("-")
+      .slice(1)
+      .join(" ")
+      .replace(/\s+/g, " ")
+      .trim() || stationCode;
 
-  /* URL DATA */
+  const deliveryDate = String(searchParams?.deliveryDate || "");
+  const deliveryTime = String(searchParams?.deliveryTime || searchParams?.arrival || "");
+  const arrivalTime = normalizeTime(deliveryTime);
 
-  const deliveryDate =
-    searchParams
-      ?.deliveryDate ||
-    searchParams?.date ||
-    "";
-
-  const deliveryTime =
-    searchParams
-      ?.deliveryTime ||
-    searchParams?.arrival?.slice(
-      0,
-      5
-    ) ||
-    searchParams?.arrivalTime?.slice(
-      0,
-      5
-    ) ||
-    "";
-
-  /* TRAIN */
-
+  const trainNumber = String(searchParams?.train || "");
   const trainName =
-    searchParams
-      ?.trainName &&
-    searchParams
-      ?.trainName !==
-      "Train"
-      ? searchParams.trainName
+    String(searchParams?.trainName || "").trim() &&
+    String(searchParams?.trainName || "").trim().toLowerCase() !== "train"
+      ? String(searchParams?.trainName)
       : "";
 
-  const trainNumber =
-    searchParams?.train ||
-    "";
+  const minOrder = String(searchParams?.minOrder || "");
 
-  /* MIN ORDER */
+  return {
+    stationCode,
+    restroCode,
+    outletName: cleanTitle(outletName),
+    stationName: cleanTitle(stationName),
+    deliveryDate,
+    deliveryTime,
+    arrivalTime,
+    trainNumber,
+    trainName,
+    minOrder,
+  };
+}
 
-  const minOrderFromUrl =
-    searchParams
-      ?.minOrder || "0";
+export async function generateMetadata({
+  params,
+  searchParams,
+}: {
+  params: any;
+  searchParams: any;
+}): Promise<Metadata> {
+  const ctx = buildPageContext(params, searchParams);
+  const canonical = buildCanonical(params, searchParams);
 
-  /* ARRIVAL */
+  const title = `Order food from ${ctx.outletName} at ${ctx.stationName} | RailEats`;
+  const description = ctx.trainNumber
+    ? `Order fresh food from ${ctx.outletName} for train ${ctx.trainNumber} at ${ctx.stationName}. Check available menu, prices, delivery time and place your train food order online.`
+    : `Order fresh food from ${ctx.outletName} at ${ctx.stationName}. Check menu, prices, delivery time and place your food order online with RailEats.`;
 
-  let arrivalTime =
-    "12:00:00";
+  return {
+    title,
+    description,
+    alternates: {
+      canonical,
+    },
+    openGraph: {
+      title,
+      description,
+      url: canonical,
+      siteName: "RailEats",
+      type: "website",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+    },
+  };
+}
 
-  if (deliveryTime) {
+export default async function RestroMenuPage({
+  params,
+  searchParams,
+}: {
+  params: any;
+  searchParams: any;
+}) {
+  const ctx = buildPageContext(params, searchParams);
 
-    const clean =
-      deliveryTime.slice(
-        0,
-        5
+  const rawItems = await fetchOnMenu(ctx.restroCode, ctx.arrivalTime);
+
+  const items = rawItems
+    .map((item: any) => ({
+      id: String(item.item_code ?? item.ItemCode ?? item.id ?? ""),
+      item_name: String(item.item_name ?? item.ItemName ?? item.name ?? ""),
+      base_price: Number(item.base_price ?? item.BasePrice ?? item.price ?? 0),
+      item_category: normalizeCategory(
+        item.item_category ?? item.ItemCategory,
+        item.item_name ?? item.ItemName
+      ),
+      menu_type: String(item.menu_type ?? item.MenuType ?? ""),
+      item_description: String(
+        item.item_description ?? item.ItemDescription ?? item.description ?? ""
+      ),
+      start_time: String(item.start_time ?? item.ItemStart ?? item.startTime ?? ""),
+      end_time: String(item.end_time ?? item.ItemClosed ?? item.endTime ?? ""),
+      status: String(item.status ?? item.Status ?? "ON"),
+      item_cuisine: String(item.item_cuisine ?? item.ItemCuisine ?? ""),
+    }))
+    .filter((item: any) => {
+      const status = String(item.status || "").toUpperCase();
+      return (
+        ["ON", "ACTIVE", "TRUE", "1"].includes(status) &&
+        isTimeInRange(ctx.arrivalTime, item.start_time, item.end_time)
       );
-
-    arrivalTime =
-      clean + ":00";
-
-  }
-
-  /* ================= FETCH ================= */
-
-  const rawItems =
-    await fetchOnMenu(
-      restroCode,
-      arrivalTime
-    );
-
-  /* ================= FILTER & CLEAN ================= */
-
-  const items = (
-    rawItems || []
-  )
-
-    .map((it: any) => {
-
-      const finalCategory =
-        normalizeCategory(
-          it?.item_category,
-          it?.item_name
-        );
-
-      return {
-
-        id: Number(
-          it?.id
-        ),
-
-        item_name:
-          it?.item_name ||
-          "",
-
-        base_price:
-          Number(
-            it?.base_price ||
-              it?.selling_price ||
-              0
-          ),
-
-        /* CATEGORY */
-
-        item_category:
-          finalCategory,
-
-        /* MENU TYPE */
-
-        menu_type:
-          it?.menu_type ||
-          it?.item_type ||
-          it?.category ||
-          "Meals",
-
-        /* DESCRIPTION */
-
-        item_description:
-          it?.item_description ||
-          it?.description ||
-          "",
-
-        /* TIMES */
-
-        start_time:
-          it?.start_time ||
-          it?.item_start_time ||
-          null,
-
-        end_time:
-          it?.end_time ||
-          it?.item_end_time ||
-          null,
-
-        /* STATUS */
-
-        status: String(
-          it?.status ||
-            "ON"
-        ).toUpperCase(),
-
-        /* CUISINE */
-
-        item_cuisine:
-          it?.item_cuisine ||
-          null,
-
-      };
-
-    })
-
-    .filter((it: any) => {
-
-      /* STATUS */
-
-      if (
-        it.status !== "ON"
-      ) {
-        return false;
-      }
-
-      /* TIME */
-
-      return isTimeInRange(
-        arrivalTime,
-        it.start_time,
-        it.end_time
-      );
-
     });
 
-  /* ================= HEADER ================= */
-
   const header = {
-
-    stationCode,
-
-    restroCode:
-      String(restroCode),
-
-    outletName,
-
-    stationName,
-
-    minimumOrder:
-      Number(
-        minOrderFromUrl
-      ),
-
+    stationCode: ctx.stationCode,
+    restroCode: ctx.restroCode,
+    outletName: ctx.outletName,
+    stationName: ctx.stationName,
+    minimumOrder: ctx.minOrder,
   };
-
-  /* ================= NEXT PARAMS ================= */
 
   const nextParams = {
-
-    stationName,
-
-    stationCode,
-
-    deliveryDate,
-
-    deliveryTime,
-
-    trainName,
-
-    trainNumber,
-
-    vendorName:
-      outletName,
-
+    deliveryDate: ctx.deliveryDate,
+    deliveryTime: ctx.deliveryTime,
+    arrival: searchParams?.arrival || ctx.deliveryTime,
+    train: ctx.trainNumber,
+    trainName: ctx.trainName || "Train",
+    boarding: searchParams?.boarding || "",
+    minOrder: ctx.minOrder,
+    restroCode: ctx.restroCode,
+    restroName: ctx.outletName,
+    stationCode: ctx.stationCode,
+    stationName: ctx.stationName,
   };
 
-  /* ================= UI ================= */
-
-  return (
-
-    <main className="container-app">
-
-      <RestroMenuClient
-        header={header}
-        items={items}
-        nextParams={
-          nextParams
-        }
-      />
-
-    </main>
-
+  const canonical = buildCanonical(params, searchParams);
+  const uniqueCuisines = Array.from(
+    new Set(items.map((item: any) => item.item_cuisine).filter(Boolean))
   );
 
+  const restaurantSchema = {
+    "@context": "https://schema.org",
+    "@type": "Restaurant",
+    name: ctx.outletName,
+    url: canonical,
+    servesCuisine: uniqueCuisines.length ? uniqueCuisines : ["Indian"],
+    address: {
+      "@type": "PostalAddress",
+      addressLocality: ctx.stationName,
+      addressCountry: "IN",
+    },
+    areaServed: {
+      "@type": "TrainStation",
+      name: `${ctx.stationName} (${ctx.stationCode})`,
+    },
+    hasMenu: canonical,
+  };
+
+  const itemListSchema = {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    name: `${ctx.outletName} menu at ${ctx.stationName}`,
+    itemListElement: items.slice(0, 25).map((item: any, index: number) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      item: {
+        "@type": "Product",
+        name: item.item_name,
+        description: item.item_description || `${item.item_category} food item`,
+        category: item.menu_type || item.item_category,
+        offers: {
+          "@type": "Offer",
+          price: item.base_price,
+          priceCurrency: "INR",
+          availability: "https://schema.org/InStock",
+        },
+      },
+    })),
+  };
+
+  const breadcrumbSchema = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: "Home",
+        item: SITE_URL,
+      },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: `Train food at ${ctx.stationName}`,
+        item: `${SITE_URL}/trains`,
+      },
+      {
+        "@type": "ListItem",
+        position: 3,
+        name: ctx.outletName,
+        item: canonical,
+      },
+    ],
+  };
+
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(restaurantSchema) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListSchema) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
+      />
+
+      <main className="container-app">
+        <RestroMenuClient header={header} items={items} nextParams={nextParams} />
+      </main>
+    </>
+  );
 }
