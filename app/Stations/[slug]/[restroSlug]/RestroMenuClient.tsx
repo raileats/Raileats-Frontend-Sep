@@ -24,9 +24,11 @@ const cleanTime = (value?: string | null) => {
 
 const cleanTrainName = (value?: string | null) => {
   const v = String(value || "").trim();
+
   if (!v || v.toLowerCase() === "train" || v.toLowerCase() === "undefined") {
     return "";
   }
+
   return v;
 };
 
@@ -96,7 +98,6 @@ export default function RestroMenuClient({
   nextParams = {},
 }: any) {
   const { user } = useAuth();
-
   const { add, changeQty, cart, setJourney } = useCart();
 
   const [vegOnly, setVegOnly] = useState(false);
@@ -107,7 +108,7 @@ export default function RestroMenuClient({
     trainName: "",
   });
 
-  /* ================= ARRIVAL + URL FALLBACK ================= */
+  /* ================= URL FALLBACK ================= */
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -127,11 +128,9 @@ export default function RestroMenuClient({
       params.get("trainNo") ||
       "";
 
-    const trainName = cleanTrainName(params.get("trainName"));
-
     setUrlJourney({
       trainNumber,
-      trainName,
+      trainName: cleanTrainName(params.get("trainName")),
     });
   }, []);
 
@@ -175,7 +174,7 @@ export default function RestroMenuClient({
     setJourney({
       trainNumber: displayTrainNumber,
       trainName: displayTrainName,
-      stationName: nextParams?.stationName || "",
+      stationName: nextParams?.stationName || header?.stationName || "",
       stationCode: nextParams?.stationCode || header?.stationCode || "",
       deliveryDate: nextParams?.deliveryDate || "",
       deliveryTime: nextParams?.deliveryTime || "",
@@ -233,52 +232,59 @@ export default function RestroMenuClient({
   /* ================= UI ================= */
 
   return (
-    <div className="menu-page space-y-4">
-      <section className="app-card menu-hero-card">
-        <div className="menu-journey-row">
-          <div>
-            <div className="menu-eyebrow">Journey</div>
+    <div className="w-full max-w-[760px] mx-auto px-3 pb-24 space-y-4">
+      {/* HEADER */}
+      <section className="bg-white border border-slate-200 rounded-2xl shadow-sm p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="text-xs font-semibold text-slate-500">Journey</div>
 
-            <div className="menu-train">
+            <div className="mt-1 text-sm font-extrabold text-orange-600">
               {displayTrainName
                 ? `${displayTrainName} #${displayTrainNumber || "-"}`
                 : `Train #${displayTrainNumber || "-"}`}
             </div>
 
-            <div className="menu-muted">
+            <div className="mt-1 text-sm text-slate-600">
               {nextParams?.stationName || header?.stationName || "-"} (
               {header?.stationCode || nextParams?.stationCode || "-"})
             </div>
 
-            <div className="menu-date">
+            <div className="mt-1 text-sm font-bold text-blue-600">
               {nextParams?.deliveryDate || "-"}
               {nextParams?.deliveryTime ? ` at ${nextParams.deliveryTime}` : ""}
             </div>
           </div>
 
-          <label className="menu-veg-toggle">
+          <label className="shrink-0 inline-flex items-center gap-2 text-sm font-semibold text-slate-700">
             <input
               type="checkbox"
               checked={vegOnly}
               onChange={(e) => setVegOnly(e.target.checked)}
+              className="h-4 w-4"
             />
             <span>Veg only</span>
           </label>
         </div>
 
-        <div className="menu-restro-name">
+        <div className="mt-4 text-xl font-black text-slate-900">
           {header?.outletName || nextParams?.vendorName || "Restaurant"}
         </div>
 
-        <div className="menu-min-order">
+        <div className="mt-2 text-sm font-semibold text-slate-600">
           Min Order: Rs {Number(header?.minimumOrder || 0)}
         </div>
       </section>
 
-      <section className="menu-filter-strip">
+      {/* FILTER */}
+      <section className="flex items-center gap-2 overflow-x-auto">
         <button
           type="button"
-          className={!vegOnly ? "menu-chip active" : "menu-chip"}
+          className={`shrink-0 rounded-full border px-4 py-2 text-sm font-extrabold ${
+            !vegOnly
+              ? "border-orange-500 bg-orange-50 text-orange-600"
+              : "border-slate-200 bg-white text-slate-700"
+          }`}
           onClick={() => setVegOnly(false)}
         >
           All Items
@@ -286,27 +292,35 @@ export default function RestroMenuClient({
 
         <button
           type="button"
-          className={vegOnly ? "menu-chip active veg" : "menu-chip veg"}
+          className={`shrink-0 rounded-full border px-4 py-2 text-sm font-extrabold ${
+            vegOnly
+              ? "border-green-500 bg-green-50 text-green-700"
+              : "border-slate-200 bg-white text-slate-700"
+          }`}
           onClick={() => setVegOnly(true)}
         >
           Veg Only
         </button>
 
-        <span className="menu-count">
+        <span className="shrink-0 text-sm font-semibold text-slate-700">
           {visible.length} item{visible.length === 1 ? "" : "s"} available
         </span>
       </section>
 
+      {/* EMPTY */}
       {visible.length === 0 && (
-        <section className="app-card menu-empty">
-          <div className="menu-empty-title">No items available</div>
-          <div className="menu-muted">
+        <section className="bg-white border border-slate-200 rounded-2xl shadow-sm p-5 text-center">
+          <div className="text-base font-black text-slate-900">
+            No items available
+          </div>
+          <div className="mt-1 text-sm text-slate-500">
             Items may be unavailable for this train arrival time.
           </div>
         </section>
       )}
 
-      <section className="menu-list">
+      {/* ITEMS */}
+      <section className="space-y-3">
         {visible.map((it: any) => {
           const existing = getCartEntry(cart, it.id);
           const isVeg = isVegItem(it);
@@ -314,82 +328,98 @@ export default function RestroMenuClient({
           const menuType = getMenuType(it);
 
           return (
-            <article key={it.id} className="menu-item-card app-card">
-              <div className="menu-item-main">
-                <div className="menu-title-row">
-                  <span
-                    className={
-                      isVeg
-                        ? "menu-food-dot menu-food-dot-veg"
-                        : "menu-food-dot menu-food-dot-nonveg"
-                    }
-                  />
+            <article
+              key={it.id}
+              className="bg-white border border-slate-200 rounded-2xl shadow-sm p-4"
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-start gap-2">
+                    <span
+                      className={`mt-1.5 h-3 w-3 shrink-0 rounded-full ${
+                        isVeg ? "bg-green-600" : "bg-red-600"
+                      }`}
+                    />
 
-                  <div className="menu-item-title">{it.item_name}</div>
-                </div>
+                    <div className="min-w-0">
+                      <h2 className="text-base font-black leading-snug text-slate-900 break-words">
+                        {it.item_name}
+                      </h2>
 
-                <div className="menu-item-meta">
-                  {category} • {menuType}
-                </div>
-
-                <div className="menu-item-time">
-                  {cleanTime(it.start_time) && cleanTime(it.end_time)
-                    ? `${cleanTime(it.start_time)} - ${cleanTime(it.end_time)}`
-                    : "All day"}
-                </div>
-
-                {it.item_description ? (
-                  <div className="menu-item-description">
-                    {it.item_description}
+                      <div className="mt-1 text-xs font-semibold text-slate-500">
+                        {category} • {menuType}
+                      </div>
+                    </div>
                   </div>
-                ) : null}
 
-                <div className="menu-item-price">
-                  Rs {Number(it.base_price || 0)}
+                  <div className="mt-2 text-xs font-semibold text-slate-500">
+                    {cleanTime(it.start_time) && cleanTime(it.end_time)
+                      ? `${cleanTime(it.start_time)} - ${cleanTime(it.end_time)}`
+                      : "All day"}
+                  </div>
+
+                  {it.item_description ? (
+                    <p className="mt-2 text-sm leading-snug text-slate-600 break-words">
+                      {it.item_description}
+                    </p>
+                  ) : null}
+
+                  <div className="mt-3 text-lg font-black text-slate-950">
+                    Rs {Number(it.base_price || 0)}
+                  </div>
                 </div>
-              </div>
 
-              <div className="menu-item-action">
-                {!existing ? (
-                  <button
-                    type="button"
-                    className="menu-add-btn"
-                    onClick={() => handleAdd(it)}
-                  >
-                    Add
-                  </button>
-                ) : (
-                  <div className="menu-qty-control">
+                <div className="shrink-0">
+                  {!existing ? (
                     <button
                       type="button"
-                      onClick={() => handleQty(it, Number(existing.qty || 0) - 1)}
+                      className="min-w-[68px] rounded-xl bg-orange-500 px-4 py-3 text-sm font-black text-white shadow-sm"
+                      onClick={() => handleAdd(it)}
                     >
-                      -
+                      Add
                     </button>
+                  ) : (
+                    <div className="inline-flex items-center overflow-hidden rounded-xl border border-slate-200 bg-white text-sm font-black text-slate-900">
+                      <button
+                        type="button"
+                        className="h-10 w-9"
+                        onClick={() =>
+                          handleQty(it, Number(existing.qty || 0) - 1)
+                        }
+                      >
+                        -
+                      </button>
 
-                    <span>{Number(existing.qty || 0)}</span>
+                      <span className="min-w-[26px] text-center">
+                        {Number(existing.qty || 0)}
+                      </span>
 
-                    <button
-                      type="button"
-                      onClick={() => handleQty(it, Number(existing.qty || 0) + 1)}
-                    >
-                      +
-                    </button>
-                  </div>
-                )}
+                      <button
+                        type="button"
+                        className="h-10 w-9"
+                        onClick={() =>
+                          handleQty(it, Number(existing.qty || 0) + 1)
+                        }
+                      >
+                        +
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             </article>
           );
         })}
       </section>
 
-      <section className="app-card menu-seo-copy">
-        <h1>
+      {/* SEO CONTENT */}
+      <section className="bg-white border border-slate-200 rounded-2xl shadow-sm p-4">
+        <h1 className="text-lg font-black text-slate-900">
           Order food from {header?.outletName || "restaurant"} at{" "}
           {header?.stationName || nextParams?.stationName || "your station"}
         </h1>
 
-        <p>
+        <p className="mt-2 text-sm leading-relaxed text-slate-600">
           Choose fresh meals for your train journey, add items to cart, verify
           your mobile number and place your order for delivery at your seat.
         </p>
