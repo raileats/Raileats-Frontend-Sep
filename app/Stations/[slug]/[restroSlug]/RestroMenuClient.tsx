@@ -31,9 +31,7 @@ const cleanTrainName = (value?: string | null) => {
 };
 
 const getItemCategory = (it: any) => {
-  const category = String(it?.item_category || "")
-    .trim()
-    .toLowerCase();
+  const category = String(it?.item_category || "").trim().toLowerCase();
 
   if (category === "veg" || category === "jain") return "Veg";
 
@@ -139,6 +137,8 @@ export default function RestroMenuClient({
     urlJourney.trainName ||
     "";
 
+  const minimumOrder = Number(header?.minimumOrder || nextParams?.minOrder || 0);
+
   const visible = useMemo(() => {
     return (items || []).filter((it: any) => {
       if (!isItemActive(it)) return false;
@@ -170,6 +170,8 @@ export default function RestroMenuClient({
       deliveryTime: nextParams?.deliveryTime || "",
       vendorName: nextParams?.vendorName || header?.outletName || "",
       restroCode: Number(header?.restroCode || nextParams?.restroCode || 0),
+      minimumOrder,
+      minOrder: minimumOrder,
     });
   };
 
@@ -179,14 +181,20 @@ export default function RestroMenuClient({
       name: it.item_name,
       price: Number(it.base_price || 0),
       qty: 1,
+
       restro_code: String(header?.restroCode || nextParams?.restroCode || ""),
       restro_name: nextParams?.vendorName || header?.outletName || "",
+
       station_code: nextParams?.stationCode || header?.stationCode || "",
       station_name: nextParams?.stationName || header?.stationName || "",
+
       description: it.item_description || null,
       category: getItemCategory(it),
       cuisine: it.item_cuisine || null,
       menu_type: getMenuType(it),
+
+      minimumOrder,
+      minOrder: minimumOrder,
     };
   };
 
@@ -220,13 +228,13 @@ export default function RestroMenuClient({
     <div
       style={{
         width: "100%",
-        maxWidth: 760,
+        maxWidth: 520,
         margin: "0 auto",
-        padding: "14px 12px 96px",
+        padding: "12px 12px 104px",
         boxSizing: "border-box",
         display: "flex",
         flexDirection: "column",
-        gap: 14,
+        gap: 12,
         fontFamily:
           'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
       }}
@@ -236,94 +244,99 @@ export default function RestroMenuClient({
           background: "#fff",
           border: "1px solid #dbe4ef",
           borderRadius: 18,
-          boxShadow: "0 10px 28px rgba(15,23,42,0.06)",
-          padding: 18,
+          boxShadow: "0 8px 22px rgba(15,23,42,0.06)",
+          padding: 16,
         }}
       >
         <div
           style={{
-            display: "flex",
-            justifyContent: "space-between",
-            gap: 12,
-            alignItems: "flex-start",
+            fontSize: 12,
+            fontWeight: 800,
+            color: "#64748b",
+            marginBottom: 8,
           }}
         >
-          <div style={{ minWidth: 0 }}>
-            <div
-              style={{
-                fontSize: 12,
-                fontWeight: 700,
-                color: "#64748b",
-              }}
-            >
-              Journey
-            </div>
-
-            <div
-              style={{
-                marginTop: 4,
-                fontSize: 15,
-                fontWeight: 900,
-                color: "#f97316",
-              }}
-            >
-              {displayTrainName
-                ? `${displayTrainName} #${displayTrainNumber || "-"}`
-                : `Train #${displayTrainNumber || "-"}`}
-            </div>
-
-            <div
-              style={{
-                marginTop: 5,
-                fontSize: 14,
-                color: "#475569",
-                fontWeight: 600,
-              }}
-            >
-              {nextParams?.stationName || header?.stationName || "-"} (
-              {header?.stationCode || nextParams?.stationCode || "-"})
-            </div>
-
-            <div
-              style={{
-                marginTop: 5,
-                fontSize: 14,
-                color: "#2563eb",
-                fontWeight: 800,
-              }}
-            >
-              {nextParams?.deliveryDate || "-"}
-              {nextParams?.deliveryTime ? ` at ${nextParams.deliveryTime}` : ""}
-            </div>
-          </div>
-
-          <label
-            style={{
-              flexShrink: 0,
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
-              fontSize: 14,
-              color: "#334155",
-              fontWeight: 700,
-            }}
-          >
-            <input
-              type="checkbox"
-              checked={vegOnly}
-              onChange={(e) => setVegOnly(e.target.checked)}
-            />
-            Veg only
-          </label>
+          Journey
         </div>
 
         <div
           style={{
-            marginTop: 18,
-            fontSize: 22,
-            lineHeight: 1.2,
+            display: "grid",
+            gap: 6,
+            fontSize: 14,
+            lineHeight: 1.25,
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              color: "#f97316",
+              fontWeight: 900,
+            }}
+          >
+            <span style={{ width: 18, textAlign: "center" }}>🚆</span>
+            <span>
+              {displayTrainName
+                ? `${displayTrainName} #${displayTrainNumber || "-"}`
+                : `Train #${displayTrainNumber || "-"}`}
+            </span>
+          </div>
+
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              color: "#334155",
+              fontWeight: 750,
+            }}
+          >
+            <span style={{ width: 18, textAlign: "center" }}>📍</span>
+            <span>
+              {nextParams?.stationName || header?.stationName || "-"} (
+              {header?.stationCode || nextParams?.stationCode || "-"})
+            </span>
+          </div>
+
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              color: "#2563eb",
+              fontWeight: 900,
+            }}
+          >
+            <span style={{ width: 18, textAlign: "center" }}>📅</span>
+            <span>{nextParams?.deliveryDate || "-"}</span>
+          </div>
+
+          {nextParams?.deliveryTime ? (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                color: "#2563eb",
+                fontWeight: 900,
+              }}
+            >
+              <span style={{ width: 18, textAlign: "center" }}>⏰</span>
+              <span>{nextParams.deliveryTime}</span>
+            </div>
+          ) : null}
+        </div>
+
+        <div
+          style={{
+            marginTop: 14,
+            fontSize: 24,
+            lineHeight: 1.1,
             color: "#0f172a",
             fontWeight: 950,
+            letterSpacing: 0,
           }}
         >
           {header?.outletName || nextParams?.vendorName || "Restaurant"}
@@ -332,22 +345,22 @@ export default function RestroMenuClient({
         <div
           style={{
             marginTop: 8,
-            fontSize: 15,
+            fontSize: 16,
             color: "#475569",
-            fontWeight: 700,
+            fontWeight: 900,
           }}
         >
-          Min Order: Rs {Number(header?.minimumOrder || 0)}
+          Min Order: Rs {minimumOrder}
         </div>
       </section>
 
       <section
         style={{
-          display: "flex",
+          display: "grid",
+          gridTemplateColumns: "auto auto minmax(0, 1fr)",
           alignItems: "center",
           gap: 8,
-          overflowX: "auto",
-          paddingBottom: 2,
+          overflow: "hidden",
         }}
       >
         <button
@@ -358,8 +371,8 @@ export default function RestroMenuClient({
             background: !vegOnly ? "#fff7ed" : "#fff",
             color: !vegOnly ? "#ea580c" : "#334155",
             borderRadius: 999,
-            padding: "9px 15px",
-            fontSize: 14,
+            padding: "8px 13px",
+            fontSize: 13,
             fontWeight: 900,
             whiteSpace: "nowrap",
             cursor: "pointer",
@@ -376,8 +389,8 @@ export default function RestroMenuClient({
             background: vegOnly ? "#f0fdf4" : "#fff",
             color: vegOnly ? "#15803d" : "#334155",
             borderRadius: 999,
-            padding: "9px 15px",
-            fontSize: 14,
+            padding: "8px 13px",
+            fontSize: 13,
             fontWeight: 900,
             whiteSpace: "nowrap",
             cursor: "pointer",
@@ -388,9 +401,12 @@ export default function RestroMenuClient({
 
         <span
           style={{
-            flexShrink: 0,
-            fontSize: 14,
-            fontWeight: 700,
+            minWidth: 0,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+            fontSize: 13,
+            fontWeight: 800,
             color: "#475569",
           }}
         >
@@ -404,14 +420,14 @@ export default function RestroMenuClient({
             background: "#fff",
             border: "1px solid #dbe4ef",
             borderRadius: 18,
-            padding: 20,
+            padding: 18,
             textAlign: "center",
           }}
         >
-          <div style={{ fontSize: 17, fontWeight: 900, color: "#0f172a" }}>
+          <div style={{ fontSize: 16, fontWeight: 900, color: "#0f172a" }}>
             No items available
           </div>
-          <div style={{ marginTop: 6, fontSize: 14, color: "#64748b" }}>
+          <div style={{ marginTop: 6, fontSize: 13, color: "#64748b" }}>
             Items may be unavailable for this train arrival time.
           </div>
         </section>
@@ -437,8 +453,8 @@ export default function RestroMenuClient({
                 background: "#fff",
                 border: "1px solid #dbe4ef",
                 borderRadius: 18,
-                boxShadow: "0 8px 22px rgba(15,23,42,0.05)",
-                padding: 16,
+                boxShadow: "0 7px 18px rgba(15,23,42,0.05)",
+                padding: 14,
                 display: "block",
               }}
             >
@@ -447,7 +463,7 @@ export default function RestroMenuClient({
                   display: "flex",
                   alignItems: "flex-start",
                   justifyContent: "space-between",
-                  gap: 16,
+                  gap: 12,
                 }}
               >
                 <div style={{ flex: 1, minWidth: 0 }}>
@@ -460,8 +476,8 @@ export default function RestroMenuClient({
                   >
                     <span
                       style={{
-                        width: 12,
-                        height: 12,
+                        width: 11,
+                        height: 11,
                         borderRadius: 999,
                         background: isVeg ? "#16a34a" : "#dc2626",
                         flexShrink: 0,
@@ -472,9 +488,9 @@ export default function RestroMenuClient({
                     <div style={{ minWidth: 0 }}>
                       <div
                         style={{
-                          fontSize: 17,
-                          lineHeight: 1.25,
-                          fontWeight: 900,
+                          fontSize: 18,
+                          lineHeight: 1.15,
+                          fontWeight: 950,
                           color: "#0f172a",
                           wordBreak: "break-word",
                         }}
@@ -486,7 +502,7 @@ export default function RestroMenuClient({
                         style={{
                           marginTop: 5,
                           fontSize: 13,
-                          fontWeight: 700,
+                          fontWeight: 750,
                           color: "#64748b",
                         }}
                       >
@@ -498,14 +514,20 @@ export default function RestroMenuClient({
                   <div
                     style={{
                       marginTop: 10,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 6,
                       fontSize: 13,
                       color: "#64748b",
-                      fontWeight: 700,
+                      fontWeight: 800,
                     }}
                   >
-                    {cleanTime(it.start_time) && cleanTime(it.end_time)
-                      ? `${cleanTime(it.start_time)} - ${cleanTime(it.end_time)}`
-                      : "All day"}
+                    <span>⏰</span>
+                    <span>
+                      {cleanTime(it.start_time) && cleanTime(it.end_time)
+                        ? `${cleanTime(it.start_time)} - ${cleanTime(it.end_time)}`
+                        : "All day"}
+                    </span>
                   </div>
 
                   {it.item_description ? (
@@ -513,7 +535,7 @@ export default function RestroMenuClient({
                       style={{
                         marginTop: 7,
                         fontSize: 14,
-                        lineHeight: 1.35,
+                        lineHeight: 1.32,
                         color: "#475569",
                         wordBreak: "break-word",
                       }}
@@ -525,7 +547,7 @@ export default function RestroMenuClient({
                   <div
                     style={{
                       marginTop: 12,
-                      fontSize: 18,
+                      fontSize: 19,
                       fontWeight: 950,
                       color: "#0f172a",
                     }}
@@ -540,10 +562,10 @@ export default function RestroMenuClient({
                       type="button"
                       onClick={() => handleAdd(it)}
                       style={{
-                        minWidth: 68,
+                        minWidth: 64,
                         minHeight: 42,
                         border: 0,
-                        borderRadius: 12,
+                        borderRadius: 13,
                         background: "#f97316",
                         color: "#fff",
                         fontSize: 15,
@@ -570,7 +592,7 @@ export default function RestroMenuClient({
                           handleQty(it, Number(existing.qty || 0) - 1)
                         }
                         style={{
-                          width: 34,
+                          width: 32,
                           height: 38,
                           border: 0,
                           background: "#fff",
@@ -583,7 +605,7 @@ export default function RestroMenuClient({
 
                       <span
                         style={{
-                          minWidth: 24,
+                          minWidth: 22,
                           textAlign: "center",
                           fontWeight: 900,
                           color: "#0f172a",
@@ -598,7 +620,7 @@ export default function RestroMenuClient({
                           handleQty(it, Number(existing.qty || 0) + 1)
                         }
                         style={{
-                          width: 34,
+                          width: 32,
                           height: 38,
                           border: 0,
                           background: "#fff",
@@ -622,13 +644,13 @@ export default function RestroMenuClient({
           background: "#fff",
           border: "1px solid #dbe4ef",
           borderRadius: 18,
-          padding: 16,
+          padding: 14,
         }}
       >
         <h1
           style={{
             margin: 0,
-            fontSize: 18,
+            fontSize: 16,
             lineHeight: 1.25,
             fontWeight: 950,
             color: "#0f172a",
@@ -641,8 +663,8 @@ export default function RestroMenuClient({
         <p
           style={{
             margin: "8px 0 0",
-            fontSize: 14,
-            lineHeight: 1.5,
+            fontSize: 13,
+            lineHeight: 1.45,
             color: "#64748b",
           }}
         >
@@ -651,7 +673,7 @@ export default function RestroMenuClient({
         </p>
       </section>
 
-      <CartPillMobile minOrder={header?.minimumOrder} />
+      <CartPillMobile minOrder={minimumOrder} />
     </div>
   );
 }
