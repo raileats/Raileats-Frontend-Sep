@@ -10,51 +10,40 @@ export default function Navbar() {
   const router = useRouter();
 
   return (
-    <header className="navbar flex items-center justify-between px-4 py-2">
-
-      {/* 🔹 LEFT: LOGO */}
-      <Link href="/" className="flex items-center gap-2">
-        <img
-          src="/logo.png"
-          alt="RailEats"
-          className="h-8 w-8 object-contain"
-        />
-        <span className="font-semibold text-lg text-yellow-500">
-          Rail<span className="text-black">Eats</span>
+    <header className="navbar">
+      <Link href="/" className="brand-lockup" aria-label="RailEats home">
+        <span className="brand-logo">
+          <img src="/logo.png" alt="RailEats" />
+        </span>
+        <span className="brand-text">
+          Rail<span>Eats</span>
         </span>
       </Link>
 
-      {/* 🔹 RIGHT */}
-      <div className="flex items-center gap-2">
-
-        {/* Cart */}
+      <div className="nav-actions">
         <div className="hidden md:block">
           <CartWidget />
         </div>
 
-        {/* 🔥 AUTH UI */}
         {!user ? (
-          /* ✅ LOGIN (NOT LOGGED IN) */
           <button
+            type="button"
             onClick={() =>
-              window.dispatchEvent(
-                new CustomEvent("raileats:open-login")
-              )
+              window.dispatchEvent(new CustomEvent("raileats:open-login"))
             }
-            className="bg-black text-white px-3 py-1 rounded text-sm"
+            className="nav-login-btn"
           >
             Login
           </button>
         ) : (
-          /* ✅ USER NAME (LOGGED IN) */
           <button
+            type="button"
             onClick={() => router.push("/profile")}
-            className="bg-green-600 text-white px-3 py-1 rounded text-sm"
+            className="nav-user-btn"
           >
             {user?.name || user?.mobile || "User"}
           </button>
         )}
-
       </div>
     </header>
   );
