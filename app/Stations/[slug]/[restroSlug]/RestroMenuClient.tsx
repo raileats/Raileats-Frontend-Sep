@@ -22,6 +22,14 @@ const cleanTime = (value?: string | null) => {
   return String(value).slice(0, 5);
 };
 
+const cleanTrainName = (value?: string | null) => {
+  const v = String(value || "").trim();
+  if (!v || v.toLowerCase() === "train" || v.toLowerCase() === "undefined") {
+    return "";
+  }
+  return v;
+};
+
 /* ================= CATEGORY HELPERS ================= */
 
 const getItemCategory = (it: any) => {
@@ -30,7 +38,12 @@ const getItemCategory = (it: any) => {
     .toLowerCase();
 
   if (category === "veg" || category === "jain") return "Veg";
-  if (category === "non-veg" || category === "non veg" || category === "nonveg") {
+
+  if (
+    category === "non-veg" ||
+    category === "non veg" ||
+    category === "nonveg"
+  ) {
     return "Non-Veg";
   }
 
@@ -89,7 +102,12 @@ export default function RestroMenuClient({
   const [vegOnly, setVegOnly] = useState(false);
   const [trainMin, setTrainMin] = useState<number | null>(null);
 
-  /* ================= ARRIVAL ================= */
+  const [urlJourney, setUrlJourney] = useState({
+    trainNumber: "",
+    trainName: "",
+  });
+
+  /* ================= ARRIVAL + URL FALLBACK ================= */
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -102,7 +120,31 @@ export default function RestroMenuClient({
     if (arrival && arrival.includes(":")) {
       setTrainMin(toMin(arrival.slice(0, 5)));
     }
+
+    const trainNumber =
+      params.get("train") ||
+      params.get("trainNumber") ||
+      params.get("trainNo") ||
+      "";
+
+    const trainName = cleanTrainName(params.get("trainName"));
+
+    setUrlJourney({
+      trainNumber,
+      trainName,
+    });
   }, []);
+
+  const displayTrainNumber =
+    nextParams?.trainNumber ||
+    nextParams?.train ||
+    urlJourney.trainNumber ||
+    "";
+
+  const displayTrainName =
+    cleanTrainName(nextParams?.trainName) ||
+    urlJourney.trainName ||
+    "";
 
   /* ================= FILTER ================= */
 
@@ -116,8 +158,8 @@ export default function RestroMenuClient({
       if (trainMin !== null && s !== null && e !== null) {
         if (e >= s) {
           if (trainMin < s || trainMin > e) return false;
-        } else {
-          if (trainMin < s && trainMin > e) return false;
+        } else if (trainMin < s && trainMin > e) {
+          return false;
         }
       }
 
@@ -131,8 +173,8 @@ export default function RestroMenuClient({
 
   const saveJourney = () => {
     setJourney({
-      trainNumber: nextParams?.trainNumber || nextParams?.train || "",
-      trainName: nextParams?.trainName || "",
+      trainNumber: displayTrainNumber,
+      trainName: displayTrainName,
       stationName: nextParams?.stationName || "",
       stationCode: nextParams?.stationCode || header?.stationCode || "",
       deliveryDate: nextParams?.deliveryDate || "",
@@ -192,16 +234,15 @@ export default function RestroMenuClient({
 
   return (
     <div className="menu-page space-y-4">
-      {/* HEADER */}
       <section className="app-card menu-hero-card">
         <div className="menu-journey-row">
           <div>
             <div className="menu-eyebrow">Journey</div>
 
             <div className="menu-train">
-              {nextParams?.trainName
-                ? `${nextParams.trainName} #${nextParams.trainNumber}`
-                : `Train #${nextParams?.trainNumber || "-"}`}
+              {displayTrainName
+                ? `${displayTrainName} #${displayTrainNumber || "-"}`
+                : `Train #${displayTrainNumber || "-"}`}
             </div>
 
             <div className="menu-muted">
@@ -234,7 +275,6 @@ export default function RestroMenuClient({
         </div>
       </section>
 
-      {/* CATEGORY STRIP */}
       <section className="menu-filter-strip">
         <button
           type="button"
@@ -257,7 +297,6 @@ export default function RestroMenuClient({
         </span>
       </section>
 
-      {/* EMPTY */}
       {visible.length === 0 && (
         <section className="app-card menu-empty">
           <div className="menu-empty-title">No items available</div>
@@ -267,7 +306,6 @@ export default function RestroMenuClient({
         </section>
       )}
 
-      {/* ITEMS */}
       <section className="menu-list">
         {visible.map((it: any) => {
           const existing = getCartEntry(cart, it.id);
@@ -345,7 +383,6 @@ export default function RestroMenuClient({
         })}
       </section>
 
-      {/* SEO CONTENT */}
       <section className="app-card menu-seo-copy">
         <h1>
           Order food from {header?.outletName || "restaurant"} at{" "}
