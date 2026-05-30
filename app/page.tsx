@@ -17,30 +17,20 @@ export default function HomePage() {
   const user = useAuth((s) => s.user);
 
   const [showBulkModal, setShowBulkModal] = useState(false);
-
   const [name, setName] = useState("");
   const [mobile, setMobile] = useState("");
   const [email, setEmail] = useState("");
-
   const [trainNumber, setTrainNumber] = useState("");
   const [journeyDate, setJourneyDate] = useState("");
   const [quantity, setQuantity] = useState("");
-
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const formatMobile = (num: string) => {
-    if (!num) return "";
+    const clean = String(num || "").replace(/\D/g, "");
 
-    let clean = num.replace(/\D/g, "");
-
-    if (clean.startsWith("91") && clean.length === 12) {
-      return "+" + clean;
-    }
-
-    if (clean.length === 10) {
-      return "+91" + clean;
-    }
+    if (clean.startsWith("91") && clean.length === 12) return `+${clean}`;
+    if (clean.length === 10) return `+91${clean}`;
 
     return num;
   };
@@ -59,39 +49,34 @@ export default function HomePage() {
     try {
       setLoading(true);
 
-      const { error } = await supabase
-        .from("bulk_order_queries")
-        .insert([
-          {
-            name: user?.name || name,
-            mobile: user?.mobile || formatMobile(mobile),
-            email: user?.email || email,
-            train_number: trainNumber,
-            journey_date: journeyDate,
-            quantity: quantity,
-          },
-        ]);
-
-      setLoading(false);
+      const { error } = await supabase.from("bulk_order_queries").insert([
+        {
+          name: user?.name || name,
+          mobile: user?.mobile || formatMobile(mobile),
+          email: user?.email || email,
+          train_number: trainNumber,
+          journey_date: journeyDate,
+          quantity,
+        },
+      ]);
 
       if (error) {
-        alert("❌ Error submitting enquiry");
+        alert("Error submitting enquiry");
         return;
       }
 
       setSuccess(true);
-
       setTrainNumber("");
       setJourneyDate("");
       setQuantity("");
       setName("");
       setMobile("");
       setEmail("");
-
     } catch (err) {
       console.error(err);
-      setLoading(false);
       alert("Something went wrong");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -106,106 +91,146 @@ export default function HomePage() {
   }, [search]);
 
   useEffect(() => {
-    if (user) {
-      const action = localStorage.getItem("afterLoginAction");
-      if (action === "bulk") {
-        setShowBulkModal(true);
-        localStorage.removeItem("afterLoginAction");
-      }
+    if (!user) return;
+
+    const action = localStorage.getItem("afterLoginAction");
+
+    if (action === "bulk") {
+      setShowBulkModal(true);
+      localStorage.removeItem("afterLoginAction");
     }
   }, [user]);
 
   return (
-    <main className="bg-gray-50 min-h-screen">
-
-      <div className="mx-auto w-full md:max-w-4xl md:px-6">
-
+    <div className="space-y-5">
+      <section className="space-y-4">
         <HeroSlider />
         <SearchBox />
-        <ExploreRailInfo />
-        <Offers />
-        <Steps />
+      </section>
 
-        {/* BULK CARD */}
-        <section className="mt-6">
-          <div
-            onClick={() => {
-              if (!user) {
-                localStorage.setItem("afterLoginAction", "bulk");
-                window.dispatchEvent(new CustomEvent("raileats:open-login"));
-              } else {
-                setShowBulkModal(true);
-              }
-            }}
-            className="bg-white p-4 rounded-xl shadow border cursor-pointer"
-          >
-            <h3 className="font-semibold text-base">
-              Bulk Order Query
-            </h3>
-            <p className="text-sm text-gray-500 mt-1">
-              Bulk Food Orders for Groups on Train – Get Best Pricing & Support
-            </p>
+      <ExploreRailInfo />
+      <Offers />
+      <Steps />
+
+      <section className="container-app">
+        <button
+          type="button"
+          onClick={() => {
+            if (!user) {
+              localStorage.setItem("afterLoginAction", "bulk");
+              window.dispatchEvent(new CustomEvent("raileats:open-login"));
+              return;
+            }
+
+            setShowBulkModal(true);
+          }}
+          className="app-card w-full p-4 text-left"
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h3 className="app-section-title text-base">Bulk Order Query</h3>
+              <p className="app-muted mt-1 text-sm">
+                Group food orders on train with best pricing and support.
+              </p>
+            </div>
+
+            <span className="rounded-full bg-orange-50 px-3 py-1 text-xs font-black text-orange-600">
+              Enquire
+            </span>
           </div>
-        </section>
+        </button>
+      </section>
 
-        {/* ✅ MISSING THA */}
-        <FooterLinks />
+      <FooterLinks />
 
-      </div>
-
-      {/* BULK MODAL */}
       {showBulkModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white p-5 rounded-xl w-[90%] max-w-md space-y-3 relative">
-
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/50 p-4">
+          <div className="app-card relative w-full max-w-md p-5">
             <button
-              onClick={() => setShowBulkModal(false)}
-              className="absolute top-3 right-3"
+              type="button"
+              onClick={() => {
+                setShowBulkModal(false);
+                setSuccess(false);
+              }}
+              className="absolute right-4 top-3 text-xl font-bold text-slate-500"
             >
-              ✕
+              x
             </button>
 
-            <h2 className="text-center font-semibold">Bulk Order</h2>
+            <h2 className="app-section-title text-center">Bulk Order</h2>
+            <p className="app-muted mt-1 text-center text-sm">
+              Share journey and quantity details.
+            </p>
 
             {success ? (
-              <div className="text-green-600 text-center">
-                Submitted
+              <div className="mt-5 rounded-xl bg-green-50 p-4 text-center font-bold text-green-700">
+                Submitted successfully
               </div>
             ) : (
-              <>
+              <div className="mt-5 space-y-3">
+                {!user && (
+                  <>
+                    <input
+                      placeholder="Name"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      className="app-input"
+                    />
+
+                    <input
+                      placeholder="Mobile"
+                      value={mobile}
+                      onChange={(e) =>
+                        setMobile(e.target.value.replace(/\D/g, "").slice(0, 10))
+                      }
+                      className="app-input"
+                    />
+
+                    <input
+                      placeholder="Email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="app-input"
+                    />
+                  </>
+                )}
+
                 <input
                   placeholder="Train Number"
                   value={trainNumber}
                   onChange={(e) => setTrainNumber(e.target.value)}
-                  className="w-full border p-2 rounded"
+                  className="app-input"
                 />
 
                 <input
                   type="date"
                   value={journeyDate}
                   onChange={(e) => setJourneyDate(e.target.value)}
-                  className="w-full border p-2 rounded"
+                  className="app-input"
                 />
 
                 <input
                   placeholder="Quantity"
                   value={quantity}
-                  onChange={(e) => setQuantity(e.target.value)}
-                  className="w-full border p-2 rounded"
+                  onChange={(e) =>
+                    setQuantity(e.target.value.replace(/\D/g, ""))
+                  }
+                  className="app-input"
                 />
 
                 <button
+                  type="button"
                   onClick={handleSubmit}
-                  className="w-full bg-yellow-500 text-white py-2 rounded"
+                  disabled={loading}
+                  className="app-btn-success w-full"
                 >
-                  Submit
+                  {loading ? "Submitting..." : "Submit"}
                 </button>
-              </>
+              </div>
             )}
           </div>
         </div>
       )}
-
-    </main>
+    </div>
   );
 }
