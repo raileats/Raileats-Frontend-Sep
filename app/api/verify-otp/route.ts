@@ -1,10 +1,23 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+const supabaseUrl =
+  process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+
+const supabaseKey =
+  process.env.SUPABASE_SERVICE_ROLE_KEY ||
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+if (!supabaseUrl || !supabaseKey) {
+  throw new Error("Missing Supabase env variables");
+}
+
+const supabase = createClient(supabaseUrl, supabaseKey, {
+  auth: { persistSession: false },
+});
 
 export async function POST(req: Request) {
   try {
@@ -15,8 +28,8 @@ export async function POST(req: Request) {
       .select("*")
       .eq("phone", phone)
       .eq("otp", otp)
-      .eq("used", false) // 🔥 only unused OTP
-      .order("created_at", { ascending: false }) // 🔥 latest first
+      .eq("used", false)
+      .order("created_at", { ascending: false })
       .limit(1);
 
     if (error) {
@@ -29,7 +42,6 @@ export async function POST(req: Request) {
 
     const otpRow = data[0];
 
-    // 🔥 EXPIRY CHECK (5 min)
     const created = new Date(otpRow.created_at).getTime();
     const now = Date.now();
 
@@ -37,22 +49,18 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "OTP expired" }, { status: 400 });
     }
 
-    // 🔥 MARK OTP AS USED
-    await supabase
-      .from("otp_codes")
-      .update({ used: true })
-      .eq("id", otpRow.id);
+    await supabase.from("otp_codes").update({ used: true }).eq("id", otpRow.id);
 
-    // 🔥 MASK OTP (only last 3 digits visible)
-    const maskedOtp =
-      "XXX" + otpRow.otp.toString().slice(-3);
+    const maskedOtp = "XXX" + otpRow.otp.toString().slice(-3);
 
     return NextResponse.json({
       success: true,
-      maskedOtp, // 🔥 optional for debug/UI
+      maskedOtp,
     });
-
   } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
+    return NextResponse.json(
+      { error: e?.message || "Server error" },
+      { status: 500 }
+    );
   }
 }
