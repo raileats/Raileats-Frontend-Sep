@@ -5,351 +5,394 @@ import { useAuth } from "../../../lib/useAuth";
 import { useCart } from "../../../lib/useCart";
 import CartPillMobile from "../../../components/CartPillMobile";
 
-function toMin(time: string) {
-  const [h = "0", m = "0"] = String(time || "00:00").split(":");
-  return Number(h) * 60 + Number(m);
-}
+/* ================= HELPERS ================= */
 
-function isTimeInRange(arrival: string, start: string, end: string) {
-  if (!arrival || !start || !end) return true;
+const toMin = (t?: string | null) => {
+  if (!t) return null;
 
-  const a = toMin(arrival);
-  const s = toMin(start);
-  const e = toMin(end);
+  const [h, m] = String(t)
+    .slice(0, 5)
+    .split(":")
+    .map(Number);
 
-  if (s <= e) return a >= s && a <= e;
-  return a >= s || a <= e;
-}
+  if (!Number.isFinite(h) || !Number.isFinite(m)) return null;
 
-function getItemCategory(item: any) {
-  return String(item.item_category ?? item.ItemCategory ?? item.category ?? "Veg");
-}
+  return h * 60 + m;
+};
 
-function getMenuType(item: any) {
-  return String(item.menu_type ?? item.MenuType ?? item.type ?? "All").trim() || "All";
-}
+const cleanText = (value: any) => String(value ?? "").trim();
 
-function getCuisine(item: any) {
-  return String(item.item_cuisine ?? item.ItemCuisine ?? item.cuisine ?? "").trim();
-}
+const shortTime = (value: any) => {
+  const raw = cleanText(value);
+  return raw ? raw.slice(0, 5) : "";
+};
 
-function isVegItem(item: any) {
-  const category = getItemCategory(item).toLowerCase();
-  const name = String(item.item_name ?? item.ItemName ?? "").toLowerCase();
+const money = (value: any) => {
+  const n = Number(value || 0);
+  return Number.isFinite(n) ? n : 0;
+};
 
-  if (category.includes("non") || /chicken|mutton|fish|egg/.test(name)) {
-    return false;
+/* ================= CATEGORY HELPERS ================= */
+
+const getItemCategory = (it: any) => {
+  const category = cleanText(
+    it?.item_category ??
+      it?.ItemCategory ??
+      it?.category
+  ).toLowerCase();
+
+  if (category === "veg" || category === "jain") return "Veg";
+
+  if (
+    category === "non-veg" ||
+    category === "non veg" ||
+    category === "nonveg"
+  ) {
+    return "Non-Veg";
   }
 
-  return true;
-}
+  const name = cleanText(
+    it?.item_name ??
+      it?.ItemName ??
+      it?.name
+  ).toLowerCase();
 
-function isItemActive(item: any) {
-  const status = String(item.status ?? item.Status ?? "ON").toUpperCase();
-  return ["ON", "ACTIVE", "TRUE", "1"].includes(status);
-}
-
-function formatTime(value: string) {
-  const raw = String(value || "").trim();
-  if (!raw) return "";
-  return raw.slice(0, 5);
-}
-
-function formatDate(value: string) {
-  const raw = String(value || "").trim();
-  if (!raw) return "";
-
-  try {
-    const date = new Date(raw);
-    if (Number.isNaN(date.getTime())) return raw;
-
-    return date.toLocaleDateString("en-IN", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    });
-  } catch {
-    return raw;
+  if (
+    name.includes("chicken") ||
+    name.includes("egg") ||
+    name.includes("fish") ||
+    name.includes("mutton")
+  ) {
+    return "Non-Veg";
   }
-}
 
-function priceOf(item: any) {
-  return Number(item.base_price ?? item.BasePrice ?? item.price ?? 0);
-}
+  return "Veg";
+};
+
+const getMenuType = (it: any) => {
+  return (
+    cleanText(
+      it?.menu_type ??
+        it?.MenuType ??
+        it?.type
+    ) || "Other"
+  );
+};
+
+const getCuisine = (it: any) => {
+  return cleanText(
+    it?.item_cuisine ??
+      it?.ItemCuisine ??
+      it?.cuisine
+  );
+};
+
+const getItemId = (it: any) => {
+  return String(
+    it?.id ??
+      it?.item_code ??
+      it?.ItemCode ??
+      it?.item_name ??
+      ""
+  );
+};
+
+const getItemName = (it: any) => {
+  return cleanText(
+    it?.item_name ??
+      it?.ItemName ??
+      it?.name
+  );
+};
+
+const getItemPrice = (it: any) => {
+  return money(
+    it?.base_price ??
+      it?.BasePrice ??
+      it?.price ??
+      it?.selling_price ??
+      it?.SellingPrice
+  );
+};
+
+const isVegItem = (it: any) => {
+  return getItemCategory(it) === "Veg";
+};
+
+const isItemActive = (it: any) => {
+  const raw =
+    it?.status ??
+    it?.Status ??
+    it?.item_status ??
+    it?.is_active ??
+    it?.active ??
+    "ON";
+
+  const normalized = String(raw).trim().toUpperCase();
+
+  return ["ON", "ACTIVE", "TRUE", "1", "YES"].includes(normalized);
+};
+
+const getCartEntry = (cart: any, itemId: string) => {
+  if (!cart) return null;
+
+  if (Array.isArray(cart)) {
+    return cart.find((x: any) => String(x?.id) === String(itemId)) || null;
+  }
+
+  return cart[itemId] || null;
+};
 
 export default function RestroMenuClient({
-  header,
-  items,
-  nextParams,
-}: {
-  header: any;
-  items: any[];
-  nextParams: any;
-}) {
+  items = [],
+  header = {},
+  nextParams = {},
+}: any) {
   const { user } = useAuth();
-  const { add, changeQty, cart, setJourney } = useCart();
+
+  const {
+    add,
+    changeQty,
+    cart,
+    setJourney,
+  } = useCart();
 
   const [vegOnly, setVegOnly] = useState(false);
   const [selectedType, setSelectedType] = useState("All");
   const [trainMin, setTrainMin] = useState<number | null>(null);
 
+  /* ================= ARRIVAL TIME ================= */
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const time =
+
+    const arrival =
       params.get("deliveryTime") ||
       params.get("arrival") ||
       params.get("arrivalTime") ||
       nextParams?.deliveryTime ||
+      nextParams?.arrival ||
       "";
 
-    if (time) setTrainMin(toMin(time));
-  }, [nextParams?.deliveryTime]);
+    const mins = toMin(arrival);
+
+    if (mins !== null) {
+      setTrainMin(mins);
+    }
+  }, [nextParams?.deliveryTime, nextParams?.arrival]);
+
+  /* ================= NORMALIZED JOURNEY ================= */
+
+  const journey = useMemo(() => {
+    const trainNumber =
+      nextParams?.trainNumber ||
+      nextParams?.train ||
+      "";
+
+    const trainName =
+      nextParams?.trainName &&
+      String(nextParams.trainName).toLowerCase() !== "train"
+        ? nextParams.trainName
+        : "";
+
+    const stationCode =
+      header?.stationCode ||
+      nextParams?.stationCode ||
+      "";
+
+    const stationName =
+      header?.stationName ||
+      nextParams?.stationName ||
+      "";
+
+    const restroCode =
+      header?.restroCode ||
+      nextParams?.restroCode ||
+      "";
+
+    const restroName =
+      header?.outletName ||
+      nextParams?.vendorName ||
+      nextParams?.restroName ||
+      "";
+
+    return {
+      trainNumber,
+      trainName,
+      stationCode,
+      stationName,
+      restroCode,
+      restroName,
+      deliveryDate: nextParams?.deliveryDate || "",
+      deliveryTime: nextParams?.deliveryTime || nextParams?.arrival || "",
+      minimumOrder: header?.minimumOrder || nextParams?.minOrder || "",
+      boarding: nextParams?.boarding || "",
+    };
+  }, [header, nextParams]);
+
+  /* ================= MENU TYPES ================= */
 
   const menuTypes = useMemo(() => {
-    const unique = Array.from(
+    const types = Array.from(
       new Set(
-        (items || [])
-          .map((item) => getMenuType(item))
-          .filter((value) => value && value !== "All")
+        items
+          .map((it: any) => getMenuType(it))
+          .filter(Boolean)
       )
     );
 
-    return ["All", ...unique];
+    return ["All", ...types.filter((t) => t !== "All")];
   }, [items]);
 
-  const visibleItems = useMemo(() => {
-    return (items || []).filter((item) => {
-      if (!isItemActive(item)) return false;
+  /* ================= FILTER ================= */
+
+  const visible = useMemo(() => {
+    return items.filter((it: any) => {
+      if (!isItemActive(it)) return false;
+
+      const start = toMin(it?.start_time ?? it?.ItemStart);
+      const end = toMin(it?.end_time ?? it?.ItemClosed);
 
       if (
         trainMin !== null &&
-        item.start_time &&
-        item.end_time &&
-        !isTimeInRange(String(nextParams?.deliveryTime || ""), item.start_time, item.end_time)
+        start !== null &&
+        end !== null
       ) {
-        return false;
+        if (end >= start) {
+          if (trainMin < start || trainMin > end) return false;
+        } else if (trainMin < start && trainMin > end) {
+          return false;
+        }
       }
 
-      if (vegOnly && !isVegItem(item)) return false;
+      if (vegOnly && !isVegItem(it)) return false;
 
-      if (selectedType !== "All" && getMenuType(item) !== selectedType) {
+      if (selectedType !== "All" && getMenuType(it) !== selectedType) {
         return false;
       }
 
       return true;
     });
-  }, [items, trainMin, vegOnly, selectedType, nextParams?.deliveryTime]);
+  }, [items, vegOnly, trainMin, selectedType]);
 
-  const cartQty = (item: any) => {
-    const id = String(item.id ?? item.item_code ?? item.ItemCode ?? item.item_name);
-    const found = cart.find((cartItem: any) => String(cartItem.id) === id);
-    return Number(found?.qty || 0);
-  };
+  /* ================= ADD ================= */
 
-  function applyJourney() {
-    setJourney({
-      deliveryDate: nextParams?.deliveryDate || "",
-      deliveryTime: nextParams?.deliveryTime || "",
-      arrival: nextParams?.arrival || nextParams?.deliveryTime || "",
-      train: nextParams?.train || "",
-      trainName: nextParams?.trainName || "Train",
-      boarding: nextParams?.boarding || "",
-      minOrder: nextParams?.minOrder || header?.minimumOrder || "",
-      restroCode: header?.restroCode || nextParams?.restroCode || "",
-      restroName: header?.outletName || nextParams?.restroName || "",
-      stationCode: header?.stationCode || nextParams?.stationCode || "",
-      stationName: header?.stationName || nextParams?.stationName || "",
-    });
-  }
+  const buildCartItem = (it: any) => {
+    const id = getItemId(it);
+    const name = getItemName(it);
+    const price = getItemPrice(it);
 
-  function addItem(item: any) {
-    const id = String(item.id ?? item.item_code ?? item.ItemCode ?? item.item_name);
-    const name = String(item.item_name ?? item.ItemName ?? "");
-    const price = priceOf(item);
-
-    const cartItem = {
+    return {
       id,
       item_code: id,
-      item_name: name,
       name,
+      item_name: name,
       price,
       base_price: price,
       qty: 1,
-      restro_code: header?.restroCode || nextParams?.restroCode || "",
-      restro_name: header?.outletName || nextParams?.restroName || "",
-      station_code: header?.stationCode || nextParams?.stationCode || "",
-      station_name: header?.stationName || nextParams?.stationName || "",
-      item_description: item.item_description || "",
-      item_category: getItemCategory(item),
-      item_cuisine: getCuisine(item),
-      menu_type: getMenuType(item),
+
+      restro_code: String(journey.restroCode || ""),
+      restro_name: journey.restroName || "",
+
+      station_code: journey.stationCode || "",
+      station_name: journey.stationName || "",
+
+      description:
+        it?.item_description ??
+        it?.ItemDescription ??
+        null,
+
+      category: getItemCategory(it),
+      item_category: getItemCategory(it),
+
+      cuisine: getCuisine(it) || null,
+      item_cuisine: getCuisine(it) || null,
+
+      menu_type: getMenuType(it),
     };
+  };
+
+  const saveJourney = () => {
+    setJourney({
+      trainNumber: journey.trainNumber || "",
+      trainName: journey.trainName || "",
+      stationName: journey.stationName || "",
+      stationCode: journey.stationCode || "",
+      deliveryDate: journey.deliveryDate || "",
+      deliveryTime: journey.deliveryTime || "",
+      vendorName: journey.restroName || "",
+      restroCode: Number(journey.restroCode || 0),
+      restroName: journey.restroName || "",
+      boarding: journey.boarding || "",
+      minOrder: journey.minimumOrder || "",
+    });
+  };
+
+  const handleAdd = (it: any) => {
+    const cartItem = buildCartItem(it);
 
     if (!user) {
       window.dispatchEvent(
         new CustomEvent("raileats:open-login", {
           detail: {
             item: cartItem,
+            rawItem: it,
             afterLogin: "add-to-cart",
           },
         })
       );
+
       return;
     }
 
-    applyJourney();
-    add(cartItem);
-  }
+    saveJourney();
+    add(cartItem as any);
+  };
 
-  function updateQty(item: any, delta: number) {
-    const id = String(item.id ?? item.item_code ?? item.ItemCode ?? item.item_name);
-    changeQty(id, delta);
-  }
+  const handleQty = (it: any, nextQty: number) => {
+    const id = getItemId(it);
+    changeQty(id, nextQty);
+  };
 
-  const journeyDate = formatDate(nextParams?.deliveryDate);
-  const journeyTime = String(nextParams?.deliveryTime || nextParams?.arrival || "").slice(0, 5);
-  const minOrder = Number(header?.minimumOrder || nextParams?.minOrder || 0);
+  /* ================= UI ================= */
 
   return (
     <div className="menu-page">
+
+      {/* HEADER */}
+
       <section className="app-card menu-hero-card">
+
         <div className="menu-hero-top">
+
           <div>
-            <span className="eyebrow">Journey</span>
-            <h1>{header?.outletName}</h1>
+
+            <span className="eyebrow">
+              Journey
+            </span>
+
+            <h1>
+              {journey.restroName || "Restaurant Menu"}
+            </h1>
+
             <p>
-              {header?.stationName} ({header?.stationCode})
+              {journey.stationName || "Station"}
+
+              {journey.stationCode
+                ? ` (${journey.stationCode})`
+                : ""}
             </p>
+
           </div>
 
           <label className="veg-toggle">
+
             <input
               type="checkbox"
               checked={vegOnly}
-              onChange={(e) => setVegOnly(e.target.checked)}
+              onChange={(e) =>
+                setVegOnly(e.target.checked)
+              }
             />
-            <span>Veg only</span>
-          </label>
-        </div>
 
-        <div className="journey-strip">
-          <div>
-            <span>Train</span>
-            <strong>{nextParams?.train ? `#${nextParams.train}` : "N/A"}</strong>
-          </div>
-          <div>
-            <span>Delivery</span>
-            <strong>
-              {journeyDate || "Date N/A"}
-              {journeyTime ? ` at ${journeyTime}` : ""}
-            </strong>
-          </div>
-          <div>
-            <span>Min Order</span>
-            <strong>{minOrder ? `₹${minOrder}` : "N/A"}</strong>
-          </div>
-        </div>
-      </section>
-
-      {menuTypes.length > 1 && (
-        <div className="menu-chip-row" aria-label="Menu categories">
-          {menuTypes.map((type) => (
-            <button
-              key={type}
-              type="button"
-              onClick={() => setSelectedType(type)}
-              className={selectedType === type ? "menu-chip active" : "menu-chip"}
-            >
-              {type}
-            </button>
-          ))}
-        </div>
-      )}
-
-      <section className="menu-list">
-        {visibleItems.length === 0 ? (
-          <div className="app-card empty-menu-card">
-            <h2>No items available right now</h2>
-            <p>
-              Menu items are shown only when they match the train arrival time and restaurant
-              availability.
-            </p>
-          </div>
-        ) : (
-          visibleItems.map((item) => {
-            const qty = cartQty(item);
-            const veg = isVegItem(item);
-            const price = priceOf(item);
-            const cuisine = getCuisine(item);
-            const menuType = getMenuType(item);
-            const category = getItemCategory(item);
-
-            return (
-              <article className="app-card menu-item-card" key={String(item.id)}>
-                <div className="menu-item-main">
-                  <div className={veg ? "food-dot veg" : "food-dot nonveg"} />
-
-                  <div className="menu-item-copy">
-                    <h2>{item.item_name}</h2>
-                    <p className="item-meta">
-                      {category}
-                      {menuType && menuType !== "All" ? ` • ${menuType}` : ""}
-                      {cuisine ? ` • ${cuisine}` : ""}
-                    </p>
-
-                    {(item.start_time || item.end_time) && (
-                      <p className="item-time">
-                        {formatTime(item.start_time)} - {formatTime(item.end_time)}
-                      </p>
-                    )}
-
-                    {item.item_description && (
-                      <p className="item-desc">{item.item_description}</p>
-                    )}
-
-                    <strong className="item-price">₹{price}</strong>
-                  </div>
-                </div>
-
-                <div className="menu-item-action">
-                  {qty > 0 ? (
-                    <div className="qty-control" aria-label={`${item.item_name} quantity`}>
-                      <button type="button" onClick={() => updateQty(item, -1)}>
-                        -
-                      </button>
-                      <span>{qty}</span>
-                      <button type="button" onClick={() => updateQty(item, 1)}>
-                        +
-                      </button>
-                    </div>
-                  ) : (
-                    <button type="button" className="add-btn" onClick={() => addItem(item)}>
-                      Add
-                    </button>
-                  )}
-                </div>
-              </article>
-            );
-          })
-        )}
-      </section>
-
-      <section className="app-card seo-content-card">
-        <h2>
-          Order food from {header?.outletName} at {header?.stationName}
-        </h2>
-        <p>
-          RailEats helps passengers order fresh train food from available restaurants on their
-          route. Menu items shown here are filtered by restaurant timing, train arrival time and
-          delivery availability.
-        </p>
-        <p>
-          Choose your meal, verify your mobile number, add coach and seat details at checkout,
-          and place your order for delivery at {header?.stationName}.
-        </p>
-      </section>
-
-      <CartPillMobile minOrder={minOrder} />
-    </div>
-  );
-}
+            <spa
