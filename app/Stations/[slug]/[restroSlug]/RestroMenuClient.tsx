@@ -10,52 +10,31 @@ import CartPillMobile from "../../../components/CartPillMobile";
 const toMin = (t?: string | null) => {
   if (!t) return null;
 
-  const [h, m] = String(t)
-    .slice(0, 5)
-    .split(":")
-    .map(Number);
+  const clean = String(t).slice(0, 5);
+  const [h, m] = clean.split(":").map(Number);
 
   if (!Number.isFinite(h) || !Number.isFinite(m)) return null;
-
   return h * 60 + m;
 };
 
-const cleanText = (value: any) => String(value ?? "").trim();
-
-const shortTime = (value: any) => {
-  const raw = cleanText(value);
-  return raw ? raw.slice(0, 5) : "";
-};
-
-const money = (value: any) => {
-  const n = Number(value || 0);
-  return Number.isFinite(n) ? n : 0;
+const cleanTime = (value?: string | null) => {
+  if (!value) return "";
+  return String(value).slice(0, 5);
 };
 
 /* ================= CATEGORY HELPERS ================= */
 
 const getItemCategory = (it: any) => {
-  const category = cleanText(
-    it?.item_category ??
-      it?.ItemCategory ??
-      it?.category
-  ).toLowerCase();
+  const category = String(it?.item_category || "")
+    .trim()
+    .toLowerCase();
 
   if (category === "veg" || category === "jain") return "Veg";
-
-  if (
-    category === "non-veg" ||
-    category === "non veg" ||
-    category === "nonveg"
-  ) {
+  if (category === "non-veg" || category === "non veg" || category === "nonveg") {
     return "Non-Veg";
   }
 
-  const name = cleanText(
-    it?.item_name ??
-      it?.ItemName ??
-      it?.name
-  ).toLowerCase();
+  const name = String(it?.item_name || "").toLowerCase();
 
   if (
     name.includes("chicken") ||
@@ -70,49 +49,7 @@ const getItemCategory = (it: any) => {
 };
 
 const getMenuType = (it: any) => {
-  return (
-    cleanText(
-      it?.menu_type ??
-        it?.MenuType ??
-        it?.type
-    ) || "Other"
-  );
-};
-
-const getCuisine = (it: any) => {
-  return cleanText(
-    it?.item_cuisine ??
-      it?.ItemCuisine ??
-      it?.cuisine
-  );
-};
-
-const getItemId = (it: any) => {
-  return String(
-    it?.id ??
-      it?.item_code ??
-      it?.ItemCode ??
-      it?.item_name ??
-      ""
-  );
-};
-
-const getItemName = (it: any) => {
-  return cleanText(
-    it?.item_name ??
-      it?.ItemName ??
-      it?.name
-  );
-};
-
-const getItemPrice = (it: any) => {
-  return money(
-    it?.base_price ??
-      it?.BasePrice ??
-      it?.price ??
-      it?.selling_price ??
-      it?.SellingPrice
-  );
+  return String(it?.menu_type || "Other").trim();
 };
 
 const isVegItem = (it: any) => {
@@ -122,25 +59,22 @@ const isVegItem = (it: any) => {
 const isItemActive = (it: any) => {
   const raw =
     it?.status ??
-    it?.Status ??
     it?.item_status ??
     it?.is_active ??
     it?.active ??
     "ON";
 
-  const normalized = String(raw).trim().toUpperCase();
-
-  return ["ON", "ACTIVE", "TRUE", "1", "YES"].includes(normalized);
+  return String(raw).trim().toUpperCase() === "ON";
 };
 
-const getCartEntry = (cart: any, itemId: string) => {
+const getCartEntry = (cart: any, itemId: any) => {
   if (!cart) return null;
 
   if (Array.isArray(cart)) {
     return cart.find((x: any) => String(x?.id) === String(itemId)) || null;
   }
 
-  return cart[itemId] || null;
+  return cart[itemId] || cart[String(itemId)] || null;
 };
 
 export default function RestroMenuClient({
@@ -150,18 +84,12 @@ export default function RestroMenuClient({
 }: any) {
   const { user } = useAuth();
 
-  const {
-    add,
-    changeQty,
-    cart,
-    setJourney,
-  } = useCart();
+  const { add, changeQty, cart, setJourney } = useCart();
 
   const [vegOnly, setVegOnly] = useState(false);
-  const [selectedType, setSelectedType] = useState("All");
   const [trainMin, setTrainMin] = useState<number | null>(null);
 
-  /* ================= ARRIVAL TIME ================= */
+  /* ================= ARRIVAL ================= */
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -169,163 +97,69 @@ export default function RestroMenuClient({
     const arrival =
       params.get("deliveryTime") ||
       params.get("arrival") ||
-      params.get("arrivalTime") ||
-      nextParams?.deliveryTime ||
-      nextParams?.arrival ||
-      "";
+      params.get("arrivalTime");
 
-    const mins = toMin(arrival);
-
-    if (mins !== null) {
-      setTrainMin(mins);
+    if (arrival && arrival.includes(":")) {
+      setTrainMin(toMin(arrival.slice(0, 5)));
     }
-  }, [nextParams?.deliveryTime, nextParams?.arrival]);
-
-  /* ================= NORMALIZED JOURNEY ================= */
-
-  const journey = useMemo(() => {
-    const trainNumber =
-      nextParams?.trainNumber ||
-      nextParams?.train ||
-      "";
-
-    const trainName =
-      nextParams?.trainName &&
-      String(nextParams.trainName).toLowerCase() !== "train"
-        ? nextParams.trainName
-        : "";
-
-    const stationCode =
-      header?.stationCode ||
-      nextParams?.stationCode ||
-      "";
-
-    const stationName =
-      header?.stationName ||
-      nextParams?.stationName ||
-      "";
-
-    const restroCode =
-      header?.restroCode ||
-      nextParams?.restroCode ||
-      "";
-
-    const restroName =
-      header?.outletName ||
-      nextParams?.vendorName ||
-      nextParams?.restroName ||
-      "";
-
-    return {
-      trainNumber,
-      trainName,
-      stationCode,
-      stationName,
-      restroCode,
-      restroName,
-      deliveryDate: nextParams?.deliveryDate || "",
-      deliveryTime: nextParams?.deliveryTime || nextParams?.arrival || "",
-      minimumOrder: header?.minimumOrder || nextParams?.minOrder || "",
-      boarding: nextParams?.boarding || "",
-    };
-  }, [header, nextParams]);
-
-  /* ================= MENU TYPES ================= */
-
-  const menuTypes = useMemo(() => {
-    const types = Array.from(
-      new Set(
-        items
-          .map((it: any) => getMenuType(it))
-          .filter(Boolean)
-      )
-    );
-
-    return ["All", ...types.filter((t) => t !== "All")];
-  }, [items]);
+  }, []);
 
   /* ================= FILTER ================= */
 
   const visible = useMemo(() => {
-    return items.filter((it: any) => {
+    return (items || []).filter((it: any) => {
       if (!isItemActive(it)) return false;
 
-      const start = toMin(it?.start_time ?? it?.ItemStart);
-      const end = toMin(it?.end_time ?? it?.ItemClosed);
+      const s = toMin(it?.start_time);
+      const e = toMin(it?.end_time);
 
-      if (
-        trainMin !== null &&
-        start !== null &&
-        end !== null
-      ) {
-        if (end >= start) {
-          if (trainMin < start || trainMin > end) return false;
-        } else if (trainMin < start && trainMin > end) {
-          return false;
+      if (trainMin !== null && s !== null && e !== null) {
+        if (e >= s) {
+          if (trainMin < s || trainMin > e) return false;
+        } else {
+          if (trainMin < s && trainMin > e) return false;
         }
       }
 
       if (vegOnly && !isVegItem(it)) return false;
 
-      if (selectedType !== "All" && getMenuType(it) !== selectedType) {
-        return false;
-      }
-
       return true;
     });
-  }, [items, vegOnly, trainMin, selectedType]);
+  }, [items, vegOnly, trainMin]);
 
-  /* ================= ADD ================= */
-
-  const buildCartItem = (it: any) => {
-    const id = getItemId(it);
-    const name = getItemName(it);
-    const price = getItemPrice(it);
-
-    return {
-      id,
-      item_code: id,
-      name,
-      item_name: name,
-      price,
-      base_price: price,
-      qty: 1,
-
-      restro_code: String(journey.restroCode || ""),
-      restro_name: journey.restroName || "",
-
-      station_code: journey.stationCode || "",
-      station_name: journey.stationName || "",
-
-      description:
-        it?.item_description ??
-        it?.ItemDescription ??
-        null,
-
-      category: getItemCategory(it),
-      item_category: getItemCategory(it),
-
-      cuisine: getCuisine(it) || null,
-      item_cuisine: getCuisine(it) || null,
-
-      menu_type: getMenuType(it),
-    };
-  };
+  /* ================= JOURNEY / CART ================= */
 
   const saveJourney = () => {
     setJourney({
-      trainNumber: journey.trainNumber || "",
-      trainName: journey.trainName || "",
-      stationName: journey.stationName || "",
-      stationCode: journey.stationCode || "",
-      deliveryDate: journey.deliveryDate || "",
-      deliveryTime: journey.deliveryTime || "",
-      vendorName: journey.restroName || "",
-      restroCode: Number(journey.restroCode || 0),
-      restroName: journey.restroName || "",
-      boarding: journey.boarding || "",
-      minOrder: journey.minimumOrder || "",
+      trainNumber: nextParams?.trainNumber || nextParams?.train || "",
+      trainName: nextParams?.trainName || "",
+      stationName: nextParams?.stationName || "",
+      stationCode: nextParams?.stationCode || header?.stationCode || "",
+      deliveryDate: nextParams?.deliveryDate || "",
+      deliveryTime: nextParams?.deliveryTime || "",
+      vendorName: nextParams?.vendorName || header?.outletName || "",
+      restroCode: Number(header?.restroCode || nextParams?.restroCode || 0),
     });
+  };
+
+  const buildCartItem = (it: any) => {
+    return {
+      id: it.id,
+      name: it.item_name,
+      price: Number(it.base_price || 0),
+      qty: 1,
+
+      restro_code: String(header?.restroCode || nextParams?.restroCode || ""),
+      restro_name: nextParams?.vendorName || header?.outletName || "",
+
+      station_code: nextParams?.stationCode || header?.stationCode || "",
+      station_name: nextParams?.stationName || header?.stationName || "",
+
+      description: it.item_description || null,
+      category: getItemCategory(it),
+      cuisine: it.item_cuisine || null,
+      menu_type: getMenuType(it),
+    };
   };
 
   const handleAdd = (it: any) => {
@@ -335,8 +169,8 @@ export default function RestroMenuClient({
       window.dispatchEvent(
         new CustomEvent("raileats:open-login", {
           detail: {
-            item: cartItem,
-            rawItem: it,
+            item: it,
+            cartItem,
             afterLogin: "add-to-cart",
           },
         })
@@ -350,49 +184,181 @@ export default function RestroMenuClient({
   };
 
   const handleQty = (it: any, nextQty: number) => {
-    const id = getItemId(it);
-    changeQty(id, nextQty);
+    if (nextQty < 0) return;
+    changeQty(it.id, nextQty);
   };
 
   /* ================= UI ================= */
 
   return (
-    <div className="menu-page">
-
+    <div className="menu-page space-y-4">
       {/* HEADER */}
-
       <section className="app-card menu-hero-card">
-
-        <div className="menu-hero-top">
-
+        <div className="menu-journey-row">
           <div>
+            <div className="menu-eyebrow">Journey</div>
 
-            <span className="eyebrow">
-              Journey
-            </span>
+            <div className="menu-train">
+              {nextParams?.trainName
+                ? `${nextParams.trainName} #${nextParams.trainNumber}`
+                : `Train #${nextParams?.trainNumber || "-"}`}
+            </div>
 
-            <h1>
-              {journey.restroName || "Restaurant Menu"}
-            </h1>
+            <div className="menu-muted">
+              {nextParams?.stationName || header?.stationName || "-"} (
+              {header?.stationCode || nextParams?.stationCode || "-"})
+            </div>
 
-            <p>
-              {journey.stationName || "Station"}
-
-              {journey.stationCode
-                ? ` (${journey.stationCode})`
-                : ""}
-            </p>
-
+            <div className="menu-date">
+              {nextParams?.deliveryDate || "-"}
+              {nextParams?.deliveryTime ? ` at ${nextParams.deliveryTime}` : ""}
+            </div>
           </div>
 
-          <label className="veg-toggle">
-
+          <label className="menu-veg-toggle">
             <input
               type="checkbox"
               checked={vegOnly}
-              onChange={(e) =>
-                setVegOnly(e.target.checked)
-              }
+              onChange={(e) => setVegOnly(e.target.checked)}
             />
+            <span>Veg only</span>
+          </label>
+        </div>
 
-            <spa
+        <div className="menu-restro-name">
+          {header?.outletName || nextParams?.vendorName || "Restaurant"}
+        </div>
+
+        <div className="menu-min-order">
+          Min Order: Rs {Number(header?.minimumOrder || 0)}
+        </div>
+      </section>
+
+      {/* CATEGORY STRIP */}
+      <section className="menu-filter-strip">
+        <button
+          type="button"
+          className={!vegOnly ? "menu-chip active" : "menu-chip"}
+          onClick={() => setVegOnly(false)}
+        >
+          All Items
+        </button>
+
+        <button
+          type="button"
+          className={vegOnly ? "menu-chip active veg" : "menu-chip veg"}
+          onClick={() => setVegOnly(true)}
+        >
+          Veg Only
+        </button>
+
+        <span className="menu-count">
+          {visible.length} item{visible.length === 1 ? "" : "s"} available
+        </span>
+      </section>
+
+      {/* EMPTY */}
+      {visible.length === 0 && (
+        <section className="app-card menu-empty">
+          <div className="menu-empty-title">No items available</div>
+          <div className="menu-muted">
+            Items may be unavailable for this train arrival time.
+          </div>
+        </section>
+      )}
+
+      {/* ITEMS */}
+      <section className="menu-list">
+        {visible.map((it: any) => {
+          const existing = getCartEntry(cart, it.id);
+          const isVeg = isVegItem(it);
+          const category = getItemCategory(it);
+          const menuType = getMenuType(it);
+
+          return (
+            <article key={it.id} className="menu-item-card app-card">
+              <div className="menu-item-main">
+                <div className="menu-title-row">
+                  <span
+                    className={
+                      isVeg
+                        ? "menu-food-dot menu-food-dot-veg"
+                        : "menu-food-dot menu-food-dot-nonveg"
+                    }
+                  />
+
+                  <div className="menu-item-title">{it.item_name}</div>
+                </div>
+
+                <div className="menu-item-meta">
+                  {category} • {menuType}
+                </div>
+
+                <div className="menu-item-time">
+                  {cleanTime(it.start_time) && cleanTime(it.end_time)
+                    ? `${cleanTime(it.start_time)} - ${cleanTime(it.end_time)}`
+                    : "All day"}
+                </div>
+
+                {it.item_description ? (
+                  <div className="menu-item-description">
+                    {it.item_description}
+                  </div>
+                ) : null}
+
+                <div className="menu-item-price">
+                  Rs {Number(it.base_price || 0)}
+                </div>
+              </div>
+
+              <div className="menu-item-action">
+                {!existing ? (
+                  <button
+                    type="button"
+                    className="menu-add-btn"
+                    onClick={() => handleAdd(it)}
+                  >
+                    Add
+                  </button>
+                ) : (
+                  <div className="menu-qty-control">
+                    <button
+                      type="button"
+                      onClick={() => handleQty(it, Number(existing.qty || 0) - 1)}
+                    >
+                      -
+                    </button>
+
+                    <span>{Number(existing.qty || 0)}</span>
+
+                    <button
+                      type="button"
+                      onClick={() => handleQty(it, Number(existing.qty || 0) + 1)}
+                    >
+                      +
+                    </button>
+                  </div>
+                )}
+              </div>
+            </article>
+          );
+        })}
+      </section>
+
+      {/* SEO CONTENT */}
+      <section className="app-card menu-seo-copy">
+        <h1>
+          Order food from {header?.outletName || "restaurant"} at{" "}
+          {header?.stationName || nextParams?.stationName || "your station"}
+        </h1>
+
+        <p>
+          Choose fresh meals for your train journey, add items to cart, verify
+          your mobile number and place your order for delivery at your seat.
+        </p>
+      </section>
+
+      <CartPillMobile minOrder={header?.minimumOrder} />
+    </div>
+  );
+}
