@@ -162,14 +162,47 @@ export default function RestroMenuClient({
 
  const saveJourney = () => {
   const journeyPayload = {
-    trainNumber: displayTrainNumber,
-    trainName: displayTrainName,
-    stationName: displayStationName,
-    stationCode: displayStationCode,
-    deliveryDate: displayDeliveryDate,
-    deliveryTime: displayDeliveryTime,
-    vendorName: displayVendorName,
-    restroCode: Number(header?.restroCode || nextParams?.restroCode || 0),
+    trainNumber:
+      nextParams?.trainNumber ||
+      nextParams?.train ||
+      urlJourney?.trainNumber ||
+      "",
+
+    trainName:
+      cleanTrainName(nextParams?.trainName) ||
+      urlJourney?.trainName ||
+      "",
+
+    stationName:
+      nextParams?.stationName ||
+      header?.stationName ||
+      "",
+
+    stationCode:
+      nextParams?.stationCode ||
+      header?.stationCode ||
+      "",
+
+    deliveryDate:
+      nextParams?.deliveryDate ||
+      urlJourney?.deliveryDate ||
+      "",
+
+    deliveryTime:
+      nextParams?.deliveryTime ||
+      urlJourney?.deliveryTime ||
+      "",
+
+    vendorName:
+      nextParams?.vendorName ||
+      header?.outletName ||
+      "",
+
+    restroCode: Number(
+      header?.restroCode ||
+      nextParams?.restroCode ||
+      0
+    ),
   };
 
   setJourney(journeyPayload);
@@ -181,7 +214,6 @@ export default function RestroMenuClient({
     );
   }
 };
-
   const buildCartItem = (it: any) => {
     return {
       id: it.id,
