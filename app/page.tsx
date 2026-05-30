@@ -1,236 +1,90 @@
-"use client";
+import type { Metadata } from "next";
+import { Suspense } from "react";
+import HomePageClient from "./HomePageClient";
 
-import { useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
-import { useAuth } from "./lib/useAuth";
-import { supabase } from "./lib/supabaseClient";
+const siteUrl = "https://www.raileats.in";
 
-import HeroSlider from "./components/HeroSlider";
-import SearchBox from "./components/SearchBox";
-import Offers from "./components/Offers";
-import Steps from "./components/Steps";
-import ExploreRailInfo from "./components/ExploreRailInfo";
-import FooterLinks from "./components/FooterLinks";
+export const metadata: Metadata = {
+  title: "Order Food in Train Online",
+  description:
+    "Order fresh food in train by train number, PNR or station. RailEats delivers meals from trusted restaurants to your train seat.",
+  alternates: {
+    canonical: "/",
+  },
+  openGraph: {
+    title: "Order Food in Train Online | RailEats",
+    description:
+      "Search your train, choose a station restaurant, add meals and get food delivered to your seat.",
+    url: siteUrl,
+    images: [
+      {
+        url: "/raileats-logo.png",
+        width: 512,
+        height: 512,
+        alt: "RailEats food delivery in train",
+      },
+    ],
+  },
+};
 
-export default function HomePage() {
-  const search = useSearchParams();
-  const user = useAuth((s) => s.user);
+const websiteSchema = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  name: "RailEats",
+  url: siteUrl,
+  potentialAction: {
+    "@type": "SearchAction",
+    target: `${siteUrl}/trains/{search_term_string}-train-food-delivery-in-train`,
+    "query-input": "required name=search_term_string",
+  },
+};
 
-  const [showBulkModal, setShowBulkModal] = useState(false);
-  const [name, setName] = useState("");
-  const [mobile, setMobile] = useState("");
-  const [email, setEmail] = useState("");
-  const [trainNumber, setTrainNumber] = useState("");
-  const [journeyDate, setJourneyDate] = useState("");
-  const [quantity, setQuantity] = useState("");
-  const [success, setSuccess] = useState(false);
-  const [loading, setLoading] = useState(false);
+const faqSchema = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: [
+    {
+      "@type": "Question",
+      name: "How can I order food in train on RailEats?",
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: "Enter your train number, select boarding date and station, choose an available restaurant, add food items to cart and place your order.",
+      },
+    },
+    {
+      "@type": "Question",
+      name: "Does RailEats deliver food to train seats?",
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: "Yes, RailEats delivers food to your train seat at supported railway stations based on restaurant availability and train arrival time.",
+      },
+    },
+    {
+      "@type": "Question",
+      name: "Can I order food by train number?",
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: "Yes, you can search by train number and RailEats will show available stations and restaurants on that train route.",
+      },
+    },
+  ],
+};
 
-  const formatMobile = (num: string) => {
-    const clean = String(num || "").replace(/\D/g, "");
-
-    if (clean.startsWith("91") && clean.length === 12) return `+${clean}`;
-    if (clean.length === 10) return `+91${clean}`;
-
-    return num;
-  };
-
-  const handleSubmit = async () => {
-    if (!trainNumber || !journeyDate || !quantity) {
-      alert("Please fill all required fields");
-      return;
-    }
-
-    if (!user && (!name || !mobile)) {
-      alert("Please fill your details");
-      return;
-    }
-
-    try {
-      setLoading(true);
-
-      const { error } = await supabase.from("bulk_order_queries").insert([
-        {
-          name: user?.name || name,
-          mobile: user?.mobile || formatMobile(mobile),
-          email: user?.email || email,
-          train_number: trainNumber,
-          journey_date: journeyDate,
-          quantity,
-        },
-      ]);
-
-      if (error) {
-        alert("Error submitting enquiry");
-        return;
-      }
-
-      setSuccess(true);
-      setTrainNumber("");
-      setJourneyDate("");
-      setQuantity("");
-      setName("");
-      setMobile("");
-      setEmail("");
-    } catch (err) {
-      console.error(err);
-      alert("Something went wrong");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    const goto = search.get("goto");
-
-    if (goto === "offers") {
-      document.getElementById("offers")?.scrollIntoView({
-        behavior: "smooth",
-      });
-    }
-  }, [search]);
-
-  useEffect(() => {
-    if (!user) return;
-
-    const action = localStorage.getItem("afterLoginAction");
-
-    if (action === "bulk") {
-      setShowBulkModal(true);
-      localStorage.removeItem("afterLoginAction");
-    }
-  }, [user]);
-
+export default function Page() {
   return (
-    <div className="space-y-5">
-      <section className="space-y-4">
-        <HeroSlider />
-        <SearchBox />
-      </section>
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteSchema) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
+      />
 
-      <ExploreRailInfo />
-      <Offers />
-      <Steps />
-
-      <section className="container-app">
-        <button
-          type="button"
-          onClick={() => {
-            if (!user) {
-              localStorage.setItem("afterLoginAction", "bulk");
-              window.dispatchEvent(new CustomEvent("raileats:open-login"));
-              return;
-            }
-
-            setShowBulkModal(true);
-          }}
-          className="app-card w-full p-4 text-left"
-        >
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <h3 className="app-section-title text-base">Bulk Order Query</h3>
-              <p className="app-muted mt-1 text-sm">
-                Group food orders on train with best pricing and support.
-              </p>
-            </div>
-
-            <span className="rounded-full bg-orange-50 px-3 py-1 text-xs font-black text-orange-600">
-              Enquire
-            </span>
-          </div>
-        </button>
-      </section>
-
-      <FooterLinks />
-
-      {showBulkModal && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/50 p-4">
-          <div className="app-card relative w-full max-w-md p-5">
-            <button
-              type="button"
-              onClick={() => {
-                setShowBulkModal(false);
-                setSuccess(false);
-              }}
-              className="absolute right-4 top-3 text-xl font-bold text-slate-500"
-            >
-              x
-            </button>
-
-            <h2 className="app-section-title text-center">Bulk Order</h2>
-            <p className="app-muted mt-1 text-center text-sm">
-              Share journey and quantity details.
-            </p>
-
-            {success ? (
-              <div className="mt-5 rounded-xl bg-green-50 p-4 text-center font-bold text-green-700">
-                Submitted successfully
-              </div>
-            ) : (
-              <div className="mt-5 space-y-3">
-                {!user && (
-                  <>
-                    <input
-                      placeholder="Name"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      className="app-input"
-                    />
-
-                    <input
-                      placeholder="Mobile"
-                      value={mobile}
-                      onChange={(e) =>
-                        setMobile(e.target.value.replace(/\D/g, "").slice(0, 10))
-                      }
-                      className="app-input"
-                    />
-
-                    <input
-                      placeholder="Email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="app-input"
-                    />
-                  </>
-                )}
-
-                <input
-                  placeholder="Train Number"
-                  value={trainNumber}
-                  onChange={(e) => setTrainNumber(e.target.value)}
-                  className="app-input"
-                />
-
-                <input
-                  type="date"
-                  value={journeyDate}
-                  onChange={(e) => setJourneyDate(e.target.value)}
-                  className="app-input"
-                />
-
-                <input
-                  placeholder="Quantity"
-                  value={quantity}
-                  onChange={(e) =>
-                    setQuantity(e.target.value.replace(/\D/g, ""))
-                  }
-                  className="app-input"
-                />
-
-                <button
-                  type="button"
-                  onClick={handleSubmit}
-                  disabled={loading}
-                  className="app-btn-success w-full"
-                >
-                  {loading ? "Submitting..." : "Submit"}
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
+      <Suspense fallback={<div className="p-6 text-center">Loading RailEats...</div>}>
+        <HomePageClient />
+      </Suspense>
+    </>
   );
 }
