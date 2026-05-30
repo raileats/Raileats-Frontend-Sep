@@ -7,26 +7,29 @@ import TrainAutocomplete from "./TrainAutocomplete";
 function makeTrainSlug(trainNoRaw: string) {
   const clean = String(trainNoRaw || "").trim();
   if (!clean) return "";
+
   const digitsOnly = clean.replace(/\D+/g, "") || clean;
   return `${digitsOnly}-train-food-delivery-in-train`;
 }
 
+function todayIso() {
+  return new Date().toISOString().slice(0, 10);
+}
+
 export default function SearchBox() {
-  const [searchType, setSearchType] = useState("pnr");
+  const [searchType, setSearchType] = useState("train");
   const [inputValue, setInputValue] = useState("");
   const [selectedTrain, setSelectedTrain] = useState<any>(null);
-
   const [stations, setStations] = useState<any[]>([]);
   const [boarding, setBoarding] = useState("");
-  const [date, setDate] = useState(
-    new Date().toISOString().slice(0, 10)
-  );
-
+  const [date, setDate] = useState(todayIso());
   const [showStationList, setShowStationList] = useState(false);
+  const [loadingStations, setLoadingStations] = useState(false);
 
-  // 🚀 FETCH STATIONS (NO FILTER)
   async function fetchStations(trainNo: string) {
     try {
+      setLoadingStations(true);
+
       const res = await fetch(`/api/train-routes?train=${trainNo}`);
       const j = await res.json();
 
@@ -36,157 +39,187 @@ export default function SearchBox() {
       }));
 
       setStations(list);
-
-      if (list.length > 0) {
-        setBoarding(list[0].code);
-      } else {
-        setBoarding("");
-      }
-
+      setBoarding(list.length > 0 ? list[0].code : "");
     } catch (err) {
       console.error(err);
+      setStations([]);
+      setBoarding("");
+    } finally {
+      setLoadingStations(false);
     }
   }
 
-  // 🔥 TRAIN SELECT
   function handleTrainSelect(t: any) {
     const trainNo = t.train_no || t.trainNumber;
+    const trainName = t.train_name || t.trainName || "Train";
 
     setSelectedTrain(t);
-    setInputValue(`${trainNo} - ${t.train_name || t.trainName}`);
-
+    setInputValue(`${trainNo} - ${trainName}`);
+    setDate(todayIso());
     fetchStations(trainNo);
   }
 
-  // 🔍 SEARCH
+  const resetSearch = (type: string) => {
+    setSearchType(type);
+    setInputValue("");
+    setSelectedTrain(null);
+    setStations([]);
+    setBoarding("");
+    setShowStationList(false);
+    setDate(todayIso());
+  };
+
   const handleSearch = () => {
+    const cleanInput = inputValue.trim();
+
     if (searchType === "pnr") {
-      window.location.href = `/pnr/${inputValue}`;
+      if (!cleanInput) return alert("Enter PNR first");
+      window.location.href = `/pnr/${encodeURIComponent(cleanInput)}`;
       return;
     }
 
     if (searchType === "station") {
-      window.location.href = `/stations/${inputValue}`;
+      if (!cleanInput) return alert("Select station first");
+      window.location.href = `/stations/${encodeURIComponent(cleanInput)}`;
       return;
     }
 
     if (searchType === "train") {
       if (!selectedTrain) return alert("Select train first");
-      if (!boarding) return alert("Select station");
+      if (!boarding) return alert("Select boarding station");
 
-      const trainNo =
-        selectedTrain.train_no || selectedTrain.trainNumber;
-
+      const trainNo = selectedTrain.train_no || selectedTrain.trainNumber;
       const slug = makeTrainSlug(trainNo);
 
-      window.location.href =
-        `/trains/${slug}?date=${date}&boarding=${boarding}`;
+      window.location.href = `/trains/${slug}?date=${date}&boarding=${boarding}`;
     }
   };
 
-  return (
-    <div className="mt-4 w-full max-w-xl mx-auto bg-white rounded-lg shadow p-4">
+  const selectedStation =
+    stations.find((s) => String(s.code) === String(boarding)) || null;
 
-      {/* RADIO */}
-      <div className="flex justify-center gap-6 mb-4">
-        {["pnr", "train", "station"].map((type) => (
-          <label key={type}>
-            <input
-              type="radio"
-              checked={searchType === type}
-              onChange={() => {
-                setSearchType(type);
-                setInputValue("");
-                setSelectedTrain(null);
-                setStations([]);
-                setBoarding("");
+  return (
+    <section className="container-app">
+      <div className="app-card overflow-visible p-4">
+        <div className="mb-4">
+          <h1 className="text-[22px] font-black leading-tight text-slate-950">
+            Order food on train
+          </h1>
+          <p className="mt-1 text-sm font-semibold text-slate-500">
+            Search by train, PNR, or station.
+          </p>
+        </div>
+
+        <div className="mb-4 grid grid-cols-3 gap-2 rounded-2xl bg-slate-100 p-1">
+          {[
+            { key: "pnr", label: "PNR" },
+            { key: "train", label: "Train" },
+            { key: "station", label: "Station" },
+          ].map((item) => {
+            const active = searchType === item.key;
+
+            return (
+              <button
+                key={item.key}
+                type="button"
+                onClick={() => resetSearch(item.key)}
+                className={[
+                  "min-h-[40px] rounded-xl text-sm font-black transition",
+                  active
+                    ? "bg-white text-orange-600 shadow-sm"
+                    : "text-slate-500",
+                ].join(" ")}
+              >
+                {item.label}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="space-y-3">
+          {searchType === "train" ? (
+            <TrainAutocomplete
+              value={inputValue}
+              onChange={setInputValue}
+              onSelect={handleTrainSelect}
+            />
+          ) : searchType === "station" ? (
+            <StationSearchBox
+              onSelect={(s: any) => {
+                setInputValue(s?.StationCode || "");
               }}
             />
-            {type}
-          </label>
-        ))}
-      </div>
+          ) : (
+            <input
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              placeholder="Enter 10 digit PNR"
+              className="app-input"
+            />
+          )}
 
-      {/* INPUT */}
-      {searchType === "train" ? (
-        <TrainAutocomplete
-          value={inputValue}
-          onChange={setInputValue}
-          onSelect={handleTrainSelect}
-        />
-      ) : searchType === "station" ? (
-        <StationSearchBox
-          onSelect={(s: any) => setInputValue(s?.StationCode)}
-        />
-      ) : (
-        <input
-          value={inputValue}
-          onChange={(e) => setInputValue(e.target.value)}
-          placeholder="Enter PNR"
-          className="w-full border p-2"
-        />
-      )}
+          {searchType === "train" && selectedTrain && (
+            <div className="grid gap-3">
+              <input
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                className="app-input"
+              />
 
-      {/* TRAIN EXTRA UI */}
-      {searchType === "train" && selectedTrain && (
-        <div className="mt-4">
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setShowStationList((prev) => !prev)}
+                  className="app-input flex items-center justify-between text-left"
+                >
+                  <span>
+                    {selectedStation
+                      ? `${selectedStation.name} (${selectedStation.code})`
+                      : loadingStations
+                      ? "Loading route stations..."
+                      : "Select boarding station"}
+                  </span>
+                  <span className="text-slate-400">v</span>
+                </button>
 
-          {/* DATE */}
-          <input
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            className="border p-2 w-full mb-2"
-          />
+                {showStationList && (
+                  <div className="absolute left-0 right-0 top-[calc(100%+8px)] z-50 max-h-64 overflow-auto rounded-2xl border border-slate-200 bg-white shadow-xl">
+                    {stations.length === 0 && (
+                      <div className="p-3 text-sm font-semibold text-slate-500">
+                        No stations found
+                      </div>
+                    )}
 
-          {/* STATION SELECT */}
-          <div className="relative">
-            <div
-              onClick={() => setShowStationList(!showStationList)}
-              className="border p-2 cursor-pointer bg-white"
-            >
-              {boarding
-                ? `Selected: ${boarding}`
-                : "Select Station"}
-            </div>
-
-            {showStationList && (
-              <div className="absolute w-full bg-white border max-h-48 overflow-auto z-50">
-
-                {stations.length === 0 && (
-                  <div className="p-2 text-gray-500">
-                    No stations found
+                    {stations.map((s) => (
+                      <button
+                        key={s.code}
+                        type="button"
+                        onClick={() => {
+                          setBoarding(s.code);
+                          setShowStationList(false);
+                        }}
+                        className="flex w-full items-center justify-between border-b border-slate-100 px-4 py-3 text-left hover:bg-orange-50"
+                      >
+                        <span className="font-bold text-slate-800">
+                          {s.name}
+                        </span>
+                        <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-black text-slate-600">
+                          {s.code}
+                        </span>
+                      </button>
+                    ))}
                   </div>
                 )}
-
-                {stations.map((s) => (
-                  <div
-                    key={s.code}
-                    onClick={() => {
-                      setBoarding(s.code);
-                      setShowStationList(false);
-                    }}
-                    className="p-2 hover:bg-gray-200 cursor-pointer"
-                  >
-                    {s.name} ({s.code})
-                  </div>
-                ))}
-
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
+          <button type="button" onClick={handleSearch} className="app-btn-primary w-full">
+            Search Food
+          </button>
         </div>
-      )}
-
-      {/* SEARCH BUTTON */}
-      <button
-        onClick={handleSearch}
-        className="bg-black text-white px-4 py-2 mt-3 w-full"
-      >
-        Search
-      </button>
-
-    </div>
+      </div>
+    </section>
   );
 }
