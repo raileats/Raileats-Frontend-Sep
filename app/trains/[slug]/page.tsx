@@ -1,346 +1,117 @@
-"use client";
+import type { Metadata } from "next";
+import TrainResultsClient from "./TrainResultsClient";
 
-import React, { useEffect, useState } from "react";
-import { useParams, useSearchParams } from "next/navigation";
-import { useBooking } from "../../../lib/useBooking";
-import SaveOrderData from "@/components/SaveOrderData";
-
-const SUPABASE_URL = "https://ygisiztmuzwxpnvhwrmr.supabase.co";
-
-/* ================= SLUG FIX ================= */
-function toSlug(str: string) {
-  return (str || "")
-    .trim()
-    .replace(/\s+/g, "-")
-    .replace(/[^a-zA-Z0-9-]/g, "");
-}
-
-/* ================= LIVE CLOCK ================= */
-function useNow() {
-  const [now, setNow] = useState(Date.now());
-  useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(t);
-  }, []);
-  return now;
-}
-
-/* ================= PARSE HELPERS ================= */
-
-function parseDateParts(date: string) {
-  if (!date) return null;
-
-  if (date.includes(" ")) {
-    const [day, mon, year] = date.split(" ");
-    const months: any = {
-      Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5,
-      Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11,
-    };
-    return { y: Number(year), m: months[mon] ?? 0, d: Number(day) };
-  }
-
-  const [y, m, d] = date.split("-").map(Number);
-  return { y, m: (m || 1) - 1, d };
-}
-
-function parseTimeParts(t: string) {
-  if (!t) return { h: 0, m: 0, s: 0 };
-  const p = t.split(":").map(Number);
-  return {
-    h: p[0] ?? 0,
-    m: p[1] ?? 0,
-    s: p[2] ?? 0,
+type Props = {
+  params: { slug: string };
+  searchParams: {
+    date?: string;
+    boarding?: string;
+    trainName?: string;
   };
-}
-
-/* ================= FINAL LOGIC ================= */
-function getRemaining(arrival: string, date: string, cutoffMin: number) {
-  try {
-    const dp = parseDateParts(date);
-    const tp = parseTimeParts(arrival);
-    if (!dp) return 0;
-
-    const arrivalDT = new Date(dp.y, dp.m, dp.d, tp.h, tp.m, tp.s);
-    const deadlineDT = new Date(arrivalDT.getTime() - cutoffMin * 60000);
-
-    const now = new Date();
-    return deadlineDT.getTime() - now.getTime();
-  } catch {
-    return 0;
-  }
-}
-
-export default function TrainPage() {
-  const params = useParams();
-  const searchParams = useSearchParams();
-
-  const { setTrain, setJourney } = useBooking();
-
-  const slug = (params as any)?.slug || "";
-  const trainNumber = slug.match(/^(\d+)/)?.[1] || "";
-
-  const urlDate = searchParams.get("date") || "";
-  const boarding = (searchParams.get("boarding") || "").toUpperCase();
-  const rawTrainName = searchParams.get("trainName") || "";
-const trainName =
-  rawTrainName && rawTrainName.trim() !== ""
-    ? rawTrainName
-    : "";
-  const [stations, setStations] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useNow();
-  const orderData = {
-    train_number: trainNumber,
-    train_name: trainName,
-    date: urlDate,
-    station_code: boarding,
-  };
-
-  /* 🔥 NEW: STORE DATA FROM URL */
-  useEffect(() => {
-    if (!trainNumber) return;
-
-    setTrain({
-      number: trainNumber,
-      name: trainName,
-    });
-
-    setJourney(urlDate, boarding);
-
-    console.log("✅ Booking stored from URL:", {
-      trainNumber,
-      trainName,
-      urlDate,
-      boarding,
-    });
-  }, [trainNumber, trainName, urlDate, boarding]);
-
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        setLoading(true);
-        const res = await fetch(
-          `/api/train-restros?train=${trainNumber}&date=${urlDate}&boarding=${boarding}&full=1`,
-          { cache: "no-store" }
-        );
-        const json = await res.json();
-        setStations(json?.stations || []);
-      } catch (e) {
-        console.error("API ERROR:", e);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    if (trainNumber) fetchData();
-  }, [trainNumber, urlDate, boarding]);
-
-  if (loading) {
-    return (
-      <div className="p-10 text-center">
-        <div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-        <div className="font-semibold">Loading restaurants...</div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="max-w-3xl mx-auto p-4 space-y-6">
-      <div className="rounded-lg border border-orange-200 bg-orange-50 p-4">
-        <div className="text-sm text-gray-600">ट्रेन</div>
-        <div className="text-2xl font-bold text-orange-700">
-          {trainName ? `${trainNumber} - ${trainName}` : trainNumber}
-        </div>
-        {boarding && (
-          <div className="mt-2 text-sm text-gray-600">
-            Boarding: <span className="font-medium">{boarding}</span>
-          </div>
-        )}
-        {urlDate && (
-          <div className="text-sm text-gray-600">
-            Date: <span className="font-medium">{urlDate}</span>
-          </div>
-        )}
-      </div>
-
-      {stations.map((st: any, index: number) => {
-        const stationCode = st.StationCode;
-        const stationName = st.StationName;
-        const arrives = st.Arrives;
-        const halt = st.HaltTime;
-        const deliveryDate = st.date || urlDate;
-
-        const vendors = st.vendors || [];
-
-        const validVendors = vendors.filter((r: any) => {
-  const cutoff = parseInt(
-    String(r.CutOffTime ?? r.cutoff_time ?? "0").trim(),
-    10
-  ) || 0;
-
-  const remaining = getRemaining(arrives, deliveryDate, cutoff);
-
- /* 🔥 TIME CHECK (FINAL FIXED) */
-
-// helper
-const toMin = (t: string) => {
-  const [h, m] = (t || "").slice(0, 5).split(":").map(Number);
-  return (h || 0) * 60 + (m || 0);
 };
 
-// 🔥 CLEAN ARRIVAL (MOST IMPORTANT FIX)
-const cleanArrives = (arrives || "").slice(0, 5);
-const arrivalMin = toMin(cleanArrives);
+const siteUrl = "https://www.raileats.in";
 
-// 🔥 CORRECT API FIELDS
-const start = r.OpenTime || r.open_time;
-const end = r.ClosedTime || r.closed_time;
-
-// 🔥 DEFAULT
-let timeValid = true;
-
-if (start && end) {
-  const s = toMin(start);
-  const e = toMin(end);
-
-  if (e >= s) {
-    // normal case (same day)
-    timeValid = arrivalMin >= s && arrivalMin <= e;
-  } else {
-    // overnight case (22:00 → 04:00)
-    timeValid = arrivalMin >= s || arrivalMin <= e;
-  }
+function getTrainNumber(slug: string) {
+  return String(slug || "").match(/^(\d+)/)?.[1] || "";
 }
 
-  /* ✅ FINAL (cutoff + timing both safe) */
-  return remaining > 0 && timeValid;
-});
+function cleanTrainName(value?: string) {
+  return decodeURIComponent(String(value || "")).trim();
+}
 
-        if (!validVendors.length) return null;
+export async function generateMetadata({
+  params,
+  searchParams,
+}: Props): Promise<Metadata> {
+  const trainNumber = getTrainNumber(params.slug);
+  const trainName = cleanTrainName(searchParams.trainName);
+  const boarding = String(searchParams.boarding || "").toUpperCase();
+  const date = searchParams.date || "";
 
-        const state = st.State || "";
+  const title = trainName
+    ? `Food Delivery in ${trainNumber} ${trainName}`
+    : `Food Delivery in Train ${trainNumber}`;
 
-        return (
-          <div key={index} className="border rounded-xl p-4 bg-gray-50">
-            <div className="flex justify-between mb-3">
-              <div>
-                <h2 className="font-bold text-lg">
-                  {stationName} ({stationCode})
-                </h2>
-                {state && (
-                  <div className="text-sm text-gray-600 font-medium">
-                    {state}
-                  </div>
-                )}
-                <div className="text-xs text-gray-500">{deliveryDate}</div>
-              </div>
+  const description = `Order fresh food in train ${trainNumber}${
+    trainName ? ` ${trainName}` : ""
+  }${boarding ? ` from boarding station ${boarding}` : ""}${
+    date ? ` for journey date ${date}` : ""
+  }. View available railway stations, restaurants, cutoff time and meal options.`;
 
-              <div className="text-right">
-                <div className="text-blue-600 font-semibold">
-                  Arrival: {arrives}
-                </div>
-                <div className="text-xs text-gray-500">
-                  Halt: {halt}
-                </div>
-              </div>
-            </div>
+  const canonical = `/trains/${params.slug}${
+    date || boarding
+      ? `?${new URLSearchParams({
+          ...(date ? { date } : {}),
+          ...(boarding ? { boarding } : {}),
+        }).toString()}`
+      : ""
+  }`;
 
-            <div className="space-y-3">
-              {validVendors.map((r: any) => {
-                const cutoff = parseInt(
-                  String(r.CutOffTime ?? r.cutoff_time ?? "0").trim(),
-                  10
-                ) || 0;
+  return {
+    title,
+    description,
+    alternates: {
+      canonical,
+    },
+    openGraph: {
+      title: `${title} | RailEats`,
+      description,
+      url: `${siteUrl}${canonical}`,
+      siteName: "RailEats",
+      images: [
+        {
+          url: "/raileats-logo.png",
+          width: 512,
+          height: 512,
+          alt: "RailEats train food delivery",
+        },
+      ],
+    },
+  };
+}
 
-                const remaining = getRemaining(arrives, deliveryDate, cutoff);
+export default function TrainPage({ params, searchParams }: Props) {
+  const trainNumber = getTrainNumber(params.slug);
+  const trainName = cleanTrainName(searchParams.trainName);
+  const boarding = String(searchParams.boarding || "").toUpperCase();
+  const date = searchParams.date || "";
 
-                const totalSec = Math.max(0, Math.floor(remaining / 1000));
+  const breadcrumbSchema = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: "Home",
+        item: siteUrl,
+      },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: trainName
+          ? `${trainNumber} ${trainName}`
+          : `Train ${trainNumber}`,
+        item: `${siteUrl}/trains/${params.slug}`,
+      },
+    ],
+  };
 
-                const days = Math.floor(totalSec / 86400);
-                const hrs = Math.floor((totalSec % 86400) / 3600);
-                const mins = Math.floor((totalSec % 3600) / 60);
-                const secs = totalSec % 60;
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
+      />
 
-                const timeText =
-                  `Day${days} ` +
-                  `${String(hrs).padStart(2, "0")}:` +
-                  `${String(mins).padStart(2, "0")}:` +
-                  `${String(secs).padStart(2, "0")}`;
-
-                const isClosingSoon = remaining <= 10 * 60 * 1000;
-
-                let img = "";
-                if (r.RestroDisplayPhoto) {
-                  const file = r.RestroDisplayPhoto.split("/").pop();
-                  img = `${SUPABASE_URL}/storage/v1/object/public/RestroDisplayPhoto/${file}`;
-                }
-
-                const stationSlug = `${stationCode}-${toSlug(stationName)}`;
-const restroSlug = `${r.RestroCode}-${toSlug(r.RestroName)}`;
-
-const cleanArrival =
-  arrives && arrives.includes(":")
-    ? arrives.slice(0, 5)
-    : null;
-
-const finalTrainName =
-  trainName && trainName.trim()
-    ? trainName
-    : "Train";
-
-                return (
-                  <div key={r.RestroCode} className="bg-white p-3 rounded-lg border flex gap-3">
-                    <div className="w-24 h-24 bg-gray-100 rounded-md overflow-hidden">
-                      {img ? (
-                        <img src={img} className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="flex items-center justify-center h-full text-xs text-gray-400">
-                          No Image
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="flex-1 flex flex-col justify-between">
-                      <div>
-                        <div className="font-semibold">{r.RestroName}</div>
-
-                        <div className="text-xs text-gray-500">
-                          Min. Order: ₹{r.MinimumOrderValue}
-                        </div>
-
-                        <div className="text-green-600 text-xs font-semibold">
-                          ● Pure Veg
-                        </div>
-
-                        <div className={`text-xs font-bold mt-1 ${isClosingSoon ? "text-red-600" : "text-blue-600"}`}>
-                          ⏳ Order before: {timeText}
-                          {isClosingSoon && " ⚠ Closing soon"}
-                        </div>
-                      </div>
-
-                      <div className="text-right">
-                        <a
-  href={`/Stations/${stationSlug}/${restroSlug}?deliveryDate=${encodeURIComponent(deliveryDate)}
-${cleanArrival ? `&deliveryTime=${encodeURIComponent(cleanArrival)}` : ""}
-${cleanArrival ? `&arrival=${encodeURIComponent(cleanArrival)}` : ""}
-&train=${encodeURIComponent(trainNumber)}
-&trainName=${encodeURIComponent(finalTrainName)}
-&boarding=${encodeURIComponent(boarding)}
-&minOrder=${encodeURIComponent(r.MinimumOrderValue || 0)}`}
-  className="bg-orange-500 text-white px-4 py-2 rounded-lg text-sm"
->
-  Order Now
-</a>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        );
-      })}
-    </div>
+      <TrainResultsClient
+        slug={params.slug}
+        trainNumber={trainNumber}
+        trainName={trainName}
+        urlDate={date}
+        boarding={boarding}
+      />
+    </>
   );
 }
