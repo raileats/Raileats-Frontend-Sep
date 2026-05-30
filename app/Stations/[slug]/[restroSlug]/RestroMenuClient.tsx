@@ -160,20 +160,27 @@ export default function RestroMenuClient({
     });
   }, [items, vegOnly, trainMin]);
 
-  const saveJourney = () => {
-    setJourney({
-      trainNumber: displayTrainNumber,
-      trainName: displayTrainName,
-      stationName: nextParams?.stationName || header?.stationName || "",
-      stationCode: nextParams?.stationCode || header?.stationCode || "",
-      deliveryDate: nextParams?.deliveryDate || "",
-      deliveryTime: nextParams?.deliveryTime || "",
-      vendorName: nextParams?.vendorName || header?.outletName || "",
-      restroCode: Number(header?.restroCode || nextParams?.restroCode || 0),
-      minimumOrder,
-      minOrder: minimumOrder,
-    });
+ const saveJourney = () => {
+  const journeyPayload = {
+    trainNumber: displayTrainNumber,
+    trainName: displayTrainName,
+    stationName: displayStationName,
+    stationCode: displayStationCode,
+    deliveryDate: displayDeliveryDate,
+    deliveryTime: displayDeliveryTime,
+    vendorName: displayVendorName,
+    restroCode: Number(header?.restroCode || nextParams?.restroCode || 0),
   };
+
+  setJourney(journeyPayload);
+
+  if (typeof window !== "undefined") {
+    localStorage.setItem(
+      "raileats_min_order",
+      String(minimumOrder || 0)
+    );
+  }
+};
 
   const buildCartItem = (it: any) => {
     return {
