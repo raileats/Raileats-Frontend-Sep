@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
+import { Clock, TrainFront, Utensils } from "lucide-react";
 import { useBooking } from "../../../lib/useBooking";
 import SaveOrderData from "@/components/SaveOrderData";
 
@@ -289,19 +290,19 @@ export default function TrainPage() {
               border: "1px solid #fed7aa",
               boxShadow: "0 4px 12px rgba(15,23,42,0.06)",
               flexShrink: 0,
-              fontSize: 19,
+              color: "#f97316",
             }}
           >
-            🚆
+            <TrainFront size={20} strokeWidth={2.5} />
           </span>
 
           <div style={{ minWidth: 0 }}>
             <h1
               style={{
                 margin: 0,
-                fontSize: "clamp(22px, 5vw, 26px)",
-                lineHeight: 1.12,
-                fontWeight: 950,
+                fontSize: "clamp(18px, 4.25vw, 23px)",
+                lineHeight: 1.16,
+                fontWeight: 900,
                 color: "#0f172a",
                 letterSpacing: 0,
               }}
@@ -503,82 +504,159 @@ export default function TrainPage() {
                     style={{
                       background: "#fff",
                       border: "1px solid #dbe4ef",
-                      borderRadius: 16,
-                      padding: 10,
-                      display: "grid",
-                      gridTemplateColumns: "82px minmax(0,1fr)",
-                      gap: 11,
+                      borderRadius: 18,
+                      padding: 12,
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 10,
+                      boxShadow: "0 8px 20px rgba(15,23,42,0.05)",
                     }}
                   >
-                    <div
-                      style={{
-                        width: 82,
-                        height: 82,
-                        background: "#f1f5f9",
-                        borderRadius: 14,
-                        overflow: "hidden",
-                        border: "1px solid #e2e8f0",
-                      }}
-                    >
-                      {img ? (
-                        <img
-                          src={img}
-                          alt={r.RestroName || "Restaurant"}
-                          style={{
-                            width: "100%",
-                            height: "100%",
-                            objectFit: "cover",
-                          }}
-                        />
-                      ) : (
-                        <div
-                          style={{
-                            height: "100%",
-                            display: "grid",
-                            placeItems: "center",
-                            color: "#94a3b8",
-                            fontSize: 22,
-                          }}
-                        >
-                          🍽️
-                        </div>
-                      )}
-                    </div>
-
                     <div style={{ minWidth: 0 }}>
                       <div
                         style={{
                           display: "flex",
-                          alignItems: "flex-start",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          gap: 10,
+                        }}
+                      >
+                        <h3
+                          style={{
+                            margin: 0,
+                            minWidth: 0,
+                            fontSize: 17,
+                            lineHeight: 1.22,
+                            fontWeight: 900,
+                            color: "#0f172a",
+                            overflowWrap: "anywhere",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 6,
+                          }}
+                        >
+                          <Utensils
+                            size={16}
+                            strokeWidth={2.4}
+                            style={{ color: "#64748b", flexShrink: 0 }}
+                          />
+                          <span>{r.RestroName || "Restaurant"}</span>
+                        </h3>
+
+                        <span
+                          style={{
+                            flexShrink: 0,
+                            borderRadius: 999,
+                            background:
+                              Number(r.IsPureVeg) === 1 ? "#ecfdf5" : "#f0fdf4",
+                            color: "#16a34a",
+                            border: "1px solid #bbf7d0",
+                            padding: "4px 8px",
+                            fontSize: 11,
+                            lineHeight: 1,
+                            fontWeight: 900,
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {Number(r.IsPureVeg) === 1 ? "Pure Veg" : "Veg & Non-Veg"}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "86px minmax(0, 1fr)",
+                        gap: 12,
+                        alignItems: "stretch",
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: 86,
+                          height: 86,
+                          background: "#f1f5f9",
+                          borderRadius: 15,
+                          overflow: "hidden",
+                          border: "1px solid #e2e8f0",
+                        }}
+                      >
+                        {img ? (
+                          <img
+                            src={img}
+                            alt={r.RestroName || "Restaurant"}
+                            style={{
+                              width: "100%",
+                              height: "100%",
+                              objectFit: "cover",
+                            }}
+                          />
+                        ) : (
+                          <div
+                            style={{
+                              height: "100%",
+                              display: "grid",
+                              placeItems: "center",
+                              color: "#94a3b8",
+                            }}
+                          >
+                            <Utensils size={26} strokeWidth={2.2} />
+                          </div>
+                        )}
+                      </div>
+
+                      <div
+                        style={{
+                          minWidth: 0,
+                          display: "flex",
+                          flexDirection: "column",
                           justifyContent: "space-between",
                           gap: 8,
                         }}
                       >
-                        <div style={{ minWidth: 0 }}>
+                        <div
+                          style={{
+                            display: "grid",
+                            gap: 6,
+                            fontSize: 12,
+                            fontWeight: 850,
+                          }}
+                        >
                           <div
                             style={{
-                              fontSize: 16,
-                              lineHeight: 1.18,
-                              fontWeight: 950,
-                              color: "#0f172a",
-                              overflow: "hidden",
-                              textOverflow: "ellipsis",
-                              whiteSpace: "nowrap",
+                              color: "#64748b",
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 6,
                             }}
                           >
-                            🍴 {r.RestroName}
+                            <span
+                              style={{
+                                color: "#0f172a",
+                                fontWeight: 900,
+                              }}
+                            >
+                              Min Order:
+                            </span>
+                            <span>Rs {r.MinimumOrderValue || 0}</span>
                           </div>
 
                           <div
                             style={{
-                              marginTop: 4,
-                              fontSize: 12,
-                              color: "#64748b",
-                              fontWeight: 800,
+                              color: isClosingSoon ? "#dc2626" : "#2563eb",
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 6,
+                              lineHeight: 1.2,
                             }}
                           >
-                            Min Order: Rs {r.MinimumOrderValue || 0}
+                            <Clock size={14} strokeWidth={2.5} />
+                            <span>Order before: {timeText}</span>
                           </div>
+
+                          {isClosingSoon ? (
+                            <div style={{ color: "#dc2626" }}>Closing soon</div>
+                          ) : null}
                         </div>
 
                         <a
@@ -604,45 +682,20 @@ export default function TrainPage() {
                             r.MinimumOrderValue || 0
                           )}`}
                           style={{
-                            flexShrink: 0,
+                            alignSelf: "flex-start",
                             background: "#f97316",
                             color: "#fff",
                             borderRadius: 12,
-                            padding: "9px 12px",
+                            padding: "10px 14px",
                             fontSize: 13,
                             fontWeight: 900,
                             textDecoration: "none",
                             whiteSpace: "nowrap",
+                            boxShadow: "0 8px 18px rgba(249,115,22,0.22)",
                           }}
                         >
                           Order Now
                         </a>
-                      </div>
-
-                      <div
-                        style={{
-                          marginTop: 6,
-                          display: "flex",
-                          flexWrap: "wrap",
-                          gap: "5px 10px",
-                          alignItems: "center",
-                          fontSize: 12,
-                          fontWeight: 850,
-                        }}
-                      >
-                        <span style={{ color: "#16a34a" }}>
-                          {Number(r.IsPureVeg) === 1 ? "Pure Veg" : "Veg & Non-Veg"}
-                        </span>
-                        <span
-                          style={{
-                            color: isClosingSoon ? "#dc2626" : "#2563eb",
-                          }}
-                        >
-                          Order before: {timeText}
-                        </span>
-                        {isClosingSoon ? (
-                          <span style={{ color: "#dc2626" }}>Closing soon</span>
-                        ) : null}
                       </div>
                     </div>
                   </article>
