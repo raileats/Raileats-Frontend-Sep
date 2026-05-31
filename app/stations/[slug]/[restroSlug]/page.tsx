@@ -429,50 +429,45 @@ export default async function Page({
       />
 
       <RestroMenuClient
-              <section className="mx-auto mt-10 max-w-[560px] rounded-3xl border bg-white p-6 shadow-sm">
-        <h2 className="text-2xl font-bold text-slate-900">
-          Frequently Asked Questions
-        </h2>
+  header={header}
+  items={items}
+  nextParams={nextParams}
+/>
 
-        <div className="mt-6 space-y-5">
-          <div>
-            <h3 className="text-lg font-semibold text-slate-900">
-              How can I view {outletName} menu at {stationName} station?
-            </h3>
-            <p className="mt-2 text-slate-700 leading-7">
-              You can view {outletName} menu at {stationName} railway station
-              on RailEats with item price, food category, description and
-              serving time.
-            </p>
-          </div>
+<section className="mx-auto mt-10 max-w-[560px] rounded-3xl border bg-white p-6 shadow-sm">
+  <h2 className="text-2xl font-bold text-slate-900">
+    Frequently Asked Questions
+  </h2>
 
-          <div>
-            <h3 className="text-lg font-semibold text-slate-900">
-              Does {outletName} provide food delivery in train?
-            </h3>
-            <p className="mt-2 text-slate-700 leading-7">
-              Yes, {outletName} is listed on RailEats for food delivery in train
-              at {stationName} station, depending on live availability and
-              timing.
-            </p>
-          </div>
+  <div className="mt-6 space-y-5">
+    <div>
+      <h3 className="text-lg font-semibold text-slate-900">
+        How can I view {outletName} menu at {stationName} station?
+      </h3>
+      <p className="mt-2 text-slate-700 leading-7">
+        You can view {outletName} menu at {stationName} railway station on
+        RailEats with item price, food category, description and serving time.
+      </p>
+    </div>
 
-          <div>
-            <h3 className="text-lg font-semibold text-slate-900">
-              What details are shown in the restaurant menu?
-            </h3>
-            <p className="mt-2 text-slate-700 leading-7">
-              The menu shows active food items with price, veg or non-veg
-              category, description, cuisine, menu type and item availability
-              time.
-            </p>
-          </div>
-        </div>
-      </section>
-        header={header}
-        items={items}
-        nextParams={nextParams}
-      />
-    </main>
-  );
-}
+    <div>
+      <h3 className="text-lg font-semibold text-slate-900">
+        Does {outletName} provide food delivery in train?
+      </h3>
+      <p className="mt-2 text-slate-700 leading-7">
+        Yes, {outletName} is listed on RailEats for food delivery in train at{" "}
+        {stationName} station, depending on live availability and timing.
+      </p>
+    </div>
+
+    <div>
+      <h3 className="text-lg font-semibold text-slate-900">
+        What details are shown in the restaurant menu?
+      </h3>
+      <p className="mt-2 text-slate-700 leading-7">
+        The menu shows active food items with price, veg or non-veg category,
+        description, cuisine, menu type and item availability time.
+      </p>
+    </div>
+  </div>
+</section>
