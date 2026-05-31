@@ -1,135 +1,237 @@
 import React from "react";
+import Link from "next/link";
+import type { Metadata } from "next";
 import { serviceClient } from "../../lib/supabaseServer";
-import SaveOrderData from "../../components/SaveOrderData";
 
 export const dynamic = "force-dynamic";
 
-function timeToMinutes(t: string) {
-  if (!t) return 0;
-  const [h, m] = t.split(":").map(Number);
-  return h * 60 + m;
+const siteUrl = "https://www.raileats.in";
+
+function titleCase(str: string) {
+  return String(str || "")
+    .toLowerCase()
+    .split(" ")
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ")
+    .replace(/\bJn\b/g, "JN");
 }
 
-function formatTime(t?: string | null) {
-  if (!t) return "--:--";
-  return t.slice(0, 5);
+function parseStationFromSlug(slug: string) {
+  const clean = decodeURIComponent(slug || "")
+    .replace(/-food-delivery$/i, "")
+    .replace(/-food-delivery-in-train$/i, "");
+
+  const parts = clean.split("-").filter(Boolean);
+  const code = String(parts.pop() || "").toUpperCase();
+  const name = titleCase(parts.join(" "));
+
+  return {
+    code,
+    name: name || "Railway Station",
+  };
+}
+
+function isActive(value: any) {
+  const v = String(value ?? "").trim().toLowerCase();
+
+  return (
+    value === true ||
+    value === 1 ||
+    v === "1" ||
+    v === "on" ||
+    v === "active" ||
+    v === "true" ||
+    v === "yes"
+  );
+}
+
+function isHolidayOff(value: any) {
+  const v = String(value ?? "").trim().toLowerCase();
+
+  return (
+    value === true ||
+    value === 1 ||
+    v === "1" ||
+    v === "on" ||
+    v === "active" ||
+    v === "true" ||
+    v === "yes"
+  );
+}
+
+function safeRating(value: any) {
+  if (value === null || value === undefined || value === "") return "New";
+  return value;
+}
+
+export async function generateMetadata(props: {
+  params: { slug: string };
+}): Promise<Metadata> {
+  const station = parseStationFromSlug(props.params.slug);
+
+  return {
+    title: `Food Delivery at ${station.name} (${station.code}) Railway Station`,
+    description: `Order fresh food delivery in train at ${station.name} railway station. Choose active restaurants near ${station.code} station and get meals delivered to your train seat.`,
+    alternates: {
+      canonical: `/stations/${props.params.slug}`,
+    },
+    keywords: [
+      `food delivery at ${station.name}`,
+      `food delivery at ${station.code} station`,
+      `order food in train at ${station.name}`,
+      `${station.name} railway station food`,
+      `train food delivery ${station.code}`,
+      `food on train ${station.name}`,
+    ],
+    openGraph: {
+      title: `Food Delivery at ${station.name} Railway Station | RailEats`,
+      description: `Order fresh train food at ${station.name} (${station.code}) from active railway station restaurants.`,
+      url: `${siteUrl}/stations/${props.params.slug}`,
+      images: ["/raileats-logo.png"],
+    },
+  };
 }
 
 export default async function Page(props: {
-  params: Promise<any>;
-  searchParams: Promise<any>;
+  params: { slug: string };
+  searchParams?: any;
 }) {
-  const resolvedParams = await props.params;
-  const resolvedSearchParams = await props.searchParams;
+  const resolvedParams = await Promise.resolve(props.params);
+  const station = parseStationFromSlug(resolvedParams.slug);
 
-  const arrival = (resolvedSearchParams.arrival || "00:00").slice(0, 5);
-  const arrivalMin = timeToMinutes(arrival);
+  const nowIso = new Date().toISOString();
 
-  // ✅ DATA FROM URL
-  const stationName = resolvedSearchParams.stationName || "Station";
-  const stationCode = resolvedSearchParams.stationCode || "";
-  const deliveryDate = resolvedSearchParams.deliveryDate || "";
-  const deliveryTime = resolvedSearchParams.deliveryTime || "";
-
-  /* ================= DB FETCH ================= */
-
-  const { data: items } = await serviceClient
-    .from("RestroMenuItems")
+  const { data: restrosRaw, error: restroError } = await serviceClient
+    .from("RestroMaster")
     .select("*")
-    .eq("restro_code", "1004");
+    .eq("StationCode", station.code)
+    .order("RestroRating", { ascending: false });
 
-  /* ================= FILTER ================= */
+  const restros = restrosRaw || [];
 
-  const filteredItems = (items || []).filter((item: any) => {
-    const start = item.start_time?.slice(0, 5) || "00:00";
-    const end = item.end_time?.slice(0, 5) || "23:59";
+  const restroCodes = restros
+    .map((r: any) => Number(r.RestroCode))
+    .filter(Boolean);
 
-    const startMin = timeToMinutes(start);
-    const endMin = timeToMinutes(end);
+  const { data: holidaysRaw } =
+    restroCodes.length > 0
+      ? await serviceClient
+          .from("RestroHolidays")
+          .select("*")
+          .in("RestroCode", restroCodes)
+          .lte("start_at", nowIso)
+          .gte("end_at", nowIso)
+      : { data: [] as any[] };
 
-    if (item.item_name === "Chicken Curry") return false;
+  const holidaySet = new Set(
+    (holidaysRaw || []).map((h: any) => Number(h.RestroCode))
+  );
 
-    return arrivalMin >= startMin && arrivalMin <= endMin;
+  const activeRestros = restros.filter((r: any) => {
+    const active = isActive(r.RaileatsStatus);
+    const holidayFromTable = holidaySet.has(Number(r.RestroCode));
+    const holidayFromMaster = isHolidayOff(r.HolidayStatus);
+
+    return active && !holidayFromTable && !holidayFromMaster;
   });
 
-  /* ================= GROUP BY MENU_TYPE (ASLI CATEGORY) ================= */
-
-  const grouped: Record<string, any[]> = {};
-
-  filteredItems.forEach((item: any) => {
-    // 🔥 FIX: Aapne kaha menu_type me asli category hai (Thalis, Combos, etc.)
-    // Isliye grouping ab menu_type ke naam par hogi, item_category par nahi!
-    const type = item.menu_type || "Other"; 
-    if (!grouped[type]) grouped[type] = [];
-    grouped[type].push(item);
-  });
+  const schema = {
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    name: `Food Delivery at ${station.name} Railway Station`,
+    url: `${siteUrl}/stations/${resolvedParams.slug}`,
+    description: `Order food in train at ${station.name} railway station with RailEats.`,
+  };
 
   return (
-    <main className="max-w-5xl mx-auto px-4 py-6">
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+      />
 
-      <h1 className="text-2xl font-bold mb-2">
-        {stationName}
-      </h1>
+      <main className="mx-auto max-w-6xl px-4 py-8">
+        <section className="rounded-3xl bg-gradient-to-br from-amber-100 via-orange-50 to-white p-6 shadow-sm">
+          <p className="mb-2 text-sm font-bold uppercase tracking-wide text-orange-600">
+            RailEats Station Food Delivery
+          </p>
 
-      <p className="mb-6 text-gray-500">
-        Arrival: {arrival}
-      </p>
+          <h1 className="text-3xl font-extrabold leading-tight text-slate-900 md:text-5xl">
+            Food Delivery at {station.name} ({station.code}) Railway Station
+          </h1>
 
-      {/* DEBUG */}
-      <div className="mb-4 text-sm bg-gray-100 p-2 rounded">
-        <p><b>Delivery:</b> {deliveryDate} - {deliveryTime}</p>
-        <p><b>Station Code:</b> {stationCode}</p>
-      </div>
+          <p className="mt-4 max-w-3xl text-base leading-7 text-slate-700">
+            Order fresh and hygienic food in train at {station.name} railway
+            station. RailEats helps passengers choose active restaurants near{" "}
+            {station.code} station and get meals delivered to their train seat.
+          </p>
 
-      {Object.entries(grouped).map(([type, list]) => (
-        <div key={type} className="mb-6">
+          <Link
+            href="/"
+            className="mt-6 inline-block rounded-xl bg-orange-500 px-5 py-3 text-sm font-bold text-white"
+          >
+            Search Train & Order Food
+          </Link>
+        </section>
 
-          {/* Ab yahan heading "Thalis" ya "Combos" aayegi, "Veg/Non-Veg" nahi */}
-          <h2 className="text-lg font-semibold mb-2">{type}</h2>
+        <section className="mt-8">
+          <h2 className="text-2xl font-extrabold text-slate-900">
+            Active Restaurants at {station.name}
+          </h2>
 
-          {list.map((item: any) => {
-            // 🔥 DOT SYSTEM FIX (Database columns normalized check)
-            // item.item_category me agar "Non-Veg" hai toh Red dot dikhana hai
-            const cat = String(item.item_category || "").toLowerCase().trim();
-            const isVeg = !(cat === "non-veg" || cat === "nonveg");
+          {restroError ? (
+            <div className="mt-4 rounded-2xl border bg-white p-6 text-red-600">
+              Error loading restaurants: {restroError.message}
+            </div>
+          ) : activeRestros.length === 0 ? (
+            <div className="mt-4 rounded-2xl border bg-white p-6 text-slate-600">
+              No active restaurants available right now at {station.name}.
+            </div>
+          ) : (
+            <div className="mt-4 grid gap-4 md:grid-cols-3">
+              {activeRestros.map((r: any) => (
+                <div
+                  key={r.RestroCode}
+                  className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
+                >
+                  <h3 className="text-lg font-extrabold text-slate-900">
+                    {r.RestroName}
+                  </h3>
 
-            return (
-              <div
-                key={item.item_code}
-                className="border p-3 mb-2 rounded flex justify-between"
-              >
-                <div>
-                  <div className="flex gap-2 items-center mb-1">
-                    {/* Perfect Dot Indicator based on exact database row */}
-                    <span
-                      className={`w-3 h-3 rounded-full inline-block shrink-0 ${
-                        isVeg ? "bg-green-600" : "bg-red-600"
-                      }`}
-                    />
-                    <div className="font-medium text-gray-900">{item.item_name}</div>
-                  </div>
-                  
-                  <div className="text-sm text-gray-500">
-                    {item.item_description}
-                  </div>
-                  <div className="text-sm text-gray-400">
-                    {formatTime(item.start_time)} - {formatTime(item.end_time)}
-                  </div>
-                  <div className="font-semibold text-gray-800">
-                    ₹{item.selling_price}
-                  </div>
+                  <p className="mt-1 text-sm text-slate-500">
+                    {station.name} ({station.code})
+                  </p>
+
+                  <p className="mt-2 text-sm text-slate-600">
+                    Rating: {safeRating(r.RestroRating)}
+                  </p>
+
+                  <Link
+                    href={`/menu?restro=${r.RestroCode}&station=${station.code}`}
+                    className="mt-4 inline-block rounded-xl bg-orange-500 px-4 py-2 text-sm font-bold text-white"
+                  >
+                    View Menu
+                  </Link>
                 </div>
+              ))}
+            </div>
+          )}
+        </section>
 
-                <button className="bg-green-600 text-white px-3 py-1 rounded h-fit">
-                  Add
-                </button>
-              </div>
-            );
-          })}
+        <section className="mt-8 rounded-2xl border bg-white p-6 shadow-sm">
+          <h2 className="text-2xl font-extrabold text-slate-900">
+            Order Food in Train at {station.name}
+          </h2>
 
-        </div>
-      ))}
-
-    </main>
+          <p className="mt-3 leading-7 text-slate-700">
+            RailEats offers online food delivery in train at {station.name}{" "}
+            ({station.code}) railway station. Passengers can search by train
+            number, PNR or station, select available restaurants and place food
+            orders for delivery at their train seat.
+          </p>
+        </section>
+      </main>
+    </>
   );
 }
