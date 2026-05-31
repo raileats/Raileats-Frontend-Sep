@@ -54,7 +54,7 @@ function buildCanonical(params: any, searchParams: any) {
     if (clean !== "") qs.set(key, String(clean));
   });
 
-  const path = `/Stations/${encodeURIComponent(params.slug || "")}/${encodeURIComponent(
+  const path = `/stations/${encodeURIComponent(params.slug || "")}/${encodeURIComponent(
     params.restroSlug || ""
   )}`;
 
@@ -401,7 +401,7 @@ export default async function Page({
         "@type": "ListItem",
         position: 2,
         name: stationName,
-        item: `${SITE_URL}/Stations/${encodeURIComponent(params.slug || "")}`,
+        item: `${SITE_URL}/stations/${encodeURIComponent(params.slug || "")}`,
       },
       {
         "@type": "ListItem",
