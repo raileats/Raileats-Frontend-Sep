@@ -262,9 +262,9 @@ export default function RestroMenuClient({
     <div
       style={{
         width: "100%",
-        maxWidth: 620,
+        maxWidth: 640,
         margin: "0 auto",
-        padding: "6px 10px 104px",
+        padding: "4px 10px 104px",
         boxSizing: "border-box",
         display: "flex",
         flexDirection: "column",
