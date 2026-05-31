@@ -168,7 +168,8 @@ export default function RestroMenuClient({
 
   const displayVendorName =
     nextParams?.vendorName || header?.outletName || "Restaurant";
-  const isStationOnlyView = nextParams?.mode === "station";
+  const isStationOnlyView =
+  nextParams?.mode === "station" || !nextParams?.trainNumber;
   
   const minimumOrder = Number(
     header?.minimumOrder || nextParams?.minOrder || 0
