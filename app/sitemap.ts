@@ -1,105 +1,78 @@
 import { MetadataRoute } from "next";
 import { serviceClient } from "./lib/supabaseServer";
 
+const baseUrl = "https://www.raileats.in";
+
 function slugify(value: string) {
   return String(value || "")
     .toLowerCase()
     .replace(/[^a-z0-9\s-]/g, "")
     .replace(/\s+/g, "-")
     .replace(/-+/g, "-")
-    .trim();
+    .replace(/^-+|-+$/g, "");
+}
+
+function isActive(value: any) {
+  const v = String(value ?? "").trim().toLowerCase();
+  return (
+    value === true ||
+    value === 1 ||
+    v === "1" ||
+    v === "on" ||
+    v === "active" ||
+    v === "true" ||
+    v === "yes"
+  );
 }
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const baseUrl = "https://www.raileats.in";
+  const now = new Date();
 
   const staticRoutes: MetadataRoute.Sitemap = [
-    {
-      url: `${baseUrl}`,
-      lastModified: new Date(),
-      changeFrequency: "daily",
-      priority: 1,
-    },
-    {
-      url: `${baseUrl}/about`,
-      lastModified: new Date(),
-      changeFrequency: "monthly",
-      priority: 0.7,
-    },
-    {
-      url: `${baseUrl}/contact`,
-      lastModified: new Date(),
-      changeFrequency: "monthly",
-      priority: 0.7,
-    },
-    {
-      url: `${baseUrl}/offers`,
-      lastModified: new Date(),
-      changeFrequency: "daily",
-      priority: 0.9,
-    },
-    {
-      url: `${baseUrl}/vendor`,
-      lastModified: new Date(),
-      changeFrequency: "weekly",
-      priority: 0.8,
-    },
+    { url: baseUrl, lastModified: now, changeFrequency: "daily", priority: 1 },
+    { url: `${baseUrl}/about`, lastModified: now, changeFrequency: "monthly", priority: 0.7 },
+    { url: `${baseUrl}/contact`, lastModified: now, changeFrequency: "monthly", priority: 0.7 },
+    { url: `${baseUrl}/offers`, lastModified: now, changeFrequency: "daily", priority: 0.9 },
+    { url: `${baseUrl}/vendor`, lastModified: now, changeFrequency: "weekly", priority: 0.8 },
   ];
-
-  /* ================= STATIONS ================= */
 
   const { data: restros } = await serviceClient
     .from("RestroMaster")
-    .select(`
-      restro_id,
-      restro_name,
-      station_code,
-      station_name,
-      active
-    `)
-    .eq("active", true);
+    .select("RestroCode, RestroName, StationCode, StationName, RaileatsStatus");
 
   const dynamicRoutes: MetadataRoute.Sitemap = [];
 
-  (restros || []).forEach((r: any) => {
-    const stationName = slugify(r.station_name || "");
-    const stationCode = slugify(r.station_code || "");
+  for (const r of restros || []) {
+    if (!isActive(r.RaileatsStatus)) continue;
 
-    // invalid skip
-    if (!stationName || !stationCode) return;
+    const stationName = slugify(r.StationName || "");
+    const stationCode = slugify(r.StationCode || "");
+    const restroName = slugify(r.RestroName || "");
+
+    if (!stationName || !stationCode || !r.RestroCode || !restroName) continue;
 
     const stationSlug = `${stationName}-${stationCode}-food-delivery`;
+    const restroSlug = `${r.RestroCode}-${restroName}`;
 
-    // station page
     dynamicRoutes.push({
       url: `${baseUrl}/stations/${stationSlug}`,
-      lastModified: new Date(),
+      lastModified: now,
       changeFrequency: "daily",
       priority: 0.9,
     });
 
-    // restro page
-    const restroSlug = `${r.restro_id}-${slugify(
-      r.restro_name || "restaurant"
-    )}`;
-
     dynamicRoutes.push({
       url: `${baseUrl}/stations/${stationSlug}/${restroSlug}`,
-      lastModified: new Date(),
+      lastModified: now,
       changeFrequency: "daily",
       priority: 0.8,
     });
-  });
-
-  /* ================= REMOVE DUPLICATES ================= */
+  }
 
   const uniqueMap = new Map<string, MetadataRoute.Sitemap[number]>();
 
   [...staticRoutes, ...dynamicRoutes].forEach((item) => {
-    if (
-      item.url &&
-      !item.url.includes("--food-delivery")
-    ) {
+    if (item.url && !item.url.includes("--food-delivery")) {
       uniqueMap.set(item.url, item);
     }
   });
