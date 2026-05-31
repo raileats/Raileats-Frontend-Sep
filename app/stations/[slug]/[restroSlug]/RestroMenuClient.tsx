@@ -168,7 +168,8 @@ export default function RestroMenuClient({
 
   const displayVendorName =
     nextParams?.vendorName || header?.outletName || "Restaurant";
-
+  const isStationOnlyView = nextParams?.mode === "station";
+  
   const minimumOrder = Number(
     header?.minimumOrder || nextParams?.minOrder || 0
   );
@@ -599,83 +600,86 @@ export default function RestroMenuClient({
                 </div>
 
                 <div style={{ flexShrink: 0 }}>
-                  {!existing ? (
-                    <button
-                      type="button"
-                      onClick={() => handleAdd(it)}
-                      style={{
-                        minWidth: 64,
-                        minHeight: 42,
-                        border: 0,
-                        borderRadius: 13,
-                        background: "#f97316",
-                        color: "#fff",
-                        fontSize: 15,
-                        fontWeight: 900,
-                        cursor: "pointer",
-                      }}
-                    >
-                      Add
-                    </button>
-                  ) : (
-                    <div
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        border: "1px solid #dbe4ef",
-                        borderRadius: 12,
-                        overflow: "hidden",
-                        background: "#fff",
-                      }}
-                    >
-                      <button
-                        type="button"
-                        onClick={() =>
-                          handleQty(it, Number(existing.qty || 0) - 1)
-                        }
-                        style={{
-                          width: 32,
-                          height: 38,
-                          border: 0,
-                          background: "#fff",
-                          fontWeight: 900,
-                          cursor: "pointer",
-                        }}
-                      >
-                        -
-                      </button>
+  {!isStationOnlyView && (
+    <>
+      {!existing ? (
+        <button
+          type="button"
+          onClick={() => handleAdd(it)}
+          style={{
+            minWidth: 64,
+            minHeight: 42,
+            border: 0,
+            borderRadius: 13,
+            background: "#f97316",
+            color: "#fff",
+            fontSize: 15,
+            fontWeight: 900,
+            cursor: "pointer",
+          }}
+        >
+          Add
+        </button>
+      ) : (
+        <div
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            border: "1px solid #dbe4ef",
+            borderRadius: 12,
+            overflow: "hidden",
+            background: "#fff",
+          }}
+        >
+          <button
+            type="button"
+            onClick={() =>
+              handleQty(it, Number(existing.qty || 0) - 1)
+            }
+            style={{
+              width: 32,
+              height: 38,
+              border: 0,
+              background: "#fff",
+              fontWeight: 900,
+              cursor: "pointer",
+            }}
+          >
+            -
+          </button>
 
-                      <span
-                        style={{
-                          minWidth: 22,
-                          textAlign: "center",
-                          fontWeight: 900,
-                          color: "#0f172a",
-                        }}
-                      >
-                        {Number(existing.qty || 0)}
-                      </span>
+          <span
+            style={{
+              minWidth: 22,
+              textAlign: "center",
+              fontWeight: 900,
+              color: "#0f172a",
+            }}
+          >
+            {Number(existing.qty || 0)}
+          </span>
 
-                      <button
-                        type="button"
-                        onClick={() =>
-                          handleQty(it, Number(existing.qty || 0) + 1)
-                        }
-                        style={{
-                          width: 32,
-                          height: 38,
-                          border: 0,
-                          background: "#fff",
-                          fontWeight: 900,
-                          cursor: "pointer",
-                        }}
-                      >
-                        +
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
+          <button
+            type="button"
+            onClick={() =>
+              handleQty(it, Number(existing.qty || 0) + 1)
+            }
+            style={{
+              width: 32,
+              height: 38,
+              border: 0,
+              background: "#fff",
+              fontWeight: 900,
+              cursor: "pointer",
+            }}
+          >
+            +
+          </button>
+        </div>
+      )}
+    </>
+  )}
+</div>              </div>
             </article>
           );
         })}
