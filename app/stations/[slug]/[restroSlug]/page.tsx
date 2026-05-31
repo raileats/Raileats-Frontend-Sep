@@ -46,6 +46,34 @@ function stationNameFromSlug(slug: string, stationCode: string) {
   return withoutCode || stationCode;
 }
 
+function parseStationInfo(slugRaw: string, fallbackCode: string) {
+  const raw = decodeURIComponent(String(slugRaw || "")).trim();
+
+  const clean = raw
+    .replace(/-food-delivery-in-train$/i, "")
+    .replace(/-food-delivery$/i, "");
+
+  const parts = clean.split("-").filter(Boolean);
+
+  let code = String(fallbackCode || "").toUpperCase();
+  let nameParts = parts;
+
+  if (parts.length > 1 && /^[a-z0-9]{2,8}$/i.test(parts[0])) {
+    code = parts[0].toUpperCase();
+    nameParts = parts.slice(1);
+  } else if (
+    parts.length > 1 &&
+    /^[a-z0-9]{2,8}$/i.test(parts[parts.length - 1])
+  ) {
+    code = parts[parts.length - 1].toUpperCase();
+    nameParts = parts.slice(0, -1);
+  }
+
+  const name = titleCase(nameParts.join(" "));
+
+  return { code, name };
+}
+
 function buildCanonical(params: any, searchParams: any) {
   const qs = new URLSearchParams();
 
