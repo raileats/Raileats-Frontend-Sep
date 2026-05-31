@@ -1,163 +1,283 @@
 // app/api/pnr/[pnr]/route.ts
 import { NextResponse } from "next/server";
 
-const PNR_KEY = process.env.RAPIDAPI_KEY;
-const PNR_HOST = process.env.RAPIDAPI_HOST;
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
-const ROUTE_API = process.env.ROUTE_API; // e.g. https://api.irailway.app/train-route?trainNo=
-const LIVE_API = process.env.LIVE_API;   // e.g. https://api.irailway.app/live-status?trainNo=
+const PNR_KEY =
+  process.env.RAPIDAPI_PNR_KEY ||
+  process.env.RAPIDAPI_KEY;
+
+const PNR_HOST =
+  process.env.RAPIDAPI_PNR_HOST ||
+  process.env.RAPIDAPI_HOST ||
+  "irctc-indian-railway-pnr-status.p.rapidapi.com";
 
 const CACHE_MS = 1000 * 60 * 3;
-type CacheEntry = { ts: number; val: any };
+
+type CacheEntry = {
+  ts: number;
+  val: any;
+};
+
 declare global {
-  // attach to global to persist between cold starts in Vercel
   // eslint-disable-next-line no-var
   var __raileats_pnr_cache__: Map<string, CacheEntry> | undefined;
 }
-const cache: Map<string, CacheEntry> = global.__raileats_pnr_cache__ || new Map();
+
+const cache =
+  global.__raileats_pnr_cache__ ||
+  new Map<string, CacheEntry>();
+
 global.__raileats_pnr_cache__ = cache;
 
-function getCached(k: string) {
-  const e = cache.get(k);
-  if (!e) return null;
-  if (Date.now() - e.ts > CACHE_MS) {
-    cache.delete(k);
+function getCached(key: string) {
+  const entry = cache.get(key);
+
+  if (!entry) return null;
+
+  if (Date.now() - entry.ts > CACHE_MS) {
+    cache.delete(key);
     return null;
   }
-  return e.val;
-}
-function setCached(k: string, v: any) {
-  cache.set(k, { ts: Date.now(), val: v });
+
+  return entry.val;
 }
 
-async function safeFetchJson(url: string) {
-  try {
-    const res = await fetch(url, { method: "GET" });
-    const text = await res.text().catch(() => "");
-    try {
-      return { ok: res.ok, status: res.status, json: JSON.parse(text) };
-    } catch {
-      return { ok: res.ok, status: res.status, json: text };
-    }
-  } catch (e) {
-    return { ok: false, status: 0, json: { error: String(e) } };
-  }
+function setCached(key: string, value: any) {
+  cache.set(key, {
+    ts: Date.now(),
+    val: value,
+  });
 }
 
 function normalizePassenger(p: any) {
   return {
-    serial: p?.passengerSerialNumber ?? p?.serial ?? null,
-    quota: p?.passengerQuota ?? null,
-    bookingStatus: p?.bookingStatus ?? null,
-    bookingDetails: p?.bookingStatusDetails ?? null,
-    bookingBerthNo: p?.bookingBerthNo ?? null,
-    currentStatus: p?.currentStatus ?? null,
-    currentDetails: p?.currentStatusDetails ?? null,
-    currentBerthNo: p?.currentBerthNo ?? null,
-    currentCoachId: p?.currentCoachId ?? null,
-    passengerNationality: p?.passengerNationality ?? null,
-    childBerthFlag: !!p?.childBerthFlag,
+    serial:
+      p?.passengerSerialNumber ??
+      p?.serial ??
+      null,
+
+    quota:
+      p?.passengerQuota ??
+      p?.quota ??
+      null,
+
+    bookingStatus:
+      p?.bookingStatus ??
+      p?.booking_status ??
+      null,
+
+    bookingDetails:
+      p?.bookingStatusDetails ??
+      p?.booking_details ??
+      null,
+
+    bookingBerthNo:
+      p?.bookingBerthNo ??
+      null,
+
+    currentStatus:
+      p?.currentStatus ??
+      p?.current_status ??
+      null,
+
+    currentDetails:
+      p?.currentStatusDetails ??
+      p?.current_details ??
+      null,
+
+    currentBerthNo:
+      p?.currentBerthNo ??
+      null,
+
+    currentCoachId:
+      p?.currentCoachId ??
+      null,
+
+    passengerNationality:
+      p?.passengerNationality ??
+      null,
+
+    childBerthFlag:
+      Boolean(p?.childBerthFlag),
   };
 }
 
-export async function GET(_req: Request, { params }: { params: { pnr: string } }) {
-  const rawPnr = String(params.pnr || "").trim();
-  const pnr = rawPnr.replace(/\D/g, "");
-  if (!pnr || pnr.length < 6) {
-    return NextResponse.json({ ok: false, error: "Invalid PNR" }, { status: 400 });
-  }
+function pickData(json: any) {
+  return json?.data || json?.result || json;
+}
 
-  const cacheKey = `pnr:${pnr}`;
-  const cached = getCached(cacheKey);
-  if (cached) return NextResponse.json({ ok: true, fromCache: true, ...cached });
-
-  if (!PNR_KEY || !PNR_HOST) {
-    return NextResponse.json(
-      { ok: false, error: "Server misconfigured: RAPIDAPI_KEY or RAPIDAPI_HOST missing" },
-      { status: 500 }
-    );
-  }
-
+export async function GET(
+  _req: Request,
+  { params }: { params: { pnr: string } }
+) {
   try {
-    // 1) Fetch PNR from RapidAPI provider
-    const pnrUrl = `https://${PNR_HOST}/getPNRStatus/${encodeURIComponent(pnr)}`;
-    const pnrRes = await fetch(pnrUrl, {
+    const pnr = String(params?.pnr || "")
+      .trim()
+      .replace(/\D/g, "");
+
+    if (!/^[0-9]{10}$/.test(pnr)) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "Valid 10 digit PNR required",
+        },
+        { status: 400 }
+      );
+    }
+
+    const cacheKey = `pnr:${pnr}`;
+    const cached = getCached(cacheKey);
+
+    if (cached) {
+      return NextResponse.json({
+        ok: true,
+        fromCache: true,
+        ...cached,
+      });
+    }
+
+    if (!PNR_KEY || !PNR_HOST) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "Server misconfigured: RapidAPI key/host missing",
+        },
+        { status: 500 }
+      );
+    }
+
+    const url = `https://${PNR_HOST}/getPNRStatus/${encodeURIComponent(
+      pnr
+    )}`;
+
+    const res = await fetch(url, {
       method: "GET",
       headers: {
+        "Content-Type": "application/json",
         "x-rapidapi-host": PNR_HOST,
         "x-rapidapi-key": PNR_KEY,
-      } as Record<string,string>,
+      },
+      cache: "no-store",
     });
 
-    const pnrText = await pnrRes.text().catch(() => "");
-    let pnrJson: any;
-    try { pnrJson = JSON.parse(pnrText); } catch { pnrJson = pnrText; }
+    const text = await res.text().catch(() => "");
+    let json: any = null;
 
-    if (!pnrRes.ok) {
-      return NextResponse.json({ ok: false, error: "PNR fetch failed", details: pnrJson }, { status: 502 });
+    try {
+      json = JSON.parse(text);
+    } catch {
+      json = {
+        rawText: text,
+      };
     }
 
-    // Normalize data
-    const data = pnrJson?.data ?? pnrJson;
-    const trainNoRaw = data?.trainNumber ?? data?.train_number ?? null;
-    const trainNo = trainNoRaw ? String(trainNoRaw).trim() : null;
-    const trainName = data?.trainName ?? data?.train_name ?? null;
-    const doj = data?.dateOfJourney ?? data?.doj ?? null;
-    const board = data?.boardingPoint ?? data?.boarding ?? null;
-    const src = data?.sourceStation ?? data?.source ?? null;
-    const dest = data?.destinationStation ?? data?.destination ?? null;
-    const chartStatus = data?.chartStatus ?? null;
-    const passengerList = Array.isArray(data?.passengerList) ? data.passengerList.map(normalizePassenger) : [];
-
-    // 2) Fetch route using free API if configured (best-effort)
-    let route: any = null;
-    if (ROUTE_API && trainNo) {
-      try {
-        const url = `${ROUTE_API}${encodeURIComponent(trainNo)}`;
-        const r = await safeFetchJson(url);
-        if (r.ok) route = r.json;
-        else route = { error: "route_fetch_failed", details: r.json };
-      } catch (e) {
-        route = { error: String(e) };
-      }
+    if (!res.ok) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "PNR API failed",
+          status: res.status,
+          details: json,
+        },
+        { status: 502 }
+      );
     }
 
-    // 3) Fetch live status using free API if configured (best-effort)
-    let live: any = null;
-    if (LIVE_API && trainNo) {
-      try {
-        const url = `${LIVE_API}${encodeURIComponent(trainNo)}`;
-        const l = await safeFetchJson(url);
-        if (l.ok) live = l.json;
-        else live = { error: "live_fetch_failed", details: l.json };
-      } catch (e) {
-        live = { error: String(e) };
-      }
-    }
+    const data = pickData(json);
 
-    // Prepare payload
+    const passengerRaw =
+      data?.passengerList ||
+      data?.passengers ||
+      data?.PassengerList ||
+      [];
+
+    const passengers = Array.isArray(passengerRaw)
+      ? passengerRaw.map(normalizePassenger)
+      : [];
+
     const payload = {
-      ok: true,
       pnr,
-      trainNo,
-      trainName,
-      dateOfJourney: doj,
-      boardingPoint: board,
-      source: src,
-      destination: dest,
-      chartStatus,
-      passengersCount: data?.numberOfpassenger ?? data?.numberOfPassengers ?? passengerList.length,
-      passengers: passengerList,
-      fare: { bookingFare: data?.bookingFare ?? null, ticketFare: data?.ticketFare ?? null },
+
+      trainNo:
+        data?.trainNumber ??
+        data?.trainNo ??
+        data?.train_number ??
+        data?.TrainNo ??
+        null,
+
+      trainName:
+        data?.trainName ??
+        data?.train_name ??
+        data?.TrainName ??
+        null,
+
+      dateOfJourney:
+        data?.dateOfJourney ??
+        data?.doj ??
+        data?.journeyDate ??
+        null,
+
+      boardingPoint:
+        data?.boardingPoint ??
+        data?.boarding ??
+        data?.boardingStation ??
+        null,
+
+      source:
+        data?.sourceStation ??
+        data?.source ??
+        data?.from ??
+        null,
+
+      destination:
+        data?.destinationStation ??
+        data?.destination ??
+        data?.to ??
+        null,
+
+      chartStatus:
+        data?.chartStatus ??
+        data?.ChartStatus ??
+        null,
+
+      passengersCount:
+        data?.numberOfpassenger ??
+        data?.numberOfPassengers ??
+        passengers.length,
+
+      passengers,
+
+      fare: {
+        bookingFare:
+          data?.bookingFare ??
+          null,
+
+        ticketFare:
+          data?.ticketFare ??
+          null,
+      },
+
       raw: data,
-      route,
-      live,
     };
 
     setCached(cacheKey, payload);
-    return NextResponse.json(payload);
+
+    return NextResponse.json({
+      ok: true,
+      fromCache: false,
+      ...payload,
+    });
   } catch (err: any) {
     console.error("PNR handler error:", err);
-    return NextResponse.json({ ok: false, error: err?.message ?? "Server error" }, { status: 500 });
+
+    return NextResponse.json(
+      {
+        ok: false,
+        error: err?.message || "Server error",
+      },
+      { status: 500 }
+    );
   }
 }
