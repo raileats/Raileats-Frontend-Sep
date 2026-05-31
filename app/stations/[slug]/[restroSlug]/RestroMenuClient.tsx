@@ -330,7 +330,7 @@ export default function RestroMenuClient({
                 gap: 8,
                 color: "#334155",
                 fontWeight: 800,
-                fontSize: 14,
+                fontSize: 12,
                 lineHeight: 1.25,
               }}
             >
@@ -359,7 +359,7 @@ export default function RestroMenuClient({
                 gap: 8,
                 color: "#0f172a",
                 fontWeight: 900,
-                fontSize: 10,
+                fontSize: 12,
                 lineHeight: 1.2,
               }}
             >
@@ -433,7 +433,7 @@ export default function RestroMenuClient({
             color: vegOnly ? "#15803d" : "#334155",
             borderRadius: 999,
             padding: "8px 13px",
-            fontSize: 13,
+            fontSize: 12,
             fontWeight: 900,
             whiteSpace: "nowrap",
             cursor: "pointer",
@@ -448,7 +448,7 @@ export default function RestroMenuClient({
             overflow: "hidden",
             textOverflow: "ellipsis",
             whiteSpace: "nowrap",
-            fontSize: 13,
+            fontSize: 12,
             fontWeight: 800,
             color: "#475569",
           }}
@@ -467,7 +467,7 @@ export default function RestroMenuClient({
             textAlign: "center",
           }}
         >
-          <div style={{ fontSize: 16, fontWeight: 900, color: "#0f172a" }}>
+          <div style={{ fontSize: 14, fontWeight: 900, color: "#0f172a" }}>
             No items available
           </div>
           <div style={{ marginTop: 6, fontSize: 13, color: "#64748b" }}>
