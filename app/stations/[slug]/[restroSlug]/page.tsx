@@ -343,6 +343,7 @@ export default async function Page({
     trainNumber,
     vendorName: outletName,
     restroCode: String(restroCode),
+    mode: firstParam(searchParams?.mode),
   };
 
   const canonical = buildCanonical(params, searchParams);
