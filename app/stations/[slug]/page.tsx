@@ -164,13 +164,43 @@ export default async function Page({ params }: { params: { slug: string } }) {
     return active && !holidayFromHolidayTable && !holidayFromMaster;
   });
 
-  const schema = {
-    "@context": "https://schema.org",
-    "@type": "WebPage",
-    name: `Food Delivery at ${stationName} Railway Station`,
-    url: `${siteUrl}/stations/${params.slug}`,
-    description: `Order food in train at ${stationName} railway station with RailEats.`,
-  };
+ const schema = {
+  "@context": "https://schema.org",
+  "@type": "WebPage",
+  name: `Food Delivery at ${stationName} Railway Station`,
+  url: `${siteUrl}/stations/${params.slug}`,
+  description: `Order food in train at ${stationName} railway station with RailEats.`,
+  provider: {
+    "@type": "Organization",
+    name: "RailEats",
+    url: siteUrl,
+  },
+  mainEntity: {
+    "@type": "ItemList",
+    name: `Active restaurants at ${stationName}`,
+    itemListElement: activeRestros.map((r: any, index: number) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      item: {
+        "@type": "Restaurant",
+        name: r.RestroName,
+        url: `${siteUrl}/stations/${params.slug}/${r.RestroCode}-${String(
+          r.RestroName || ""
+        )
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/^-+|-+$/g, "")}`,
+        aggregateRating: r.RestroRating
+          ? {
+              "@type": "AggregateRating",
+              ratingValue: String(r.RestroRating),
+              bestRating: "5",
+            }
+          : undefined,
+      },
+    })),
+  },
+};
 
   return (
     <>
