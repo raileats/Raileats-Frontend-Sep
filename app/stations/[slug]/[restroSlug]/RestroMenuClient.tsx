@@ -707,15 +707,16 @@ export default function RestroMenuClient({
         </h1>
 
         <p
-          style={{
-            margin: "8px 0 0",
-            fontSize: 13,
-            lineHeight: 1.45,
-            color: "#64748b",
-          }}
-        >
-          {isStationOnlyView
-  ? `View ${displayVendorName} menu at ${
-      displayStationName || "this railway station"
-    } with item price, food category, description, veg or non-veg type and available serving time.`
-  : "Choose fresh meals for your train journey, add items to cart, verify your mobile number and place your order for delivery at your seat."}
+  style={{
+    margin: "8px 0 0",
+    fontSize: 13,
+    lineHeight: 1.45,
+    color: "#64748b",
+  }}
+>
+  {isStationOnlyView
+    ? `View ${displayVendorName} menu at ${
+        displayStationName || "this railway station"
+      } with item price, food category, description, veg or non-veg type and available serving time.`
+    : "Choose fresh meals for your train journey, add items to cart, verify your mobile number and place your order for delivery at your seat."}
+</p>
