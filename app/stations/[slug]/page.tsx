@@ -239,7 +239,10 @@ export default async function Page({ params }: { params: { slug: string } }) {
                   </p>
 
                   <Link
-                    href={`/menu?restro=${r.RestroCode}&station=${stationBase.code}`}
+                    href={`/stations/${params.slug}/${r.RestroCode}-${String(r.RestroName || "")
+  .toLowerCase()
+  .replace(/[^a-z0-9]+/g, "-")
+  .replace(/^-+|-+$/g, "")}`}
                     className="mt-4 inline-block rounded-xl bg-orange-500 px-4 py-2 text-sm font-bold text-white"
                   >
                     View Menu
