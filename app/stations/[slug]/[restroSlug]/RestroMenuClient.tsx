@@ -168,9 +168,10 @@ export default function RestroMenuClient({
 
   const displayVendorName =
     nextParams?.vendorName || header?.outletName || "Restaurant";
+
   const isStationOnlyView =
-  nextParams?.mode === "station" || !nextParams?.trainNumber;
-  
+    nextParams?.mode === "station" || !nextParams?.trainNumber;
+
   const minimumOrder = Number(
     header?.minimumOrder || nextParams?.minOrder || 0
   );
@@ -276,16 +277,16 @@ export default function RestroMenuClient({
       <section
         style={{
           background: "#fff",
-          border: "1px solid #dbe4ef",
-          borderRadius: 18,
-          boxShadow: "0 8px 22px rgba(15,23,42,0.06)",
+          border: "1px solid #e2e8f0",
+          borderRadius: 20,
+          boxShadow: "0 2px 10px rgba(15,23,42,0.05)",
           padding: 16,
         }}
       >
         <div
           style={{
             fontSize: 12,
-            fontWeight: 800,
+            fontWeight: 700,
             color: "#64748b",
             marginBottom: 10,
           }}
@@ -307,10 +308,10 @@ export default function RestroMenuClient({
                 display: "flex",
                 alignItems: "center",
                 gap: 8,
-                color: "#f97316",
-                fontWeight: 900,
+                color: "#ea580c",
+                fontWeight: 700,
                 fontSize: 11,
-                lineHeight: 1.2,
+                lineHeight: 1.25,
               }}
             >
               <span style={{ width: 18, textAlign: "center" }}>🚆</span>
@@ -329,9 +330,9 @@ export default function RestroMenuClient({
                 alignItems: "center",
                 gap: 8,
                 color: "#475569",
-                fontWeight: 800,
+                fontWeight: 600,
                 fontSize: 12,
-                lineHeight: 1.25,
+                lineHeight: 1.35,
               }}
             >
               <span style={{ width: 18, textAlign: "center" }}>📍</span>
@@ -357,10 +358,10 @@ export default function RestroMenuClient({
                 alignItems: "center",
                 justifyContent: "flex-end",
                 gap: 8,
-                color: "#1e293b",
-                fontWeight: 900,
+                color: "#334155",
+                fontWeight: 650,
                 fontSize: 12,
-                lineHeight: 1.2,
+                lineHeight: 1.3,
               }}
             >
               <span>🍴</span>
@@ -373,7 +374,7 @@ export default function RestroMenuClient({
               style={{
                 color: "#dc2626",
                 fontSize: 12,
-                fontWeight: 900,
+                fontWeight: 750,
               }}
             >
               Min Order: Rs {minimumOrder}
@@ -389,7 +390,7 @@ export default function RestroMenuClient({
             marginTop: 13,
             color: "#2563eb",
             fontSize: 13,
-            fontWeight: 900,
+            fontWeight: 750,
           }}
         >
           <span>📅 {displayDeliveryDate || "-"}</span>
@@ -410,13 +411,13 @@ export default function RestroMenuClient({
           type="button"
           onClick={() => setVegOnly(false)}
           style={{
-            border: !vegOnly ? "1px solid #f97316" : "1px solid #dbe4ef",
+            border: !vegOnly ? "1px solid #f97316" : "1px solid #e2e8f0",
             background: !vegOnly ? "#fff7ed" : "#fff",
-            color: !vegOnly ? "#ea580c" : "#334155",
+            color: !vegOnly ? "#ea580c" : "#475569",
             borderRadius: 999,
             padding: "8px 13px",
             fontSize: 13,
-            fontWeight: 900,
+            fontWeight: 750,
             whiteSpace: "nowrap",
             cursor: "pointer",
           }}
@@ -428,13 +429,13 @@ export default function RestroMenuClient({
           type="button"
           onClick={() => setVegOnly(true)}
           style={{
-            border: vegOnly ? "1px solid #16a34a" : "1px solid #dbe4ef",
+            border: vegOnly ? "1px solid #16a34a" : "1px solid #e2e8f0",
             background: vegOnly ? "#f0fdf4" : "#fff",
-            color: vegOnly ? "#15803d" : "#334155",
+            color: vegOnly ? "#15803d" : "#475569",
             borderRadius: 999,
             padding: "8px 13px",
             fontSize: 12,
-            fontWeight: 900,
+            fontWeight: 750,
             whiteSpace: "nowrap",
             cursor: "pointer",
           }}
@@ -449,8 +450,8 @@ export default function RestroMenuClient({
             textOverflow: "ellipsis",
             whiteSpace: "nowrap",
             fontSize: 12,
-            fontWeight: 800,
-            color: "#475569",
+            fontWeight: 650,
+            color: "#64748b",
           }}
         >
           {visible.length} item{visible.length === 1 ? "" : "s"} available
@@ -461,13 +462,14 @@ export default function RestroMenuClient({
         <section
           style={{
             background: "#fff",
-            border: "1px solid #dbe4ef",
-            borderRadius: 18,
+            border: "1px solid #e2e8f0",
+            borderRadius: 20,
             padding: 18,
             textAlign: "center",
+            boxShadow: "0 2px 10px rgba(15,23,42,0.04)",
           }}
         >
-          <div style={{ fontSize: 14, fontWeight: 900, color: "#0f172a" }}>
+          <div style={{ fontSize: 14, fontWeight: 750, color: "#334155" }}>
             No items available
           </div>
           <div style={{ marginTop: 6, fontSize: 13, color: "#64748b" }}>
@@ -494,10 +496,10 @@ export default function RestroMenuClient({
               key={it.id}
               style={{
                 background: "#fff",
-                border: "1px solid #dbe4ef",
-                borderRadius: 18,
-                boxShadow: "0 7px 18px rgba(15,23,42,0.05)",
-                padding: 14,
+                border: "1px solid #e2e8f0",
+                borderRadius: 20,
+                boxShadow: "0 2px 10px rgba(15,23,42,0.05)",
+                padding: 16,
               }}
             >
               <div
@@ -518,8 +520,8 @@ export default function RestroMenuClient({
                   >
                     <span
                       style={{
-                        width: 11,
-                        height: 11,
+                        width: 10,
+                        height: 10,
                         borderRadius: 999,
                         background: isVeg ? "#16a34a" : "#dc2626",
                         flexShrink: 0,
@@ -530,10 +532,11 @@ export default function RestroMenuClient({
                     <div style={{ minWidth: 0 }}>
                       <div
                         style={{
-                          fontSize: 15,
-                          lineHeight: 1.16,
-                          fontWeight: 900,
-                          color: "#1e293b",
+                          fontSize: 14,
+                          lineHeight: 1.35,
+                          fontWeight: 700,
+                          letterSpacing: "-0.2px",
+                          color: "#111827",
                           wordBreak: "break-word",
                         }}
                       >
@@ -543,8 +546,8 @@ export default function RestroMenuClient({
                       <div
                         style={{
                           marginTop: 5,
-                          fontSize: 12,
-                          fontWeight: 750,
+                          fontSize: 11,
+                          fontWeight: 500,
                           color: "#64748b",
                         }}
                       >
@@ -559,9 +562,9 @@ export default function RestroMenuClient({
                       display: "flex",
                       alignItems: "center",
                       gap: 6,
-                      fontSize: 13,
+                      fontSize: 12,
                       color: "#64748b",
-                      fontWeight: 800,
+                      fontWeight: 600,
                     }}
                   >
                     <span>⏰</span>
@@ -579,8 +582,9 @@ export default function RestroMenuClient({
                       style={{
                         marginTop: 7,
                         fontSize: 13,
-                        lineHeight: 1.32,
-                        color: "#475569",
+                        lineHeight: 1.5,
+                        color: "#6b7280",
+                        fontWeight: 400,
                         wordBreak: "break-word",
                       }}
                     >
@@ -591,9 +595,9 @@ export default function RestroMenuClient({
                   <div
                     style={{
                       marginTop: 12,
-                      fontSize: 15,
-                      fontWeight: 900,
-                      color: "#1e293b",
+                      fontSize: 14,
+                      fontWeight: 700,
+                      color: "#111827",
                     }}
                   >
                     Rs {getPrice(it)}
@@ -601,110 +605,118 @@ export default function RestroMenuClient({
                 </div>
 
                 <div style={{ flexShrink: 0 }}>
-  {!isStationOnlyView && (
-    <>
-      {!existing ? (
-        <button
-          type="button"
-          onClick={() => handleAdd(it)}
-          style={{
-            minWidth: 64,
-            minHeight: 42,
-            border: 0,
-            borderRadius: 13,
-            background: "#f97316",
-            color: "#fff",
-            fontSize: 15,
-            fontWeight: 900,
-            cursor: "pointer",
-          }}
-        >
-          Add
-        </button>
-      ) : (
-        <div
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            border: "1px solid #dbe4ef",
-            borderRadius: 12,
-            overflow: "hidden",
-            background: "#fff",
-          }}
-        >
-          <button
-            type="button"
-            onClick={() =>
-              handleQty(it, Number(existing.qty || 0) - 1)
-            }
-            style={{
-              width: 32,
-              height: 38,
-              border: 0,
-              background: "#fff",
-              fontWeight: 900,
-              cursor: "pointer",
-            }}
-          >
-            -
-          </button>
+                  {!isStationOnlyView && (
+                    <>
+                      {!existing ? (
+                        <button
+                          type="button"
+                          onClick={() => handleAdd(it)}
+                          style={{
+                            minWidth: 58,
+                            minHeight: 38,
+                            border: 0,
+                            borderRadius: 13,
+                            background: "#f97316",
+                            color: "#fff",
+                            fontSize: 14,
+                            fontWeight: 700,
+                            cursor: "pointer",
+                            boxShadow: "0 2px 8px rgba(249,115,22,0.18)",
+                          }}
+                        >
+                          Add
+                        </button>
+                      ) : (
+                        <div
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            border: "1px solid #e2e8f0",
+                            borderRadius: 12,
+                            overflow: "hidden",
+                            background: "#fff",
+                          }}
+                        >
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleQty(it, Number(existing.qty || 0) - 1)
+                            }
+                            style={{
+                              width: 32,
+                              height: 38,
+                              border: 0,
+                              background: "#fff",
+                              fontWeight: 700,
+                              cursor: "pointer",
+                              color: "#334155",
+                            }}
+                          >
+                            -
+                          </button>
 
-          <span
-            style={{
-              minWidth: 22,
-              textAlign: "center",
-              fontWeight: 900,
-              color: "#0f172a",
-            }}
-          >
-            {Number(existing.qty || 0)}
-          </span>
+                          <span
+                            style={{
+                              minWidth: 22,
+                              textAlign: "center",
+                              fontWeight: 700,
+                              color: "#334155",
+                            }}
+                          >
+                            {Number(existing.qty || 0)}
+                          </span>
 
-          <button
-            type="button"
-            onClick={() =>
-              handleQty(it, Number(existing.qty || 0) + 1)
-            }
-            style={{
-              width: 32,
-              height: 38,
-              border: 0,
-              background: "#fff",
-              fontWeight: 900,
-              cursor: "pointer",
-            }}
-          >
-            +
-          </button>
-        </div>
-      )}
-    </>
-  )}
-</div>              </div>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleQty(it, Number(existing.qty || 0) + 1)
+                            }
+                            style={{
+                              width: 32,
+                              height: 38,
+                              border: 0,
+                              background: "#fff",
+                              fontWeight: 700,
+                              cursor: "pointer",
+                              color: "#334155",
+                            }}
+                          >
+                            +
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              </div>
             </article>
           );
         })}
       </section>
 
-            <section
+      <section
         style={{
           background: "#fff",
-          border: "1px solid #dbe4ef",
-          borderRadius: 18,
-          padding: 14,
+          border: "1px solid #e2e8f0",
+          borderRadius: 20,
+          padding: 16,
+          boxShadow: "0 2px 10px rgba(15,23,42,0.04)",
         }}
       >
         <h1
           style={{
             margin: 0,
-            fontSize: 16,
-            lineHeight: 1.25,
-            fontWeight: 900,
-            color: "#f97316",
+            fontSize: 15,
+            lineHeight: 1.35,
+            fontWeight: 750,
+            letterSpacing: "-0.2px",
+            color: "#ea580c",
           }}
         >
           {isStationOnlyView
-            ? `${displayVendorName} Menu at ${displayStationName || "Railway Station"}`
+            ? `${displayVendorName} Menu at ${
+                displayStationName || "Railway Station"
+              }`
             : `Order food from ${displayVendorName} at ${
                 displayStationName || "your station"
               }`}
@@ -714,8 +726,9 @@ export default function RestroMenuClient({
           style={{
             margin: "8px 0 0",
             fontSize: 13,
-            lineHeight: 1.45,
+            lineHeight: 1.55,
             color: "#64748b",
+            fontWeight: 400,
           }}
         >
           {isStationOnlyView
