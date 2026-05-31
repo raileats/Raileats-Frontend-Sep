@@ -328,7 +328,7 @@ export default function RestroMenuClient({
                 display: "flex",
                 alignItems: "center",
                 gap: 8,
-                color: "#334155",
+                color: "#475569",
                 fontWeight: 800,
                 fontSize: 12,
                 lineHeight: 1.25,
@@ -357,7 +357,7 @@ export default function RestroMenuClient({
                 alignItems: "center",
                 justifyContent: "flex-end",
                 gap: 8,
-                color: "#0f172a",
+                color: "#1e293b",
                 fontWeight: 900,
                 fontSize: 12,
                 lineHeight: 1.2,
@@ -533,7 +533,7 @@ export default function RestroMenuClient({
                           fontSize: 15,
                           lineHeight: 1.16,
                           fontWeight: 900,
-                          color: "#0f172a",
+                          color: "#1e293b",
                           wordBreak: "break-word",
                         }}
                       >
@@ -593,7 +593,7 @@ export default function RestroMenuClient({
                       marginTop: 12,
                       fontSize: 15,
                       fontWeight: 900,
-                      color: "#0f172a",
+                      color: "#1e293b",
                     }}
                   >
                     Rs {getPrice(it)}
