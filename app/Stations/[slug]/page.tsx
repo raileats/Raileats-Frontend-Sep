@@ -1,9 +1,9 @@
-import React from "react";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { serviceClient } from "../../lib/supabaseServer";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 const siteUrl = "https://www.raileats.in";
 
@@ -17,8 +17,8 @@ function titleCase(str: string) {
     .replace(/\bJn\b/g, "JN");
 }
 
-function parseStationFromSlug(slug: string) {
-  const clean = decodeURIComponent(slug || "")
+function parseStationFromSlug(slugRaw: string) {
+  const slug = decodeURIComponent(String(slugRaw || "")).trim();
     .replace(/-food-delivery$/i, "")
     .replace(/-food-delivery-in-train$/i, "");
 
