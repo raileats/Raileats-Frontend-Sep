@@ -8,6 +8,16 @@ const nextConfig = {
     formats: ["image/avif", "image/webp"],
   },
 
+  async redirects() {
+    return [
+      {
+        source: "/Stations/:path*",
+        destination: "/stations/:path*",
+        permanent: true,
+      },
+    ];
+  },
+
   async headers() {
     return [
       {
