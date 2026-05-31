@@ -388,7 +388,7 @@ export default function RestroMenuClient({
             gap: 10,
             marginTop: 13,
             color: "#2563eb",
-            fontSize: 14,
+            fontSize: 13,
             fontWeight: 900,
           }}
         >
@@ -530,7 +530,7 @@ export default function RestroMenuClient({
                     <div style={{ minWidth: 0 }}>
                       <div
                         style={{
-                          fontSize: 17,
+                          fontSize: 15,
                           lineHeight: 1.16,
                           fontWeight: 900,
                           color: "#0f172a",
