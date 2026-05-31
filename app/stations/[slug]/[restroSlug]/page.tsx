@@ -338,20 +338,16 @@ const outletName = humanizeFromSlug(params.restroSlug);
       );
     });
 
-  const formattedStationName = `${titleCase(
-  stationName
-)} (${stationCode.toUpperCase()})`;
-
 const header = {
   stationCode,
   restroCode: String(restroCode),
   outletName,
-  stationName: formattedStationName,
+  stationName,
   minimumOrder: Number(minOrderFromUrl || 0),
 };
 
   const nextParams = {
-  stationName: formattedStationName,
+  stationName,
     stationCode,
     deliveryDate,
     deliveryTime,
