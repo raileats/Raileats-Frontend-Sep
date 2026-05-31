@@ -700,7 +700,7 @@ export default function RestroMenuClient({
             fontSize: 16,
             lineHeight: 1.25,
             fontWeight: 900,
-            color: "#0f172a",
+            color: "#f97316",
           }}
         >
           {isStationOnlyView
