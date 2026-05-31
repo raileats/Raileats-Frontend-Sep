@@ -208,17 +208,23 @@ export default function TrainPage() {
         <div style={{ textAlign: "center" }}>
           <div
             style={{
-              width: 34,
-              height: 34,
-              border: "4px solid #f97316",
+              width: 32,
+              height: 32,
+              border: "3px solid #f97316",
               borderTopColor: "transparent",
               borderRadius: 999,
-              margin: "0 auto 12px",
+              margin: "0 auto 10px",
               animation: "spin 1s linear infinite",
             }}
           />
 
-          <div style={{ fontWeight: 800, color: "#334155" }}>
+          <div
+            style={{
+              fontWeight: 700,
+              color: "#475569",
+              fontSize: 14,
+            }}
+          >
             Loading restaurants...
           </div>
         </div>
@@ -238,36 +244,37 @@ export default function TrainPage() {
     <main
       style={{
         width: "100%",
-        maxWidth: 760,
+        maxWidth: 720,
         margin: "0 auto",
-        padding: "14px 12px 92px",
+        padding: "8px 10px 92px",
         boxSizing: "border-box",
         display: "flex",
         flexDirection: "column",
-        gap: 16,
+        gap: 12,
       }}
     >
       <SaveOrderData data={orderData} />
 
       <section
         style={{
-          background: "#fff",
-          border: "1px solid #dbe4ef",
-          borderRadius: 18,
-          padding: 16,
-          boxShadow: "0 8px 22px rgba(15,23,42,0.06)",
+          background: "#ffffff",
+          border: "1px solid #e2e8f0",
+          borderRadius: 20,
+          padding: 14,
+          boxShadow: "0 2px 10px rgba(15,23,42,0.04)",
         }}
       >
         <div
           style={{
-            fontSize: 12,
-            fontWeight: 900,
+            fontSize: 11,
+            fontWeight: 700,
             color: "#64748b",
-            letterSpacing: 0.5,
-            marginBottom: 9,
+            letterSpacing: 0.6,
+            marginBottom: 8,
+            textTransform: "uppercase",
           }}
         >
-          TRAIN FOOD DELIVERY
+          Train Food Delivery
         </div>
 
         <div
@@ -288,23 +295,22 @@ export default function TrainPage() {
               alignItems: "center",
               justifyContent: "center",
               border: "1px solid #fed7aa",
-              boxShadow: "0 4px 12px rgba(15,23,42,0.06)",
               flexShrink: 0,
               color: "#f97316",
             }}
           >
-            <TrainFront size={20} strokeWidth={2.5} />
+            <TrainFront size={18} strokeWidth={2.2} />
           </span>
 
-          <div style={{ minWidth: 0 }}>
+          <div style={{ minWidth: 0, width: "100%" }}>
             <h1
               style={{
                 margin: 0,
-                fontSize: "clamp(18px, 4.25vw, 23px)",
-                lineHeight: 1.16,
-                fontWeight: 900,
-                color: "#0f172a",
-                letterSpacing: 0,
+                fontSize: "clamp(15px, 4vw, 22px)",
+                lineHeight: 1.22,
+                fontWeight: 700,
+                color: "#1e293b",
+                letterSpacing: "-0.2px",
               }}
             >
               Food in Train {trainNumber}
@@ -313,24 +319,38 @@ export default function TrainPage() {
 
             <div
               style={{
-                marginTop: 12,
+                marginTop: 10,
                 display: "grid",
                 gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-                gap: 10,
+                gap: 8,
               }}
             >
               <div
                 style={{
                   border: "1px solid #f3e8c5",
                   borderRadius: 12,
-                  padding: "10px 12px",
+                  padding: "9px 10px",
                   background: "#fffdf7",
                 }}
               >
-                <div style={{ fontSize: 12, color: "#64748b", fontWeight: 800 }}>
+                <div
+                  style={{
+                    fontSize: 11,
+                    color: "#64748b",
+                    fontWeight: 600,
+                  }}
+                >
                   Boarding
                 </div>
-                <div style={{ marginTop: 3, fontSize: 16, fontWeight: 950 }}>
+
+                <div
+                  style={{
+                    marginTop: 2,
+                    fontSize: 15,
+                    fontWeight: 700,
+                    color: "#1e293b",
+                  }}
+                >
                   {boarding || "-"}
                 </div>
               </div>
@@ -339,14 +359,28 @@ export default function TrainPage() {
                 style={{
                   border: "1px solid #f3e8c5",
                   borderRadius: 12,
-                  padding: "10px 12px",
+                  padding: "9px 10px",
                   background: "#fffdf7",
                 }}
               >
-                <div style={{ fontSize: 12, color: "#64748b", fontWeight: 800 }}>
+                <div
+                  style={{
+                    fontSize: 11,
+                    color: "#64748b",
+                    fontWeight: 600,
+                  }}
+                >
                   Journey Date
                 </div>
-                <div style={{ marginTop: 3, fontSize: 16, fontWeight: 950 }}>
+
+                <div
+                  style={{
+                    marginTop: 2,
+                    fontSize: 15,
+                    fontWeight: 700,
+                    color: "#1e293b",
+                  }}
+                >
                   {urlDate || "-"}
                 </div>
               </div>
@@ -400,28 +434,28 @@ export default function TrainPage() {
             key={index}
             style={{
               background: "#f8fafc",
-              border: "1px solid #dbe4ef",
-              borderRadius: 18,
-              padding: 13,
-              boxShadow: "0 8px 22px rgba(15,23,42,0.05)",
+              border: "1px solid #e2e8f0",
+              borderRadius: 20,
+              padding: 12,
+              boxShadow: "0 2px 10px rgba(15,23,42,0.04)",
             }}
           >
             <div
               style={{
                 display: "flex",
                 justifyContent: "space-between",
-                gap: 12,
-                marginBottom: 12,
+                gap: 10,
+                marginBottom: 10,
               }}
             >
               <div style={{ minWidth: 0 }}>
                 <h2
                   style={{
                     margin: 0,
-                    fontSize: 18,
-                    lineHeight: 1.18,
-                    fontWeight: 950,
-                    color: "#0f172a",
+                    fontSize: 15,
+                    lineHeight: 1.25,
+                    fontWeight: 700,
+                    color: "#1e293b",
                   }}
                 >
                   📍 {stationName} ({stationCode})
@@ -430,10 +464,10 @@ export default function TrainPage() {
                 {state ? (
                   <div
                     style={{
-                      marginTop: 4,
-                      fontSize: 12,
-                      color: "#475569",
-                      fontWeight: 800,
+                      marginTop: 3,
+                      fontSize: 11,
+                      color: "#64748b",
+                      fontWeight: 600,
                     }}
                   >
                     {state}
@@ -442,10 +476,10 @@ export default function TrainPage() {
 
                 <div
                   style={{
-                    marginTop: 4,
-                    fontSize: 12,
-                    color: "#64748b",
-                    fontWeight: 750,
+                    marginTop: 3,
+                    fontSize: 11,
+                    color: "#94a3b8",
+                    fontWeight: 500,
                   }}
                 >
                   Delivery date: {deliveryDate}
@@ -456,18 +490,30 @@ export default function TrainPage() {
                 style={{
                   flexShrink: 0,
                   textAlign: "right",
-                  fontSize: 12,
-                  fontWeight: 850,
+                  fontSize: 11,
+                  fontWeight: 700,
                 }}
               >
-                <div style={{ color: "#2563eb" }}>Arrival {arrives}:</div>
-                <div style={{ marginTop: 4, color: "#64748b" }}>
+                <div style={{ color: "#2563eb" }}>Arrival {arrives}</div>
+
+                <div
+                  style={{
+                    marginTop: 3,
+                    color: "#64748b",
+                  }}
+                >
                   Halt: {halt || "-"}
                 </div>
               </div>
             </div>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 10,
+              }}
+            >
               {validVendors.map((r: any) => {
                 const cutoff =
                   parseInt(
@@ -476,6 +522,7 @@ export default function TrainPage() {
                   ) || 0;
 
                 const remaining = getRemaining(arrives, deliveryDate, cutoff);
+
                 const totalSec = Math.max(0, Math.floor(remaining / 1000));
 
                 const days = Math.floor(totalSec / 86400);
@@ -494,89 +541,40 @@ export default function TrainPage() {
 
                 const stationSlug = `${stationCode}-${toSlug(stationName)}`;
                 const restroSlug = `${r.RestroCode}-${toSlug(r.RestroName)}`;
+
                 const cleanArrival =
                   arrives && arrives.includes(":") ? arrives.slice(0, 5) : "";
+
                 const finalTrainName = displayTrainName || "Train";
 
                 return (
                   <article
                     key={r.RestroCode}
                     style={{
-                      background: "#fff",
-                      border: "1px solid #dbe4ef",
+                      background: "#ffffff",
+                      border: "1px solid #e2e8f0",
                       borderRadius: 18,
-                      padding: 12,
+                      padding: 11,
                       display: "flex",
                       flexDirection: "column",
                       gap: 10,
-                      boxShadow: "0 8px 20px rgba(15,23,42,0.05)",
+                      boxShadow: "0 1px 6px rgba(15,23,42,0.04)",
                     }}
                   >
-                    <div style={{ minWidth: 0 }}>
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "space-between",
-                          gap: 10,
-                        }}
-                      >
-                        <h3
-                          style={{
-                            margin: 0,
-                            minWidth: 0,
-                            fontSize: 17,
-                            lineHeight: 1.22,
-                            fontWeight: 900,
-                            color: "#0f172a",
-                            overflowWrap: "anywhere",
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 6,
-                          }}
-                        >
-                          <Utensils
-                            size={16}
-                            strokeWidth={2.4}
-                            style={{ color: "#64748b", flexShrink: 0 }}
-                          />
-                          <span>{r.RestroName || "Restaurant"}</span>
-                        </h3>
-
-                        <span
-                          style={{
-                            flexShrink: 0,
-                            borderRadius: 999,
-                            background:
-                              Number(r.IsPureVeg) === 1 ? "#ecfdf5" : "#f0fdf4",
-                            color: "#16a34a",
-                            border: "1px solid #bbf7d0",
-                            padding: "4px 8px",
-                            fontSize: 11,
-                            lineHeight: 1,
-                            fontWeight: 900,
-                            whiteSpace: "nowrap",
-                          }}
-                        >
-                          {Number(r.IsPureVeg) === 1 ? "Pure Veg" : "Veg & Non-Veg"}
-                        </span>
-                      </div>
-                    </div>
-
                     <div
                       style={{
                         display: "grid",
-                        gridTemplateColumns: "86px minmax(0, 1fr)",
-                        gap: 12,
+                        gridTemplateColumns: "82px minmax(0, 1fr)",
+                        gap: 10,
                         alignItems: "stretch",
                       }}
                     >
                       <div
                         style={{
-                          width: 86,
-                          height: 86,
+                          width: 82,
+                          height: 82,
                           background: "#f1f5f9",
-                          borderRadius: 15,
+                          borderRadius: 14,
                           overflow: "hidden",
                           border: "1px solid #e2e8f0",
                         }}
@@ -600,7 +598,7 @@ export default function TrainPage() {
                               color: "#94a3b8",
                             }}
                           >
-                            <Utensils size={26} strokeWidth={2.2} />
+                            <Utensils size={24} strokeWidth={2.1} />
                           </div>
                         )}
                       </div>
@@ -614,17 +612,76 @@ export default function TrainPage() {
                           gap: 8,
                         }}
                       >
-                        <div
-                          style={{
-                            display: "grid",
-                            gap: 6,
-                            fontSize: 12,
-                            fontWeight: 850,
-                          }}
-                        >
+                        <div>
                           <div
                             style={{
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                              gap: 8,
+                            }}
+                          >
+                            <h3
+                              style={{
+                                margin: 0,
+                                minWidth: 0,
+                                fontSize: 15,
+                                lineHeight: 1.25,
+                                fontWeight: 700,
+                                color: "#1e293b",
+                                overflowWrap: "anywhere",
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 5,
+                              }}
+                            >
+                              <Utensils
+                                size={14}
+                                strokeWidth={2.2}
+                                style={{
+                                  color: "#64748b",
+                                  flexShrink: 0,
+                                }}
+                              />
+
+                              <span>{r.RestroName || "Restaurant"}</span>
+                            </h3>
+
+                            <span
+                              style={{
+                                flexShrink: 0,
+                                borderRadius: 999,
+                                background:
+                                  Number(r.IsPureVeg) === 1
+                                    ? "#ecfdf5"
+                                    : "#f8fafc",
+                                color:
+                                  Number(r.IsPureVeg) === 1
+                                    ? "#16a34a"
+                                    : "#64748b",
+                                border:
+                                  Number(r.IsPureVeg) === 1
+                                    ? "1px solid #bbf7d0"
+                                    : "1px solid #e2e8f0",
+                                padding: "4px 8px",
+                                fontSize: 10,
+                                lineHeight: 1,
+                                fontWeight: 700,
+                                whiteSpace: "nowrap",
+                              }}
+                            >
+                              {Number(r.IsPureVeg) === 1
+                                ? "Pure Veg"
+                                : "Veg & Non-Veg"}
+                            </span>
+                          </div>
+
+                          <div
+                            style={{
+                              marginTop: 7,
+                              fontSize: 12,
                               color: "#64748b",
+                              fontWeight: 600,
                               display: "flex",
                               alignItems: "center",
                               gap: 6,
@@ -632,31 +689,31 @@ export default function TrainPage() {
                           >
                             <span
                               style={{
-                                color: "#0f172a",
-                                fontWeight: 900,
+                                color: "#475569",
+                                fontWeight: 700,
                               }}
                             >
                               Min Order:
                             </span>
+
                             <span>Rs {r.MinimumOrderValue || 0}</span>
                           </div>
 
                           <div
                             style={{
+                              marginTop: 6,
                               color: isClosingSoon ? "#dc2626" : "#2563eb",
                               display: "flex",
                               alignItems: "center",
                               gap: 6,
                               lineHeight: 1.2,
+                              fontSize: 11,
+                              fontWeight: 700,
                             }}
                           >
-                            <Clock size={14} strokeWidth={2.5} />
+                            <Clock size={13} strokeWidth={2.2} />
                             <span>Order before: {timeText}</span>
                           </div>
-
-                          {isClosingSoon ? (
-                            <div style={{ color: "#dc2626" }}>Closing soon</div>
-                          ) : null}
                         </div>
 
                         <a
@@ -685,13 +742,13 @@ export default function TrainPage() {
                             alignSelf: "flex-start",
                             background: "#f97316",
                             color: "#fff",
-                            borderRadius: 12,
-                            padding: "10px 14px",
-                            fontSize: 13,
-                            fontWeight: 900,
+                            borderRadius: 11,
+                            padding: "9px 14px",
+                            fontSize: 12,
+                            fontWeight: 700,
                             textDecoration: "none",
                             whiteSpace: "nowrap",
-                            boxShadow: "0 8px 18px rgba(249,115,22,0.22)",
+                            boxShadow: "0 4px 12px rgba(249,115,22,0.16)",
                           }}
                         >
                           Order Now
