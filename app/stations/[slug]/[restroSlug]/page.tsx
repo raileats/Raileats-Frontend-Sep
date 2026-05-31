@@ -475,6 +475,23 @@ const header = {
     </div>
   </div>
 </section>
+      <section className="mx-auto mt-6 max-w-[560px] rounded-3xl border bg-orange-50 p-6 shadow-sm">
+  <h2 className="text-xl font-bold text-slate-900">
+    Want to order food in train?
+  </h2>
+
+  <p className="mt-2 leading-7 text-slate-700">
+    Search your train number, PNR or station on RailEats to place an online food
+    order for delivery at your train seat.
+  </p>
+
+  <a
+    href="/"
+    className="mt-4 inline-block rounded-xl bg-orange-500 px-5 py-3 text-sm font-bold text-white"
+  >
+    Search Train & Order Food
+  </a>
+</section>
     </main>
   );
 }
