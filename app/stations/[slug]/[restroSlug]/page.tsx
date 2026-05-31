@@ -58,15 +58,17 @@ function parseStationInfo(slugRaw: string, fallbackCode: string) {
   let code = String(fallbackCode || "").toUpperCase();
   let nameParts = parts;
 
-  if (parts.length > 1 && /^[a-z0-9]{2,8}$/i.test(parts[0])) {
-    code = parts[0].toUpperCase();
-    nameParts = parts.slice(1);
-  } else if (
-    parts.length > 1 &&
-    /^[a-z0-9]{2,8}$/i.test(parts[parts.length - 1])
-  ) {
+  // SEO station URL: bhopal-jn-bpl-food-delivery
+  // last part is station code
+  if (parts.length > 1 && /^[a-z0-9]{2,8}$/i.test(parts[parts.length - 1])) {
     code = parts[parts.length - 1].toUpperCase();
     nameParts = parts.slice(0, -1);
+  }
+
+  // Old train URL: BPL-Bhopal-Jn
+  else if (parts.length > 1 && /^[a-z0-9]{2,8}$/i.test(parts[0])) {
+    code = parts[0].toUpperCase();
+    nameParts = parts.slice(1);
   }
 
   const name = titleCase(nameParts.join(" "));
