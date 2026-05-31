@@ -591,7 +591,7 @@ export default function RestroMenuClient({
                   <div
                     style={{
                       marginTop: 12,
-                      fontSize: 18,
+                      fontSize: 15,
                       fontWeight: 900,
                       color: "#0f172a",
                     }}
