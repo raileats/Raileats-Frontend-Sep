@@ -326,13 +326,17 @@ export default async function Page({
       );
     });
 
-  const header = {
-    stationCode,
-    restroCode: String(restroCode),
-    outletName,
-    stationName,
-    minimumOrder: Number(minOrderFromUrl || 0),
-  };
+  const formattedStationName = `${titleCase(
+  stationName
+)} (${stationCode.toUpperCase()})`;
+
+const header = {
+  stationCode,
+  restroCode: String(restroCode),
+  outletName,
+  stationName: formattedStationName,
+  minimumOrder: Number(minOrderFromUrl || 0),
+};
 
   const nextParams = {
     stationName,
