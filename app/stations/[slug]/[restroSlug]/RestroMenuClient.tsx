@@ -714,12 +714,8 @@ export default function RestroMenuClient({
             color: "#64748b",
           }}
         >
-          Choose fresh meals for your train journey, add items to cart, verify
-          your mobile number and place your order for delivery at your seat.
-        </p>
-      </section>
-
-      {!isStationOnlyView && <CartPillMobile minOrder={minimumOrder} />}
-    </div>
-  );
-}
+          {isStationOnlyView
+  ? `View ${displayVendorName} menu at ${
+      displayStationName || "this railway station"
+    } with item price, food category, description, veg or non-veg type and available serving time.`
+  : "Choose fresh meals for your train journey, add items to cart, verify your mobile number and place your order for delivery at your seat."}
