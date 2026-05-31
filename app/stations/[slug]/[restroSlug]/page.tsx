@@ -248,10 +248,7 @@ export async function generateMetadata({
   params,
   searchParams,
 }: any): Promise<Metadata> {
-  const parsedStation = parseStationInfo(
-  params.slug,
-  extractStationCode(params.slug) || ""
-);
+  const parsedStation = parseStationInfo(params.slug, "");
 
 const stationCode = parsedStation.code;
 const stationName = parsedStation.name;
@@ -313,10 +310,7 @@ export default async function Page({
   params,
   searchParams,
 }: any) {
-  const parsedStation = parseStationInfo(
-  params.slug,
-  extractStationCode(params.slug) || ""
-);
+  const parsedStation = parseStationInfo(params.slug, "");
 
 const stationCode = parsedStation.code;
 const stationName = parsedStation.name;
