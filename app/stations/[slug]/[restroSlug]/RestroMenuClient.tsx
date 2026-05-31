@@ -719,7 +719,7 @@ export default function RestroMenuClient({
         </p>
       </section>
 
-      <CartPillMobile minOrder={minimumOrder} />
+      {!isStationOnlyView && <CartPillMobile minOrder={minimumOrder} />}
     </div>
   );
 }
