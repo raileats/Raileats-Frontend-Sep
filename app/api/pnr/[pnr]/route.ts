@@ -186,6 +186,22 @@ export async function GET(
     }
 
     const data = pickData(json);
+    if (
+  data?.success === false ||
+  data?.status === false ||
+  data?.error ||
+  String(data?.message || "").toLowerCase().includes("invalid")
+) {
+  return NextResponse.json(
+    {
+      ok: false,
+      error: "pnr_provider_failed",
+      message: data?.message || data?.error || "PNR provider returned failure",
+      raw: data,
+    },
+    { status: 502 }
+  );
+}
 
     const passengerRaw =
       data?.passengerList ||
