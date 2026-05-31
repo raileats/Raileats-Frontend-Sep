@@ -339,7 +339,7 @@ const header = {
 };
 
   const nextParams = {
-    stationName,
+  stationName: formattedStationName,
     stationCode,
     deliveryDate,
     deliveryTime,
