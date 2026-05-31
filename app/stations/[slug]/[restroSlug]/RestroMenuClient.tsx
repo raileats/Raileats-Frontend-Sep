@@ -359,7 +359,7 @@ export default function RestroMenuClient({
                 gap: 8,
                 color: "#0f172a",
                 fontWeight: 900,
-                fontSize: 15,
+                fontSize: 10,
                 lineHeight: 1.2,
               }}
             >
