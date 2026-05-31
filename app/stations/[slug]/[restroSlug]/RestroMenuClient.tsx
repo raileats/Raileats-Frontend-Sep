@@ -337,6 +337,7 @@ export default function RestroMenuClient({
               <span style={{ width: 18, textAlign: "center" }}>📍</span>
               <span style={{ minWidth: 0, overflowWrap: "anywhere" }}>
                 {displayStationName || "-"}
+                {displayStationCode ? ` (${displayStationCode})` : ""}
               </span>
             </div>
           </div>
