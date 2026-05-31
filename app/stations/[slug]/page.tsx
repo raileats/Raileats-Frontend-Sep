@@ -333,6 +333,63 @@ export default async function Page({ params }: { params: { slug: string } }) {
             </div>
           </div>
         </section>
+
+<section className="mt-10 rounded-3xl border bg-white p-6 shadow-sm">
+  <h2 className="text-2xl font-bold text-slate-900">
+    Frequently Asked Questions
+  </h2>
+
+  <div className="mt-6 space-y-5">
+
+    <div>
+      <h3 className="text-lg font-semibold text-slate-900">
+        How can I order food in train at {stationName} station?
+      </h3>
+
+      <p className="mt-2 text-slate-700 leading-7">
+        Enter your train number or search by station, choose an active
+        restaurant at {stationName} railway station, select food items and
+        place your order online with RailEats.
+      </p>
+    </div>
+
+    <div>
+      <h3 className="text-lg font-semibold text-slate-900">
+        Is food delivery available at {stationName} railway station?
+      </h3>
+
+      <p className="mt-2 text-slate-700 leading-7">
+        Yes, RailEats provides fresh food delivery in train at{" "}
+        {stationName} station from trusted and active restaurants.
+      </p>
+    </div>
+
+    <div>
+      <h3 className="text-lg font-semibold text-slate-900">
+        Can I order food without PNR at {stationName} station?
+      </h3>
+
+      <p className="mt-2 text-slate-700 leading-7">
+        Yes, passengers can order food in train using train number or by
+        selecting the station directly without entering PNR details.
+      </p>
+    </div>
+
+    <div>
+      <h3 className="text-lg font-semibold text-slate-900">
+        Which restaurants deliver food at {stationName} railway station?
+      </h3>
+
+      <p className="mt-2 text-slate-700 leading-7">
+        RailEats shows active restaurants available for food delivery at{" "}
+        {stationName} station based on restaurant timings and availability.
+      </p>
+    </div>
+
+  </div>
+</section>
+
+</main>
       </main>
     </>
   );
