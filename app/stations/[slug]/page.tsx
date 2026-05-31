@@ -270,9 +270,9 @@ export default async function Page({ params }: { params: { slug: string } }) {
 
                   <Link
   href={`/stations/${params.slug}/${r.RestroCode}-${String(r.RestroName || "")
-  .toLowerCase()
-  .replace(/[^a-z0-9]+/g, "-")
-  .replace(/^-+|-+$/g, "")}?mode=station`}
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")}?mode=station`}
   className="mt-4 inline-block rounded-xl bg-orange-500 px-4 py-2 text-sm font-bold text-white"
 >
   View Menu
