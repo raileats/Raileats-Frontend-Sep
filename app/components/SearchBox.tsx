@@ -12,6 +12,17 @@ function makeTrainSlug(trainNoRaw: string) {
   return `${digitsOnly}-train-food-delivery-in-train`;
 }
 
+function makeStationSlug(stationNameRaw: string, stationCodeRaw: string) {
+  const stationName = String(stationNameRaw || "").trim();
+  const stationCode = String(stationCodeRaw || "").trim();
+
+  return `${stationName}-${stationCode}-food-delivery`
+    .toLowerCase()
+    .replace(/&/g, "and")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
 function todayIso() {
   return new Date().toISOString().slice(0, 10);
 }
@@ -20,6 +31,7 @@ export default function SearchBox() {
   const [searchType, setSearchType] = useState("train");
   const [inputValue, setInputValue] = useState("");
   const [selectedTrain, setSelectedTrain] = useState<any>(null);
+  const [selectedStationData, setSelectedStationData] = useState<any>(null);
   const [stations, setStations] = useState<any[]>([]);
   const [boarding, setBoarding] = useState("");
   const [date, setDate] = useState(todayIso());
@@ -63,6 +75,7 @@ export default function SearchBox() {
     setSearchType(type);
     setInputValue("");
     setSelectedTrain(null);
+    setSelectedStationData(null);
     setStations([]);
     setBoarding("");
     setShowStationList(false);
@@ -79,8 +92,16 @@ export default function SearchBox() {
     }
 
     if (searchType === "station") {
-      if (!cleanInput) return alert("Select station first");
-      window.location.href = `/stations/${encodeURIComponent(cleanInput)}`;
+      if (!selectedStationData?.StationName || !selectedStationData?.StationCode) {
+        return alert("Select station first");
+      }
+
+      const slug = makeStationSlug(
+        selectedStationData.StationName,
+        selectedStationData.StationCode
+      );
+
+      window.location.href = `/stations/${slug}`;
       return;
     }
 
@@ -146,7 +167,12 @@ export default function SearchBox() {
           ) : searchType === "station" ? (
             <StationSearchBox
               onSelect={(s: any) => {
-                setInputValue(s?.StationCode || "");
+                setSelectedStationData(s);
+                setInputValue(
+                  s?.StationName && s?.StationCode
+                    ? `${s.StationName} (${s.StationCode})`
+                    : s?.StationName || s?.StationCode || ""
+                );
               }}
             />
           ) : (
@@ -215,7 +241,11 @@ export default function SearchBox() {
             </div>
           )}
 
-          <button type="button" onClick={handleSearch} className="app-btn-primary w-full">
+          <button
+            type="button"
+            onClick={handleSearch}
+            className="app-btn-primary w-full"
+          >
             Search Food
           </button>
         </div>
