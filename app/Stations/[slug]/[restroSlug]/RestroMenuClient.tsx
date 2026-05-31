@@ -1,26 +1,22 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { useAuth } from "../../../lib/useAuth";
-import { useCart } from "../../../lib/useCart";
-import CartPillMobile from "../../../components/CartPillMobile";
+import React, { useEffect, useMemo, useState } from "react";
+import { useParams, useSearchParams } from "next/navigation";
+import { useBooking } from "../../../lib/useBooking";
+import SaveOrderData from "@/components/SaveOrderData";
 
-const toMin = (t?: string | null) => {
-  if (!t) return null;
+const SUPABASE_URL = "https://ygisiztmuzwxpnvhwrmr.supabase.co";
 
-  const clean = String(t).slice(0, 5);
-  const [h, m] = clean.split(":").map(Number);
+/* ================= HELPERS ================= */
 
-  if (!Number.isFinite(h) || !Number.isFinite(m)) return null;
-  return h * 60 + m;
-};
+function toSlug(str: string) {
+  return (str || "")
+    .trim()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-zA-Z0-9-]/g, "");
+}
 
-const cleanTime = (value?: string | null) => {
-  if (!value) return "";
-  return String(value).slice(0, 5);
-};
-
-const cleanTrainName = (value?: string | null) => {
+function cleanTrainName(value?: string | null) {
   const v = String(value || "").trim();
 
   if (!v || v.toLowerCase() === "train" || v.toLowerCase() === "undefined") {
@@ -28,631 +24,613 @@ const cleanTrainName = (value?: string | null) => {
   }
 
   return v;
-};
+}
 
-const getItemCategory = (it: any) => {
-  const category = String(it?.item_category || "").trim().toLowerCase();
-
-  if (category === "veg" || category === "jain") return "Veg";
-
-  if (
-    category === "non-veg" ||
-    category === "non veg" ||
-    category === "nonveg"
-  ) {
-    return "Non-Veg";
-  }
-
-  const name = String(it?.item_name || "").toLowerCase();
-
-  if (
-    name.includes("chicken") ||
-    name.includes("egg") ||
-    name.includes("fish") ||
-    name.includes("mutton")
-  ) {
-    return "Non-Veg";
-  }
-
-  return "Veg";
-};
-
-const getMenuType = (it: any) => {
-  return String(it?.menu_type || "Other").trim();
-};
-
-const isVegItem = (it: any) => {
-  return getItemCategory(it) === "Veg";
-};
-
-const isItemActive = (it: any) => {
-  const raw =
-    it?.status ??
-    it?.item_status ??
-    it?.is_active ??
-    it?.active ??
-    "ON";
-
-  return String(raw).trim().toUpperCase() === "ON";
-};
-
-const getCartEntry = (cart: any, itemId: any) => {
-  if (!cart) return null;
-
-  if (Array.isArray(cart)) {
-    return cart.find((x: any) => String(x?.id) === String(itemId)) || null;
-  }
-
-  return cart[itemId] || cart[String(itemId)] || null;
-};
-
-export default function RestroMenuClient({
-  items = [],
-  header = {},
-  nextParams = {},
-}: any) {
-  const { user } = useAuth();
-  const { add, changeQty, cart, setJourney } = useCart();
-
-  const [vegOnly, setVegOnly] = useState(false);
-  const [trainMin, setTrainMin] = useState<number | null>(null);
-
-  const [urlJourney, setUrlJourney] = useState<{
-    trainNumber: string;
-    trainName: string;
-    deliveryDate: string;
-    deliveryTime: string;
-  }>({
-    trainNumber: "",
-    trainName: "",
-    deliveryDate: "",
-    deliveryTime: "",
-  });
+function useNow() {
+  const [now, setNow] = useState(Date.now());
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-
-    const arrival =
-      params.get("deliveryTime") ||
-      params.get("arrival") ||
-      params.get("arrivalTime") ||
-      "";
-
-    const deliveryTime = arrival ? arrival.slice(0, 5) : "";
-
-    const trainNumber =
-      params.get("train") ||
-      params.get("trainNumber") ||
-      params.get("trainNo") ||
-      "";
-
-    const deliveryDate =
-      params.get("deliveryDate") ||
-      params.get("date") ||
-      "";
-
-    setUrlJourney({
-      trainNumber,
-      trainName: cleanTrainName(params.get("trainName")),
-      deliveryDate,
-      deliveryTime,
-    });
-
-    if (deliveryTime && deliveryTime.includes(":")) {
-      setTrainMin(toMin(deliveryTime));
-    }
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
   }, []);
 
-  const displayTrainNumber =
-    nextParams?.trainNumber ||
-    nextParams?.train ||
-    urlJourney.trainNumber ||
-    "";
+  return now;
+}
 
-  const displayTrainName =
-    cleanTrainName(nextParams?.trainName) ||
-    urlJourney.trainName ||
-    "";
+function parseDateParts(date: string) {
+  if (!date) return null;
 
-  const displayStationName =
-    nextParams?.stationName ||
-    header?.stationName ||
-    "-";
-
-  const displayStationCode =
-    header?.stationCode ||
-    nextParams?.stationCode ||
-    "-";
-
-  const displayDeliveryDate =
-    nextParams?.deliveryDate ||
-    urlJourney.deliveryDate ||
-    "-";
-
-  const displayDeliveryTime =
-    nextParams?.deliveryTime ||
-    urlJourney.deliveryTime ||
-    "";
-
-  const minimumOrder = Number(
-    header?.minimumOrder ||
-      nextParams?.minOrder ||
-      0
-  );
-
-  const visible = useMemo(() => {
-    return (items || []).filter((it: any) => {
-      if (!isItemActive(it)) return false;
-
-      const s = toMin(it?.start_time);
-      const e = toMin(it?.end_time);
-
-      if (trainMin !== null && s !== null && e !== null) {
-        if (e >= s) {
-          if (trainMin < s || trainMin > e) return false;
-        } else if (trainMin < s && trainMin > e) {
-          return false;
-        }
-      }
-
-      if (vegOnly && !isVegItem(it)) return false;
-
-      return true;
-    });
-  }, [items, vegOnly, trainMin]);
-
-  const saveJourney = () => {
-    setJourney({
-      trainNumber: displayTrainNumber,
-      trainName: displayTrainName,
-      stationName: displayStationName === "-" ? "" : displayStationName,
-      stationCode: displayStationCode === "-" ? "" : displayStationCode,
-      deliveryDate: displayDeliveryDate === "-" ? "" : displayDeliveryDate,
-      deliveryTime: displayDeliveryTime,
-      vendorName: nextParams?.vendorName || header?.outletName || "",
-      restroCode: Number(header?.restroCode || nextParams?.restroCode || 0),
-    });
-
-    if (typeof window !== "undefined") {
-      localStorage.setItem("raileats_min_order", String(minimumOrder || 0));
-    }
-  };
-
-  const buildCartItem = (it: any) => {
-    return {
-      id: it.id,
-      name: it.item_name,
-      price: Number(it.base_price || 0),
-      qty: 1,
-
-      restro_code: String(header?.restroCode || nextParams?.restroCode || ""),
-      restro_name: nextParams?.vendorName || header?.outletName || "",
-
-      station_code: displayStationCode === "-" ? "" : displayStationCode,
-      station_name: displayStationName === "-" ? "" : displayStationName,
-
-      description: it.item_description || null,
-      category: getItemCategory(it),
-      cuisine: it.item_cuisine || null,
-      menu_type: getMenuType(it),
-
-      minimumOrder,
-      minOrder: minimumOrder,
+  if (date.includes(" ")) {
+    const [day, mon, year] = date.split(" ");
+    const months: any = {
+      Jan: 0,
+      Feb: 1,
+      Mar: 2,
+      Apr: 3,
+      May: 4,
+      Jun: 5,
+      Jul: 6,
+      Aug: 7,
+      Sep: 8,
+      Oct: 9,
+      Nov: 10,
+      Dec: 11,
     };
+
+    return {
+      y: Number(year),
+      m: months[mon] ?? 0,
+      d: Number(day),
+    };
+  }
+
+  const [y, m, d] = date.split("-").map(Number);
+
+  return {
+    y,
+    m: (m || 1) - 1,
+    d,
+  };
+}
+
+function parseTimeParts(t: string) {
+  if (!t) return { h: 0, m: 0, s: 0 };
+
+  const p = t.split(":").map(Number);
+
+  return {
+    h: p[0] ?? 0,
+    m: p[1] ?? 0,
+    s: p[2] ?? 0,
+  };
+}
+
+function getRemaining(arrival: string, date: string, cutoffMin: number) {
+  try {
+    const dp = parseDateParts(date);
+    const tp = parseTimeParts(arrival);
+
+    if (!dp) return 0;
+
+    const arrivalDT = new Date(dp.y, dp.m, dp.d, tp.h, tp.m, tp.s);
+    const deadlineDT = new Date(arrivalDT.getTime() - cutoffMin * 60000);
+
+    return deadlineDT.getTime() - Date.now();
+  } catch {
+    return 0;
+  }
+}
+
+function toMin(t: string) {
+  const [h, m] = (t || "").slice(0, 5).split(":").map(Number);
+  return (h || 0) * 60 + (m || 0);
+}
+
+function getRestroImage(path?: string | null) {
+  if (!path) return "";
+
+  const file = String(path).split("/").pop();
+  if (!file) return "";
+
+  return `${SUPABASE_URL}/storage/v1/object/public/RestroDisplayPhoto/${file}`;
+}
+
+/* ================= PAGE ================= */
+
+export default function TrainPage() {
+  const params = useParams();
+  const searchParams = useSearchParams();
+
+  const { setTrain, setJourney } = useBooking();
+
+  const slug = (params as any)?.slug || "";
+  const trainNumber = slug.match(/^(\d+)/)?.[1] || "";
+
+  const urlDate = searchParams.get("date") || "";
+  const boarding = (searchParams.get("boarding") || "").toUpperCase();
+
+  const rawTrainName = searchParams.get("trainName") || "";
+  const urlTrainName = cleanTrainName(rawTrainName);
+
+  const [stations, setStations] = useState<any[]>([]);
+  const [resolvedTrainName, setResolvedTrainName] = useState(urlTrainName);
+  const [loading, setLoading] = useState(true);
+
+  useNow();
+
+  const displayTrainName = useMemo(() => {
+    return cleanTrainName(resolvedTrainName || urlTrainName);
+  }, [resolvedTrainName, urlTrainName]);
+
+  const orderData = {
+    train_number: trainNumber,
+    train_name: displayTrainName,
+    date: urlDate,
+    station_code: boarding,
   };
 
-  const handleAdd = (it: any) => {
-    const cartItem = buildCartItem(it);
+  useEffect(() => {
+    if (!trainNumber) return;
 
-    if (!user) {
-      window.dispatchEvent(
-        new CustomEvent("raileats:open-login", {
-          detail: {
-            item: it,
-            cartItem,
-            afterLogin: "add-to-cart",
-          },
-        })
-      );
+    setTrain({
+      number: trainNumber,
+      name: displayTrainName,
+    });
 
-      return;
+    setJourney(urlDate, boarding);
+  }, [trainNumber, displayTrainName, urlDate, boarding, setTrain, setJourney]);
+
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        setLoading(true);
+
+        const res = await fetch(
+          `/api/train-restros?train=${encodeURIComponent(
+            trainNumber
+          )}&date=${encodeURIComponent(urlDate)}&boarding=${encodeURIComponent(
+            boarding
+          )}&full=1`,
+          { cache: "no-store" }
+        );
+
+        const json = await res.json();
+
+        const nextStations = json?.stations || [];
+        setStations(nextStations);
+
+        const apiTrainName =
+          cleanTrainName(json?.train?.trainName) ||
+          cleanTrainName(json?.trainName) ||
+          cleanTrainName(nextStations?.[0]?.trainName) ||
+          cleanTrainName(nextStations?.[0]?.TrainName);
+
+        if (apiTrainName) {
+          setResolvedTrainName(apiTrainName);
+        }
+      } catch (e) {
+        console.error("API ERROR:", e);
+      } finally {
+        setLoading(false);
+      }
     }
 
-    saveJourney();
-    add(cartItem as any);
-  };
+    if (trainNumber) fetchData();
+  }, [trainNumber, urlDate, boarding]);
 
-  const handleQty = (it: any, nextQty: number) => {
-    if (nextQty < 0) return;
-    changeQty(it.id, nextQty);
-  };
+  if (loading) {
+    return (
+      <main
+        style={{
+          minHeight: "70vh",
+          display: "grid",
+          placeItems: "center",
+          padding: 24,
+        }}
+      >
+        <div style={{ textAlign: "center" }}>
+          <div
+            style={{
+              width: 34,
+              height: 34,
+              border: "4px solid #f97316",
+              borderTopColor: "transparent",
+              borderRadius: 999,
+              margin: "0 auto 12px",
+              animation: "spin 1s linear infinite",
+            }}
+          />
+          <div style={{ fontWeight: 800, color: "#334155" }}>
+            Loading restaurants...
+          </div>
+        </div>
+
+        <style jsx>{`
+          @keyframes spin {
+            to {
+              transform: rotate(360deg);
+            }
+          }
+        `}</style>
+      </main>
+    );
+  }
 
   return (
-    <div
+    <main
       style={{
         width: "100%",
-        maxWidth: 500,
+        maxWidth: 760,
         margin: "0 auto",
-        padding: "10px 12px 108px",
+        padding: "14px 12px 92px",
         boxSizing: "border-box",
         display: "flex",
         flexDirection: "column",
-        gap: 11,
-        fontFamily:
-          'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+        gap: 16,
       }}
     >
+      <SaveOrderData data={orderData} />
+
       <section
         style={{
-          background: "#fff",
-          border: "1px solid #dbe4ef",
-          borderRadius: 16,
-          boxShadow: "0 8px 22px rgba(15,23,42,0.06)",
+          background: "#fff7ed",
+          border: "1px solid #fed7aa",
+          borderRadius: 18,
           padding: 14,
+          boxShadow: "0 8px 22px rgba(15,23,42,0.06)",
         }}
       >
         <div
           style={{
             fontSize: 12,
-            fontWeight: 800,
+            fontWeight: 850,
             color: "#64748b",
-            marginBottom: 7,
+            marginBottom: 8,
           }}
         >
           Journey
         </div>
 
-        <div style={{ display: "grid", gap: 5, fontSize: 14, lineHeight: 1.25 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 7, color: "#f97316", fontWeight: 900 }}>
-            <span style={{ width: 17, textAlign: "center" }}>🚆</span>
-            <span>
-              {displayTrainName
-                ? `${displayTrainName} #${displayTrainNumber || "-"}`
-                : `Train #${displayTrainNumber || "-"}`}
-            </span>
-          </div>
-
-          <div style={{ display: "flex", alignItems: "center", gap: 7, color: "#334155", fontWeight: 750 }}>
-            <span style={{ width: 17, textAlign: "center" }}>📍</span>
-            <span>
-              {displayStationName} ({displayStationCode})
-            </span>
-          </div>
-
-          <div style={{ display: "flex", alignItems: "center", gap: 7, color: "#2563eb", fontWeight: 900 }}>
-            <span style={{ width: 17, textAlign: "center" }}>📅</span>
-            <span>{displayDeliveryDate}</span>
-          </div>
-
-          {displayDeliveryTime ? (
-            <div style={{ display: "flex", alignItems: "center", gap: 7, color: "#2563eb", fontWeight: 900 }}>
-              <span style={{ width: 17, textAlign: "center" }}>⏰</span>
-              <span>{displayDeliveryTime}</span>
-            </div>
-          ) : null}
-        </div>
-
         <div
           style={{
-            marginTop: 12,
-            fontSize: 22,
-            lineHeight: 1.1,
-            color: "#0f172a",
-            fontWeight: 900,
-            letterSpacing: 0,
-          }}
-        >
-          {header?.outletName || nextParams?.vendorName || "Restaurant"}
-        </div>
-
-        <div
-          style={{
-            marginTop: 7,
-            fontSize: 15,
-            color: "#475569",
-            fontWeight: 850,
-          }}
-        >
-          Min Order: Rs {minimumOrder}
-        </div>
-      </section>
-
-      <section
-        style={{
-          display: "grid",
-          gridTemplateColumns: "auto auto minmax(0, 1fr)",
-          alignItems: "center",
-          gap: 8,
-          overflow: "hidden",
-        }}
-      >
-        <button
-          type="button"
-          onClick={() => setVegOnly(false)}
-          style={{
-            border: !vegOnly ? "1px solid #f97316" : "1px solid #dbe4ef",
-            background: !vegOnly ? "#fff7ed" : "#fff",
-            color: !vegOnly ? "#ea580c" : "#334155",
-            borderRadius: 999,
-            padding: "8px 13px",
-            fontSize: 13,
-            fontWeight: 900,
-            whiteSpace: "nowrap",
-            cursor: "pointer",
-          }}
-        >
-          All Items
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setVegOnly(true)}
-          style={{
-            border: vegOnly ? "1px solid #16a34a" : "1px solid #dbe4ef",
-            background: vegOnly ? "#f0fdf4" : "#fff",
-            color: vegOnly ? "#15803d" : "#334155",
-            borderRadius: 999,
-            padding: "8px 13px",
-            fontSize: 13,
-            fontWeight: 900,
-            whiteSpace: "nowrap",
-            cursor: "pointer",
-          }}
-        >
-          Veg Only
-        </button>
-
-        <span
-          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 9,
             minWidth: 0,
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-            fontSize: 13,
-            fontWeight: 800,
-            color: "#475569",
           }}
         >
-          {visible.length} item{visible.length === 1 ? "" : "s"} available
-        </span>
-      </section>
+          <span
+            style={{
+              width: 30,
+              height: 30,
+              borderRadius: 10,
+              background: "#fff",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              boxShadow: "0 4px 12px rgba(15,23,42,0.08)",
+              flexShrink: 0,
+            }}
+          >
+            🚆
+          </span>
 
-      {visible.length === 0 && (
-        <section
-          style={{
-            background: "#fff",
-            border: "1px solid #dbe4ef",
-            borderRadius: 16,
-            padding: 18,
-            textAlign: "center",
-          }}
-        >
-          <div style={{ fontSize: 16, fontWeight: 900, color: "#0f172a" }}>
-            No items available
-          </div>
-          <div style={{ marginTop: 6, fontSize: 13, color: "#64748b" }}>
-            Items may be unavailable for this train arrival time.
-          </div>
-        </section>
-      )}
-
-      <section style={{ display: "flex", flexDirection: "column", gap: 11 }}>
-        {visible.map((it: any) => {
-          const existing = getCartEntry(cart, it.id);
-          const isVeg = isVegItem(it);
-          const category = getItemCategory(it);
-          const menuType = getMenuType(it);
-
-          return (
-            <article
-              key={it.id}
+          <div style={{ minWidth: 0 }}>
+            <div
               style={{
-                background: "#fff",
-                border: "1px solid #dbe4ef",
-                borderRadius: 16,
-                boxShadow: "0 7px 18px rgba(15,23,42,0.05)",
-                padding: 13,
+                fontSize: 18,
+                lineHeight: 1.1,
+                fontWeight: 950,
+                color: "#ea580c",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
               }}
             >
-              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 11 }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
-                    <span
+              {trainNumber}
+              {displayTrainName ? ` - ${displayTrainName}` : ""}
+            </div>
+
+            <div
+              style={{
+                marginTop: 4,
+                display: "flex",
+                flexWrap: "wrap",
+                gap: "8px 12px",
+                fontSize: 12,
+                color: "#475569",
+                fontWeight: 750,
+              }}
+            >
+              {boarding ? <span>📍 Boarding: {boarding}</span> : null}
+              {urlDate ? <span>📅 Date: {urlDate}</span> : null}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {stations.map((st: any, index: number) => {
+        const stationCode = st.StationCode;
+        const stationName = st.StationName;
+        const arrives = st.Arrives;
+        const halt = st.HaltTime;
+        const deliveryDate = st.date || urlDate;
+        const state = st.State || "";
+
+        const vendors = st.vendors || [];
+
+        const validVendors = vendors.filter((r: any) => {
+          const cutoff =
+            parseInt(String(r.CutOffTime ?? r.cutoff_time ?? "0").trim(), 10) ||
+            0;
+
+          const remaining = getRemaining(arrives, deliveryDate, cutoff);
+
+          const cleanArrives = (arrives || "").slice(0, 5);
+          const arrivalMin = toMin(cleanArrives);
+
+          const start = r.OpenTime || r.open_time;
+          const end = r.ClosedTime || r.closed_time;
+
+          let timeValid = true;
+
+          if (start && end) {
+            const s = toMin(start);
+            const e = toMin(end);
+
+            if (e >= s) {
+              timeValid = arrivalMin >= s && arrivalMin <= e;
+            } else {
+              timeValid = arrivalMin >= s || arrivalMin <= e;
+            }
+          }
+
+          return remaining > 0 && timeValid;
+        });
+
+        if (!validVendors.length) return null;
+
+        return (
+          <section
+            key={index}
+            style={{
+              background: "#f8fafc",
+              border: "1px solid #dbe4ef",
+              borderRadius: 18,
+              padding: 13,
+              boxShadow: "0 8px 22px rgba(15,23,42,0.05)",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                gap: 12,
+                marginBottom: 12,
+              }}
+            >
+              <div style={{ minWidth: 0 }}>
+                <h2
+                  style={{
+                    margin: 0,
+                    fontSize: 18,
+                    lineHeight: 1.18,
+                    fontWeight: 950,
+                    color: "#0f172a",
+                  }}
+                >
+                  📍 {stationName} ({stationCode})
+                </h2>
+
+                {state ? (
+                  <div
+                    style={{
+                      marginTop: 4,
+                      fontSize: 12,
+                      color: "#475569",
+                      fontWeight: 800,
+                    }}
+                  >
+                    {state}
+                  </div>
+                ) : null}
+
+                <div
+                  style={{
+                    marginTop: 4,
+                    fontSize: 12,
+                    color: "#64748b",
+                    fontWeight: 750,
+                  }}
+                >
+                  📅 {deliveryDate}
+                </div>
+              </div>
+
+              <div
+                style={{
+                  flexShrink: 0,
+                  textAlign: "right",
+                  fontSize: 12,
+                  fontWeight: 850,
+                }}
+              >
+                <div style={{ color: "#2563eb" }}>⏰ {arrives}</div>
+                <div style={{ marginTop: 4, color: "#64748b" }}>
+                  Halt: {halt || "-"}
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {validVendors.map((r: any) => {
+                const cutoff =
+                  parseInt(
+                    String(r.CutOffTime ?? r.cutoff_time ?? "0").trim(),
+                    10
+                  ) || 0;
+
+                const remaining = getRemaining(arrives, deliveryDate, cutoff);
+                const totalSec = Math.max(0, Math.floor(remaining / 1000));
+
+                const days = Math.floor(totalSec / 86400);
+                const hrs = Math.floor((totalSec % 86400) / 3600);
+                const mins = Math.floor((totalSec % 3600) / 60);
+                const secs = totalSec % 60;
+
+                const timeText =
+                  `Day${days} ` +
+                  `${String(hrs).padStart(2, "0")}:` +
+                  `${String(mins).padStart(2, "0")}:` +
+                  `${String(secs).padStart(2, "0")}`;
+
+                const isClosingSoon = remaining <= 10 * 60 * 1000;
+
+                const img = getRestroImage(r.RestroDisplayPhoto);
+
+                const stationSlug = `${stationCode}-${toSlug(stationName)}`;
+                const restroSlug = `${r.RestroCode}-${toSlug(r.RestroName)}`;
+
+                const cleanArrival =
+                  arrives && arrives.includes(":") ? arrives.slice(0, 5) : "";
+
+                const finalTrainName = displayTrainName || "Train";
+
+                return (
+                  <article
+                    key={r.RestroCode}
+                    style={{
+                      background: "#fff",
+                      border: "1px solid #dbe4ef",
+                      borderRadius: 16,
+                      padding: 10,
+                      display: "grid",
+                      gridTemplateColumns: "82px minmax(0,1fr)",
+                      gap: 11,
+                    }}
+                  >
+                    <div
                       style={{
-                        width: 10,
-                        height: 10,
-                        borderRadius: 999,
-                        background: isVeg ? "#16a34a" : "#dc2626",
-                        flexShrink: 0,
-                        marginTop: 5,
+                        width: 82,
+                        height: 82,
+                        background: "#f1f5f9",
+                        borderRadius: 14,
+                        overflow: "hidden",
+                        border: "1px solid #e2e8f0",
                       }}
-                    />
+                    >
+                      {img ? (
+                        <img
+                          src={img}
+                          alt={r.RestroName || "Restaurant"}
+                          style={{
+                            width: "100%",
+                            height: "100%",
+                            objectFit: "cover",
+                          }}
+                        />
+                      ) : (
+                        <div
+                          style={{
+                            height: "100%",
+                            display: "grid",
+                            placeItems: "center",
+                            color: "#94a3b8",
+                            fontSize: 22,
+                          }}
+                        >
+                          🍽️
+                        </div>
+                      )}
+                    </div>
 
                     <div style={{ minWidth: 0 }}>
                       <div
                         style={{
-                          fontSize: 17,
-                          lineHeight: 1.15,
-                          fontWeight: 900,
-                          color: "#0f172a",
-                          wordBreak: "break-word",
+                          display: "flex",
+                          alignItems: "flex-start",
+                          justifyContent: "space-between",
+                          gap: 8,
                         }}
                       >
-                        {it.item_name}
+                        <div style={{ minWidth: 0 }}>
+                          <div
+                            style={{
+                              fontSize: 16,
+                              lineHeight: 1.18,
+                              fontWeight: 950,
+                              color: "#0f172a",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            🍴 {r.RestroName}
+                          </div>
+
+                          <div
+                            style={{
+                              marginTop: 4,
+                              fontSize: 12,
+                              color: "#64748b",
+                              fontWeight: 800,
+                            }}
+                          >
+                            Min Order: Rs {r.MinimumOrderValue || 0}
+                          </div>
+                        </div>
+
+                        <a
+                          href={`/Stations/${stationSlug}/${restroSlug}?deliveryDate=${encodeURIComponent(
+                            deliveryDate
+                          )}${
+                            cleanArrival
+                              ? `&deliveryTime=${encodeURIComponent(
+                                  cleanArrival
+                                )}`
+                              : ""
+                          }${
+                            cleanArrival
+                              ? `&arrival=${encodeURIComponent(cleanArrival)}`
+                              : ""
+                          }&train=${encodeURIComponent(
+                            trainNumber
+                          )}&trainName=${encodeURIComponent(
+                            finalTrainName
+                          )}&boarding=${encodeURIComponent(
+                            boarding
+                          )}&minOrder=${encodeURIComponent(
+                            r.MinimumOrderValue || 0
+                          )}`}
+                          style={{
+                            flexShrink: 0,
+                            background: "#f97316",
+                            color: "#fff",
+                            borderRadius: 12,
+                            padding: "9px 12px",
+                            fontSize: 13,
+                            fontWeight: 900,
+                            textDecoration: "none",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          Order Now
+                        </a>
                       </div>
 
                       <div
                         style={{
-                          marginTop: 5,
-                          fontSize: 13,
-                          fontWeight: 750,
-                          color: "#64748b",
+                          marginTop: 6,
+                          display: "flex",
+                          flexWrap: "wrap",
+                          gap: "5px 10px",
+                          alignItems: "center",
+                          fontSize: 12,
+                          fontWeight: 850,
                         }}
                       >
-                        {category} • {menuType}
+                        <span style={{ color: "#16a34a" }}>● Pure Veg</span>
+                        <span
+                          style={{
+                            color: isClosingSoon ? "#dc2626" : "#2563eb",
+                          }}
+                        >
+                          ⏳ Order before: {timeText}
+                        </span>
+                        {isClosingSoon ? (
+                          <span style={{ color: "#dc2626" }}>
+                            Closing soon
+                          </span>
+                        ) : null}
                       </div>
                     </div>
-                  </div>
-
-                  <div
-                    style={{
-                      marginTop: 9,
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 6,
-                      fontSize: 13,
-                      color: "#64748b",
-                      fontWeight: 800,
-                    }}
-                  >
-                    <span>⏰</span>
-                    <span>
-                      {cleanTime(it.start_time) && cleanTime(it.end_time)
-                        ? `${cleanTime(it.start_time)} - ${cleanTime(it.end_time)}`
-                        : "All day"}
-                    </span>
-                  </div>
-
-                  {it.item_description ? (
-                    <div
-                      style={{
-                        marginTop: 7,
-                        fontSize: 13,
-                        lineHeight: 1.3,
-                        color: "#475569",
-                        wordBreak: "break-word",
-                      }}
-                    >
-                      {it.item_description}
-                    </div>
-                  ) : null}
-
-                  <div
-                    style={{
-                      marginTop: 11,
-                      fontSize: 18,
-                      fontWeight: 900,
-                      color: "#0f172a",
-                    }}
-                  >
-                    Rs {Number(it.base_price || 0)}
-                  </div>
-                </div>
-
-                <div style={{ flexShrink: 0 }}>
-                  {!existing ? (
-                    <button
-                      type="button"
-                      onClick={() => handleAdd(it)}
-                      style={{
-                        minWidth: 62,
-                        minHeight: 40,
-                        border: 0,
-                        borderRadius: 12,
-                        background: "#f97316",
-                        color: "#fff",
-                        fontSize: 15,
-                        fontWeight: 900,
-                        cursor: "pointer",
-                      }}
-                    >
-                      Add
-                    </button>
-                  ) : (
-                    <div
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        border: "1px solid #dbe4ef",
-                        borderRadius: 12,
-                        overflow: "hidden",
-                        background: "#fff",
-                      }}
-                    >
-                      <button
-                        type="button"
-                        onClick={() => handleQty(it, Number(existing.qty || 0) - 1)}
-                        style={{
-                          width: 30,
-                          height: 36,
-                          border: 0,
-                          background: "#fff",
-                          fontWeight: 900,
-                          cursor: "pointer",
-                        }}
-                      >
-                        -
-                      </button>
-
-                      <span
-                        style={{
-                          minWidth: 22,
-                          textAlign: "center",
-                          fontWeight: 900,
-                          color: "#0f172a",
-                        }}
-                      >
-                        {Number(existing.qty || 0)}
-                      </span>
-
-                      <button
-                        type="button"
-                        onClick={() => handleQty(it, Number(existing.qty || 0) + 1)}
-                        style={{
-                          width: 30,
-                          height: 36,
-                          border: 0,
-                          background: "#fff",
-                          fontWeight: 900,
-                          cursor: "pointer",
-                        }}
-                      >
-                        +
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </article>
-          );
-        })}
-      </section>
-
-      <section
-        style={{
-          background: "#fff",
-          border: "1px solid #dbe4ef",
-          borderRadius: 16,
-          padding: 14,
-        }}
-      >
-        <h1
-          style={{
-            margin: 0,
-            fontSize: 16,
-            lineHeight: 1.25,
-            fontWeight: 900,
-            color: "#0f172a",
-          }}
-        >
-          Order food from {header?.outletName || "restaurant"} at{" "}
-          {header?.stationName || nextParams?.stationName || "your station"}
-        </h1>
-
-        <p
-          style={{
-            margin: "8px 0 0",
-            fontSize: 13,
-            lineHeight: 1.45,
-            color: "#64748b",
-          }}
-        >
-          Choose fresh meals for your train journey, add items to cart, verify
-          your mobile number and place your order for delivery at your seat.
-        </p>
-      </section>
-
-      <CartPillMobile minOrder={minimumOrder} />
-    </div>
+                  </article>
+                );
+              })}
+            </div>
+          </section>
+        );
+      })}
+    </main>
   );
 }
