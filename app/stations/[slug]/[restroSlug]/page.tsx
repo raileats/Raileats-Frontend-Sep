@@ -220,15 +220,16 @@ export async function generateMetadata({
   params,
   searchParams,
 }: any): Promise<Metadata> {
-  const stationCode = extractStationCode(params.slug) || "";
-  const restroCode = extractRestroCode(params.restroSlug) || "";
-  const outletName = humanizeFromSlug(params.restroSlug);
-  const stationName = titleCase(
-  decodeURIComponent(params.slug || "")
-    .replace(/-food-delivery$/i, "")
-    .replace(new RegExp(`-${stationCode}$`, "i"), "")
-    .replace(/-/g, " ")
+  const parsedStation = parseStationInfo(
+  params.slug,
+  extractStationCode(params.slug) || ""
 );
+
+const stationCode = parsedStation.code;
+const stationName = parsedStation.name;
+
+const restroCode = extractRestroCode(params.restroSlug) || "";
+const outletName = humanizeFromSlug(params.restroSlug);
 
   const deliveryDate =
     firstParam(searchParams?.deliveryDate) ||
@@ -284,15 +285,16 @@ export default async function Page({
   params,
   searchParams,
 }: any) {
-  const stationCode = extractStationCode(params.slug) || "";
-  const restroCode = extractRestroCode(params.restroSlug) || "";
-  const outletName = humanizeFromSlug(params.restroSlug);
-  const stationName = titleCase(
-  decodeURIComponent(params.slug || "")
-    .replace(/-food-delivery$/i, "")
-    .replace(new RegExp(`-${stationCode}$`, "i"), "")
-    .replace(/-/g, " ")
+  const parsedStation = parseStationInfo(
+  params.slug,
+  extractStationCode(params.slug) || ""
 );
+
+const stationCode = parsedStation.code;
+const stationName = parsedStation.name;
+
+const restroCode = extractRestroCode(params.restroSlug) || "";
+const outletName = humanizeFromSlug(params.restroSlug);
 
   const deliveryDate =
     firstParam(searchParams?.deliveryDate) ||
