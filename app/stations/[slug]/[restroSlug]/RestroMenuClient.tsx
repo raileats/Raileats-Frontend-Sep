@@ -685,7 +685,7 @@ export default function RestroMenuClient({
         })}
       </section>
 
-      <section
+            <section
         style={{
           background: "#fff",
           border: "1px solid #dbe4ef",
@@ -702,21 +702,30 @@ export default function RestroMenuClient({
             color: "#0f172a",
           }}
         >
-          Order food from {displayVendorName} at{" "}
-          {displayStationName || "your station"}
+          {isStationOnlyView
+            ? `${displayVendorName} Menu at ${displayStationName || "Railway Station"}`
+            : `Order food from ${displayVendorName} at ${
+                displayStationName || "your station"
+              }`}
         </h1>
 
         <p
-  style={{
-    margin: "8px 0 0",
-    fontSize: 13,
-    lineHeight: 1.45,
-    color: "#64748b",
-  }}
->
-  {isStationOnlyView
-    ? `View ${displayVendorName} menu at ${
-        displayStationName || "this railway station"
-      } with item price, food category, description, veg or non-veg type and available serving time.`
-    : "Choose fresh meals for your train journey, add items to cart, verify your mobile number and place your order for delivery at your seat."}
-</p>
+          style={{
+            margin: "8px 0 0",
+            fontSize: 13,
+            lineHeight: 1.45,
+            color: "#64748b",
+          }}
+        >
+          {isStationOnlyView
+            ? `View ${displayVendorName} menu at ${
+                displayStationName || "this railway station"
+              } with item price, food category, description, veg or non-veg type and available serving time.`
+            : "Choose fresh meals for your train journey, add items to cart, verify your mobile number and place your order for delivery at your seat."}
+        </p>
+      </section>
+
+      {!isStationOnlyView && <CartPillMobile minOrder={minimumOrder} />}
+    </div>
+  );
+}
