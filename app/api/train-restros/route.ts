@@ -5,9 +5,11 @@ import { serviceClient } from "../../lib/supabaseServer";
 
 function formatHaltTime(val: any) {
   if (!val) return "0m";
+
   const parts = String(val).split(":").map(Number);
   const hh = parts[0] || 0;
   const mm = parts[1] || 0;
+
   return `${hh * 60 + mm}m`;
 }
 
@@ -15,10 +17,21 @@ function normalize(val: any) {
   return String(val ?? "").toUpperCase().trim();
 }
 
+function cleanTrainName(val: any) {
+  const v = String(val ?? "").trim();
+
+  if (!v || v.toLowerCase() === "train" || v.toLowerCase() === "undefined") {
+    return "";
+  }
+
+  return v;
+}
+
 function isTrue(val: any) {
   if (val === undefined || val === null) return true;
+
   const s = String(val).toLowerCase();
-  return ["true", "1", "active", "yes"].includes(s);
+  return ["true", "1", "active", "yes", "on"].includes(s);
 }
 
 function formatTime(val: any) {
@@ -43,14 +56,28 @@ export async function GET(req: Request) {
 
     /* ================= FETCH ROUTE ================= */
 
+    const numericTrain = parseInt(trainParam, 10) || 0;
+
     const { data: stopsRows } = await serviceClient
       .from("TrainRoute")
       .select("*")
-      .or(`trainNumber.eq.${trainParam},trainNumber.eq.${parseInt(trainParam) || 0}`)
+      .or(`trainNumber.eq.${trainParam},trainNumber.eq.${numericTrain}`)
       .order("StnNumber", { ascending: true });
 
+    const trainName =
+      cleanTrainName(stopsRows?.[0]?.trainName) ||
+      cleanTrainName(stopsRows?.[0]?.TrainName) ||
+      cleanTrainName(stopsRows?.[0]?.train_name);
+
     if (!stopsRows?.length) {
-      return NextResponse.json({ ok: true, stations: [] });
+      return NextResponse.json({
+        ok: true,
+        train: {
+          trainNumber: trainParam,
+          trainName: "",
+        },
+        stations: [],
+      });
     }
 
     /* ================= BOARDING ================= */
@@ -89,14 +116,17 @@ export async function GET(req: Request) {
     ]);
 
     const stateMap: Record<string, string> = {};
+
     stationsData.data?.forEach((st) => {
       stateMap[normalize(st.StationCode)] = st.State || "";
     });
 
     const groupedRestros: Record<string, any[]> = {};
+
     restrosData.data?.forEach((r) => {
       if (isTrue(r.RaileatsStatus ?? r.IsActive)) {
         const sc = normalize(r.StationCode);
+
         if (!groupedRestros[sc]) groupedRestros[sc] = [];
         groupedRestros[sc].push(r);
       }
@@ -116,18 +146,16 @@ export async function GET(req: Request) {
         const sDate = new Date(startDateParam + "T00:00:00");
         const currentDay = Number(s.Day || 1);
         const dayDiff = currentDay - baseDay;
+
         sDate.setDate(sDate.getDate() + dayDiff);
 
         const arrival = formatTime(s.Arrives || "00:00");
-
         const arrivalDateTime = new Date(sDate);
         const [h, m] = arrival.split(":").map(Number);
+
         arrivalDateTime.setHours(h, m, 0);
 
-        // ❌ past stations हटाओ (ये रखना है)
         if (arrivalDateTime <= istNow) return null;
-
-        /* ================= FINAL VENDORS (NO TIME FILTER) ================= */
 
         const validVendors = vendorsRaw
           .map((v: any) => {
@@ -144,7 +172,7 @@ export async function GET(req: Request) {
                 v.MinimumOrderValue || v.MinimumOrdermValue || 0,
               RestroDisplayPhoto: v.RestroDisplayPhoto,
               IsPureVeg: isTrue(v.IsPureVeg) ? 1 : 0,
-              CutOffTime: v.CutOffTime || 0, // 🔥 IMPORTANT
+              CutOffTime: v.CutOffTime || 0,
             };
           })
           .filter(Boolean);
@@ -170,11 +198,15 @@ export async function GET(req: Request) {
 
     return NextResponse.json({
       ok: true,
+      train: {
+        trainNumber: trainParam,
+        trainName,
+      },
       stations: finalStations,
     });
-
   } catch (err: any) {
     console.error("train-restros error", err);
+
     return NextResponse.json(
       { ok: false, error: err.message },
       { status: 500 }
