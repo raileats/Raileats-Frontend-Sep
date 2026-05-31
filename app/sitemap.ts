@@ -1,17 +1,19 @@
 import { MetadataRoute } from "next";
 import { serviceClient } from "./lib/supabaseServer";
 
-const baseUrl = "https://www.raileats.in";
-
 function slugify(value: string) {
   return String(value || "")
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .trim();
 }
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const urls: MetadataRoute.Sitemap = [
+  const baseUrl = "https://www.raileats.in";
+
+  const staticRoutes: MetadataRoute.Sitemap = [
     {
       url: `${baseUrl}`,
       lastModified: new Date(),
@@ -44,31 +46,63 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     },
   ];
 
+  /* ================= STATIONS ================= */
+
   const { data: restros } = await serviceClient
     .from("RestroMaster")
-    .select("RestroCode, RestroName, StationCode, StationName");
+    .select(`
+      restro_id,
+      restro_name,
+      station_code,
+      station_name,
+      active
+    `)
+    .eq("active", true);
 
-  for (const r of restros || []) {
-    const stationSlug = `${slugify(r.StationName)}-${String(
-      r.StationCode || ""
-    ).toLowerCase()}-food-delivery`;
+  const dynamicRoutes: MetadataRoute.Sitemap = [];
 
-    urls.push({
+  (restros || []).forEach((r: any) => {
+    const stationName = slugify(r.station_name || "");
+    const stationCode = slugify(r.station_code || "");
+
+    // invalid skip
+    if (!stationName || !stationCode) return;
+
+    const stationSlug = `${stationName}-${stationCode}-food-delivery`;
+
+    // station page
+    dynamicRoutes.push({
       url: `${baseUrl}/stations/${stationSlug}`,
       lastModified: new Date(),
       changeFrequency: "daily",
       priority: 0.9,
     });
 
-    urls.push({
-      url: `${baseUrl}/stations/${stationSlug}/${r.RestroCode}-${slugify(
-        r.RestroName
-      )}`,
+    // restro page
+    const restroSlug = `${r.restro_id}-${slugify(
+      r.restro_name || "restaurant"
+    )}`;
+
+    dynamicRoutes.push({
+      url: `${baseUrl}/stations/${stationSlug}/${restroSlug}`,
       lastModified: new Date(),
       changeFrequency: "daily",
       priority: 0.8,
     });
-  }
+  });
 
-  return urls;
+  /* ================= REMOVE DUPLICATES ================= */
+
+  const uniqueMap = new Map<string, MetadataRoute.Sitemap[number]>();
+
+  [...staticRoutes, ...dynamicRoutes].forEach((item) => {
+    if (
+      item.url &&
+      !item.url.includes("--food-delivery")
+    ) {
+      uniqueMap.set(item.url, item);
+    }
+  });
+
+  return Array.from(uniqueMap.values());
 }
