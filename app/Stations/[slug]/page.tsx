@@ -1,3 +1,4 @@
+import React from "react";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { serviceClient } from "../../lib/supabaseServer";
@@ -19,8 +20,19 @@ function titleCase(str: string) {
 
 function parseStationFromSlug(slugRaw: string) {
   const slug = decodeURIComponent(String(slugRaw || "")).trim();
-    .replace(/-food-delivery$/i, "")
-    .replace(/-food-delivery-in-train$/i, "");
+
+  // Old URL support: /stations/BPL
+  if (/^[A-Za-z0-9]{2,8}$/.test(slug)) {
+    return {
+      code: slug.toUpperCase(),
+      name: slug.toUpperCase(),
+      isCodeOnly: true,
+    };
+  }
+
+  const clean = slug
+    .replace(/-food-delivery-in-train$/i, "")
+    .replace(/-food-delivery$/i, "");
 
   const parts = clean.split("-").filter(Boolean);
   const code = String(parts.pop() || "").toUpperCase();
@@ -28,13 +40,13 @@ function parseStationFromSlug(slugRaw: string) {
 
   return {
     code,
-    name: name || "Railway Station",
+    name: name || code || "Railway Station",
+    isCodeOnly: false,
   };
 }
 
 function isActive(value: any) {
   const v = String(value ?? "").trim().toLowerCase();
-
   return (
     value === true ||
     value === 1 ||
@@ -46,9 +58,8 @@ function isActive(value: any) {
   );
 }
 
-function isHolidayOff(value: any) {
+function isHolidayOn(value: any) {
   const v = String(value ?? "").trim().toLowerCase();
-
   return (
     value === true ||
     value === 1 ||
@@ -65,50 +76,67 @@ function safeRating(value: any) {
   return value;
 }
 
-export async function generateMetadata(props: {
+async function getStationNameByCode(code: string, fallback: string) {
+  const { data } = await serviceClient
+    .from("RestroMaster")
+    .select("StationName")
+    .eq("StationCode", code)
+    .not("StationName", "is", null)
+    .limit(1)
+    .maybeSingle();
+
+  return data?.StationName || fallback;
+}
+
+export async function generateMetadata({
+  params,
+}: {
   params: { slug: string };
 }): Promise<Metadata> {
-  const station = parseStationFromSlug(props.params.slug);
+  const stationBase = parseStationFromSlug(params.slug);
+  const stationName =
+    stationBase.isCodeOnly && stationBase.code
+      ? await getStationNameByCode(stationBase.code, stationBase.name)
+      : stationBase.name;
 
   return {
-    title: `Food Delivery at ${station.name} (${station.code}) Railway Station`,
-    description: `Order fresh food delivery in train at ${station.name} railway station. Choose active restaurants near ${station.code} station and get meals delivered to your train seat.`,
+    title: `Food Delivery at ${stationName} (${stationBase.code}) Railway Station`,
+    description: `Order fresh food delivery in train at ${stationName} railway station. Find active restaurants at ${stationBase.code} station and get food delivered to your train seat.`,
     alternates: {
-      canonical: `/stations/${props.params.slug}`,
+      canonical: `/stations/${params.slug}`,
     },
     keywords: [
-      `food delivery at ${station.name}`,
-      `food delivery at ${station.code} station`,
-      `order food in train at ${station.name}`,
-      `${station.name} railway station food`,
-      `train food delivery ${station.code}`,
-      `food on train ${station.name}`,
+      `food delivery at ${stationName}`,
+      `food delivery at ${stationBase.code} station`,
+      `order food in train at ${stationName}`,
+      `${stationName} railway station food`,
+      `train food delivery ${stationBase.code}`,
+      `food on train ${stationName}`,
+      `online food order in train ${stationName}`,
     ],
     openGraph: {
-      title: `Food Delivery at ${station.name} Railway Station | RailEats`,
-      description: `Order fresh train food at ${station.name} (${station.code}) from active railway station restaurants.`,
-      url: `${siteUrl}/stations/${props.params.slug}`,
+      title: `Food Delivery at ${stationName} Railway Station | RailEats`,
+      description: `Order fresh train food at ${stationName} (${stationBase.code}) from active railway station restaurants.`,
+      url: `${siteUrl}/stations/${params.slug}`,
       images: ["/raileats-logo.png"],
     },
   };
 }
 
-export default async function Page(props: {
-  params: { slug: string };
-  searchParams?: any;
-}) {
-  const resolvedParams = await Promise.resolve(props.params);
-  const station = parseStationFromSlug(resolvedParams.slug);
-
+export default async function Page({ params }: { params: { slug: string } }) {
+  const stationBase = parseStationFromSlug(params.slug);
   const nowIso = new Date().toISOString();
 
   const { data: restrosRaw, error: restroError } = await serviceClient
     .from("RestroMaster")
     .select("*")
-    .eq("StationCode", station.code)
+    .eq("StationCode", stationBase.code)
     .order("RestroRating", { ascending: false });
 
   const restros = restrosRaw || [];
+
+  const stationName =
+    restros?.[0]?.StationName || stationBase.name || stationBase.code;
 
   const restroCodes = restros
     .map((r: any) => Number(r.RestroCode))
@@ -130,18 +158,18 @@ export default async function Page(props: {
 
   const activeRestros = restros.filter((r: any) => {
     const active = isActive(r.RaileatsStatus);
-    const holidayFromTable = holidaySet.has(Number(r.RestroCode));
-    const holidayFromMaster = isHolidayOff(r.HolidayStatus);
+    const holidayFromHolidayTable = holidaySet.has(Number(r.RestroCode));
+    const holidayFromMaster = isHolidayOn(r.HolidayStatus);
 
-    return active && !holidayFromTable && !holidayFromMaster;
+    return active && !holidayFromHolidayTable && !holidayFromMaster;
   });
 
   const schema = {
     "@context": "https://schema.org",
     "@type": "WebPage",
-    name: `Food Delivery at ${station.name} Railway Station`,
-    url: `${siteUrl}/stations/${resolvedParams.slug}`,
-    description: `Order food in train at ${station.name} railway station with RailEats.`,
+    name: `Food Delivery at ${stationName} Railway Station`,
+    url: `${siteUrl}/stations/${params.slug}`,
+    description: `Order food in train at ${stationName} railway station with RailEats.`,
   };
 
   return (
@@ -158,13 +186,14 @@ export default async function Page(props: {
           </p>
 
           <h1 className="text-3xl font-extrabold leading-tight text-slate-900 md:text-5xl">
-            Food Delivery at {station.name} ({station.code}) Railway Station
+            Food Delivery at {stationName} ({stationBase.code}) Railway Station
           </h1>
 
           <p className="mt-4 max-w-3xl text-base leading-7 text-slate-700">
-            Order fresh and hygienic food in train at {station.name} railway
-            station. RailEats helps passengers choose active restaurants near{" "}
-            {station.code} station and get meals delivered to their train seat.
+            Order fresh and hygienic food in train at {stationName} railway
+            station. RailEats helps passengers find active restaurants at{" "}
+            {stationBase.code} station and get meals delivered to their train
+            seat.
           </p>
 
           <Link
@@ -177,7 +206,7 @@ export default async function Page(props: {
 
         <section className="mt-8">
           <h2 className="text-2xl font-extrabold text-slate-900">
-            Active Restaurants at {station.name}
+            Active Restaurants at {stationName}
           </h2>
 
           {restroError ? (
@@ -186,7 +215,9 @@ export default async function Page(props: {
             </div>
           ) : activeRestros.length === 0 ? (
             <div className="mt-4 rounded-2xl border bg-white p-6 text-slate-600">
-              No active restaurants available right now at {station.name}.
+              No active restaurants available right now at {stationName}. You
+              can still search your train or nearby station to order food in
+              train.
             </div>
           ) : (
             <div className="mt-4 grid gap-4 md:grid-cols-3">
@@ -200,7 +231,7 @@ export default async function Page(props: {
                   </h3>
 
                   <p className="mt-1 text-sm text-slate-500">
-                    {station.name} ({station.code})
+                    {stationName} ({stationBase.code})
                   </p>
 
                   <p className="mt-2 text-sm text-slate-600">
@@ -208,7 +239,7 @@ export default async function Page(props: {
                   </p>
 
                   <Link
-                    href={`/menu?restro=${r.RestroCode}&station=${station.code}`}
+                    href={`/menu?restro=${r.RestroCode}&station=${stationBase.code}`}
                     className="mt-4 inline-block rounded-xl bg-orange-500 px-4 py-2 text-sm font-bold text-white"
                   >
                     View Menu
@@ -221,15 +252,53 @@ export default async function Page(props: {
 
         <section className="mt-8 rounded-2xl border bg-white p-6 shadow-sm">
           <h2 className="text-2xl font-extrabold text-slate-900">
-            Order Food in Train at {station.name}
+            Order Food in Train at {stationName}
           </h2>
 
           <p className="mt-3 leading-7 text-slate-700">
-            RailEats offers online food delivery in train at {station.name}{" "}
-            ({station.code}) railway station. Passengers can search by train
+            RailEats offers online food delivery in train at {stationName}{" "}
+            ({stationBase.code}) railway station. Passengers can search by train
             number, PNR or station, select available restaurants and place food
             orders for delivery at their train seat.
           </p>
+
+          <p className="mt-3 leading-7 text-slate-700">
+            If you are travelling through {stationName}, RailEats helps you
+            discover train food options including thalis, meals, biryani,
+            snacks, beverages and restaurant specials depending on availability.
+          </p>
+        </section>
+
+        <section className="mt-8 rounded-2xl border bg-white p-6 shadow-sm">
+          <h2 className="text-2xl font-extrabold text-slate-900">
+            Why choose RailEats at {stationName}?
+          </h2>
+
+          <div className="mt-4 grid gap-4 md:grid-cols-3">
+            <div className="rounded-xl border border-slate-200 p-4">
+              <h3 className="font-bold text-slate-900">Fresh Meals</h3>
+              <p className="mt-2 text-sm leading-6 text-slate-600">
+                Order freshly prepared food from available restaurants near the
+                railway station.
+              </p>
+            </div>
+
+            <div className="rounded-xl border border-slate-200 p-4">
+              <h3 className="font-bold text-slate-900">Train Seat Delivery</h3>
+              <p className="mt-2 text-sm leading-6 text-slate-600">
+                Get your food delivered to your train seat at supported
+                stations.
+              </p>
+            </div>
+
+            <div className="rounded-xl border border-slate-200 p-4">
+              <h3 className="font-bold text-slate-900">Easy Online Ordering</h3>
+              <p className="mt-2 text-sm leading-6 text-slate-600">
+                Search by train, PNR or station and place your food order
+                online.
+              </p>
+            </div>
+          </div>
         </section>
       </main>
     </>
