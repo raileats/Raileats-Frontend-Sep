@@ -262,13 +262,13 @@ export default function RestroMenuClient({
     <div
       style={{
         width: "100%",
-        maxWidth: 640,
+        maxWidth: 660,
         margin: "0 auto",
-        padding: "4px 10px 104px",
+        padding: "3px 10px 104px",
         boxSizing: "border-box",
         display: "flex",
         flexDirection: "column",
-        gap: 12,
+        gap: 10,
         fontFamily:
           'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
       }}
