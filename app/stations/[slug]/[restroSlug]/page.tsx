@@ -287,7 +287,12 @@ export default async function Page({
   const stationCode = extractStationCode(params.slug) || "";
   const restroCode = extractRestroCode(params.restroSlug) || "";
   const outletName = humanizeFromSlug(params.restroSlug);
-  const stationName = stationNameFromSlug(params.slug, stationCode);
+  const stationName = titleCase(
+  decodeURIComponent(params.slug || "")
+    .replace(/-food-delivery$/i, "")
+    .replace(new RegExp(`-${stationCode}$`, "i"), "")
+    .replace(/-/g, " ")
+);
 
   const deliveryDate =
     firstParam(searchParams?.deliveryDate) ||
