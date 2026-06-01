@@ -264,7 +264,7 @@ export default function RestroMenuClient({
         width: "100%",
         maxWidth: 640,
         margin: "0 auto",
-        padding: "16px 8px 104px",
+        padding: "8px 8px 104px",
         boxSizing: "border-box",
         display: "flex",
         flexDirection: "column",
