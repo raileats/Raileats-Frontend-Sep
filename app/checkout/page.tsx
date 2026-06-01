@@ -23,6 +23,7 @@ export default function CheckoutPage() {
   const [coach, setCoach] = useState("");
   const [seat, setSeat] = useState("");
   const [isPnrLocked, setIsPnrLocked] = useState(false);
+  const [isPnrVerified, setIsPnrVerified] = useState(false);
   const [promo, setPromo] = useState("");
 
   const [paymentMode, setPaymentMode] = useState("COD");
@@ -92,74 +93,181 @@ useEffect(() => {
 
   /* ================= FETCH PNR DETAILS ================= */
 useEffect(() => {
+  function formatDateForTrainPage(value: string) {
+    if (!value) return "";
+
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return "";
+
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+
+    return `${yyyy}-${mm}-${dd}`;
+  }
+
+  function normalizeDate(value: any) {
+    if (!value) return "";
+
+    const d = new Date(value);
+    if (!Number.isNaN(d.getTime())) {
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, "0");
+      const dd = String(d.getDate()).padStart(2, "0");
+      return `${yyyy}-${mm}-${dd}`;
+    }
+
+    return String(value || "").trim().toLowerCase();
+  }
+
   async function fetchPnrDetails() {
     if (!pnr || pnr.length !== 10) {
       setPnrError("");
+      setIsPnrVerified(false);
       return;
     }
 
     try {
-      const res = await fetch(`/api/pnr/${pnr}`);
+      const res = await fetch(`/api/pnr/${encodeURIComponent(pnr)}`, {
+        cache: "no-store",
+      });
+
       const data = await res.json();
 
       if (!data?.ok) {
         setPnrError("Invalid PNR");
         setCoach("");
         setSeat("");
+        setIsPnrVerified(false);
         return;
       }
 
-      const pnrTrainNo = String(data.trainNo || data.trainNumber || data.raw?.trainNumber || "");
+      const pnrTrainNo = String(
+        data.trainNo || data.trainNumber || data.raw?.trainNumber || ""
+      );
+
+      const pnrTrainName = data.trainName || data.raw?.trainName || "Train";
+
+      const pnrBoarding = String(
+        data.boardingPoint || data.source || data.raw?.boardingPoint || ""
+      ).toUpperCase();
+
+      const pnrJourneyDate = formatDateForTrainPage(
+        data.dateOfJourney || data.raw?.dateOfJourney || ""
+      );
+
       const currentTrainNo = String(trainNumber || "");
 
       if (currentTrainNo && pnrTrainNo && pnrTrainNo !== currentTrainNo) {
         setPnrError("PNR not belongs to booking train");
         setCoach("");
         setSeat("");
+        setIsPnrVerified(false);
         setIsPnrLocked(false);
         return;
       }
 
-      const passenger = data.passengers?.[0] || data.raw?.passengerList?.[0] || {};
+      if (!pnrTrainNo || !pnrJourneyDate || !pnrBoarding) {
+        setPnrError("PNR data incomplete");
+        setCoach("");
+        setSeat("");
+        setIsPnrVerified(false);
+        setIsPnrLocked(false);
+        return;
+      }
+
+      const routeRes = await fetch(
+        `/api/train-restros?train=${encodeURIComponent(
+          pnrTrainNo
+        )}&date=${encodeURIComponent(
+          pnrJourneyDate
+        )}&boarding=${encodeURIComponent(pnrBoarding)}&full=1`,
+        { cache: "no-store" }
+      );
+
+      const routeData = await routeRes.json();
+
+      const matchedStation = (routeData?.stations || []).find((s: any) => {
+        return (
+          String(s.StationCode || "").toUpperCase() ===
+          String(stationCode || "").toUpperCase()
+        );
+      });
+
+      if (!matchedStation) {
+        setPnrError("PNR route does not match delivery station");
+        setCoach("");
+        setSeat("");
+        setIsPnrVerified(false);
+        setIsPnrLocked(false);
+        return;
+      }
+
+      if (normalizeDate(matchedStation.date) !== normalizeDate(deliveryDate)) {
+        setPnrError("Date mismatch");
+        setCoach("");
+        setSeat("");
+        setIsPnrVerified(false);
+        setIsPnrLocked(false);
+        return;
+      }
+
+      const passenger =
+        data.passengers?.[0] ||
+        data.raw?.passengerList?.[0] ||
+        {};
 
       const fetchedCoach =
         passenger.currentCoachId ||
+        passenger.coachId ||
         passenger.bookingCoachId ||
+        passenger.BookingCoachId ||
         "";
 
       const fetchedSeat =
         passenger.currentBerthNo ||
+        passenger.berthNo ||
         passenger.bookingBerthNo ||
+        passenger.BookingBerthNo ||
         "";
 
       setPnrError("");
       setCoach(String(fetchedCoach || ""));
       setSeat(String(fetchedSeat || ""));
       setIsPnrLocked(true);
+      setIsPnrVerified(true);
 
       localStorage.setItem(
         "raileats_pnr_details",
         JSON.stringify({
           pnr,
           trainNo: pnrTrainNo,
-          trainName: data.trainName,
-          boarding: data.boardingPoint || data.source || "",
-          journeyDate: data.dateOfJourney,
+          trainName: pnrTrainName,
+          boarding: pnrBoarding,
+          journeyDate: pnrJourneyDate,
+          source: data.source || data.raw?.sourceStation || "",
+          destination: data.destination || data.raw?.destinationStation || "",
+          chartStatus: data.chartStatus || data.raw?.chartStatus || "",
           coach: fetchedCoach,
           berth: fetchedSeat,
-          passengers: data.passengers || [],
+          passengersCount:
+            data.passengersCount || data.raw?.numberOfpassenger || 1,
+          passengers: data.passengers || data.raw?.passengerList || [],
           raw: data.raw || data,
         })
       );
     } catch (e) {
       setPnrError("PNR fetch failed");
+      setCoach("");
+      setSeat("");
+      setIsPnrVerified(false);
+      setIsPnrLocked(false);
       console.error("PNR fetch failed", e);
     }
   }
 
   fetchPnrDetails();
-}, [pnr, trainNumber]);
-
+}, [pnr, trainNumber, stationCode, deliveryDate]);
   /* ================= CALCULATIONS ================= */
   const subtotal = items.reduce(
     (sum, i) => sum + Number(i.price) * Number(i.qty),
@@ -169,6 +277,20 @@ useEffect(() => {
   const gst = Math.round(subtotal * 0.05);
   const delivery = subtotal > 0 ? 20 : 0;
   const total = subtotal + gst + delivery;
+  const isOrderReady =
+  !!name &&
+  !!mobile &&
+  !!trainNumber &&
+  !!deliveryDate &&
+  deliveryDate !== "N/A" &&
+  !!deliveryTime &&
+  deliveryTime !== "N/A" &&
+  !!pnr &&
+  !!coach &&
+  !!seat &&
+  isPnrVerified &&
+  !pnrError &&
+  items.length > 0;
 
   /* ================= PLACE ORDER ================= */
   const placeOrder = async () => {
@@ -487,12 +609,17 @@ useEffect(() => {
 
           {/* PRIMARY ACTION BUTTON */}
           <button
-            type="button"
-            onClick={placeOrder}
-            className="w-full bg-green-600 text-white font-extrabold py-3 rounded-lg text-[15px] transition-all active:scale-[0.98] shadow-md shadow-green-600/10 hover:bg-green-700 tracking-wide uppercase"
-          >
-            Place Order
-          </button>
+  type="button"
+  onClick={placeOrder}
+  disabled={!isOrderReady}
+  className={`w-full text-white font-extrabold py-3 rounded-lg text-[15px] transition-all tracking-wide uppercase ${
+    isOrderReady
+      ? "bg-green-600 hover:bg-green-700 active:scale-[0.98] shadow-md shadow-green-600/10"
+      : "bg-slate-300 cursor-not-allowed"
+  }`}
+>
+  Place Order
+</button>
         </div>
       </div>
     </div>
