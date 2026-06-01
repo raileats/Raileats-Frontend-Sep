@@ -81,6 +81,15 @@ useEffect(() => {
   }
 }, [searchParams]);
 
+  /* ================= SAFE COALESCING VARIABLES ================= */
+  const trainName = journey?.trainName || "N/A";
+  const trainNumber = journey?.trainNumber || "";
+  const stationName = journey?.stationName || "N/A";
+  const stationCode = journey?.stationCode || "";
+  const deliveryDate = journey?.deliveryDate || "N/A";
+  const deliveryTime = journey?.deliveryTime || "N/A";
+  const vendorName = journey?.vendorName || "N/A";
+
   /* ================= FETCH PNR DETAILS ================= */
 useEffect(() => {
   async function fetchPnrDetails() {
@@ -160,15 +169,6 @@ useEffect(() => {
   const gst = Math.round(subtotal * 0.05);
   const delivery = subtotal > 0 ? 20 : 0;
   const total = subtotal + gst + delivery;
-
-  /* ================= SAFE COALESCING VARIABLES ================= */
-  const trainName = journey?.trainName || "N/A";
-  const trainNumber = journey?.trainNumber || "";
-  const stationName = journey?.stationName || "N/A";
-  const stationCode = journey?.stationCode || "";
-  const deliveryDate = journey?.deliveryDate || "N/A";
-  const deliveryTime = journey?.deliveryTime || "N/A";
-  const vendorName = journey?.vendorName || "N/A";
 
   /* ================= PLACE ORDER ================= */
   const placeOrder = async () => {
