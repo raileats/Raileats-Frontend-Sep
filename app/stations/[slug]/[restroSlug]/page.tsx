@@ -49,6 +49,10 @@ function stationNameFromSlug(slug: string, stationCode: string) {
 function parseStationInfo(slugRaw: string, fallbackCode: string) {
   const raw = decodeURIComponent(String(slugRaw || "")).trim();
 
+  const isSeoFoodDeliveryUrl =
+    /-food-delivery-in-train$/i.test(raw) ||
+    /-food-delivery$/i.test(raw);
+
   const clean = raw
     .replace(/-food-delivery-in-train$/i, "")
     .replace(/-food-delivery$/i, "");
@@ -58,17 +62,18 @@ function parseStationInfo(slugRaw: string, fallbackCode: string) {
   let code = String(fallbackCode || "").toUpperCase();
   let nameParts = parts;
 
-  // SEO station URL: bhopal-jn-bpl-food-delivery
-  // last part is station code
-  if (parts.length > 1 && /^[a-z0-9]{2,8}$/i.test(parts[parts.length - 1])) {
-    code = parts[parts.length - 1].toUpperCase();
-    nameParts = parts.slice(0, -1);
-  }
-
-  // Old train URL: BPL-Bhopal-Jn
-  else if (parts.length > 1 && /^[a-z0-9]{2,8}$/i.test(parts[0])) {
+  // Train flow URL: GWL-Gwalior
+  // first part is station code
+  if (!isSeoFoodDeliveryUrl && parts.length > 1) {
     code = parts[0].toUpperCase();
     nameParts = parts.slice(1);
+  }
+
+  // SEO station URL: bhopal-jn-bpl-food-delivery
+  // last part is station code
+  else if (isSeoFoodDeliveryUrl && parts.length > 1) {
+    code = parts[parts.length - 1].toUpperCase();
+    nameParts = parts.slice(0, -1);
   }
 
   const name = titleCase(nameParts.join(" "));
@@ -91,7 +96,6 @@ function buildCanonical(params: any, searchParams: any) {
   const query = qs.toString();
   return `${SITE_URL}${path}${query ? `?${query}` : ""}`;
 }
-
 /* ================= FETCH ================= */
 
 async function fetchOnMenu(restroCode: string | number, arrivalTime: string) {
