@@ -247,6 +247,14 @@ function normalizeItem(it: any) {
       null,
   };
 }
+menu_item_image:
+  it?.menu_item_image ||
+  it?.MenuItemImage ||
+  it?.item_image ||
+  it?.ItemImage ||
+  it?.image ||
+  it?.Image ||
+  "",
 
 /* ================= SEO ================= */
 
