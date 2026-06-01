@@ -19,6 +19,7 @@ export default function CheckoutPage() {
 
   /* ================= EXTRA ================= */
   const [pnr, setPnr] = useState("");
+  const [pnrError, setPnrError] = useState("");
   const [coach, setCoach] = useState("");
   const [seat, setSeat] = useState("");
   const [isPnrLocked, setIsPnrLocked] = useState(false);
@@ -50,6 +51,16 @@ export default function CheckoutPage() {
   /* ================= PNR AUTO LOAD ================= */
 useEffect(() => {
   try {
+    const urlPnr = searchParams.get("pnr");
+
+    if (!urlPnr) {
+      setPnr("");
+      setCoach("");
+      setSeat("");
+      setIsPnrLocked(false);
+      return;
+    }
+
     const saved =
       typeof window !== "undefined"
         ? localStorage.getItem("raileats_pnr_details")
@@ -59,22 +70,11 @@ useEffect(() => {
 
     const parsed = JSON.parse(saved);
 
-    const urlPnr = searchParams.get("pnr");
-
-    // Search by PNR flow
-    if (urlPnr && parsed?.pnr === urlPnr) {
+    if (parsed?.pnr === urlPnr) {
       setPnr(parsed?.pnr || "");
       setCoach(parsed?.coach || "");
       setSeat(parsed?.berth || "");
       setIsPnrLocked(true);
-      return;
-    }
-
-    // Search by Train flow
-    if (parsed?.pnr) {
-      setPnr(parsed?.pnr || "");
-      setCoach(parsed?.coach || "");
-      setSeat(parsed?.berth || "");
     }
   } catch (e) {
     console.error("PNR preload failed", e);
@@ -84,18 +84,34 @@ useEffect(() => {
   /* ================= FETCH PNR DETAILS ================= */
 useEffect(() => {
   async function fetchPnrDetails() {
-    if (!pnr || pnr.length !== 10) return;
+    if (!pnr || pnr.length !== 10) {
+      setPnrError("");
+      return;
+    }
 
     try {
       const res = await fetch(`/api/pnr/${pnr}`);
       const data = await res.json();
 
-      if (!data?.ok) return;
+      if (!data?.ok) {
+        setPnrError("Invalid PNR");
+        setCoach("");
+        setSeat("");
+        return;
+      }
 
-      const passenger =
-        data.passengers?.[0] ||
-        data.raw?.passengerList?.[0] ||
-        {};
+      const pnrTrainNo = String(data.trainNo || data.trainNumber || data.raw?.trainNumber || "");
+      const currentTrainNo = String(trainNumber || "");
+
+      if (currentTrainNo && pnrTrainNo && pnrTrainNo !== currentTrainNo) {
+        setPnrError("PNR not belongs to booking train");
+        setCoach("");
+        setSeat("");
+        setIsPnrLocked(false);
+        return;
+      }
+
+      const passenger = data.passengers?.[0] || data.raw?.passengerList?.[0] || {};
 
       const fetchedCoach =
         passenger.currentCoachId ||
@@ -107,19 +123,18 @@ useEffect(() => {
         passenger.bookingBerthNo ||
         "";
 
+      setPnrError("");
       setCoach(String(fetchedCoach || ""));
       setSeat(String(fetchedSeat || ""));
+      setIsPnrLocked(true);
 
       localStorage.setItem(
         "raileats_pnr_details",
         JSON.stringify({
           pnr,
-          trainNo: data.trainNo,
+          trainNo: pnrTrainNo,
           trainName: data.trainName,
-          boarding:
-            data.boardingPoint ||
-            data.source ||
-            "",
+          boarding: data.boardingPoint || data.source || "",
           journeyDate: data.dateOfJourney,
           coach: fetchedCoach,
           berth: fetchedSeat,
@@ -128,12 +143,13 @@ useEffect(() => {
         })
       );
     } catch (e) {
+      setPnrError("PNR fetch failed");
       console.error("PNR fetch failed", e);
     }
   }
 
   fetchPnrDetails();
-}, [pnr]);
+}, [pnr, trainNumber]);
 
   /* ================= CALCULATIONS ================= */
   const subtotal = items.reduce(
@@ -317,27 +333,33 @@ useEffect(() => {
             </div>
 
             {/* EMAIL + PNR */}
-            <div className="flex items-center gap-2.5">
-              <input
-                className="border border-slate-200 rounded-lg px-3 py-2.5 text-[14px] focus:outline-none bg-slate-100/70 text-slate-500 font-medium cursor-not-allowed flex-1 min-w-0"
-                placeholder="Email ID"
-                value={email}
-                readOnly
-              />
-              <input
-  className={`border border-slate-200 rounded-lg px-2 py-2.5 text-[14px] font-bold tracking-wide text-slate-700 w-[110px] shrink-0 text-center ${
-    isPnrLocked
-      ? "bg-slate-100 cursor-not-allowed"
-      : "bg-slate-50/50 focus:outline-none focus:border-amber-500"
-  }`}
-  placeholder="10-Digit PNR"
-  value={pnr}
-  maxLength={10}
-  readOnly={isPnrLocked}
-  onChange={(e) => setPnr(e.target.value)}
-/>
+<div className="flex items-center gap-2.5">
+  <input
+    className="border border-slate-200 rounded-lg px-3 py-2.5 text-[14px] focus:outline-none bg-slate-100/70 text-slate-500 font-medium cursor-not-allowed flex-1 min-w-0"
+    placeholder="Email ID"
+    value={email}
+    readOnly
+  />
+
+  <input
+    className={`border border-slate-200 rounded-lg px-2 py-2.5 text-[14px] font-bold tracking-wide text-slate-700 w-[110px] shrink-0 text-center ${
+      isPnrLocked
+        ? "bg-slate-100 cursor-not-allowed"
+        : "bg-slate-50/50 focus:outline-none focus:border-amber-500"
+    }`}
+    placeholder="10-Digit PNR"
+    value={pnr}
+    maxLength={10}
+    readOnly={isPnrLocked}
+    onChange={(e) => setPnr(e.target.value)}
+  />
 </div>
 
+{pnrError ? (
+  <div className="text-[11px] font-bold text-red-600 pl-1">
+    {pnrError}
+  </div>
+) : null}
             {/* LAST ROW: COACH + SEAT + PROMO */}
             <div className="flex items-center gap-2 w-full">
               <input
