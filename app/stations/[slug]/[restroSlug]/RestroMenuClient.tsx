@@ -88,6 +88,17 @@ const getCartEntry = (cart: any, itemId: any) => {
 const getPrice = (it: any) => {
   return Number(it?.base_price || it?.selling_price || it?.price || 0);
 };
+const getItemImage = (it: any) => {
+  return (
+    it?.menu_item_image ||
+    it?.MenuItemImage ||
+    it?.item_image ||
+    it?.ItemImage ||
+    it?.image ||
+    it?.Image ||
+    ""
+  );
+};
 
 export default function RestroMenuClient({
   items = [],
