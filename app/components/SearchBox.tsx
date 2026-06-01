@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import StationSearchBox from "./StationSearchBox";
 import TrainAutocomplete from "./TrainAutocomplete";
 
@@ -38,6 +38,31 @@ export default function SearchBox() {
   const [showStationList, setShowStationList] = useState(false);
   const [loadingStations, setLoadingStations] = useState(false);
 
+  const searchBtnRef = useRef<HTMLButtonElement | null>(null);
+  const boardingBoxRef = useRef<HTMLDivElement | null>(null);
+
+  const scrollSearchButtonIntoView = () => {
+    setTimeout(() => {
+      searchBtnRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    }, 250);
+  };
+
+  const scrollBoardingListIntoView = () => {
+    setTimeout(() => {
+      boardingBoxRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+
+      setTimeout(() => {
+        window.scrollBy({ top: 90, behavior: "smooth" });
+      }, 250);
+    }, 100);
+  };
+
   async function fetchStations(trainNo: string) {
     try {
       setLoadingStations(true);
@@ -52,6 +77,7 @@ export default function SearchBox() {
 
       setStations(list);
       setBoarding(list.length > 0 ? list[0].code : "");
+      scrollSearchButtonIntoView();
     } catch (err) {
       console.error(err);
       setStations([]);
@@ -165,16 +191,18 @@ export default function SearchBox() {
               onSelect={handleTrainSelect}
             />
           ) : searchType === "station" ? (
-            <StationSearchBox
-              onSelect={(s: any) => {
-                setSelectedStationData(s);
-                setInputValue(
-                  s?.StationName && s?.StationCode
-                    ? `${s.StationName} (${s.StationCode})`
-                    : s?.StationName || s?.StationCode || ""
-                );
-              }}
-            />
+            <div className="[&_input]:h-[56px] [&_input]:w-full [&_input]:rounded-xl [&_input]:border [&_input]:border-slate-300 [&_input]:bg-white [&_input]:px-4 [&_input]:text-[16px] [&_input]:font-medium [&_input]:text-slate-800 [&_input]:outline-none [&_input]:placeholder:text-slate-400 [&_input:focus]:border-blue-500 [&_button]:text-[15px] [&_button]:font-bold">
+              <StationSearchBox
+                onSelect={(s: any) => {
+                  setSelectedStationData(s);
+                  setInputValue(
+                    s?.StationName && s?.StationCode
+                      ? `${s.StationName} (${s.StationCode})`
+                      : s?.StationName || s?.StationCode || ""
+                  );
+                }}
+              />
+            </div>
           ) : (
             <input
               value={inputValue}
@@ -193,10 +221,16 @@ export default function SearchBox() {
                 className="app-input"
               />
 
-              <div className="relative">
+              <div ref={boardingBoxRef} className="relative">
                 <button
                   type="button"
-                  onClick={() => setShowStationList((prev) => !prev)}
+                  onClick={() => {
+                    setShowStationList((prev) => {
+                      const next = !prev;
+                      if (next) scrollBoardingListIntoView();
+                      return next;
+                    });
+                  }}
                   className="app-input flex items-center justify-between text-left"
                 >
                   <span>
@@ -224,6 +258,7 @@ export default function SearchBox() {
                         onClick={() => {
                           setBoarding(s.code);
                           setShowStationList(false);
+                          scrollSearchButtonIntoView();
                         }}
                         className="flex w-full items-center justify-between border-b border-slate-100 px-4 py-3 text-left hover:bg-orange-50"
                       >
@@ -242,6 +277,7 @@ export default function SearchBox() {
           )}
 
           <button
+            ref={searchBtnRef}
             type="button"
             onClick={handleSearch}
             className="app-btn-primary w-full"
