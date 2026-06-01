@@ -10,6 +10,7 @@ export default function CheckoutPage() {
   const searchParams = useSearchParams();
 
   const { items, clearCart, journey } = useCart();
+  const cartItems = Array.isArray(items) ? items : [];
   const { user, loadUser } = useAuth();
 
   /* ================= USER ================= */
@@ -269,7 +270,7 @@ useEffect(() => {
   fetchPnrDetails();
 }, [pnr, trainNumber, stationCode, deliveryDate]);
   /* ================= CALCULATIONS ================= */
-  const subtotal = items.reduce(
+  const subtotal = cartItems.reduce(
     (sum, i) => sum + Number(i.price) * Number(i.qty),
     0
   );
@@ -290,11 +291,11 @@ useEffect(() => {
   !!seat &&
   isPnrVerified &&
   !pnrError &&
-  items.length > 0;
+  cartItems.length > 0;
 
   /* ================= PLACE ORDER ================= */
   const placeOrder = async () => {
-    if (!items.length) {
+    if (!cartItems.length) {
       alert("Cart empty");
       return;
     }
@@ -304,13 +305,13 @@ useEffect(() => {
       return;
     }
 
-    const firstItem = items[0];
+    const firstItem = cartItems[0];
     const rawRestroCode = journey?.restroCode || firstItem?.restro_code;
     const cleanRestroCode = rawRestroCode ? parseInt(rawRestroCode.toString(), 10) : 0;
 
     try {
       // 🔥 FIX: 'as any' bypass lagaya hai taaki strict type validation break na kare
-      const formattedItems = items.map((item) => {
+      const formattedItems = cartItems.map((item) => {
         const i = item as any; 
         return {
           id: i.id,
@@ -532,7 +533,7 @@ useEffect(() => {
 
           {/* ITEM ROWS */}
           <div className="max-h-[190px] overflow-y-auto divide-y divide-slate-100 px-4">
-            {items.map((i) => (
+            {cartItems.map((i) => (
               <div key={i.id} className="flex justify-between items-center py-3 gap-3">
                 <div className="min-w-0 flex-1">
                   <div className="font-semibold text-sm text-slate-700 truncate">
