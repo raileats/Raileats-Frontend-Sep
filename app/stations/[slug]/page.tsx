@@ -75,6 +75,20 @@ function safeRating(value: any) {
   return value;
 }
 
+function restroImage(r: any) {
+  return (
+    r?.RestroImage ||
+    r?.restroImage ||
+    r?.image ||
+    r?.Image ||
+    r?.photo ||
+    r?.Photo ||
+    r?.logo ||
+    r?.Logo ||
+    "/raileats-logo.png"
+  );
+}
+
 async function getStationNameByCode(code: string, fallback: string) {
   const { data } = await serviceClient
     .from("RestroMaster")
@@ -233,107 +247,129 @@ export default async function Page({ params }: { params: { slug: string } }) {
           </Link>
         </section>
 
-        <section className="mt-5 md:mt-8">
-          <h2 className="text-lg font-bold tracking-[-0.2px] text-slate-900 md:text-2xl">
+        <section className="mt-5">
+          <h2 className="text-lg font-bold tracking-[-0.2px] text-slate-900">
             Active Restaurants at {stationName}
           </h2>
 
           {restroError ? (
-            <div className="mt-3 rounded-2xl border bg-white p-4 text-sm text-red-600 shadow-sm md:p-6">
+            <div className="mt-3 rounded-2xl border bg-white p-4 text-sm text-red-600 shadow-sm">
               Error loading restaurants: {restroError.message}
             </div>
           ) : activeRestros.length === 0 ? (
-            <div className="mt-3 rounded-2xl border bg-white p-4 text-sm leading-6 text-slate-600 shadow-sm md:p-6">
+            <div className="mt-3 rounded-2xl border bg-white p-4 text-sm leading-6 text-slate-600 shadow-sm">
               No active restaurants available right now at {stationName}. You
               can still search your train or nearby station to order food in
               train.
             </div>
           ) : (
-            <div className="mt-3 grid gap-3 md:grid-cols-3 md:gap-4">
-              {activeRestros.map((r: any) => (
-                <div
-                  key={r.RestroCode}
-                  className="rounded-[20px] border border-slate-200 bg-white p-4 shadow-sm"
-                >
-                  <h3 className="text-[15px] font-bold leading-5 tracking-[-0.2px] text-slate-900 md:text-lg">
-                    {r.RestroName}
-                  </h3>
+            <div className="mt-3 grid gap-3">
+              {activeRestros.map((r: any) => {
+                const href = `/stations/${params.slug}/${r.RestroCode}-${String(
+                  r.RestroName || ""
+                )
+                  .toLowerCase()
+                  .replace(/[^a-z0-9]+/g, "-")
+                  .replace(/^-+|-+$/g, "")}?mode=station`;
 
-                  <p className="mt-1 text-xs leading-5 text-slate-500 md:text-sm">
-                    {stationName} ({stationBase.code})
-                  </p>
-
-                  <p className="mt-1.5 text-xs text-slate-600 md:text-sm">
-                    Rating: {safeRating(r.RestroRating)}
-                  </p>
-
-                  <Link
-                    href={`/stations/${params.slug}/${r.RestroCode}-${String(
-                      r.RestroName || ""
-                    )
-                      .toLowerCase()
-                      .replace(/[^a-z0-9]+/g, "-")
-                      .replace(/^-+|-+$/g, "")}?mode=station`}
-                    className="mt-3 inline-block rounded-xl bg-orange-500 px-4 py-2 text-xs font-bold text-white shadow-sm md:text-sm"
+                return (
+                  <div
+                    key={r.RestroCode}
+                    className="rounded-[20px] border border-slate-200 bg-white p-4 shadow-sm"
                   >
-                    View Menu
-                  </Link>
-                </div>
-              ))}
+                    <div className="flex items-start justify-between gap-3">
+                      {/* LEFT DETAILS */}
+                      <div className="min-w-0 flex-1">
+                        <h3 className="text-[16px] font-black leading-5 tracking-[-0.2px] text-slate-900">
+                          🍴 {r.RestroName}
+                        </h3>
+
+                        <p className="mt-2 text-[13px] font-bold leading-5 text-slate-600">
+                          Min Order: Rs {Number(r.MinOrder || r.MinimumOrder || 0)}
+                        </p>
+
+                        <p className="mt-1.5 text-[12px] font-semibold leading-5 text-slate-500">
+                          {stationName} ({stationBase.code})
+                        </p>
+
+                        <p className="mt-1.5 text-[12px] font-semibold text-slate-500">
+                          Rating: {safeRating(r.RestroRating)}
+                        </p>
+                      </div>
+
+                      {/* RIGHT IMAGE + BUTTON */}
+                      <div className="flex w-[108px] shrink-0 flex-col items-center gap-2">
+                        <div className="h-[86px] w-[86px] overflow-hidden rounded-2xl border border-slate-200 bg-slate-100">
+                          <img
+                            src={restroImage(r)}
+                            alt={r.RestroName || "Restaurant"}
+                            className="h-full w-full object-cover"
+                          />
+                        </div>
+
+                        <Link
+                          href={href}
+                          className="w-full rounded-xl bg-orange-500 py-2 text-center text-xs font-black text-white shadow-sm"
+                        >
+                          Order Now
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </section>
 
-        <section className="mt-5 rounded-[20px] border border-slate-200 bg-white p-4 shadow-sm md:mt-8 md:p-6">
-          <h2 className="text-lg font-bold tracking-[-0.2px] text-slate-900 md:text-2xl">
+        <section className="mt-5 rounded-[20px] border border-slate-200 bg-white p-4 shadow-sm">
+          <h2 className="text-lg font-bold tracking-[-0.2px] text-slate-900">
             Order Food in Train at {stationName}
           </h2>
 
-          <p className="mt-2 text-[13px] leading-6 text-slate-600 md:text-base md:leading-7">
+          <p className="mt-2 text-[13px] leading-6 text-slate-600">
             RailEats offers online food delivery in train at {stationName}{" "}
             ({stationBase.code}) railway station. Passengers can search by train
             number, PNR or station, select available restaurants and place food
             orders for delivery at their train seat.
           </p>
 
-          <p className="mt-2 text-[13px] leading-6 text-slate-600 md:text-base md:leading-7">
+          <p className="mt-2 text-[13px] leading-6 text-slate-600">
             If you are travelling through {stationName}, RailEats helps you
             discover train food options including thalis, meals, biryani,
             snacks, beverages and restaurant specials depending on availability.
           </p>
         </section>
 
-        <section className="mt-5 rounded-[20px] border border-slate-200 bg-white p-4 shadow-sm md:mt-8 md:p-6">
-          <h2 className="text-lg font-bold tracking-[-0.2px] text-slate-900 md:text-2xl">
+        <section className="mt-5 rounded-[20px] border border-slate-200 bg-white p-4 shadow-sm">
+          <h2 className="text-lg font-bold tracking-[-0.2px] text-slate-900">
             Why choose RailEats at {stationName}?
           </h2>
 
-          <div className="mt-3 grid gap-3 md:grid-cols-3 md:gap-4">
-            <div className="rounded-2xl border border-slate-200 p-3 md:p-4">
-              <h3 className="text-sm font-bold text-slate-900">
-                Fresh Meals
-              </h3>
-              <p className="mt-1.5 text-xs leading-5 text-slate-600 md:text-sm md:leading-6">
+          <div className="mt-3 grid gap-3">
+            <div className="rounded-2xl border border-slate-200 p-3">
+              <h3 className="text-sm font-bold text-slate-900">Fresh Meals</h3>
+              <p className="mt-1.5 text-xs leading-5 text-slate-600">
                 Order freshly prepared food from available restaurants near the
                 railway station.
               </p>
             </div>
 
-            <div className="rounded-2xl border border-slate-200 p-3 md:p-4">
+            <div className="rounded-2xl border border-slate-200 p-3">
               <h3 className="text-sm font-bold text-slate-900">
                 Train Seat Delivery
               </h3>
-              <p className="mt-1.5 text-xs leading-5 text-slate-600 md:text-sm md:leading-6">
+              <p className="mt-1.5 text-xs leading-5 text-slate-600">
                 Get your food delivered to your train seat at supported
                 stations.
               </p>
             </div>
 
-            <div className="rounded-2xl border border-slate-200 p-3 md:p-4">
+            <div className="rounded-2xl border border-slate-200 p-3">
               <h3 className="text-sm font-bold text-slate-900">
                 Easy Online Ordering
               </h3>
-              <p className="mt-1.5 text-xs leading-5 text-slate-600 md:text-sm md:leading-6">
+              <p className="mt-1.5 text-xs leading-5 text-slate-600">
                 Search by train, PNR or station and place your food order
                 online.
               </p>
@@ -341,18 +377,18 @@ export default async function Page({ params }: { params: { slug: string } }) {
           </div>
         </section>
 
-        <section className="mt-5 rounded-[20px] border border-slate-200 bg-white p-4 shadow-sm md:mt-10 md:p-6">
-          <h2 className="text-lg font-bold tracking-[-0.2px] text-slate-900 md:text-2xl">
+        <section className="mt-5 rounded-[20px] border border-slate-200 bg-white p-4 shadow-sm">
+          <h2 className="text-lg font-bold tracking-[-0.2px] text-slate-900">
             Frequently Asked Questions
           </h2>
 
-          <div className="mt-4 space-y-4 md:mt-6 md:space-y-5">
+          <div className="mt-4 space-y-4">
             <div>
-              <h3 className="text-sm font-semibold leading-5 text-slate-900 md:text-lg">
+              <h3 className="text-sm font-semibold leading-5 text-slate-900">
                 How can I order food in train at {stationName} station?
               </h3>
 
-              <p className="mt-1.5 text-xs leading-5 text-slate-600 md:text-base md:leading-7">
+              <p className="mt-1.5 text-xs leading-5 text-slate-600">
                 Enter your train number or search by station, choose an active
                 restaurant at {stationName} railway station, select food items
                 and place your order online with RailEats.
@@ -360,33 +396,33 @@ export default async function Page({ params }: { params: { slug: string } }) {
             </div>
 
             <div>
-              <h3 className="text-sm font-semibold leading-5 text-slate-900 md:text-lg">
+              <h3 className="text-sm font-semibold leading-5 text-slate-900">
                 Is food delivery available at {stationName} railway station?
               </h3>
 
-              <p className="mt-1.5 text-xs leading-5 text-slate-600 md:text-base md:leading-7">
+              <p className="mt-1.5 text-xs leading-5 text-slate-600">
                 Yes, RailEats provides fresh food delivery in train at{" "}
                 {stationName} station from trusted and active restaurants.
               </p>
             </div>
 
             <div>
-              <h3 className="text-sm font-semibold leading-5 text-slate-900 md:text-lg">
+              <h3 className="text-sm font-semibold leading-5 text-slate-900">
                 Can I order food without PNR at {stationName} station?
               </h3>
 
-              <p className="mt-1.5 text-xs leading-5 text-slate-600 md:text-base md:leading-7">
+              <p className="mt-1.5 text-xs leading-5 text-slate-600">
                 Yes, passengers can order food in train using train number or by
                 selecting the station directly without entering PNR details.
               </p>
             </div>
 
             <div>
-              <h3 className="text-sm font-semibold leading-5 text-slate-900 md:text-lg">
+              <h3 className="text-sm font-semibold leading-5 text-slate-900">
                 Which restaurants deliver food at {stationName} railway station?
               </h3>
 
-              <p className="mt-1.5 text-xs leading-5 text-slate-600 md:text-base md:leading-7">
+              <p className="mt-1.5 text-xs leading-5 text-slate-600">
                 RailEats shows active restaurants available for food delivery at{" "}
                 {stationName} station based on restaurant timings and
                 availability.
