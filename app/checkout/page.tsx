@@ -345,7 +345,7 @@ const finalStationName =
           RestroCode: cleanRestroCode,
           RestroName: vendorName !== "N/A" ? vendorName : (firstItem?.restro_name || "N/A"),
           StationCode: finalStationCode || "N/A",
-StationName: finalStationName || "N/A",,
+          StationName: finalStationName || "N/A",
           DeliveryDate: deliveryDate, 
           DeliveryTime: deliveryTime,
           TrainNumber: trainNumber || "N/A",
