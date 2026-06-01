@@ -453,7 +453,7 @@ const header = {
   };
 
   return (
-    <main className="container-app menu-page">
+    <main className="w-full">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
