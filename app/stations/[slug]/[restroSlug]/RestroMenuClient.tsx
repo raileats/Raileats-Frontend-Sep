@@ -248,7 +248,7 @@ export default function RestroMenuClient({
   };
 
   return (
-    <BookingFlowShell className="pt-2">
+    <BookingFlowShell>
       <div
         style={{
           width: "100%",
