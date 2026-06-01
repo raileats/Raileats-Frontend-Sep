@@ -306,6 +306,15 @@ useEffect(() => {
     }
 
     const firstItem = cartItems[0];
+    const finalStationCode =
+  stationCode && stationCode !== "N/A"
+    ? stationCode
+    : String(firstItem?.station_code || "");
+
+const finalStationName =
+  stationName && stationName !== "N/A"
+    ? stationName
+    : String(firstItem?.station_name || "");
     const rawRestroCode = journey?.restroCode || firstItem?.restro_code;
     const cleanRestroCode = rawRestroCode ? parseInt(rawRestroCode.toString(), 10) : 0;
 
@@ -335,8 +344,8 @@ useEffect(() => {
         body: JSON.stringify({
           RestroCode: cleanRestroCode,
           RestroName: vendorName !== "N/A" ? vendorName : (firstItem?.restro_name || "N/A"),
-          StationCode: stationCode || firstItem?.station_code || "N/A",
-          StationName: stationName !== "N/A" ? stationName : (firstItem?.station_name || "N/A"),
+          StationCode: finalStationCode || "N/A",
+StationName: finalStationName || "N/A",,
           DeliveryDate: deliveryDate, 
           DeliveryTime: deliveryTime,
           TrainNumber: trainNumber || "N/A",
