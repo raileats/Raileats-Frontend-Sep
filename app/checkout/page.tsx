@@ -336,6 +336,7 @@ useEffect(() => {
   readOnly={isPnrLocked}
   onChange={(e) => setPnr(e.target.value)}
 />
+</div>>
 
             {/* LAST ROW: COACH + SEAT + PROMO */}
             <div className="flex items-center gap-2 w-full">
