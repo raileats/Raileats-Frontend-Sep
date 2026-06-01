@@ -388,9 +388,9 @@ useEffect(() => {
   };
 
   return (
-    <div className="max-w-md mx-auto h-screen flex flex-col bg-slate-50 pb-[150px]">
+    <div className="mx-auto h-screen w-full max-w-[640px] flex flex-col bg-slate-50 px-2 pt-4 pb-[150px]">
       {/* SCROLL AREA */}
-      <div className="flex-1 overflow-y-auto p-3 space-y-4 scrollbar-hide pt-2">
+      <div className="flex-1 overflow-y-auto space-y-4 scrollbar-hide">
         
         {/* 1. JOURNEY + PASSENGER DETAILS */}
         <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-4">
@@ -566,7 +566,7 @@ useEffect(() => {
 
       {/* 3. FIXED PAYMENT BOTTOM BAR */}
       <div className="fixed bottom-[56px] left-0 right-0 bg-white border-t border-slate-100 shadow-[0_-4px_25px_rgba(0,0,0,0.05)] z-40">
-        <div className="max-w-md mx-auto p-4">
+        <div className="mx-auto w-full max-w-[640px] px-2 py-4">
           
           {/* PAYMENT MODE SELECTOR */}
           <div className="flex items-center justify-between mb-3.5">
