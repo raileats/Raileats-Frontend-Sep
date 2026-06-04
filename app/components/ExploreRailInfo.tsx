@@ -278,13 +278,9 @@ export default function ExploreRailInfo() {
                                   Booking Status
                                 </div>
 
-                                <div
-                                  className={`text-base font-black leading-tight ${getStatusTextColor(
-                                    bookingStatus
-                                  )}`}
-                                >
-                                  {p.bookingDetails || p.bookingStatus || "N/A"}
-                                </div>
+                                <div className="text-sm font-semibold leading-tight text-slate-900">
+  {p.bookingDetails || p.bookingStatus || "N/A"}
+</div>
                               </div>
                             </div>
                           </div>
