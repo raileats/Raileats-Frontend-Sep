@@ -428,45 +428,42 @@ useEffect(() => {
       </div>
 
       <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 9,
-          flexWrap: "wrap",
-        }}
-      >
-        {displayDeliveryDate ? (
-          <span
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 4,
-              color: "#2563eb",
-              fontSize: 12,
-              fontWeight: 900,
-            }}
-          >
-            <span style={{ fontSize: 12 }}>📅</span>
-            {displayDeliveryDate}
-          </span>
-        ) : null}
+  style={{
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    color: "#2563eb",
+    fontSize: 12,
+    fontWeight: 900,
+    whiteSpace: "nowrap",
+  }}
+>
+  {displayDeliveryDate ? (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 4,
+      }}
+    >
+      <span style={{ fontSize: 12 }}>📅</span>
+      {displayDeliveryDate}
+    </span>
+  ) : null}
 
-        {displayDeliveryTime ? (
-          <span
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 4,
-              color: "#2563eb",
-              fontSize: 12,
-              fontWeight: 900,
-            }}
-          >
-            <span style={{ fontSize: 12 }}>⏰</span>
-            {displayDeliveryTime}
-          </span>
-        ) : null}
-      </div>
+  {displayDeliveryTime ? (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 4,
+      }}
+    >
+      <span style={{ fontSize: 12 }}>⏰</span>
+      {displayDeliveryTime}
+    </span>
+  ) : null}
+</div>
     </div>
 
     <div
