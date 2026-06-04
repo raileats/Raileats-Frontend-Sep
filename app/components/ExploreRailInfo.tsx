@@ -2,81 +2,18 @@
 
 import { useState } from "react";
 
-type PnrPassenger = {
-  serial?: number;
-  quota?: string;
-  bookingStatus?: string;
-  bookingDetails?: string;
-  bookingBerthNo?: number | string;
-  currentStatus?: string;
-  currentDetails?: string;
-  currentBerthNo?: number | string;
-  currentCoachId?: string;
-  passengerNationality?: string;
-  childBerthFlag?: boolean;
-};
-
-type PnrResult = {
-  ok?: boolean;
-  pnr?: string;
-  trainNo?: string | null;
-  trainName?: string | null;
-  dateOfJourney?: string | null;
-  boardingPoint?: string | null;
-  source?: string | null;
-  destination?: string | null;
-  chartStatus?: string | null;
-  passengersCount?: number;
-  passengers?: PnrPassenger[];
-  fare?: {
-    bookingFare?: number | null;
-    ticketFare?: number | null;
-  };
-  raw?: any;
-  error?: string;
-  message?: string;
-};
-
-const valueOrDash = (value: any) => {
-  const text = String(value ?? "").trim();
-  return text || "-";
-};
-
-const formatDateTime = (value?: string | null) => {
-  if (!value) return "-";
-
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-
-  return date.toLocaleString("en-IN", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-};
-
 export default function ExploreRailInfo() {
-  const [pnrOpen, setPnrOpen] = useState(false);
+  const [open, setOpen] = useState(false);
   const [pnr, setPnr] = useState("");
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<PnrResult | null>(null);
+  const [result, setResult] = useState<any>(null);
   const [error, setError] = useState("");
 
-  const closePnrModal = () => {
-    setPnrOpen(false);
-    setPnr("");
-    setResult(null);
-    setError("");
-    setLoading(false);
-  };
-
   const searchPnr = async () => {
-    const cleanPnr = pnr.replace(/\D/g, "").slice(0, 10);
+    const clean = pnr.replace(/\D/g, "").slice(0, 10);
 
-    if (cleanPnr.length !== 10) {
-      setError("Please enter valid 10 digit PNR.");
+    if (clean.length !== 10) {
+      setError("Please enter valid 10 digit PNR");
       setResult(null);
       return;
     }
@@ -86,250 +23,208 @@ export default function ExploreRailInfo() {
       setError("");
       setResult(null);
 
-      const res = await fetch(`/api/pnr/${encodeURIComponent(cleanPnr)}`, {
-        cache: "no-store",
-      });
-
-      const json = await res.json().catch(() => null);
+      const res = await fetch(`/api/pnr/${clean}`, { cache: "no-store" });
+      const json = await res.json();
 
       if (!res.ok || !json?.ok) {
-        setError(json?.message || json?.error || "PNR details not found.");
+        setError(json?.message || "PNR details not found");
         return;
       }
 
       setResult(json);
-    } catch (err) {
-      console.error(err);
-      setError("Unable to fetch PNR details. Please try again.");
+    } catch {
+      setError("Unable to check PNR right now");
     } finally {
       setLoading(false);
     }
   };
 
-  const raw = result?.raw || {};
-  const journeyClass = raw?.journeyClass || raw?.class || raw?.JourneyClass || "";
-  const reservationUpto =
-    raw?.reservationUpto ||
-    raw?.ReservationUpto ||
-    result?.destination ||
-    "";
-  const bookingDate = raw?.bookingDate || raw?.BookingDate || "";
-  const arrivalDate = raw?.arrivalDate || raw?.ArrivalDate || "";
-  const distance = raw?.distance || raw?.Distance || "";
-  const quota = raw?.quota || raw?.Quota || "";
+  const fmt = (value?: string | null) => {
+    if (!value) return "N/A";
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return value;
+    return d.toLocaleString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
 
   return (
-    <>
-      <section className="mt-10 max-w-4xl mx-auto px-4">
-        <h2 className="text-center font-bold mb-4">Explore Railway Information</h2>
+    <section className="mt-10 max-w-4xl mx-auto px-4">
+      <h2 className="text-center font-bold mb-4">Explore Railway Information</h2>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-          <button
-            type="button"
-            className="p-4 bg-white shadow rounded font-semibold"
-          >
-            🚆 Track Live Train
-          </button>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+        <div className="p-4 bg-white shadow rounded">🚆 Track Live Train</div>
 
-          <button
-            type="button"
-            onClick={() => setPnrOpen(true)}
-            className="p-4 bg-white shadow rounded font-semibold active:scale-[0.98]"
-          >
-            📋 Check PNR Status
-          </button>
+        <button
+          type="button"
+          onClick={() => {
+            setOpen(true);
+            setError("");
+            setResult(null);
+          }}
+          className="p-4 bg-white shadow rounded text-center"
+        >
+          📋 Check PNR Status
+        </button>
 
-          <button
-            type="button"
-            className="p-4 bg-white shadow rounded font-semibold"
-          >
-            📍 Platform Locator
-          </button>
+        <div className="p-4 bg-white shadow rounded">📍 Platform Locator</div>
+        <div className="p-4 bg-white shadow rounded">🕒 Train Time Table</div>
+      </div>
 
-          <button
-            type="button"
-            className="p-4 bg-white shadow rounded font-semibold"
-          >
-            🕒 Train Time Table
-          </button>
-        </div>
-      </section>
-
-      {pnrOpen && (
-        <div className="fixed inset-0 z-[9999] bg-black/50 px-4 flex items-center justify-center">
-          <div className="w-full max-w-md max-h-[86vh] overflow-y-auto rounded-2xl bg-white shadow-2xl">
-            <div className="sticky top-0 bg-white border-b border-slate-100 px-4 py-3 flex items-center justify-between">
+      {open && (
+        <div className="fixed inset-0 z-[9999] bg-black/55 flex items-center justify-center px-4">
+          <div className="w-full max-w-md max-h-[88vh] overflow-y-auto bg-white rounded-3xl shadow-2xl">
+            <div className="sticky top-0 bg-white border-b px-5 py-4 rounded-t-3xl flex justify-between items-start">
               <div>
-                <h3 className="font-black text-slate-900 text-lg">
+                <h3 className="text-xl font-black text-slate-900">
                   Check PNR Status
                 </h3>
-                <p className="text-xs text-slate-500 mt-0.5">
+                <p className="text-sm text-slate-500 mt-1">
                   Enter 10 digit PNR to view journey details.
                 </p>
               </div>
 
               <button
                 type="button"
-                onClick={closePnrModal}
-                className="w-9 h-9 rounded-full border border-slate-200 text-xl leading-none"
-                aria-label="Close PNR status"
+                onClick={() => setOpen(false)}
+                className="w-10 h-10 rounded-full border text-xl font-bold"
               >
                 ×
               </button>
             </div>
 
-            <div className="p-4 space-y-4">
+            <div className="p-5 space-y-4">
               <div className="flex gap-2">
                 <input
                   value={pnr}
                   onChange={(e) =>
                     setPnr(e.target.value.replace(/\D/g, "").slice(0, 10))
                   }
-                  placeholder="Enter 10 digit PNR"
-                  inputMode="numeric"
-                  className="min-w-0 flex-1 rounded-xl border border-slate-200 px-3 py-3 text-sm font-semibold outline-none focus:border-orange-500"
+                  placeholder="Enter PNR"
+                  className="flex-1 border rounded-2xl px-4 py-3 font-bold text-lg outline-none focus:border-orange-500"
                 />
 
                 <button
                   type="button"
                   onClick={searchPnr}
                   disabled={loading}
-                  className="rounded-xl bg-orange-500 px-4 py-3 text-sm font-black text-white disabled:opacity-60"
+                  className="px-5 rounded-2xl bg-orange-500 text-white font-black disabled:opacity-60"
                 >
                   {loading ? "..." : "Search"}
                 </button>
               </div>
 
               {error && (
-                <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-600">
+                <div className="rounded-2xl bg-red-50 border border-red-100 px-4 py-3 text-sm font-bold text-red-600">
                   {error}
                 </div>
               )}
 
               {result && (
-                <div className="space-y-4">
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
-                    <div className="flex items-start justify-between gap-3">
+                <>
+                  <div className="rounded-3xl border bg-gradient-to-br from-orange-50 via-white to-blue-50 p-4 space-y-3">
+                    <div className="flex justify-between gap-3">
                       <div>
-                        <div className="text-xs font-bold text-slate-500">
+                        <div className="text-xs font-black text-slate-500">
                           PNR
                         </div>
-                        <div className="text-lg font-black text-slate-900">
-                          {valueOrDash(result.pnr)}
+                        <div className="text-2xl font-black text-slate-950">
+                          {result.pnr}
                         </div>
                       </div>
 
-                      <div className="rounded-full bg-blue-50 px-3 py-1 text-xs font-black text-blue-700">
-                        {valueOrDash(result.chartStatus)}
-                      </div>
+                      <span className="h-fit rounded-full bg-green-100 text-green-700 px-3 py-1 text-xs font-black">
+                        {result.chartStatus || "Status N/A"}
+                      </span>
                     </div>
 
-                    <div className="mt-3 grid grid-cols-1 gap-2 text-sm">
-                      <div className="font-black text-slate-900">
-                        🚆 {valueOrDash(result.trainNo)} -{" "}
-                        {valueOrDash(result.trainName)}
-                      </div>
+                    <div className="text-base font-black text-slate-900">
+                      🚆 {result.trainNo || "N/A"}{" "}
+                      {result.trainName ? `- ${result.trainName}` : ""}
+                    </div>
 
-                      <div className="text-slate-600">
-                        📅 Journey: {formatDateTime(result.dateOfJourney)}
-                      </div>
-
-                      <div className="text-slate-600">
-                        🎟 Class: {valueOrDash(journeyClass)} | Quota:{" "}
-                        {valueOrDash(quota)}
-                      </div>
-
-                      <div className="text-slate-600">
-                        📍 Source: {valueOrDash(result.source)} | Boarding:{" "}
-                        {valueOrDash(result.boardingPoint)}
-                      </div>
-
-                      <div className="text-slate-600">
-                        🏁 Destination: {valueOrDash(result.destination)} |
-                        Deboard: {valueOrDash(reservationUpto)}
-                      </div>
-
-                      {arrivalDate ? (
-                        <div className="text-slate-600">
-                          ⏰ Arrival: {formatDateTime(arrivalDate)}
-                        </div>
-                      ) : null}
-
-                      {bookingDate ? (
-                        <div className="text-slate-600">
-                          🧾 Booking Date: {formatDateTime(bookingDate)}
-                        </div>
-                      ) : null}
-
-                      <div className="text-slate-600">
-                        💰 Fare: Rs {valueOrDash(result.fare?.ticketFare)}{" "}
-                        {distance ? `| Distance: ${distance} km` : ""}
-                      </div>
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      <Info label="Journey" value={fmt(result.dateOfJourney)} />
+                      <Info label="Arrival" value={fmt(result.raw?.arrivalDate)} />
+                      <Info label="Class" value={result.raw?.journeyClass || "N/A"} />
+                      <Info label="Chart" value={result.chartStatus || "N/A"} />
+                      <Info label="Boarding" value={result.boardingPoint || "N/A"} />
+                      <Info label="Destination" value={result.destination || "N/A"} />
                     </div>
                   </div>
 
                   <div>
-                    <h4 className="mb-2 text-sm font-black text-slate-900">
+                    <h4 className="text-lg font-black text-slate-900 mb-3">
                       Passenger Details ({result.passengersCount || 0})
                     </h4>
 
-                    <div className="space-y-2">
-                      {(result.passengers || []).map((p, index) => (
+                    <div className="space-y-3">
+                      {(result.passengers || []).map((p: any, index: number) => (
                         <div
-                          key={`${p.serial || index}-${index}`}
-                          className="rounded-2xl border border-slate-200 bg-white p-3"
+                          key={index}
+                          className="rounded-3xl border bg-white p-4 shadow-sm"
                         >
-                          <div className="flex items-center justify-between gap-2">
-                            <div className="font-black text-slate-900">
-                              Passenger {p.serial || index + 1}
+                          <div className="flex justify-between items-start gap-3">
+                            <div>
+                              <div className="text-base font-black text-slate-900">
+                                Passenger {p.serial || index + 1}
+                              </div>
+                              <div className="text-sm text-slate-500 mt-1">
+                                Current status
+                              </div>
                             </div>
 
-                            <div className="rounded-full bg-green-50 px-2 py-1 text-xs font-black text-green-700">
-                              {valueOrDash(p.currentStatus)}
-                            </div>
+                            <span className="rounded-full bg-green-100 text-green-700 px-3 py-1 text-sm font-black">
+                              {p.currentStatus || "N/A"}
+                            </span>
                           </div>
 
-                          <div className="mt-2 grid grid-cols-1 gap-1 text-sm text-slate-600">
-                            <div>
-                              Current Seat/Coach:{" "}
-                              <strong className="text-slate-900">
-                                {valueOrDash(p.currentDetails)}
-                              </strong>
-                            </div>
-
-                            <div>
-                              Coach:{" "}
-                              <strong className="text-slate-900">
-                                {valueOrDash(p.currentCoachId)}
-                              </strong>{" "}
-                              | Seat:{" "}
-                              <strong className="text-slate-900">
-                                {valueOrDash(p.currentBerthNo)}
-                              </strong>
-                            </div>
-
-                            <div>
-                              Booking Status:{" "}
-                              <strong className="text-slate-900">
-                                {valueOrDash(p.bookingDetails)}
-                              </strong>
-                            </div>
-
-                            <div>
-                              Quota: {valueOrDash(p.quota)} | Nationality:{" "}
-                              {valueOrDash(p.passengerNationality)}
-                            </div>
+                          <div className="mt-4 grid grid-cols-2 gap-3">
+                            <MiniInfo label="Coach" value={p.currentCoachId || "N/A"} />
+                            <MiniInfo label="Seat" value={p.currentBerthNo || "N/A"} />
+                            <MiniInfo
+                              label="Current"
+                              value={p.currentDetails || "N/A"}
+                            />
+                            <MiniInfo
+                              label="Booking"
+                              value={p.bookingDetails || "N/A"}
+                            />
                           </div>
                         </div>
                       ))}
                     </div>
                   </div>
-                </div>
+                </>
               )}
             </div>
           </div>
         </div>
       )}
-    </>
+    </section>
+  );
+}
+
+function Info({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl bg-white/80 border px-3 py-2">
+      <div className="text-[11px] font-black text-slate-400">{label}</div>
+      <div className="text-sm font-black text-slate-800 leading-tight">
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function MiniInfo({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl bg-slate-50 px-3 py-2">
+      <div className="text-[11px] font-black text-slate-400">{label}</div>
+      <div className="text-sm font-black text-slate-900">{value}</div>
+    </div>
   );
 }
