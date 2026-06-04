@@ -256,139 +256,126 @@ export default function TrainPage() {
       <SaveOrderData data={orderData} />
 
       <section
+  style={{
+    background: "#ffffff",
+    border: "1px solid #e2e8f0",
+    borderRadius: 18,
+    padding: 12,
+    boxShadow: "0 2px 10px rgba(15,23,42,0.04)",
+  }}
+>
+  <div
+    style={{
+      fontSize: 10,
+      fontWeight: 800,
+      color: "#64748b",
+      letterSpacing: 0.5,
+      marginBottom: 7,
+      textTransform: "uppercase",
+    }}
+  >
+    Train Food Delivery
+  </div>
+
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: "30px minmax(0, 1fr)",
+      gap: 9,
+      alignItems: "start",
+    }}
+  >
+    <span
+      style={{
+        width: 30,
+        height: 30,
+        borderRadius: 11,
+        background: "#fff7ed",
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        border: "1px solid #fed7aa",
+        color: "#f97316",
+      }}
+    >
+      <TrainFront size={16} strokeWidth={2.2} />
+    </span>
+
+    <div style={{ minWidth: 0 }}>
+      <h1
         style={{
-          background: "#ffffff",
-          border: "1px solid #e2e8f0",
-          borderRadius: 20,
-          padding: 14,
-          boxShadow: "0 2px 10px rgba(15,23,42,0.04)",
+          margin: 0,
+          fontSize: "clamp(13px, 3.5vw, 18px)",
+          lineHeight: 1.18,
+          fontWeight: 800,
+          color: "#1e293b",
+          letterSpacing: "-0.15px",
+        }}
+      >
+        Food in Train {trainNumber}
+        {displayTrainName ? ` - ${displayTrainName}` : ""}
+      </h1>
+
+      <div
+        style={{
+          marginTop: 9,
+          display: "grid",
+          gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+          gap: 7,
         }}
       >
         <div
           style={{
-            fontSize: 11,
-            fontWeight: 700,
-            color: "#64748b",
-            letterSpacing: 0.6,
-            marginBottom: 8,
-            textTransform: "uppercase",
+            border: "1px solid #f3e8c5",
+            borderRadius: 11,
+            padding: "7px 9px",
+            background: "#fffdf7",
           }}
         >
-          Train Food Delivery
+          <div style={{ fontSize: 10, color: "#64748b", fontWeight: 700 }}>
+            Boarding
+          </div>
+
+          <div
+            style={{
+              marginTop: 1,
+              fontSize: 13,
+              fontWeight: 800,
+              color: "#1e293b",
+            }}
+          >
+            {boarding || "-"}
+          </div>
         </div>
 
         <div
           style={{
-            display: "flex",
-            alignItems: "flex-start",
-            gap: 10,
-            minWidth: 0,
+            border: "1px solid #f3e8c5",
+            borderRadius: 11,
+            padding: "7px 9px",
+            background: "#fffdf7",
           }}
         >
-          <span
+          <div style={{ fontSize: 10, color: "#64748b", fontWeight: 700 }}>
+            Journey Date
+          </div>
+
+          <div
             style={{
-              width: 34,
-              height: 34,
-              borderRadius: 12,
-              background: "#fff7ed",
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              border: "1px solid #fed7aa",
-              flexShrink: 0,
-              color: "#f97316",
+              marginTop: 1,
+              fontSize: 13,
+              fontWeight: 800,
+              color: "#1e293b",
+              wordBreak: "break-word",
             }}
           >
-            <TrainFront size={18} strokeWidth={2.2} />
-          </span>
-
-          <div style={{ minWidth: 0, width: "100%" }}>
-            <h1
-              style={{
-                margin: 0,
-                fontSize: "clamp(15px, 4vw, 22px)",
-                lineHeight: 1.22,
-                fontWeight: 700,
-                color: "#1e293b",
-                letterSpacing: "-0.2px",
-              }}
-            >
-              Food in Train {trainNumber}
-              {displayTrainName ? ` - ${displayTrainName}` : ""}
-            </h1>
-
-            <div
-              style={{
-                marginTop: 10,
-                display: "grid",
-                gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-                gap: 8,
-              }}
-            >
-              <div
-                style={{
-                  border: "1px solid #f3e8c5",
-                  borderRadius: 12,
-                  padding: "9px 10px",
-                  background: "#fffdf7",
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: 11,
-                    color: "#64748b",
-                    fontWeight: 600,
-                  }}
-                >
-                  Boarding
-                </div>
-
-                <div
-                  style={{
-                    marginTop: 2,
-                    fontSize: 15,
-                    fontWeight: 700,
-                    color: "#1e293b",
-                  }}
-                >
-                  {boarding || "-"}
-                </div>
-              </div>
-
-              <div
-                style={{
-                  border: "1px solid #f3e8c5",
-                  borderRadius: 12,
-                  padding: "9px 10px",
-                  background: "#fffdf7",
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: 11,
-                    color: "#64748b",
-                    fontWeight: 600,
-                  }}
-                >
-                  Journey Date
-                </div>
-
-                <div
-                  style={{
-                    marginTop: 2,
-                    fontSize: 15,
-                    fontWeight: 700,
-                    color: "#1e293b",
-                  }}
-                >
-                  {urlDate || "-"}
-                </div>
-              </div>
-            </div>
+            {urlDate || "-"}
           </div>
         </div>
-      </section>
-
+      </div>
+    </div>
+  </div>
+</section>
       {stations.map((st: any, index: number) => {
         const stationCode = st.StationCode;
         const stationName = st.StationName;
