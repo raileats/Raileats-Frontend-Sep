@@ -8,6 +8,8 @@ import BookingFlowShell from "../../../components/BookingFlowShell";
 
 const SUPABASE_PUBLIC_STORAGE =
   "https://ygisiztmuzwxpnvhwrmr.supabase.co/storage/v1/object/public";
+const DEFAULT_MENU_IMAGE =
+  "https://ygisiztmuzwxpnvhwrmr.supabase.co/storage/v1/object/public/menu_item_image/default-food.webp";
 
 type UrlJourney = {
   trainNumber: string;
@@ -101,7 +103,7 @@ const getItemImage = (it: any) => {
     "";
 
   const file = String(raw || "").trim();
-  if (!file) return "";
+  if (!file) return DEFAULT_MENU_IMAGE;
 
   if (/^https?:\/\//i.test(file) || file.startsWith("data:") || file.startsWith("blob:")) {
     return file;
@@ -748,12 +750,13 @@ useEffect(() => {
                         alt={it.item_name || "Menu item"}
                         loading="lazy"
                         onError={(e) => {
-                          e.currentTarget.style.display = "none";
-                        }}
+  e.currentTarget.src = DEFAULT_MENU_IMAGE;
+}}
                         style={{
                           width: 86,
                           height: 86,
-                          objectFit: "cover",
+                          objectFit: "contain",
+padding: 6,
                           borderRadius: 16,
                           border: "1px solid #dbe4ef",
                           background: "#fff",
