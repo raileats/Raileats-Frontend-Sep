@@ -363,34 +363,34 @@ useEffect(() => {
   style={{
     background: "#fff",
     border: "1px solid #dbe4ef",
-    borderRadius: 18,
-    boxShadow: "0 8px 22px rgba(15,23,42,0.06)",
-    padding: 16,
+    borderRadius: 16,
+    boxShadow: "0 6px 18px rgba(15,23,42,0.05)",
+    padding: 13,
   }}
 >
   <div
     style={{
-      fontSize: 13,
+      fontSize: 12,
       fontWeight: 900,
       color: "#64748b",
-      marginBottom: 10,
+      marginBottom: 8,
     }}
   >
     Journey
   </div>
 
-  <div style={{ display: "grid", gap: 9 }}>
+  <div style={{ display: "grid", gap: 7 }}>
     {displayTrainNumber ? (
-      <div style={{ display: "flex", alignItems: "flex-start", gap: 9 }}>
-        <span style={{ width: 24, flexShrink: 0, textAlign: "center" }}>
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+        <span style={{ width: 20, flexShrink: 0, textAlign: "center", fontSize: 15 }}>
           🚆
         </span>
         <span
           style={{
             color: "#ea580c",
-            fontSize: 17,
+            fontSize: 15,
             lineHeight: 1.18,
-            fontWeight: 950,
+            fontWeight: 900,
             overflowWrap: "anywhere",
           }}
         >
@@ -401,15 +401,15 @@ useEffect(() => {
       </div>
     ) : null}
 
-    <div style={{ display: "flex", alignItems: "flex-start", gap: 9 }}>
-      <span style={{ width: 24, flexShrink: 0, textAlign: "center" }}>
+    <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+      <span style={{ width: 20, flexShrink: 0, textAlign: "center", fontSize: 15 }}>
         📍
       </span>
       <span
         style={{
-          fontSize: 17,
-          lineHeight: 1.2,
-          fontWeight: 900,
+          fontSize: 15,
+          lineHeight: 1.18,
+          fontWeight: 850,
           color: "#334155",
           overflowWrap: "anywhere",
         }}
@@ -423,7 +423,7 @@ useEffect(() => {
       style={{
         display: "flex",
         alignItems: "center",
-        gap: 14,
+        gap: 12,
         flexWrap: "wrap",
       }}
     >
@@ -432,13 +432,13 @@ useEffect(() => {
           style={{
             display: "inline-flex",
             alignItems: "center",
-            gap: 7,
+            gap: 6,
             color: "#2563eb",
-            fontSize: 15,
-            fontWeight: 950,
+            fontSize: 14,
+            fontWeight: 900,
           }}
         >
-          <span>📅</span>
+          <span style={{ fontSize: 14 }}>📅</span>
           {displayDeliveryDate}
         </span>
       ) : null}
@@ -448,13 +448,13 @@ useEffect(() => {
           style={{
             display: "inline-flex",
             alignItems: "center",
-            gap: 7,
+            gap: 6,
             color: "#2563eb",
-            fontSize: 15,
-            fontWeight: 950,
+            fontSize: 14,
+            fontWeight: 900,
           }}
         >
-          <span>⏰</span>
+          <span style={{ fontSize: 14 }}>⏰</span>
           {displayDeliveryTime}
         </span>
       ) : null}
@@ -463,20 +463,20 @@ useEffect(() => {
 
   <div
     style={{
-      marginTop: 14,
-      paddingTop: 13,
+      marginTop: 11,
+      paddingTop: 10,
       borderTop: "1px solid #e2e8f0",
       display: "flex",
       alignItems: "flex-start",
-      gap: 10,
+      gap: 8,
     }}
   >
     <span
       style={{
-        width: 26,
+        width: 22,
         flexShrink: 0,
         textAlign: "center",
-        fontSize: 20,
+        fontSize: 16,
       }}
     >
       🍴
@@ -485,10 +485,10 @@ useEffect(() => {
     <div style={{ minWidth: 0, flex: 1 }}>
       <div
         style={{
-          fontSize: 21,
-          lineHeight: 1.15,
+          fontSize: 18,
+          lineHeight: 1.14,
           color: "#0f172a",
-          fontWeight: 950,
+          fontWeight: 900,
           overflowWrap: "anywhere",
         }}
       >
@@ -497,10 +497,10 @@ useEffect(() => {
 
       <div
         style={{
-          marginTop: 6,
-          fontSize: 15,
+          marginTop: 5,
+          fontSize: 14,
           color: "#475569",
-          fontWeight: 900,
+          fontWeight: 850,
         }}
       >
         Min Order: Rs {minimumOrder}
