@@ -30,8 +30,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    // ⚠️ TESTING: return OTP in response (later remove)
-    return NextResponse.json({ success: true, otp });
+    return NextResponse.json({ success: true, message: "otp_sent" });
 
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 });
