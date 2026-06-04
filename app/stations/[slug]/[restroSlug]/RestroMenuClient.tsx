@@ -89,14 +89,14 @@ const getPrice = (it: any) => {
   return Number(it?.base_price || it?.selling_price || it?.price || 0);
 };
 const getItemImage = (it: any) => {
-  const file =
-    it?.menu_item_image ||
-    it?.MenuItemImage ||
-    it?.item_image ||
-    it?.ItemImage ||
-    it?.image ||
-    it?.Image ||
-    "";
+  const file = String(it?.menu_item_image || "").trim();
+
+  if (!file) return "";
+
+  if (file.startsWith("http")) return file;
+
+  return `https://ygisiztmuzwxpnvhwrmr.supabase.co/storage/v1/object/public/menu_item_image/${file}`;
+};
 
   if (!file) return "";
 
