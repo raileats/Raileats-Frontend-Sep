@@ -679,17 +679,18 @@ export default function RestroMenuClient({
 
   {getItemImage(it) ? (
     <img
-      src={getItemImage(it)}
-      alt={it.item_name || "Menu item"}
-      style={{
-        width: 86,
-        height: 86,
-        objectFit: "cover",
-        borderRadius: 16,
-        border: "1px solid #dbe4ef",
-        background: "#f1f5f9",
-      }}
-    />
+  src={getItemImage(it)}
+  alt={it.item_name || "Menu item"}
+  style={{
+    width: 86,
+    height: 86,
+    objectFit: "contain",
+    padding: 6,
+    borderRadius: 16,
+    border: "1px solid #dbe4ef",
+    background: "#fff",
+  }}
+/>
   ) : null}
 </div>
                 </div>
