@@ -89,15 +89,26 @@ const getPrice = (it: any) => {
   return Number(it?.base_price || it?.selling_price || it?.price || 0);
 };
 const getItemImage = (it: any) => {
-  return (
+  const file =
     it?.menu_item_image ||
     it?.MenuItemImage ||
     it?.item_image ||
     it?.ItemImage ||
     it?.image ||
     it?.Image ||
-    ""
-  );
+    "";
+
+  if (!file) return "";
+
+  if (String(file).startsWith("http") || String(file).startsWith("/")) {
+    return String(file);
+  }
+
+  const base = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+
+  return `${base}/storage/v1/object/public/menu_item_image/${encodeURIComponent(
+    String(file)
+  )}`;
 };
 
 export default function RestroMenuClient({
@@ -591,87 +602,109 @@ export default function RestroMenuClient({
                     </div>
                   </div>
 
-                  <div style={{ flexShrink: 0 }}>
-                    {!isStationOnlyView && (
-                      <>
-                        {!existing ? (
-                          <button
-                            type="button"
-                            onClick={() => handleAdd(it)}
-                            style={{
-                              minWidth: 64,
-                              minHeight: 42,
-                              border: 0,
-                              borderRadius: 13,
-                              background: "#f97316",
-                              color: "#fff",
-                              fontSize: 15,
-                              fontWeight: 900,
-                              cursor: "pointer",
-                            }}
-                          >
-                            Add
-                          </button>
-                        ) : (
-                          <div
-                            style={{
-                              display: "inline-flex",
-                              alignItems: "center",
-                              border: "1px solid #dbe4ef",
-                              borderRadius: 12,
-                              overflow: "hidden",
-                              background: "#fff",
-                            }}
-                          >
-                            <button
-                              type="button"
-                              onClick={() =>
-                                handleQty(it, Number(existing.qty || 0) - 1)
-                              }
-                              style={{
-                                width: 32,
-                                height: 38,
-                                border: 0,
-                                background: "#fff",
-                                fontWeight: 900,
-                                cursor: "pointer",
-                              }}
-                            >
-                              -
-                            </button>
+                  <div
+  style={{
+    width: 96,
+    flexShrink: 0,
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: 10,
+  }}
+>
+  {!isStationOnlyView && (
+    <>
+      {!existing ? (
+        <button
+          type="button"
+          onClick={() => handleAdd(it)}
+          style={{
+            width: "100%",
+            minHeight: 42,
+            border: 0,
+            borderRadius: 13,
+            background: "#f97316",
+            color: "#fff",
+            fontSize: 15,
+            fontWeight: 900,
+            cursor: "pointer",
+          }}
+        >
+          Add
+        </button>
+      ) : (
+        <div
+          style={{
+            width: "100%",
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            border: "1px solid #dbe4ef",
+            borderRadius: 12,
+            overflow: "hidden",
+            background: "#fff",
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => handleQty(it, Number(existing.qty || 0) - 1)}
+            style={{
+              width: 30,
+              height: 38,
+              border: 0,
+              background: "#fff",
+              fontWeight: 900,
+              cursor: "pointer",
+            }}
+          >
+            -
+          </button>
 
-                            <span
-                              style={{
-                                minWidth: 22,
-                                textAlign: "center",
-                                fontWeight: 900,
-                                color: "#0f172a",
-                              }}
-                            >
-                              {Number(existing.qty || 0)}
-                            </span>
+          <span
+            style={{
+              minWidth: 22,
+              textAlign: "center",
+              fontWeight: 900,
+              color: "#0f172a",
+            }}
+          >
+            {Number(existing.qty || 0)}
+          </span>
 
-                            <button
-                              type="button"
-                              onClick={() =>
-                                handleQty(it, Number(existing.qty || 0) + 1)
-                              }
-                              style={{
-                                width: 32,
-                                height: 38,
-                                border: 0,
-                                background: "#fff",
-                                fontWeight: 900,
-                                cursor: "pointer",
-                              }}
-                            >
-                              +
-                            </button>
-                          </div>
-                        )}
-                      </>
-                    )}
-                  </div>
+          <button
+            type="button"
+            onClick={() => handleQty(it, Number(existing.qty || 0) + 1)}
+            style={{
+              width: 30,
+              height: 38,
+              border: 0,
+              background: "#fff",
+              fontWeight: 900,
+              cursor: "pointer",
+            }}
+          >
+            +
+          </button>
+        </div>
+      )}
+    </>
+  )}
+
+  {getItemImage(it) ? (
+    <img
+      src={getItemImage(it)}
+      alt={it.item_name || "Menu item"}
+      style={{
+        width: 86,
+        height: 86,
+        objectFit: "cover",
+        borderRadius: 16,
+        border: "1px solid #dbe4ef",
+        background: "#f1f5f9",
+      }}
+    />
+  ) : null}
+</div>
                 </div>
               </article>
             );
