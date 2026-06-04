@@ -123,8 +123,7 @@ export default function RestroMenuClient({
   nextParams = {},
 }: any) {
   const { user } = useAuth();
-  const { add, changeQty, cart, setJourney } = useCart();
-
+  const { add, changeQty, cart, setJourney, clearCart } = useCart();
   const [vegOnly, setVegOnly] = useState(false);
   const [trainMin, setTrainMin] = useState<number | null>(null);
 
@@ -201,6 +200,42 @@ export default function RestroMenuClient({
     "Restaurant";
 
   const minimumOrder = Number(header?.minimumOrder || nextParams?.minOrder || 0);
+  const currentRestroCode = String(header?.restroCode || nextParams?.restroCode || "");
+
+const currentCartContextKey = [
+  currentRestroCode,
+  displayTrainNumber,
+  displayStationCode,
+  displayDeliveryDate,
+  displayDeliveryTime,
+].join("|");
+
+useEffect(() => {
+  if (!currentRestroCode) return;
+
+  const cartItems = Array.isArray(cart) ? cart : Object.values(cart || {});
+  if (cartItems.length === 0) return;
+
+  const firstItem: any = cartItems[0];
+
+  const savedRestroCode = String(
+    firstItem?.restro_code ||
+      firstItem?.restroCode ||
+      ""
+  );
+
+  const savedContextKey = [
+    savedRestroCode,
+    firstItem?.trainNumber || "",
+    firstItem?.station_code || firstItem?.stationCode || "",
+    firstItem?.deliveryDate || "",
+    firstItem?.deliveryTime || "",
+  ].join("|");
+
+  if (savedContextKey !== currentCartContextKey) {
+    clearCart();
+  }
+}, [cart, clearCart, currentRestroCode, currentCartContextKey]);
 
   const isStationOnlyView = nextParams?.mode === "station" || !displayTrainNumber;
 
