@@ -43,6 +43,7 @@ export default function ExploreRailInfo() {
     if (!value) return "N/A";
     const d = new Date(value);
     if (Number.isNaN(d.getTime())) return value;
+
     return d.toLocaleString("en-IN", {
       day: "2-digit",
       month: "short",
@@ -76,9 +77,9 @@ export default function ExploreRailInfo() {
       </div>
 
       {open && (
-        <div className="fixed inset-0 z-[9999] bg-black/55 flex items-center justify-center px-4">
-          <div className="w-full max-w-md max-h-[88vh] overflow-y-auto bg-white rounded-3xl shadow-2xl">
-            <div className="sticky top-0 bg-white border-b px-5 py-4 rounded-t-3xl flex justify-between items-start">
+        <div className="fixed inset-0 z-[9999] bg-black/55 flex items-center justify-center px-3">
+          <div className="w-full max-w-md max-h-[88vh] overflow-y-auto overflow-x-hidden bg-white rounded-3xl shadow-2xl">
+            <div className="sticky top-0 z-10 bg-white border-b px-5 py-4 rounded-t-3xl flex justify-between items-start">
               <div>
                 <h3 className="text-xl font-black text-slate-900">
                   Check PNR Status
@@ -91,28 +92,28 @@ export default function ExploreRailInfo() {
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                className="w-10 h-10 rounded-full border text-xl font-bold"
+                className="w-10 h-10 shrink-0 rounded-full border text-xl font-bold"
               >
                 ×
               </button>
             </div>
 
             <div className="p-5 space-y-4">
-              <div className="flex gap-2">
+              <div className="grid grid-cols-[minmax(0,1fr)_92px] gap-2">
                 <input
                   value={pnr}
                   onChange={(e) =>
                     setPnr(e.target.value.replace(/\D/g, "").slice(0, 10))
                   }
                   placeholder="Enter PNR"
-                  className="flex-1 border rounded-2xl px-4 py-3 font-bold text-lg outline-none focus:border-orange-500"
+                  className="min-w-0 border rounded-2xl px-4 py-3 font-bold text-lg outline-none focus:border-orange-500"
                 />
 
                 <button
                   type="button"
                   onClick={searchPnr}
                   disabled={loading}
-                  className="px-5 rounded-2xl bg-orange-500 text-white font-black disabled:opacity-60"
+                  className="rounded-2xl bg-orange-500 text-white text-sm font-black disabled:opacity-60"
                 >
                   {loading ? "..." : "Search"}
                 </button>
@@ -163,40 +164,73 @@ export default function ExploreRailInfo() {
                     </h4>
 
                     <div className="space-y-3">
-                      {(result.passengers || []).map((p: any, index: number) => (
-                        <div
-                          key={index}
-                          className="rounded-3xl border bg-white p-4 shadow-sm"
-                        >
-                          <div className="flex justify-between items-start gap-3">
-                            <div>
-                              <div className="text-base font-black text-slate-900">
-                                Passenger {p.serial || index + 1}
+                      {(result.passengers || []).map((p: any, index: number) => {
+                        const status = String(
+                          p.currentStatus || p.bookingStatus || ""
+                        ).toUpperCase();
+
+                        const statusStyle = getStatusStyle(status);
+                        const currentDetails =
+                          p.currentDetails ||
+                          p.bookingDetails ||
+                          "N/A";
+
+                        return (
+                          <div
+                            key={index}
+                            className="rounded-3xl border bg-white p-4 shadow-sm"
+                          >
+                            <div className="flex justify-between items-start gap-3">
+                              <div>
+                                <div className="text-base font-black text-slate-900">
+                                  Passenger {p.serial || index + 1}
+                                </div>
+                                <div className="text-xs font-bold text-slate-400 mt-1">
+                                  Current seat / coach
+                                </div>
                               </div>
-                              <div className="text-sm text-slate-500 mt-1">
-                                Current status
+
+                              <span
+                                className={`rounded-full px-3 py-1 text-sm font-black ${statusStyle}`}
+                              >
+                                {status || "N/A"}
+                              </span>
+                            </div>
+
+                            <div className="mt-4 rounded-2xl bg-slate-50 border border-slate-100 px-4 py-3">
+                              <div
+                                className={`text-xl font-black leading-tight ${getStatusTextColor(
+                                  status
+                                )}`}
+                              >
+                                {currentDetails}
+                              </div>
+
+                              <div className="mt-2 text-sm font-bold text-slate-500">
+                                Coach:{" "}
+                                <span className="text-slate-900">
+                                  {p.currentCoachId || "N/A"}
+                                </span>
+                                {"  "}•{"  "}
+                                Seat:{" "}
+                                <span className="text-slate-900">
+                                  {p.currentBerthNo || "N/A"}
+                                </span>
                               </div>
                             </div>
 
-                            <span className="rounded-full bg-green-100 text-green-700 px-3 py-1 text-sm font-black">
-                              {p.currentStatus || "N/A"}
-                            </span>
+                            {p.bookingDetails &&
+                              p.bookingDetails !== currentDetails && (
+                                <div className="mt-3 text-sm font-bold text-slate-500">
+                                  Booking:{" "}
+                                  <span className="text-slate-900">
+                                    {p.bookingDetails}
+                                  </span>
+                                </div>
+                              )}
                           </div>
-
-                          <div className="mt-4 grid grid-cols-2 gap-3">
-                            <MiniInfo label="Coach" value={p.currentCoachId || "N/A"} />
-                            <MiniInfo label="Seat" value={p.currentBerthNo || "N/A"} />
-                            <MiniInfo
-                              label="Current"
-                              value={p.currentDetails || "N/A"}
-                            />
-                            <MiniInfo
-                              label="Booking"
-                              value={p.bookingDetails || "N/A"}
-                            />
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 </>
@@ -209,6 +243,29 @@ export default function ExploreRailInfo() {
   );
 }
 
+function getStatusStyle(status: string) {
+  if (status.includes("WL")) {
+    return "bg-red-100 text-red-700";
+  }
+
+  if (status.includes("RAC")) {
+    return "bg-blue-100 text-blue-700";
+  }
+
+  if (status.includes("CNF") || status.includes("CONFIRM")) {
+    return "bg-green-100 text-green-700";
+  }
+
+  return "bg-slate-100 text-slate-700";
+}
+
+function getStatusTextColor(status: string) {
+  if (status.includes("WL")) return "text-red-700";
+  if (status.includes("RAC")) return "text-blue-700";
+  if (status.includes("CNF") || status.includes("CONFIRM")) return "text-green-700";
+  return "text-slate-900";
+}
+
 function Info({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-2xl bg-white/80 border px-3 py-2">
@@ -216,15 +273,6 @@ function Info({ label, value }: { label: string; value: string }) {
       <div className="text-sm font-black text-slate-800 leading-tight">
         {value}
       </div>
-    </div>
-  );
-}
-
-function MiniInfo({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-2xl bg-slate-50 px-3 py-2">
-      <div className="text-[11px] font-black text-slate-400">{label}</div>
-      <div className="text-sm font-black text-slate-900">{value}</div>
     </div>
   );
 }
