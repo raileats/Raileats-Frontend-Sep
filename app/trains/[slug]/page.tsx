@@ -536,213 +536,177 @@ export default function TrainPage() {
 
                 return (
                   <article
-                    key={r.RestroCode}
-                    style={{
-                      background: "#ffffff",
-                      border: "1px solid #e2e8f0",
-                      borderRadius: 18,
-                      padding: 11,
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: 10,
-                      boxShadow: "0 1px 6px rgba(15,23,42,0.04)",
-                    }}
-                  >
-                    <div
-                      style={{
-                        display: "grid",
-                        gridTemplateColumns: "82px minmax(0, 1fr)",
-                        gap: 10,
-                        alignItems: "stretch",
-                      }}
-                    >
-                      <div
-                        style={{
-                          width: 82,
-                          height: 82,
-                          background: "#f1f5f9",
-                          borderRadius: 14,
-                          overflow: "hidden",
-                          border: "1px solid #e2e8f0",
-                        }}
-                      >
-                        {img ? (
-                          <img
-                            src={img}
-                            alt={r.RestroName || "Restaurant"}
-                            style={{
-                              width: "100%",
-                              height: "100%",
-                              objectFit: "cover",
-                            }}
-                          />
-                        ) : (
-                          <div
-                            style={{
-                              height: "100%",
-                              display: "grid",
-                              placeItems: "center",
-                              color: "#94a3b8",
-                            }}
-                          >
-                            <Utensils size={24} strokeWidth={2.1} />
-                          </div>
-                        )}
-                      </div>
+  key={r.RestroCode}
+  style={{
+    background: "#ffffff",
+    border: "1px solid #e2e8f0",
+    borderRadius: 18,
+    padding: 11,
+    boxShadow: "0 1px 6px rgba(15,23,42,0.04)",
+  }}
+>
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: "minmax(0, 1fr) 96px",
+      gap: 10,
+      alignItems: "stretch",
+    }}
+  >
+    {/* LEFT DETAILS */}
+    <div style={{ minWidth: 0 }}>
+      <h3
+        style={{
+          margin: 0,
+          fontSize: 16,
+          lineHeight: 1.18,
+          fontWeight: 800,
+          color: "#1e293b",
+          display: "flex",
+          alignItems: "flex-start",
+          gap: 6,
+          overflowWrap: "anywhere",
+        }}
+      >
+        <Utensils
+          size={15}
+          strokeWidth={2.2}
+          style={{ color: "#64748b", flexShrink: 0, marginTop: 2 }}
+        />
+        <span>{r.RestroName || "Restaurant"}</span>
+      </h3>
 
-                      <div
-                        style={{
-                          minWidth: 0,
-                          display: "flex",
-                          flexDirection: "column",
-                          justifyContent: "space-between",
-                          gap: 8,
-                        }}
-                      >
-                        <div>
-                          <div
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "space-between",
-                              gap: 8,
-                            }}
-                          >
-                            <h3
-                              style={{
-                                margin: 0,
-                                minWidth: 0,
-                                fontSize: 15,
-                                lineHeight: 1.25,
-                                fontWeight: 700,
-                                color: "#1e293b",
-                                overflowWrap: "anywhere",
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 5,
-                              }}
-                            >
-                              <Utensils
-                                size={14}
-                                strokeWidth={2.2}
-                                style={{
-                                  color: "#64748b",
-                                  flexShrink: 0,
-                                }}
-                              />
+      <div
+        style={{
+          marginTop: 8,
+          display: "inline-flex",
+          alignItems: "center",
+          borderRadius: 999,
+          background: Number(r.IsPureVeg) === 1 ? "#ecfdf5" : "#f8fafc",
+          color: Number(r.IsPureVeg) === 1 ? "#16a34a" : "#64748b",
+          border:
+            Number(r.IsPureVeg) === 1
+              ? "1px solid #bbf7d0"
+              : "1px solid #e2e8f0",
+          padding: "4px 8px",
+          fontSize: 10,
+          lineHeight: 1,
+          fontWeight: 800,
+          whiteSpace: "nowrap",
+        }}
+      >
+        {Number(r.IsPureVeg) === 1 ? "Pure Veg" : "Veg & Non-Veg"}
+      </div>
 
-                              <span>{r.RestroName || "Restaurant"}</span>
-                            </h3>
+      <div
+        style={{
+          marginTop: 9,
+          fontSize: 12,
+          color: "#64748b",
+          fontWeight: 700,
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+          flexWrap: "wrap",
+        }}
+      >
+        <span style={{ color: "#475569", fontWeight: 800 }}>Min Order:</span>
+        <span>Rs {r.MinimumOrderValue || 0}</span>
+      </div>
 
-                            <span
-                              style={{
-                                flexShrink: 0,
-                                borderRadius: 999,
-                                background:
-                                  Number(r.IsPureVeg) === 1
-                                    ? "#ecfdf5"
-                                    : "#f8fafc",
-                                color:
-                                  Number(r.IsPureVeg) === 1
-                                    ? "#16a34a"
-                                    : "#64748b",
-                                border:
-                                  Number(r.IsPureVeg) === 1
-                                    ? "1px solid #bbf7d0"
-                                    : "1px solid #e2e8f0",
-                                padding: "4px 8px",
-                                fontSize: 10,
-                                lineHeight: 1,
-                                fontWeight: 700,
-                                whiteSpace: "nowrap",
-                              }}
-                            >
-                              {Number(r.IsPureVeg) === 1
-                                ? "Pure Veg"
-                                : "Veg & Non-Veg"}
-                            </span>
-                          </div>
+      <div
+        style={{
+          marginTop: 7,
+          color: isClosingSoon ? "#dc2626" : "#2563eb",
+          display: "flex",
+          alignItems: "flex-start",
+          gap: 6,
+          lineHeight: 1.25,
+          fontSize: 11,
+          fontWeight: 800,
+        }}
+      >
+        <Clock size={13} strokeWidth={2.2} style={{ flexShrink: 0, marginTop: 1 }} />
+        <span>Order before: {timeText}</span>
+      </div>
+    </div>
 
-                          <div
-                            style={{
-                              marginTop: 7,
-                              fontSize: 12,
-                              color: "#64748b",
-                              fontWeight: 600,
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 6,
-                            }}
-                          >
-                            <span
-                              style={{
-                                color: "#475569",
-                                fontWeight: 700,
-                              }}
-                            >
-                              Min Order:
-                            </span>
+    {/* RIGHT PHOTO + BUTTON */}
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "stretch",
+        gap: 8,
+      }}
+    >
+      <div
+        style={{
+          width: "100%",
+          height: 86,
+          background: "#f1f5f9",
+          borderRadius: 14,
+          overflow: "hidden",
+          border: "1px solid #e2e8f0",
+        }}
+      >
+        {img ? (
+          <img
+            src={img}
+            alt={r.RestroName || "Restaurant"}
+            style={{
+              width: "100%",
+              height: "100%",
+              objectFit: "cover",
+            }}
+          />
+        ) : (
+          <div
+            style={{
+              height: "100%",
+              display: "grid",
+              placeItems: "center",
+              color: "#94a3b8",
+            }}
+          >
+            <Utensils size={24} strokeWidth={2.1} />
+          </div>
+        )}
+      </div>
 
-                            <span>Rs {r.MinimumOrderValue || 0}</span>
-                          </div>
-
-                          <div
-                            style={{
-                              marginTop: 6,
-                              color: isClosingSoon ? "#dc2626" : "#2563eb",
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 6,
-                              lineHeight: 1.2,
-                              fontSize: 11,
-                              fontWeight: 700,
-                            }}
-                          >
-                            <Clock size={13} strokeWidth={2.2} />
-                            <span>Order before: {timeText}</span>
-                          </div>
-                        </div>
-
-                        <a
-                          href={`/Stations/${stationSlug}/${restroSlug}?deliveryDate=${encodeURIComponent(
-                            deliveryDate
-                          )}${
-                            cleanArrival
-                              ? `&deliveryTime=${encodeURIComponent(
-                                  cleanArrival
-                                )}`
-                              : ""
-                          }${
-                            cleanArrival
-                              ? `&arrival=${encodeURIComponent(cleanArrival)}`
-                              : ""
-                          }&train=${encodeURIComponent(
-                            trainNumber
-                          )}&trainName=${encodeURIComponent(
-                            finalTrainName
-                          )}&boarding=${encodeURIComponent(
-                            boarding
-                          )}&minOrder=${encodeURIComponent(
-                            r.MinimumOrderValue || 0
-                          )}`}
-                          style={{
-                            alignSelf: "flex-start",
-                            background: "#f97316",
-                            color: "#fff",
-                            borderRadius: 11,
-                            padding: "9px 14px",
-                            fontSize: 12,
-                            fontWeight: 700,
-                            textDecoration: "none",
-                            whiteSpace: "nowrap",
-                            boxShadow: "0 4px 12px rgba(249,115,22,0.16)",
-                          }}
-                        >
-                          Order Now
-                        </a>
-                      </div>
-                    </div>
-                  </article>
+      <a
+        href={`/Stations/${stationSlug}/${restroSlug}?deliveryDate=${encodeURIComponent(
+          deliveryDate
+        )}${
+          cleanArrival
+            ? `&deliveryTime=${encodeURIComponent(cleanArrival)}`
+            : ""
+        }${
+          cleanArrival ? `&arrival=${encodeURIComponent(cleanArrival)}` : ""
+        }&train=${encodeURIComponent(trainNumber)}&trainName=${encodeURIComponent(
+          finalTrainName
+        )}&boarding=${encodeURIComponent(boarding)}&minOrder=${encodeURIComponent(
+          r.MinimumOrderValue || 0
+        )}`}
+        style={{
+          width: "100%",
+          textAlign: "center",
+          background: "#f97316",
+          color: "#fff",
+          borderRadius: 12,
+          padding: "9px 8px",
+          fontSize: 12,
+          fontWeight: 800,
+          textDecoration: "none",
+          whiteSpace: "nowrap",
+          boxShadow: "0 4px 12px rgba(249,115,22,0.16)",
+        }}
+      >
+        Order Now
+      </a>
+    </div>
+  </div>
+</article>
                 );
               })}
             </div>
