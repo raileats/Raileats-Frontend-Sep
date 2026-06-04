@@ -363,142 +363,150 @@ useEffect(() => {
   style={{
     background: "#fff",
     border: "1px solid #dbe4ef",
-    borderRadius: 16,
-    boxShadow: "0 6px 18px rgba(15,23,42,0.05)",
-    padding: 13,
+    borderRadius: 14,
+    boxShadow: "0 5px 14px rgba(15,23,42,0.05)",
+    padding: 11,
   }}
 >
   <div
     style={{
-      fontSize: 12,
+      fontSize: 11,
       fontWeight: 900,
       color: "#64748b",
-      marginBottom: 8,
+      marginBottom: 7,
     }}
   >
     Journey
   </div>
 
-  <div style={{ display: "grid", gap: 7 }}>
-    {displayTrainNumber ? (
-      <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
-        <span style={{ width: 20, flexShrink: 0, textAlign: "center", fontSize: 15 }}>
-          🚆
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: "minmax(0, 1fr) minmax(118px, 0.82fr)",
+      gap: 10,
+      alignItems: "start",
+    }}
+  >
+    <div style={{ minWidth: 0, display: "grid", gap: 6 }}>
+      {displayTrainNumber ? (
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 6 }}>
+          <span style={{ width: 17, flexShrink: 0, textAlign: "center", fontSize: 13 }}>
+            🚆
+          </span>
+          <span
+            style={{
+              color: "#ea580c",
+              fontSize: 13,
+              lineHeight: 1.15,
+              fontWeight: 900,
+              overflowWrap: "anywhere",
+            }}
+          >
+            {displayTrainName
+              ? `${displayTrainNumber} - ${displayTrainName}`
+              : `Train #${displayTrainNumber}`}
+          </span>
+        </div>
+      ) : null}
+
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 6 }}>
+        <span style={{ width: 17, flexShrink: 0, textAlign: "center", fontSize: 13 }}>
+          📍
         </span>
         <span
           style={{
-            color: "#ea580c",
-            fontSize: 15,
-            lineHeight: 1.18,
-            fontWeight: 900,
+            fontSize: 13,
+            lineHeight: 1.15,
+            fontWeight: 850,
+            color: "#334155",
             overflowWrap: "anywhere",
           }}
         >
-          {displayTrainName
-            ? `${displayTrainNumber} - ${displayTrainName}`
-            : `Train #${displayTrainNumber}`}
+          {displayStationName || "-"}
+          {displayStationCode ? ` (${displayStationCode})` : ""}
         </span>
       </div>
-    ) : null}
 
-    <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
-      <span style={{ width: 20, flexShrink: 0, textAlign: "center", fontSize: 15 }}>
-        📍
-      </span>
-      <span
+      <div
         style={{
-          fontSize: 15,
-          lineHeight: 1.18,
-          fontWeight: 850,
-          color: "#334155",
-          overflowWrap: "anywhere",
+          display: "flex",
+          alignItems: "center",
+          gap: 9,
+          flexWrap: "wrap",
         }}
       >
-        {displayStationName || "-"}
-        {displayStationCode ? ` (${displayStationCode})` : ""}
-      </span>
+        {displayDeliveryDate ? (
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+              color: "#2563eb",
+              fontSize: 12,
+              fontWeight: 900,
+            }}
+          >
+            <span style={{ fontSize: 12 }}>📅</span>
+            {displayDeliveryDate}
+          </span>
+        ) : null}
+
+        {displayDeliveryTime ? (
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+              color: "#2563eb",
+              fontSize: 12,
+              fontWeight: 900,
+            }}
+          >
+            <span style={{ fontSize: 12 }}>⏰</span>
+            {displayDeliveryTime}
+          </span>
+        ) : null}
+      </div>
     </div>
 
     <div
       style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 12,
-        flexWrap: "wrap",
+        minWidth: 0,
+        display: "grid",
+        gap: 5,
+        justifyItems: "end",
+        textAlign: "right",
       }}
     >
-      {displayDeliveryDate ? (
-        <span
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 6,
-            color: "#2563eb",
-            fontSize: 14,
-            fontWeight: 900,
-          }}
-        >
-          <span style={{ fontSize: 14 }}>📅</span>
-          {displayDeliveryDate}
-        </span>
-      ) : null}
-
-      {displayDeliveryTime ? (
-        <span
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 6,
-            color: "#2563eb",
-            fontSize: 14,
-            fontWeight: 900,
-          }}
-        >
-          <span style={{ fontSize: 14 }}>⏰</span>
-          {displayDeliveryTime}
-        </span>
-      ) : null}
-    </div>
-  </div>
-
-  <div
-    style={{
-      marginTop: 11,
-      paddingTop: 10,
-      borderTop: "1px solid #e2e8f0",
-      display: "flex",
-      alignItems: "flex-start",
-      gap: 8,
-    }}
-  >
-    <span
-      style={{
-        width: 22,
-        flexShrink: 0,
-        textAlign: "center",
-        fontSize: 16,
-      }}
-    >
-      🍴
-    </span>
-
-    <div style={{ minWidth: 0, flex: 1 }}>
       <div
         style={{
-          fontSize: 18,
-          lineHeight: 1.14,
-          color: "#0f172a",
-          fontWeight: 900,
-          overflowWrap: "anywhere",
+          display: "flex",
+          alignItems: "flex-start",
+          justifyContent: "flex-end",
+          gap: 5,
+          minWidth: 0,
+          width: "100%",
         }}
       >
-        {displayRestroName}
+        <span style={{ flexShrink: 0, fontSize: 13 }}>🍴</span>
+        <span
+          style={{
+            minWidth: 0,
+            fontSize: 13,
+            lineHeight: 1.15,
+            color: "#0f172a",
+            fontWeight: 900,
+            overflowWrap: "anywhere",
+          }}
+        >
+          {displayRestroName}
+        </span>
       </div>
 
       <div
         style={{
-          marginTop: 5,
-          fontSize: 14,
+          fontSize: 12,
+          lineHeight: 1.15,
           color: "#475569",
           fontWeight: 850,
         }}
