@@ -94,16 +94,17 @@ export async function GET(req: Request) {
     const { data, error } = await supa
       .from("RestroMenuItems")
       .select(`
-        item_code,
-        item_name,
-        item_description,
-        item_category,
-        menu_type,
-        base_price,
-        start_time,
-        end_time,
-        status
-      `)
+  item_code,
+  item_name,
+  item_description,
+  item_category,
+  menu_type,
+  base_price,
+  start_time,
+  end_time,
+  status,
+  menu_item_image
+`)
       .eq("restro_code", restroCode);
 
     if (error) {
@@ -180,6 +181,8 @@ export async function GET(req: Request) {
 
           status:
             item.status || "ON",
+          menu_item_image:
+  item.menu_item_image || "",
         };
       }
     );
