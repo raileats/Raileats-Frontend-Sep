@@ -98,19 +98,6 @@ const getItemImage = (it: any) => {
   return `https://ygisiztmuzwxpnvhwrmr.supabase.co/storage/v1/object/public/menu_item_image/${file}`;
 };
 
-  if (!file) return "";
-
-  if (String(file).startsWith("http") || String(file).startsWith("/")) {
-    return String(file);
-  }
-
-  const base = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
-
-  return `${base}/storage/v1/object/public/menu_item_image/${encodeURIComponent(
-    String(file)
-  )}`;
-};
-
 export default function RestroMenuClient({
   items = [],
   header = {},
