@@ -1,6 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+
+const DAILY_PNR_LIMIT = 5;
+
+function getTodayKey() {
+  const today = new Date().toLocaleDateString("en-IN", {
+    timeZone: "Asia/Kolkata",
+  });
+
+  return `raileats_pnr_search_count_${today}`;
+}
 
 export default function ExploreRailInfo() {
   const [open, setOpen] = useState(false);
@@ -8,12 +18,27 @@ export default function ExploreRailInfo() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState("");
+  const [nowTick, setNowTick] = useState(Date.now());
+
+  useEffect(() => {
+    const timer = setInterval(() => setNowTick(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   const searchPnr = async () => {
     const clean = pnr.replace(/\D/g, "").slice(0, 10);
 
     if (clean.length !== 10) {
       setError("Please enter valid 10 digit PNR");
+      setResult(null);
+      return;
+    }
+
+    const countKey = getTodayKey();
+    const usedCount = Number(localStorage.getItem(countKey) || 0);
+
+    if (usedCount >= DAILY_PNR_LIMIT) {
+      setError("Aaj ke liye 5 PNR searches complete ho chuke hain.");
       setResult(null);
       return;
     }
@@ -31,6 +56,7 @@ export default function ExploreRailInfo() {
         return;
       }
 
+      localStorage.setItem(countKey, String(usedCount + 1));
       setResult(json);
     } catch {
       setError("Unable to check PNR right now");
@@ -52,6 +78,23 @@ export default function ExploreRailInfo() {
       minute: "2-digit",
     });
   };
+
+  const boardingDate = result?.dateOfJourney ? new Date(result.dateOfJourney) : null;
+
+  const boardingDay =
+    boardingDate && !Number.isNaN(boardingDate.getTime())
+      ? boardingDate.toLocaleDateString("en-US", { weekday: "short" }).toUpperCase()
+      : "N/A";
+
+  const departed =
+    boardingDate && !Number.isNaN(boardingDate.getTime())
+      ? boardingDate.getTime() <= nowTick
+      : false;
+
+  const countdown =
+    boardingDate && !Number.isNaN(boardingDate.getTime())
+      ? getCountdown(boardingDate.getTime() - nowTick)
+      : "N/A";
 
   return (
     <section className="mt-10 max-w-4xl mx-auto px-4">
@@ -130,9 +173,7 @@ export default function ExploreRailInfo() {
                   <div className="rounded-3xl border bg-gradient-to-br from-orange-50 via-white to-blue-50 p-4 space-y-3">
                     <div className="flex justify-between gap-3">
                       <div>
-                        <div className="text-xs font-black text-slate-500">
-                          PNR
-                        </div>
+                        <div className="text-xs font-black text-slate-500">PNR</div>
                         <div className="text-2xl font-black text-slate-950">
                           {result.pnr}
                         </div>
@@ -148,11 +189,31 @@ export default function ExploreRailInfo() {
                       {result.trainName ? `- ${result.trainName}` : ""}
                     </div>
 
+                    <div
+                      className={`rounded-2xl px-4 py-3 border ${
+                        departed
+                          ? "bg-red-50 border-red-100"
+                          : "bg-green-50 border-green-100"
+                      }`}
+                    >
+                      <div className="text-[11px] font-black text-slate-500">
+                        Boarding Countdown
+                      </div>
+
+                      <div
+                        className={`text-lg font-black ${
+                          departed ? "text-red-700" : "text-green-700"
+                        }`}
+                      >
+                        {departed ? "Train Departed" : countdown}
+                      </div>
+                    </div>
+
                     <div className="grid grid-cols-2 gap-2 text-sm">
+                      <Info label="Boarding Day" value={boardingDay} />
                       <Info label="Journey" value={fmt(result.dateOfJourney)} />
                       <Info label="Arrival" value={fmt(result.raw?.arrivalDate)} />
                       <Info label="Class" value={result.raw?.journeyClass || "N/A"} />
-                      <Info label="Chart" value={result.chartStatus || "N/A"} />
                       <Info label="Boarding" value={result.boardingPoint || "N/A"} />
                       <Info label="Destination" value={result.destination || "N/A"} />
                     </div>
@@ -165,20 +226,18 @@ export default function ExploreRailInfo() {
 
                     <div className="space-y-3">
                       {(result.passengers || []).map((p: any, index: number) => {
-                        const status = String(
+                        const currentStatus = String(
                           p.currentStatus || p.bookingStatus || ""
                         ).toUpperCase();
 
-                        const statusStyle = getStatusStyle(status);
-                        const currentDetails =
-                          p.currentDetails ||
-                          p.bookingDetails ||
-                          "N/A";
+                        const bookingStatus = String(
+                          p.bookingStatus || ""
+                        ).toUpperCase();
 
                         return (
                           <div
                             key={index}
-                            className="rounded-3xl border bg-white p-4 shadow-sm"
+                            className="rounded-3xl border bg-white p-3 shadow-sm"
                           >
                             <div className="flex justify-between items-start gap-3">
                               <div>
@@ -186,52 +245,59 @@ export default function ExploreRailInfo() {
                                   Passenger {p.serial || index + 1}
                                 </div>
                                 <div className="text-xs font-bold text-slate-400 mt-1">
-                                  Current seat / coach
+                                  Booking and current status
                                 </div>
                               </div>
 
                               <span
-                                className={`rounded-full px-3 py-1 text-sm font-black ${statusStyle}`}
+                                className={`rounded-full px-3 py-1 text-sm font-black ${getStatusStyle(
+                                  currentStatus
+                                )}`}
                               >
-                                {status || "N/A"}
+                                {currentStatus || "N/A"}
                               </span>
                             </div>
 
-                            <div className="mt-4 rounded-2xl bg-slate-50 border border-slate-100 px-4 py-3">
-                              <div
-                                className={`text-xl font-black leading-tight ${getStatusTextColor(
-                                  status
-                                )}`}
-                              >
-                                {currentDetails}
+                            <div className="mt-3 grid gap-2">
+                              <div className="rounded-2xl bg-slate-50 border border-slate-100 px-3 py-2">
+                                <div className="text-[11px] font-black text-slate-400">
+                                  Current Status
+                                </div>
+
+                                <div
+                                  className={`text-base font-black leading-tight ${getStatusTextColor(
+                                    currentStatus
+                                  )}`}
+                                >
+                                  {p.currentDetails || p.currentStatus || "N/A"}
+                                </div>
                               </div>
 
-                              <div className="mt-2 text-sm font-bold text-slate-500">
-                                Coach:{" "}
-                                <span className="text-slate-900">
-                                  {p.currentCoachId || "N/A"}
-                                </span>
-                                {"  "}•{"  "}
-                                Seat:{" "}
-                                <span className="text-slate-900">
-                                  {p.currentBerthNo || "N/A"}
-                                </span>
+                              <div className="rounded-2xl bg-orange-50 border border-orange-100 px-3 py-2">
+                                <div className="text-[11px] font-black text-slate-400">
+                                  Booking Status
+                                </div>
+
+                                <div
+                                  className={`text-base font-black leading-tight ${getStatusTextColor(
+                                    bookingStatus
+                                  )}`}
+                                >
+                                  {p.bookingDetails || p.bookingStatus || "N/A"}
+                                </div>
                               </div>
                             </div>
-
-                            {p.bookingDetails &&
-                              p.bookingDetails !== currentDetails && (
-                                <div className="mt-3 text-sm font-bold text-slate-500">
-                                  Booking:{" "}
-                                  <span className="text-slate-900">
-                                    {p.bookingDetails}
-                                  </span>
-                                </div>
-                              )}
                           </div>
                         );
                       })}
                     </div>
+                  </div>
+
+                  <div className="rounded-2xl bg-yellow-50 border border-yellow-100 px-4 py-3 text-xs leading-relaxed text-yellow-800 font-semibold">
+                    Disclaimer: PNR information is fetched from railway data
+                    providers and may change without notice. Please verify final
+                    coach, seat, chart, and journey details from official railway
+                    sources before travel.
                   </div>
                 </>
               )}
@@ -243,15 +309,23 @@ export default function ExploreRailInfo() {
   );
 }
 
+function getCountdown(ms: number) {
+  if (ms <= 0) return "Train Departed";
+
+  const totalSeconds = Math.floor(ms / 1000);
+  const days = Math.floor(totalSeconds / 86400);
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  if (days > 0) return `${days}d ${hours}h ${minutes}m ${seconds}s`;
+
+  return `${hours}h ${minutes}m ${seconds}s`;
+}
+
 function getStatusStyle(status: string) {
-  if (status.includes("WL")) {
-    return "bg-red-100 text-red-700";
-  }
-
-  if (status.includes("RAC")) {
-    return "bg-blue-100 text-blue-700";
-  }
-
+  if (status.includes("WL")) return "bg-red-100 text-red-700";
+  if (status.includes("RAC")) return "bg-blue-100 text-blue-700";
   if (status.includes("CNF") || status.includes("CONFIRM")) {
     return "bg-green-100 text-green-700";
   }
@@ -262,7 +336,10 @@ function getStatusStyle(status: string) {
 function getStatusTextColor(status: string) {
   if (status.includes("WL")) return "text-red-700";
   if (status.includes("RAC")) return "text-blue-700";
-  if (status.includes("CNF") || status.includes("CONFIRM")) return "text-green-700";
+  if (status.includes("CNF") || status.includes("CONFIRM")) {
+    return "text-green-700";
+  }
+
   return "text-slate-900";
 }
 
