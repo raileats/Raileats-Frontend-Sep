@@ -241,19 +241,21 @@ function normalizeItem(it: any) {
     ),
 
     item_cuisine:
-  it?.item_cuisine ||
-  it?.ItemCuisine ||
-  it?.cuisine ||
-  null,
+      it?.item_cuisine ||
+      it?.ItemCuisine ||
+      it?.cuisine ||
+      null,
 
-menu_item_image:
-  it?.menu_item_image ||
-  it?.MenuItemImage ||
-  it?.item_image ||
-  it?.ItemImage ||
-  it?.image ||
-  it?.Image ||
-  "",
+    menu_item_image:
+      it?.menu_item_image ||
+      it?.MenuItemImage ||
+      it?.item_image ||
+      it?.ItemImage ||
+      it?.image ||
+      it?.Image ||
+      "",
+  };
+}
     
 
 /* ================= SEO ================= */
