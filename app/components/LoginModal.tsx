@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 
 export default function LoginModal() {
   const { setUser } = useAuth();
-  const { add } = useCart();
+  const { add, setJourney } = useCart();
   const router = useRouter();
 
   const [open, setOpen] = useState(false);
@@ -20,6 +20,8 @@ export default function LoginModal() {
   const [email, setEmail] = useState("");
 
   const [pendingItem, setPendingItem] = useState<any>(null);
+  const [pendingCartItem, setPendingCartItem] = useState<any>(null);
+  const [pendingJourney, setPendingJourney] = useState<any>(null);
   const [loading, setLoading] = useState(false);
 
   /* ✅ CLOSE MODAL FUNCTION */
@@ -28,6 +30,11 @@ export default function LoginModal() {
     setStep("mobile");
     setMobile("");
     setOtp("");
+    setName("");
+    setEmail("");
+    setPendingItem(null);
+    setPendingCartItem(null);
+    setPendingJourney(null);
   };
 
   /* 🔥 OPEN MODAL */
@@ -35,6 +42,8 @@ export default function LoginModal() {
     const handler = (e: any) => {
       setOpen(true);
       setPendingItem(e.detail?.item || null);
+      setPendingCartItem(e.detail?.cartItem || null);
+      setPendingJourney(e.detail?.journey || null);
       setStep("mobile");
     };
 
@@ -63,7 +72,7 @@ export default function LoginModal() {
         return;
       }
 
-      alert("OTP: " + json.otp);
+      alert("Your OTP has been sent to your mobile");
       setStep("otp");
 
     } catch {
@@ -155,13 +164,19 @@ export default function LoginModal() {
 
       setUser(user);
 
-      if (pendingItem) {
+      if (pendingJourney) {
+        setJourney(pendingJourney);
+      }
+
+      if (pendingCartItem) {
+        add(pendingCartItem);
+      } else if (pendingItem) {
         add({
           id: pendingItem.id,
           name: pendingItem.item_name,
           price: pendingItem.base_price,
           qty: 1,
-        });
+        } as any);
       }
 
       closeModal();
