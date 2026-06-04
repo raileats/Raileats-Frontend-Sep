@@ -271,4 +271,38 @@ export default function SearchBox() {
                     {stations.map((s) => (
                       <button
                         key={s.code}
-                 
+                        type="button"
+                        onClick={() => {
+                          setBoarding(s.code);
+                          setShowStationList(false);
+                          scrollSearchButtonIntoView();
+                        }}
+                        className="flex w-full items-center justify-between border-b border-slate-100 px-4 py-3 text-left hover:bg-orange-50"
+                      >
+                        <span className="font-bold text-slate-800">
+                          {s.name}
+                        </span>
+                        <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-black text-slate-600">
+                          {s.code}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          <button
+            ref={searchBtnRef}
+            type="button"
+            onClick={handleSearch}
+            className="app-btn-primary w-full"
+          >
+            Search Food
+          </button>
+        </div>
+      </div>
+    </section>
+  );
+}
