@@ -635,9 +635,9 @@ useEffect(() => {
                       <div style={{ minWidth: 0 }}>
                         <div
                           style={{
-                            fontSize: 18,
-                            lineHeight: 1.15,
-                            fontWeight: 950,
+                            fontSize: 15,
+                            lineHeight: 1.18,
+                            fontWeight: 850,
                             color: "#0f172a",
                             wordBreak: "break-word",
                           }}
@@ -693,9 +693,9 @@ useEffect(() => {
 
                     <div
                       style={{
-                        marginTop: 12,
-                        fontSize: 19,
-                        fontWeight: 950,
+                        marginTop: 9,
+                        fontSize: 15,
+                        fontWeight: 850,
                         color: "#0f172a",
                       }}
                     >
