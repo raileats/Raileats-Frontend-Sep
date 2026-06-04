@@ -360,117 +360,154 @@ useEffect(() => {
         }}
       >
         <section
+  style={{
+    background: "#fff",
+    border: "1px solid #dbe4ef",
+    borderRadius: 18,
+    boxShadow: "0 8px 22px rgba(15,23,42,0.06)",
+    padding: 16,
+  }}
+>
+  <div
+    style={{
+      fontSize: 13,
+      fontWeight: 900,
+      color: "#64748b",
+      marginBottom: 10,
+    }}
+  >
+    Journey
+  </div>
+
+  <div style={{ display: "grid", gap: 9 }}>
+    {displayTrainNumber ? (
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 9 }}>
+        <span style={{ width: 24, flexShrink: 0, textAlign: "center" }}>
+          🚆
+        </span>
+        <span
           style={{
-            background: "#fff",
-            border: "1px solid #dbe4ef",
-            borderRadius: 18,
-            boxShadow: "0 8px 22px rgba(15,23,42,0.06)",
-            padding: 16,
+            color: "#ea580c",
+            fontSize: 17,
+            lineHeight: 1.18,
+            fontWeight: 950,
+            overflowWrap: "anywhere",
           }}
         >
-          <div style={{ fontSize: 13, fontWeight: 900, color: "#64748b" }}>
-            Journey
-          </div>
+          {displayTrainName
+            ? `${displayTrainNumber} - ${displayTrainName}`
+            : `Train #${displayTrainNumber}`}
+        </span>
+      </div>
+    ) : null}
 
-          <div
-            style={{
-              marginTop: 10,
-              display: "grid",
-              gridTemplateColumns: "minmax(0, 1fr) minmax(132px, auto)",
-              gap: 14,
-              alignItems: "start",
-            }}
-          >
-            <div style={{ display: "grid", gap: 8, minWidth: 0 }}>
-              {displayTrainNumber ? (
-                <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
-                  <span style={{ width: 22, textAlign: "center" }}>🚆</span>
-                  <span
-                    style={{
-                      color: "#ea580c",
-                      fontSize: 18,
-                      lineHeight: 1.15,
-                      fontWeight: 950,
-                    }}
-                  >
-                    {displayTrainName
-                      ? `${displayTrainNumber} - ${displayTrainName}`
-                      : `Train #${displayTrainNumber}`}
-                  </span>
-                </div>
-              ) : null}
+    <div style={{ display: "flex", alignItems: "flex-start", gap: 9 }}>
+      <span style={{ width: 24, flexShrink: 0, textAlign: "center" }}>
+        📍
+      </span>
+      <span
+        style={{
+          fontSize: 17,
+          lineHeight: 1.2,
+          fontWeight: 900,
+          color: "#334155",
+          overflowWrap: "anywhere",
+        }}
+      >
+        {displayStationName || "-"}
+        {displayStationCode ? ` (${displayStationCode})` : ""}
+      </span>
+    </div>
 
-              <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
-                <span style={{ width: 22, textAlign: "center" }}>📍</span>
-                <span style={{ fontSize: 17, fontWeight: 900, color: "#334155" }}>
-                  {displayStationName || "-"}
-                  {displayStationCode ? ` (${displayStationCode})` : ""}
-                </span>
-              </div>
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 14,
+        flexWrap: "wrap",
+      }}
+    >
+      {displayDeliveryDate ? (
+        <span
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 7,
+            color: "#2563eb",
+            fontSize: 15,
+            fontWeight: 950,
+          }}
+        >
+          <span>📅</span>
+          {displayDeliveryDate}
+        </span>
+      ) : null}
 
-              <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-                {displayDeliveryDate ? (
-                  <span
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: 7,
-                      color: "#2563eb",
-                      fontSize: 16,
-                      fontWeight: 950,
-                    }}
-                  >
-                    <span>📅</span>
-                    {displayDeliveryDate}
-                  </span>
-                ) : null}
+      {displayDeliveryTime ? (
+        <span
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 7,
+            color: "#2563eb",
+            fontSize: 15,
+            fontWeight: 950,
+          }}
+        >
+          <span>⏰</span>
+          {displayDeliveryTime}
+        </span>
+      ) : null}
+    </div>
+  </div>
 
-                {displayDeliveryTime ? (
-                  <span
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: 7,
-                      color: "#2563eb",
-                      fontSize: 16,
-                      fontWeight: 950,
-                    }}
-                  >
-                    <span>⏰</span>
-                    {displayDeliveryTime}
-                  </span>
-                ) : null}
-              </div>
-            </div>
+  <div
+    style={{
+      marginTop: 14,
+      paddingTop: 13,
+      borderTop: "1px solid #e2e8f0",
+      display: "flex",
+      alignItems: "flex-start",
+      gap: 10,
+    }}
+  >
+    <span
+      style={{
+        width: 26,
+        flexShrink: 0,
+        textAlign: "center",
+        fontSize: 20,
+      }}
+    >
+      🍴
+    </span>
 
-            <div
-              style={{
-                minWidth: 0,
-                textAlign: "right",
-                display: "grid",
-                gap: 6,
-                justifyItems: "end",
-              }}
-            >
-              <div style={{ fontSize: 20 }}>🍴</div>
-              <div
-                style={{
-                  fontSize: 18,
-                  lineHeight: 1.15,
-                  color: "#0f172a",
-                  fontWeight: 950,
-                  wordBreak: "break-word",
-                }}
-              >
-                {displayRestroName}
-              </div>
-              <div style={{ fontSize: 15, color: "#475569", fontWeight: 900 }}>
-                Min Order: Rs {minimumOrder}
-              </div>
-            </div>
-          </div>
-        </section>
+    <div style={{ minWidth: 0, flex: 1 }}>
+      <div
+        style={{
+          fontSize: 21,
+          lineHeight: 1.15,
+          color: "#0f172a",
+          fontWeight: 950,
+          overflowWrap: "anywhere",
+        }}
+      >
+        {displayRestroName}
+      </div>
 
+      <div
+        style={{
+          marginTop: 6,
+          fontSize: 15,
+          color: "#475569",
+          fontWeight: 900,
+        }}
+      >
+        Min Order: Rs {minimumOrder}
+      </div>
+    </div>
+  </div>
+</section>
         <section
           style={{
             display: "grid",
