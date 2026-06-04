@@ -1,10 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { CalendarDays, Clock, MapPin, TrainFront, Utensils } from "lucide-react";
 import { useAuth } from "../../../lib/useAuth";
 import { useCart } from "../../../lib/useCart";
 import CartPillMobile from "../../../components/CartPillMobile";
+import BookingFlowShell from "../../../components/BookingFlowShell";
+
+const SUPABASE_PUBLIC_STORAGE =
+  "https://ygisiztmuzwxpnvhwrmr.supabase.co/storage/v1/object/public";
 
 type UrlJourney = {
   trainNumber: string;
@@ -15,10 +18,8 @@ type UrlJourney = {
 
 const toMin = (t?: string | null) => {
   if (!t) return null;
-
   const clean = String(t).slice(0, 5);
   const [h, m] = clean.split(":").map(Number);
-
   if (!Number.isFinite(h) || !Number.isFinite(m)) return null;
   return h * 60 + m;
 };
@@ -30,12 +31,9 @@ const cleanTime = (value?: string | null) => {
 
 const cleanTrainName = (value?: string | null) => {
   const v = String(value || "").trim();
-  const lower = v.toLowerCase();
-
-  if (!v || lower === "train" || lower === "undefined" || lower === "null") {
+  if (!v || v.toLowerCase() === "train" || v.toLowerCase() === "undefined") {
     return "";
   }
-
   return v;
 };
 
@@ -43,17 +41,11 @@ const getItemCategory = (it: any) => {
   const category = String(it?.item_category || "").trim().toLowerCase();
 
   if (category === "veg" || category === "jain") return "Veg";
-
-  if (
-    category === "non-veg" ||
-    category === "non veg" ||
-    category === "nonveg"
-  ) {
+  if (category === "non-veg" || category === "non veg" || category === "nonveg") {
     return "Non-Veg";
   }
 
   const name = String(it?.item_name || "").toLowerCase();
-
   if (
     name.includes("chicken") ||
     name.includes("egg") ||
@@ -66,37 +58,63 @@ const getItemCategory = (it: any) => {
   return "Veg";
 };
 
-const getMenuType = (it: any) => {
-  return String(it?.menu_type || "Other").trim();
-};
+const getMenuType = (it: any) => String(it?.menu_type || "Other").trim();
 
-const isVegItem = (it: any) => {
-  return getItemCategory(it) === "Veg";
-};
+const isVegItem = (it: any) => getItemCategory(it) === "Veg";
 
 const isItemActive = (it: any) => {
-  const raw =
-    it?.status ??
-    it?.item_status ??
-    it?.is_active ??
-    it?.active ??
-    "ON";
-
+  const raw = it?.status ?? it?.item_status ?? it?.is_active ?? it?.active ?? "ON";
   return String(raw).trim().toUpperCase() === "ON";
 };
 
+const getPrice = (it: any) => Number(it?.base_price || it?.selling_price || it?.price || 0);
+
 const getCartEntry = (cart: any, itemId: any) => {
   if (!cart) return null;
-
   if (Array.isArray(cart)) {
     return cart.find((x: any) => String(x?.id) === String(itemId)) || null;
   }
-
   return cart[itemId] || cart[String(itemId)] || null;
 };
 
-const getPrice = (it: any) => {
-  return Number(it?.base_price || it?.selling_price || it?.price || 0);
+const getItemImage = (it: any) => {
+  const raw =
+    it?.menu_item_image ||
+    it?.MenuItemImage ||
+    it?.item_image ||
+    it?.ItemImage ||
+    it?.itemImage ||
+    it?.image ||
+    it?.Image ||
+    it?.image_url ||
+    it?.ImageUrl ||
+    it?.item_image_url ||
+    it?.ItemImageUrl ||
+    it?.menu_image ||
+    it?.MenuImage ||
+    it?.photo ||
+    it?.Photo ||
+    it?.photo_url ||
+    it?.PhotoUrl ||
+    it?.ItemPhoto ||
+    it?.item_photo ||
+    "";
+
+  const file = String(raw || "").trim();
+  if (!file) return "";
+
+  if (/^https?:\/\//i.test(file) || file.startsWith("data:") || file.startsWith("blob:")) {
+    return file;
+  }
+
+  if (file.startsWith("/")) return file;
+
+  const clean = file.replace(/^\/+/, "");
+  const objectPath = clean.startsWith("menu_item_image/")
+    ? clean
+    : `menu_item_image/${clean}`;
+
+  return encodeURI(`${SUPABASE_PUBLIC_STORAGE}/${objectPath}`);
 };
 
 export default function RestroMenuClient({
@@ -109,6 +127,7 @@ export default function RestroMenuClient({
 
   const [vegOnly, setVegOnly] = useState(false);
   const [trainMin, setTrainMin] = useState<number | null>(null);
+
   const [urlJourney, setUrlJourney] = useState<UrlJourney>({
     trainNumber: "",
     trainName: "",
@@ -128,12 +147,6 @@ export default function RestroMenuClient({
       setTrainMin(toMin(arrival.slice(0, 5)));
     }
 
-    const deliveryTime =
-      params.get("deliveryTime") ||
-      params.get("arrival") ||
-      params.get("arrivalTime") ||
-      "";
-
     setUrlJourney({
       trainNumber:
         params.get("train") ||
@@ -142,7 +155,12 @@ export default function RestroMenuClient({
         "",
       trainName: cleanTrainName(params.get("trainName")),
       deliveryDate: params.get("deliveryDate") || params.get("date") || "",
-      deliveryTime: cleanTime(deliveryTime),
+      deliveryTime: cleanTime(
+        params.get("deliveryTime") ||
+          params.get("arrival") ||
+          params.get("arrivalTime") ||
+          ""
+      ),
     });
   }, []);
 
@@ -153,26 +171,38 @@ export default function RestroMenuClient({
     "";
 
   const displayTrainName =
-    cleanTrainName(nextParams?.trainName) || urlJourney.trainName || "";
+    cleanTrainName(nextParams?.trainName) ||
+    urlJourney.trainName ||
+    "";
 
   const displayStationName =
-    nextParams?.stationName || header?.stationName || "";
+    nextParams?.stationName ||
+    header?.stationName ||
+    "";
 
   const displayStationCode =
-    nextParams?.stationCode || header?.stationCode || "";
+    nextParams?.stationCode ||
+    header?.stationCode ||
+    "";
 
   const displayDeliveryDate =
-    nextParams?.deliveryDate || urlJourney.deliveryDate || "";
+    nextParams?.deliveryDate ||
+    urlJourney.deliveryDate ||
+    "";
 
   const displayDeliveryTime =
-    cleanTime(nextParams?.deliveryTime) || urlJourney.deliveryTime || "";
+    cleanTime(nextParams?.deliveryTime) ||
+    urlJourney.deliveryTime ||
+    "";
 
-  const displayVendorName =
-    nextParams?.vendorName || header?.outletName || "Restaurant";
+  const displayRestroName =
+    nextParams?.vendorName ||
+    header?.outletName ||
+    "Restaurant";
 
-  const minimumOrder = Number(
-    header?.minimumOrder || nextParams?.minOrder || 0
-  );
+  const minimumOrder = Number(header?.minimumOrder || nextParams?.minOrder || 0);
+
+  const isStationOnlyView = nextParams?.mode === "station" || !displayTrainNumber;
 
   const visible = useMemo(() => {
     return (items || []).filter((it: any) => {
@@ -190,24 +220,21 @@ export default function RestroMenuClient({
       }
 
       if (vegOnly && !isVegItem(it)) return false;
-
       return true;
     });
   }, [items, vegOnly, trainMin]);
 
-  const buildJourney = () => ({
+  const saveJourney = () => {
+    const journeyPayload = {
       trainNumber: displayTrainNumber,
       trainName: displayTrainName,
       stationName: displayStationName,
       stationCode: displayStationCode,
       deliveryDate: displayDeliveryDate,
       deliveryTime: displayDeliveryTime,
-      vendorName: displayVendorName,
+      vendorName: displayRestroName,
       restroCode: Number(header?.restroCode || nextParams?.restroCode || 0),
-    });
-
-  const saveJourney = () => {
-    const journeyPayload = buildJourney();
+    };
 
     setJourney(journeyPayload);
 
@@ -219,33 +246,43 @@ export default function RestroMenuClient({
   };
 
   const buildCartItem = (it: any) => {
+    const itemImage = getItemImage(it);
+
     return {
       id: it.id,
       name: it.item_name,
       price: getPrice(it),
       qty: 1,
+
       restro_code: String(header?.restroCode || nextParams?.restroCode || ""),
-      restro_name: displayVendorName,
+      restro_name: displayRestroName,
+
       station_code: displayStationCode,
       station_name: displayStationName,
+
       trainNumber: displayTrainNumber,
       trainName: displayTrainName,
       deliveryDate: displayDeliveryDate,
       deliveryTime: displayDeliveryTime,
-      vendorName: displayVendorName,
+      vendorName: displayRestroName,
       restroCode: Number(header?.restroCode || nextParams?.restroCode || 0),
+
       description: it.item_description || null,
       category: getItemCategory(it),
       cuisine: it.item_cuisine || null,
       menu_type: getMenuType(it),
+
+      image: itemImage,
+      menu_item_image: itemImage,
+
       minimumOrder,
       minOrder: minimumOrder,
     };
   };
 
   const handleAdd = (it: any) => {
-    const cartItem = buildCartItem(it);
     const journeyPayload = saveJourney();
+    const cartItem = buildCartItem(it);
 
     if (!user) {
       window.dispatchEvent(
@@ -258,7 +295,6 @@ export default function RestroMenuClient({
           },
         })
       );
-
       return;
     }
 
@@ -271,485 +307,483 @@ export default function RestroMenuClient({
   };
 
   return (
-    <div
-      style={{
-        width: "100%",
-        maxWidth: 560,
-        margin: "0 auto",
-        padding: "12px 12px 104px",
-        boxSizing: "border-box",
-        display: "flex",
-        flexDirection: "column",
-        gap: 12,
-        fontFamily:
-          'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-      }}
-    >
-      <section
+    <BookingFlowShell>
+      <div
         style={{
-          background: "#fff",
-          border: "1px solid #dbe4ef",
-          borderRadius: 18,
-          boxShadow: "0 8px 22px rgba(15,23,42,0.06)",
-          padding: 16,
+          width: "100%",
+          maxWidth: 520,
+          margin: "0 auto",
+          padding: "12px 12px 104px",
+          boxSizing: "border-box",
+          display: "flex",
+          flexDirection: "column",
+          gap: 12,
+          fontFamily:
+            'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
         }}
       >
-        <div
-          style={{
-            fontSize: 12,
-            fontWeight: 800,
-            color: "#64748b",
-            marginBottom: 10,
-          }}
-        >
-          Journey
-        </div>
-
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",
-            gap: "10px 14px",
-            alignItems: "start",
-          }}
-        >
-          <div style={{ minWidth: 0, display: "grid", gap: 7 }}>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                color: "#f97316",
-                fontWeight: 900,
-                fontSize: 13,
-                lineHeight: 1.2,
-              }}
-            >
-              <span
-                style={{
-                  width: 22,
-                  height: 22,
-                  borderRadius: 8,
-                  background: "#fff7ed",
-                  border: "1px solid #fed7aa",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  flexShrink: 0,
-                }}
-              >
-                <TrainFront size={14} strokeWidth={2.5} />
-              </span>
-              <span style={{ minWidth: 0, overflowWrap: "anywhere" }}>
-                {displayTrainNumber || displayTrainName
-                  ? `${displayTrainNumber || "Train"}${
-                      displayTrainName ? ` - ${displayTrainName}` : ""
-                    }`
-                  : "Train"}
-              </span>
-            </div>
-
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                color: "#334155",
-                fontWeight: 800,
-                fontSize: 14,
-                lineHeight: 1.25,
-              }}
-            >
-              <MapPin size={16} strokeWidth={2.4} style={{ flexShrink: 0 }} />
-              <span style={{ minWidth: 0, overflowWrap: "anywhere" }}>
-                {displayStationName || "-"}
-                {displayStationCode ? ` (${displayStationCode})` : ""}
-              </span>
-            </div>
-          </div>
-
-          <div
-            style={{
-              minWidth: 0,
-              display: "grid",
-              gap: 7,
-              justifyItems: "end",
-              textAlign: "right",
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "flex-end",
-                gap: 8,
-                color: "#0f172a",
-                fontWeight: 900,
-                fontSize: 15,
-                lineHeight: 1.2,
-              }}
-            >
-              <Utensils size={16} strokeWidth={2.4} style={{ flexShrink: 0 }} />
-              <span style={{ minWidth: 0, overflowWrap: "anywhere" }}>
-                {displayVendorName}
-              </span>
-            </div>
-
-            <div
-              style={{
-                color: "#475569",
-                fontSize: 14,
-                fontWeight: 900,
-              }}
-            >
-              Min Order: Rs {minimumOrder}
-            </div>
-          </div>
-        </div>
-
-        <div
-          style={{
-            display: "flex",
-            flexWrap: "wrap",
-            gap: 10,
-            marginTop: 13,
-            color: "#2563eb",
-            fontSize: 14,
-            fontWeight: 900,
-          }}
-        >
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
-            <CalendarDays size={15} strokeWidth={2.4} />
-            {displayDeliveryDate || "-"}
-          </span>
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
-            <Clock size={15} strokeWidth={2.4} />
-            {displayDeliveryTime || "-"}
-          </span>
-        </div>
-      </section>
-
-      <section
-        style={{
-          display: "grid",
-          gridTemplateColumns: "auto auto minmax(0, 1fr)",
-          alignItems: "center",
-          gap: 8,
-          overflow: "hidden",
-        }}
-      >
-        <button
-          type="button"
-          onClick={() => setVegOnly(false)}
-          style={{
-            border: !vegOnly ? "1px solid #f97316" : "1px solid #dbe4ef",
-            background: !vegOnly ? "#fff7ed" : "#fff",
-            color: !vegOnly ? "#ea580c" : "#334155",
-            borderRadius: 999,
-            padding: "8px 13px",
-            fontSize: 13,
-            fontWeight: 900,
-            whiteSpace: "nowrap",
-            cursor: "pointer",
-          }}
-        >
-          All Items
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setVegOnly(true)}
-          style={{
-            border: vegOnly ? "1px solid #16a34a" : "1px solid #dbe4ef",
-            background: vegOnly ? "#f0fdf4" : "#fff",
-            color: vegOnly ? "#15803d" : "#334155",
-            borderRadius: 999,
-            padding: "8px 13px",
-            fontSize: 13,
-            fontWeight: 900,
-            whiteSpace: "nowrap",
-            cursor: "pointer",
-          }}
-        >
-          Veg Only
-        </button>
-
-        <span
-          style={{
-            minWidth: 0,
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-            fontSize: 13,
-            fontWeight: 800,
-            color: "#475569",
-          }}
-        >
-          {visible.length} item{visible.length === 1 ? "" : "s"} available
-        </span>
-      </section>
-
-      {visible.length === 0 && (
         <section
           style={{
             background: "#fff",
             border: "1px solid #dbe4ef",
             borderRadius: 18,
-            padding: 18,
-            textAlign: "center",
+            boxShadow: "0 8px 22px rgba(15,23,42,0.06)",
+            padding: 16,
           }}
         >
-          <div style={{ fontSize: 16, fontWeight: 900, color: "#0f172a" }}>
-            No items available
+          <div style={{ fontSize: 13, fontWeight: 900, color: "#64748b" }}>
+            Journey
           </div>
-          <div style={{ marginTop: 6, fontSize: 13, color: "#64748b" }}>
-            Items may be unavailable for this train arrival time.
-          </div>
-        </section>
-      )}
 
-      <section
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: 12,
-        }}
-      >
-        {visible.map((it: any) => {
-          const existing = getCartEntry(cart, it.id);
-          const isVeg = isVegItem(it);
-          const category = getItemCategory(it);
-          const menuType = getMenuType(it);
-
-          return (
-            <article
-              key={it.id}
-              style={{
-                background: "#fff",
-                border: "1px solid #dbe4ef",
-                borderRadius: 18,
-                boxShadow: "0 7px 18px rgba(15,23,42,0.05)",
-                padding: 14,
-              }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "flex-start",
-                  justifyContent: "space-between",
-                  gap: 12,
-                }}
-              >
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div
+          <div
+            style={{
+              marginTop: 10,
+              display: "grid",
+              gridTemplateColumns: "minmax(0, 1fr) minmax(132px, auto)",
+              gap: 14,
+              alignItems: "start",
+            }}
+          >
+            <div style={{ display: "grid", gap: 8, minWidth: 0 }}>
+              {displayTrainNumber ? (
+                <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+                  <span style={{ width: 22, textAlign: "center" }}>🚆</span>
+                  <span
                     style={{
-                      display: "flex",
-                      alignItems: "flex-start",
-                      gap: 8,
+                      color: "#ea580c",
+                      fontSize: 18,
+                      lineHeight: 1.15,
+                      fontWeight: 950,
                     }}
                   >
-                    <span
-                      style={{
-                        width: 11,
-                        height: 11,
-                        borderRadius: 999,
-                        background: isVeg ? "#16a34a" : "#dc2626",
-                        flexShrink: 0,
-                        marginTop: 5,
-                      }}
-                    />
+                    {displayTrainName
+                      ? `${displayTrainNumber} - ${displayTrainName}`
+                      : `Train #${displayTrainNumber}`}
+                  </span>
+                </div>
+              ) : null}
 
-                    <div style={{ minWidth: 0 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+                <span style={{ width: 22, textAlign: "center" }}>📍</span>
+                <span style={{ fontSize: 17, fontWeight: 900, color: "#334155" }}>
+                  {displayStationName || "-"}
+                  {displayStationCode ? ` (${displayStationCode})` : ""}
+                </span>
+              </div>
+
+              <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                {displayDeliveryDate ? (
+                  <span
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 7,
+                      color: "#2563eb",
+                      fontSize: 16,
+                      fontWeight: 950,
+                    }}
+                  >
+                    <span>📅</span>
+                    {displayDeliveryDate}
+                  </span>
+                ) : null}
+
+                {displayDeliveryTime ? (
+                  <span
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 7,
+                      color: "#2563eb",
+                      fontSize: 16,
+                      fontWeight: 950,
+                    }}
+                  >
+                    <span>⏰</span>
+                    {displayDeliveryTime}
+                  </span>
+                ) : null}
+              </div>
+            </div>
+
+            <div
+              style={{
+                minWidth: 0,
+                textAlign: "right",
+                display: "grid",
+                gap: 6,
+                justifyItems: "end",
+              }}
+            >
+              <div style={{ fontSize: 20 }}>🍴</div>
+              <div
+                style={{
+                  fontSize: 18,
+                  lineHeight: 1.15,
+                  color: "#0f172a",
+                  fontWeight: 950,
+                  wordBreak: "break-word",
+                }}
+              >
+                {displayRestroName}
+              </div>
+              <div style={{ fontSize: 15, color: "#475569", fontWeight: 900 }}>
+                Min Order: Rs {minimumOrder}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section
+          style={{
+            display: "grid",
+            gridTemplateColumns: "auto auto minmax(0, 1fr)",
+            alignItems: "center",
+            gap: 8,
+            overflow: "hidden",
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => setVegOnly(false)}
+            style={{
+              border: !vegOnly ? "1px solid #f97316" : "1px solid #dbe4ef",
+              background: !vegOnly ? "#fff7ed" : "#fff",
+              color: !vegOnly ? "#ea580c" : "#334155",
+              borderRadius: 999,
+              padding: "8px 13px",
+              fontSize: 13,
+              fontWeight: 900,
+              whiteSpace: "nowrap",
+              cursor: "pointer",
+            }}
+          >
+            All Items
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setVegOnly(true)}
+            style={{
+              border: vegOnly ? "1px solid #16a34a" : "1px solid #dbe4ef",
+              background: vegOnly ? "#f0fdf4" : "#fff",
+              color: vegOnly ? "#15803d" : "#334155",
+              borderRadius: 999,
+              padding: "8px 13px",
+              fontSize: 13,
+              fontWeight: 900,
+              whiteSpace: "nowrap",
+              cursor: "pointer",
+            }}
+          >
+            Veg Only
+          </button>
+
+          <span
+            style={{
+              minWidth: 0,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+              fontSize: 13,
+              fontWeight: 800,
+              color: "#475569",
+            }}
+          >
+            {visible.length} item{visible.length === 1 ? "" : "s"} available
+          </span>
+        </section>
+
+        {visible.length === 0 && (
+          <section
+            style={{
+              background: "#fff",
+              border: "1px solid #dbe4ef",
+              borderRadius: 18,
+              padding: 18,
+              textAlign: "center",
+            }}
+          >
+            <div style={{ fontSize: 16, fontWeight: 900, color: "#0f172a" }}>
+              No items available
+            </div>
+            <div style={{ marginTop: 6, fontSize: 13, color: "#64748b" }}>
+              Items may be unavailable for this train arrival time.
+            </div>
+          </section>
+        )}
+
+        <section style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {visible.map((it: any) => {
+            const existing = getCartEntry(cart, it.id);
+            const isVeg = isVegItem(it);
+            const category = getItemCategory(it);
+            const menuType = getMenuType(it);
+            const itemImage = getItemImage(it);
+
+            return (
+              <article
+                key={it.id}
+                style={{
+                  background: "#fff",
+                  border: "1px solid #dbe4ef",
+                  borderRadius: 18,
+                  boxShadow: "0 7px 18px rgba(15,23,42,0.05)",
+                  padding: 14,
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "flex-start",
+                    justifyContent: "space-between",
+                    gap: 12,
+                  }}
+                >
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+                      <span
+                        style={{
+                          width: 11,
+                          height: 11,
+                          borderRadius: 999,
+                          background: isVeg ? "#16a34a" : "#dc2626",
+                          flexShrink: 0,
+                          marginTop: 5,
+                        }}
+                      />
+
+                      <div style={{ minWidth: 0 }}>
+                        <div
+                          style={{
+                            fontSize: 18,
+                            lineHeight: 1.15,
+                            fontWeight: 950,
+                            color: "#0f172a",
+                            wordBreak: "break-word",
+                          }}
+                        >
+                          {it.item_name}
+                        </div>
+
+                        <div
+                          style={{
+                            marginTop: 5,
+                            fontSize: 13,
+                            fontWeight: 750,
+                            color: "#64748b",
+                          }}
+                        >
+                          {category} • {menuType}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div
+                      style={{
+                        marginTop: 10,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 6,
+                        fontSize: 13,
+                        color: "#64748b",
+                        fontWeight: 800,
+                      }}
+                    >
+                      <span>⏰</span>
+                      <span>
+                        {cleanTime(it.start_time) && cleanTime(it.end_time)
+                          ? `${cleanTime(it.start_time)} - ${cleanTime(it.end_time)}`
+                          : "All day"}
+                      </span>
+                    </div>
+
+                    {it.item_description ? (
                       <div
                         style={{
-                          fontSize: 17,
-                          lineHeight: 1.16,
-                          fontWeight: 900,
-                          color: "#0f172a",
+                          marginTop: 7,
+                          fontSize: 14,
+                          lineHeight: 1.32,
+                          color: "#475569",
                           wordBreak: "break-word",
                         }}
                       >
-                        {it.item_name}
+                        {it.item_description}
                       </div>
+                    ) : null}
 
+                    <div
+                      style={{
+                        marginTop: 12,
+                        fontSize: 19,
+                        fontWeight: 950,
+                        color: "#0f172a",
+                      }}
+                    >
+                      Rs {getPrice(it)}
+                    </div>
+                  </div>
+
+                  <div
+                    style={{
+                      width: 96,
+                      flexShrink: 0,
+                      display: "grid",
+                      gap: 8,
+                      justifyItems: "end",
+                    }}
+                  >
+                    {!isStationOnlyView ? (
+                      !existing ? (
+                        <button
+                          type="button"
+                          onClick={() => handleAdd(it)}
+                          style={{
+                            minWidth: 64,
+                            minHeight: 42,
+                            border: 0,
+                            borderRadius: 13,
+                            background: "#f97316",
+                            color: "#fff",
+                            fontSize: 15,
+                            fontWeight: 950,
+                            cursor: "pointer",
+                          }}
+                        >
+                          Add
+                        </button>
+                      ) : (
+                        <div
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            border: "1px solid #dbe4ef",
+                            borderRadius: 12,
+                            overflow: "hidden",
+                            background: "#fff",
+                          }}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => handleQty(it, Number(existing.qty || 0) - 1)}
+                            style={{
+                              width: 30,
+                              height: 36,
+                              border: 0,
+                              background: "#fff",
+                              fontWeight: 900,
+                              cursor: "pointer",
+                            }}
+                          >
+                            -
+                          </button>
+
+                          <span
+                            style={{
+                              minWidth: 22,
+                              textAlign: "center",
+                              fontWeight: 900,
+                              color: "#0f172a",
+                            }}
+                          >
+                            {Number(existing.qty || 0)}
+                          </span>
+
+                          <button
+                            type="button"
+                            onClick={() => handleQty(it, Number(existing.qty || 0) + 1)}
+                            style={{
+                              width: 30,
+                              height: 36,
+                              border: 0,
+                              background: "#fff",
+                              fontWeight: 900,
+                              cursor: "pointer",
+                            }}
+                          >
+                            +
+                          </button>
+                        </div>
+                      )
+                    ) : null}
+
+                    {itemImage ? (
+                      <img
+                        src={itemImage}
+                        alt={it.item_name || "Menu item"}
+                        loading="lazy"
+                        onError={(e) => {
+                          e.currentTarget.style.display = "none";
+                        }}
+                        style={{
+                          width: 86,
+                          height: 86,
+                          objectFit: "cover",
+                          borderRadius: 16,
+                          border: "1px solid #dbe4ef",
+                          background: "#fff",
+                        }}
+                      />
+                    ) : (
                       <div
                         style={{
-                          marginTop: 5,
-                          fontSize: 12,
-                          fontWeight: 750,
-                          color: "#64748b",
+                          width: 86,
+                          height: 86,
+                          borderRadius: 16,
+                          border: "1px solid #dbe4ef",
+                          background: "#fff7ed",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: 28,
                         }}
                       >
-                        {category} • {menuType}
+                        🍽️
                       </div>
-                    </div>
-                  </div>
-
-                  <div
-                    style={{
-                      marginTop: 10,
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 6,
-                      fontSize: 13,
-                      color: "#64748b",
-                      fontWeight: 800,
-                    }}
-                  >
-                    <Clock size={14} strokeWidth={2.4} />
-                    <span>
-                      {cleanTime(it.start_time) && cleanTime(it.end_time)
-                        ? `${cleanTime(it.start_time)} - ${cleanTime(
-                            it.end_time
-                          )}`
-                        : "All day"}
-                    </span>
-                  </div>
-
-                  {it.item_description ? (
-                    <div
-                      style={{
-                        marginTop: 7,
-                        fontSize: 13,
-                        lineHeight: 1.32,
-                        color: "#475569",
-                        wordBreak: "break-word",
-                      }}
-                    >
-                      {it.item_description}
-                    </div>
-                  ) : null}
-
-                  <div
-                    style={{
-                      marginTop: 12,
-                      fontSize: 18,
-                      fontWeight: 900,
-                      color: "#0f172a",
-                    }}
-                  >
-                    Rs {getPrice(it)}
+                    )}
                   </div>
                 </div>
+              </article>
+            );
+          })}
+        </section>
 
-                <div style={{ flexShrink: 0 }}>
-                  {!existing ? (
-                    <button
-                      type="button"
-                      onClick={() => handleAdd(it)}
-                      style={{
-                        minWidth: 64,
-                        minHeight: 42,
-                        border: 0,
-                        borderRadius: 13,
-                        background: "#f97316",
-                        color: "#fff",
-                        fontSize: 15,
-                        fontWeight: 900,
-                        cursor: "pointer",
-                      }}
-                    >
-                      Add
-                    </button>
-                  ) : (
-                    <div
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        border: "1px solid #dbe4ef",
-                        borderRadius: 12,
-                        overflow: "hidden",
-                        background: "#fff",
-                      }}
-                    >
-                      <button
-                        type="button"
-                        onClick={() =>
-                          handleQty(it, Number(existing.qty || 0) - 1)
-                        }
-                        style={{
-                          width: 32,
-                          height: 38,
-                          border: 0,
-                          background: "#fff",
-                          fontWeight: 900,
-                          cursor: "pointer",
-                        }}
-                      >
-                        -
-                      </button>
-
-                      <span
-                        style={{
-                          minWidth: 22,
-                          textAlign: "center",
-                          fontWeight: 900,
-                          color: "#0f172a",
-                        }}
-                      >
-                        {Number(existing.qty || 0)}
-                      </span>
-
-                      <button
-                        type="button"
-                        onClick={() =>
-                          handleQty(it, Number(existing.qty || 0) + 1)
-                        }
-                        style={{
-                          width: 32,
-                          height: 38,
-                          border: 0,
-                          background: "#fff",
-                          fontWeight: 900,
-                          cursor: "pointer",
-                        }}
-                      >
-                        +
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </article>
-          );
-        })}
-      </section>
-
-      <section
-        style={{
-          background: "#fff",
-          border: "1px solid #dbe4ef",
-          borderRadius: 18,
-          padding: 14,
-        }}
-      >
-        <h1
+        <section
           style={{
-            margin: 0,
-            fontSize: 16,
-            lineHeight: 1.25,
-            fontWeight: 900,
-            color: "#0f172a",
+            background: "#fff",
+            border: "1px solid #dbe4ef",
+            borderRadius: 18,
+            padding: 14,
           }}
         >
-          Order food from {displayVendorName} at{" "}
-          {displayStationName || "your station"}
-        </h1>
+          <h1
+            style={{
+              margin: 0,
+              fontSize: 16,
+              lineHeight: 1.25,
+              fontWeight: 950,
+              color: "#0f172a",
+            }}
+          >
+            Order food from {displayRestroName} at{" "}
+            {displayStationName || "your station"}
+          </h1>
 
-        <p
-          style={{
-            margin: "8px 0 0",
-            fontSize: 13,
-            lineHeight: 1.45,
-            color: "#64748b",
-          }}
-        >
-          Choose fresh meals for your train journey, add items to cart, verify
-          your mobile number and place your order for delivery at your seat.
-        </p>
-      </section>
+          <p
+            style={{
+              margin: "8px 0 0",
+              fontSize: 13,
+              lineHeight: 1.45,
+              color: "#64748b",
+            }}
+          >
+            Choose fresh meals for your train journey, add items to cart, verify
+            your mobile number and place your order for delivery at your seat.
+          </p>
+        </section>
 
-      <CartPillMobile minOrder={minimumOrder} />
-    </div>
+        <CartPillMobile minOrder={minimumOrder} />
+      </div>
+    </BookingFlowShell>
   );
 }
