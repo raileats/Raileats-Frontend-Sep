@@ -283,13 +283,20 @@ useEffect(() => {
   };
 
   const buildCartItem = (it: any) => {
-    const itemImage = getItemImage(it);
+  const itemImage = getItemImage(it);
 
-    return {
-      id: it.id,
-      name: it.item_name,
-      price: getPrice(it),
-      qty: 1,
+  const urlPnr =
+    typeof window !== "undefined"
+      ? new URLSearchParams(window.location.search).get("pnr") || ""
+      : "";
+
+  return {
+    id: it.id,
+    name: it.item_name,
+    price: getPrice(it),
+    qty: 1,
+
+    pnr: urlPnr,
 
       restro_code: String(header?.restroCode || nextParams?.restroCode || ""),
       restro_name: displayRestroName,
