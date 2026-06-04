@@ -84,13 +84,43 @@ useEffect(() => {
 }, [searchParams]);
 
   /* ================= SAFE COALESCING VARIABLES ================= */
-  const trainName = journey?.trainName || "N/A";
-  const trainNumber = journey?.trainNumber || "";
-  const stationName = journey?.stationName || "N/A";
-  const stationCode = journey?.stationCode || "";
-  const deliveryDate = journey?.deliveryDate || "N/A";
-  const deliveryTime = journey?.deliveryTime || "N/A";
-  const vendorName = journey?.vendorName || "N/A";
+  const firstCartItem = cartItems[0] as any;
+
+  const trainName =
+    journey?.trainName ||
+    firstCartItem?.trainName ||
+    "N/A";
+
+  const trainNumber =
+    journey?.trainNumber ||
+    firstCartItem?.trainNumber ||
+    "";
+
+  const stationName =
+    journey?.stationName ||
+    firstCartItem?.station_name ||
+    "N/A";
+
+  const stationCode =
+    journey?.stationCode ||
+    firstCartItem?.station_code ||
+    "";
+
+  const deliveryDate =
+    journey?.deliveryDate ||
+    firstCartItem?.deliveryDate ||
+    "N/A";
+
+  const deliveryTime =
+    journey?.deliveryTime ||
+    firstCartItem?.deliveryTime ||
+    "N/A";
+
+  const vendorName =
+    journey?.vendorName ||
+    firstCartItem?.vendorName ||
+    firstCartItem?.restro_name ||
+    "N/A";
 
   /* ================= FETCH PNR DETAILS ================= */
 useEffect(() => {
@@ -305,7 +335,7 @@ useEffect(() => {
       return;
     }
 
-    const firstItem = cartItems[0];
+    const firstItem = cartItems[0] as any;
     const finalStationCode =
   stationCode && stationCode !== "N/A"
     ? stationCode
@@ -315,7 +345,10 @@ const finalStationName =
   stationName && stationName !== "N/A"
     ? stationName
     : String(firstItem?.station_name || "");
-    const rawRestroCode = journey?.restroCode || firstItem?.restro_code;
+    const rawRestroCode =
+      journey?.restroCode ||
+      firstItem?.restroCode ||
+      firstItem?.restro_code;
     const cleanRestroCode = rawRestroCode ? parseInt(rawRestroCode.toString(), 10) : 0;
 
     try {
