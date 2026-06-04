@@ -111,13 +111,23 @@ export default function SearchBox() {
     setDate(todayIso());
   };
 
+  const clearCartBeforeNewSearch = () => {
+    clearCart();
+
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("raileats_min_order");
+      localStorage.removeItem("pendingCartItem");
+      localStorage.removeItem("pendingJourney");
+    }
+  };
+
   const handleSearch = () => {
     const cleanInput = inputValue.trim();
 
     if (searchType === "pnr") {
       if (!cleanInput) return alert("Enter PNR first");
 
-      clearCart();
+      clearCartBeforeNewSearch();
       window.location.href = `/pnr/${encodeURIComponent(cleanInput)}`;
       return;
     }
@@ -132,7 +142,7 @@ export default function SearchBox() {
         selectedStationData.StationCode
       );
 
-      clearCart();
+      clearCartBeforeNewSearch();
       window.location.href = `/stations/${slug}`;
       return;
     }
@@ -144,7 +154,7 @@ export default function SearchBox() {
       const trainNo = selectedTrain.train_no || selectedTrain.trainNumber;
       const slug = makeTrainSlug(trainNo);
 
-      clearCart();
+      clearCartBeforeNewSearch();
       window.location.href = `/trains/${slug}?date=${date}&boarding=${boarding}`;
     }
   };
@@ -178,4 +188,87 @@ export default function SearchBox() {
                 type="button"
                 onClick={() => resetSearch(item.key)}
                 className={[
-                  "min-h-[40px] rounded-xl
+                  "min-h-[40px] rounded-xl text-sm font-black transition",
+                  active
+                    ? "bg-white text-orange-600 shadow-sm"
+                    : "text-slate-500",
+                ].join(" ")}
+              >
+                {item.label}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="space-y-3">
+          {searchType === "train" ? (
+            <TrainAutocomplete
+              value={inputValue}
+              onChange={setInputValue}
+              onSelect={handleTrainSelect}
+            />
+          ) : searchType === "station" ? (
+            <div className="[&_input]:w-full [&_button]:font-semibold">
+              <StationSearchBox
+                onSelect={(s: any) => {
+                  setSelectedStationData(s);
+                  setInputValue(
+                    s?.StationName && s?.StationCode
+                      ? `${s.StationName} (${s.StationCode})`
+                      : s?.StationName || s?.StationCode || ""
+                  );
+                }}
+              />
+            </div>
+          ) : (
+            <input
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              placeholder="Enter 10 digit PNR"
+              className="app-input"
+            />
+          )}
+
+          {searchType === "train" && selectedTrain && (
+            <div className="grid gap-3">
+              <input
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                className="app-input"
+              />
+
+              <div ref={boardingBoxRef} className="relative">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowStationList((prev) => {
+                      const next = !prev;
+                      if (next) scrollBoardingListIntoView();
+                      return next;
+                    });
+                  }}
+                  className="app-input flex items-center justify-between text-left"
+                >
+                  <span>
+                    {selectedStation
+                      ? `${selectedStation.name} (${selectedStation.code})`
+                      : loadingStations
+                      ? "Loading route stations..."
+                      : "Select boarding station"}
+                  </span>
+                  <span className="text-slate-400">v</span>
+                </button>
+
+                {showStationList && (
+                  <div className="absolute left-0 right-0 top-[calc(100%+8px)] z-50 max-h-64 overflow-auto rounded-2xl border border-slate-200 bg-white shadow-xl">
+                    {stations.length === 0 && (
+                      <div className="p-3 text-sm font-semibold text-slate-500">
+                        No stations found
+                      </div>
+                    )}
+
+                    {stations.map((s) => (
+                      <button
+                        key={s.code}
+                 
