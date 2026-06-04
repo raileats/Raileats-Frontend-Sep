@@ -438,46 +438,48 @@ const finalStationName =
         {/* 1. JOURNEY + PASSENGER DETAILS */}
         <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-4">
           {/* HEADER */}
-          <div className="flex justify-between items-start gap-2 border-b border-slate-100 pb-3 mb-4">
-            <div className="min-w-0 flex-1">
-              <h2 className="font-bold text-[16px] text-slate-800 tracking-tight flex items-center gap-1.5">
-                <span className="w-2 h-4 bg-amber-500 rounded-full inline-block"></span>
-                Journey Details
-              </h2>
-              
-              {/* Train Name & Number */}
-              <div className="mt-2.5 font-bold text-[15px] text-slate-800 truncate flex items-center gap-1.5">
-                <span>🚆</span>
-                <span className="tracking-tight">
-                  {trainName} {trainNumber ? `(${trainNumber})` : ""}
-                </span>
-              </div>
+<div className="flex justify-between items-start gap-2 border-b border-slate-100 pb-3 mb-4">
+  <div className="min-w-0 flex-1">
+    <h2 className="font-bold text-[16px] text-slate-800 tracking-tight flex items-center gap-1.5">
+      <span className="w-2 h-4 bg-amber-500 rounded-full inline-block"></span>
+      Journey Details
+    </h2>
 
-              {/* Station Name & Code */}
-              <div className="text-sm font-medium text-slate-500 mt-1.5 flex items-center gap-1.5 truncate">
-                <span>📍</span>
-                <span>
-                  {stationName} {stationCode ? `(${stationCode})` : ""}
-                </span>
-              </div>
-            </div>
+    {/* Train Name & Number */}
+    <div className="mt-2.5 font-bold text-[15px] text-slate-800 flex items-start gap-1.5 leading-tight">
+      <span className="shrink-0">🚆</span>
+      <span className="min-w-0 whitespace-normal break-words tracking-tight">
+        {trainName} {trainNumber ? `(${trainNumber})` : ""}
+      </span>
+    </div>
 
-            {/* RIGHT DATETIME & RESTAURANT */}
-            <div className="text-right text-xs font-semibold text-slate-600 shrink-0 bg-slate-50/80 p-2.5 rounded-lg space-y-1 min-w-[105px]">
-              <div className="flex items-center justify-end gap-1">
-                <span>📅</span>
-                <span>{deliveryDate}</span>
-              </div>
-              <div className="flex items-center justify-end gap-1">
-                <span>⏰</span>
-                <span>{deliveryTime}</span>
-              </div>
-              <div className="text-xs font-bold text-amber-600 truncate max-w-[125px] mt-1 pt-1 border-t border-slate-200">
-                🎪 {vendorName}
-              </div>
-            </div>
-          </div>
+    {/* Station Name & Code */}
+    <div className="text-sm font-medium text-slate-500 mt-1.5 flex items-start gap-1.5 leading-tight">
+      <span className="shrink-0">📍</span>
+      <span className="min-w-0 whitespace-normal break-words">
+        {stationName} {stationCode ? `(${stationCode})` : ""}
+      </span>
+    </div>
+  </div>
 
+  {/* RIGHT DATETIME & RESTAURANT */}
+  <div className="text-right text-xs font-semibold text-slate-600 shrink-0 bg-slate-50/80 p-2.5 rounded-lg space-y-1 w-[150px]">
+    <div className="flex items-center justify-end gap-1 whitespace-nowrap">
+      <span>📅</span>
+      <span>{deliveryDate}</span>
+    </div>
+
+    <div className="flex items-center justify-end gap-1 whitespace-nowrap">
+      <span>⏰</span>
+      <span>{deliveryTime}</span>
+    </div>
+
+    <div className="mt-1 pt-1 border-t border-slate-200 text-xs font-bold text-amber-600 leading-tight text-right whitespace-normal break-words">
+      <span className="inline-block align-top mr-1">🎪</span>
+      <span>{vendorName}</span>
+    </div>
+  </div>
+</div>
           {/* INPUT FORM */}
           <div className="space-y-3 text-[14px]">
             {/* NAME + MOBILE */}
