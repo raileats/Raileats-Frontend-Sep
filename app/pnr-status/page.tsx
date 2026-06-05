@@ -2,11 +2,12 @@ import type { Metadata } from "next";
 import PnrStatusClient from "./PnrStatusClient";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
 export const metadata: Metadata = {
   title: "PNR Status Check Online | Indian Railway PNR Status | RailEats",
   description:
-    "Check Indian Railway PNR status online with train number, train name, journey date, chart status, coach and seat details. Use RailEats to check PNR and order food in train.",
+    "Check Indian Railway PNR status online with train number, train name, journey date, chart status, coach and seat details on RailEats.",
   alternates: {
     canonical: "https://www.raileats.in/pnr-status",
   },
@@ -41,6 +42,7 @@ export default function Page() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
+
       <PnrStatusClient />
     </>
   );
