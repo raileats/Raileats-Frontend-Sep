@@ -2,16 +2,6 @@
 
 import { useMemo, useState } from "react";
 
-type PnrPassenger = {
-  serial?: number;
-  bookingStatus?: string | null;
-  bookingDetails?: string | null;
-  currentStatus?: string | null;
-  currentDetails?: string | null;
-  currentCoachId?: string | null;
-  currentBerthNo?: string | number | null;
-};
-
 type PnrResult = {
   ok: boolean;
   pnr: string;
@@ -23,7 +13,7 @@ type PnrResult = {
   destination?: string | null;
   chartStatus?: string | null;
   passengersCount?: number;
-  passengers?: PnrPassenger[];
+  passengers?: any[];
   raw?: any;
 };
 
@@ -31,7 +21,7 @@ function formatDateTime(value?: string | null) {
   if (!value) return "N/A";
 
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
+  if (Number.isNaN(date.getTime())) return String(value);
 
   return date.toLocaleString("en-IN", {
     day: "2-digit",
@@ -49,20 +39,17 @@ function getShortDay(value?: string | null) {
   if (Number.isNaN(date.getTime())) return "";
 
   return date
-    .toLocaleDateString("en-IN", {
-      weekday: "short",
-    })
+    .toLocaleDateString("en-IN", { weekday: "short" })
     .toUpperCase();
 }
 
 function getCountdown(value?: string | null) {
-  if (!value) return "";
+  if (!value) return "N/A";
 
   const target = new Date(value).getTime();
-  if (!Number.isFinite(target)) return "";
+  if (!Number.isFinite(target)) return "N/A";
 
   const diff = target - Date.now();
-
   if (diff <= 0) return "Train departed";
 
   const totalMin = Math.floor(diff / 60000);
@@ -78,14 +65,8 @@ function getCountdown(value?: string | null) {
 function getStatusTone(status?: string | null) {
   const clean = String(status || "").toUpperCase();
 
-  if (clean.includes("WL")) {
-    return { bg: "#fee2e2", color: "#b91c1c" };
-  }
-
-  if (clean.includes("RAC")) {
-    return { bg: "#dbeafe", color: "#1d4ed8" };
-  }
-
+  if (clean.includes("WL")) return { bg: "#fee2e2", color: "#b91c1c" };
+  if (clean.includes("RAC")) return { bg: "#dbeafe", color: "#1d4ed8" };
   if (clean.includes("CNF") || clean.includes("CONFIRM")) {
     return { bg: "#dcfce7", color: "#15803d" };
   }
@@ -112,7 +93,7 @@ function canSearchToday() {
     const parsed = JSON.parse(saved);
     if (parsed.date !== today) return true;
     return Number(parsed.count || 0) < 5;
-  } catch {
+  } catch (e) {
     return true;
   }
 }
@@ -128,29 +109,17 @@ function increaseSearchCount() {
 
   try {
     const parsed = saved ? JSON.parse(saved) : null;
-    if (parsed?.date === today) {
+    if (parsed && parsed.date === today) {
       count = Number(parsed.count || 0);
     }
-  } catch {
+  } catch (e) {
     count = 0;
   }
 
-  localStorage.setItem(
-    key,
-    JSON.stringify({
-      date: today,
-      count: count + 1,
-    })
-  );
+  localStorage.setItem(key, JSON.stringify({ date: today, count: count + 1 }));
 }
 
-async function trackEvent(
-  event_name: string,
-  payload: {
-    section?: string;
-    metadata?: Record<string, any>;
-  } = {}
-) {
+async function trackEvent(eventName: string, metadata: Record<string, any> = {}) {
   try {
     if (typeof window === "undefined") return;
 
@@ -164,13 +133,11 @@ async function trackEvent(
 
     await fetch("/api/website-events", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       keepalive: true,
       body: JSON.stringify({
-        event_name,
-        section: payload.section || null,
+        event_name: eventName,
+        section: "pnr_status_page",
         page_url: window.location.href,
         page_path: window.location.pathname,
         session_id: sessionId,
@@ -180,28 +147,22 @@ async function trackEvent(
             : window.innerWidth < 1024
             ? "tablet"
             : "desktop",
-        browser: navigator.userAgent.includes("Edg")
-          ? "Edge"
-          : navigator.userAgent.includes("Chrome")
-          ? "Chrome"
-          : navigator.userAgent.includes("Firefox")
-          ? "Firefox"
-          : navigator.userAgent.includes("Safari")
-          ? "Safari"
-          : "Other",
-        metadata: payload.metadata || {},
+        browser: navigator.userAgent,
+        metadata,
       }),
     });
-  } catch (err) {
-    console.error("trackEvent failed:", err);
+  } catch (e) {
+    console.error("trackEvent failed", e);
   }
 }
 
-function Info({ label, value }: { label: string; value: string }) {
+function InfoBox(props: { label: string; value: string }) {
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-3">
-      <div className="text-xs font-black text-slate-400">{label}</div>
-      <div className="mt-1 text-sm font-black text-slate-950">{value}</div>
+      <div className="text-xs font-black text-slate-400">{props.label}</div>
+      <div className="mt-1 text-sm font-black text-slate-950">
+        {props.value}
+      </div>
     </div>
   );
 }
@@ -213,10 +174,11 @@ export default function PnrStatusClient() {
   const [error, setError] = useState("");
 
   const passengers = useMemo(() => {
-    return result?.passengers || result?.raw?.passengerList || [];
+    if (!result) return [];
+    return result.passengers || result.raw?.passengerList || [];
   }, [result]);
 
-  const handlePnrSearch = async () => {
+  async function handlePnrSearch() {
     const clean = pnr.replace(/\D/g, "");
 
     if (clean.length !== 10) {
@@ -234,17 +196,9 @@ export default function PnrStatusClient() {
       setError("");
       setResult(null);
 
-      trackEvent("pnr_status_page_search_click", {
-        section: "pnr_status_page",
-        metadata: {
-          pnr: clean,
-        },
-      });
+      trackEvent("pnr_status_page_search_click", { pnr: clean });
 
-      const res = await fetch(`/api/pnr/${clean}`, {
-        cache: "no-store",
-      });
-
+      const res = await fetch(`/api/pnr/${clean}`, { cache: "no-store" });
       const json = await res.json();
 
       if (!res.ok || !json?.ok) {
@@ -257,16 +211,14 @@ export default function PnrStatusClient() {
 
       try {
         localStorage.setItem("raileats_pnr_details", JSON.stringify(json));
-      } catch {
-        // ignore localStorage failure
-      }
-    } catch (err) {
-      console.error(err);
+      } catch (e) {}
+    } catch (e) {
+      console.error(e);
       setError("Unable to fetch PNR details");
     } finally {
       setLoading(false);
     }
-  };
+  }
 
   return (
     <main className="customer-app-main">
@@ -306,13 +258,13 @@ export default function PnrStatusClient() {
             </button>
           </div>
 
-          {error ? (
+          {error && (
             <div className="mt-4 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-bold text-red-600">
               {error}
             </div>
-          ) : null}
+          )}
 
-          {result ? (
+          {result && (
             <div className="mt-5 space-y-5">
               <div className="rounded-3xl border border-slate-200 bg-gradient-to-br from-white to-sky-50 p-4 shadow-sm">
                 <div className="flex items-start justify-between gap-3">
@@ -323,33 +275,48 @@ export default function PnrStatusClient() {
                     </div>
                   </div>
 
-                  {result.chartStatus ? (
+                  {result.chartStatus && (
                     <div className="rounded-full bg-green-100 px-3 py-1 text-xs font-black text-green-700">
                       {result.chartStatus}
                     </div>
-                  ) : null}
+                  )}
                 </div>
 
                 <div className="mt-4 text-base font-black text-slate-950">
-                  🚆 {result.trainNo || "N/A"} - {result.trainName || "Train"}
+                  Train {result.trainNo || "N/A"} - {result.trainName || "Train"}
                 </div>
 
                 <div className="mt-4 grid grid-cols-2 gap-3">
-                  <Info label="Journey" value={formatDateTime(result.dateOfJourney)} />
-                  <Info label="Boarding countdown" value={getCountdown(result.dateOfJourney)} />
-                  <Info label="Class" value={result.raw?.journeyClass || "N/A"} />
-                  <Info label="Chart" value={result.chartStatus || "N/A"} />
-                  <Info label="Boarding" value={result.boardingPoint || result.source || "N/A"} />
-                  <Info
+                  <InfoBox
+                    label="Journey"
+                    value={formatDateTime(result.dateOfJourney)}
+                  />
+                  <InfoBox
+                    label="Boarding countdown"
+                    value={getCountdown(result.dateOfJourney)}
+                  />
+                  <InfoBox
+                    label="Class"
+                    value={result.raw?.journeyClass || "N/A"}
+                  />
+                  <InfoBox
+                    label="Chart"
+                    value={result.chartStatus || "N/A"}
+                  />
+                  <InfoBox
+                    label="Boarding"
+                    value={result.boardingPoint || result.source || "N/A"}
+                  />
+                  <InfoBox
                     label="Destination"
                     value={result.destination || result.raw?.reservationUpto || "N/A"}
                   />
 
-                  {getShortDay(result.dateOfJourney) ? (
+                  {getShortDay(result.dateOfJourney) && (
                     <div className="col-span-2 rounded-2xl border border-orange-100 bg-orange-50 p-3 text-sm font-black text-orange-700">
                       Boarding Day: {getShortDay(result.dateOfJourney)}
                     </div>
-                  ) : null}
+                  )}
                 </div>
               </div>
 
@@ -386,10 +353,7 @@ export default function PnrStatusClient() {
 
                           <div
                             className="rounded-full px-3 py-1 text-xs font-black"
-                            style={{
-                              background: tone.bg,
-                              color: tone.color,
-                            }}
+                            style={{ background: tone.bg, color: tone.color }}
                           >
                             {p.currentStatus || "N/A"}
                           </div>
@@ -429,50 +393,12 @@ export default function PnrStatusClient() {
                 chart details with official railway sources before boarding.
               </div>
             </div>
-          ) : null}
+          )}
         </div>
 
         <section className="mt-5 app-card p-5">
-  <h2 className="text-xl font-black text-slate-950">
-    Check Indian Railway PNR Status Online
-  </h2>
+          <h2 className="text-xl font-black text-slate-950">
+            Check Indian Railway PNR Status Online
+          </h2>
 
-  <p className="mt-2 text-sm font-semibold leading-6 text-slate-600">
-    RailEats helps passengers check PNR status online using a 10 digit PNR
-    number. You can view train number, train name, journey date, boarding
-    station, destination station, chart status, coach and seat details in one
-    place.
-  </p>
-
-  <h2 className="mt-5 text-lg font-black text-slate-950">
-    What is PNR status?
-  </h2>
-
-  <p className="mt-2 text-sm font-semibold leading-6 text-slate-600">
-    PNR status shows the current status of your Indian Railway ticket. It helps
-    you know whether your ticket is confirmed, RAC or waitlisted. After checking
-    your train PNR status, you can order fresh food in train on RailEats for
-    available stations on your route.
-  </p>
-
-  <h2 className="mt-5 text-lg font-black text-slate-950">
-    How to check PNR status on RailEats?
-  </h2>
-
-  <ol className="mt-2 list-decimal space-y-2 pl-5 text-sm font-semibold leading-6 text-slate-600">
-    <li>Enter your 10 digit PNR number in the PNR status box.</li>
-    <li>Click on Search to fetch your train journey details.</li>
-    <li>View train name, journey date, chart status, coach and seat details.</li>
-    <li>Order food in train if RailEats service is available on your route.</li>
-  </ol>
-
-  <div className="mt-5 rounded-2xl border border-orange-100 bg-orange-50 p-4">
-    <h3 className="text-base font-black text-slate-950">
-      Order food in train after checking PNR
-    </h3>
-    <p className="mt-2 text-sm font-semibold leading-6 text-slate-600">
-      Once your PNR status is checked, you can search food delivery by train
-      number or station and place your order with RailEats.
-    </p>
-  </div>
-</section>
+          <p className="mt-2
