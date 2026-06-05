@@ -96,7 +96,31 @@ useEffect(() => {
   try {
     const urlPnr = searchParams.get("pnr") || "";
     const cartPnr = String(firstCartItem?.pnr || "");
-    const finalPnr = urlPnr || cartPnr;
+
+    const saved =
+      typeof window !== "undefined"
+        ? localStorage.getItem("raileats_pnr_details")
+        : null;
+
+    let savedPnr = "";
+    let savedCoach = "";
+    let savedSeat = "";
+    let savedTrainNo = "";
+
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      savedPnr = String(parsed?.pnr || "");
+      savedCoach = String(parsed?.coach || "");
+      savedSeat = String(parsed?.berth || "");
+      savedTrainNo = String(parsed?.trainNo || parsed?.trainNumber || "");
+    }
+
+    const finalPnr =
+      urlPnr ||
+      cartPnr ||
+      (savedTrainNo && trainNumber && savedTrainNo === String(trainNumber)
+        ? savedPnr
+        : "");
 
     if (!finalPnr) {
       setPnr("");
@@ -109,26 +133,17 @@ useEffect(() => {
 
     setPnr(finalPnr);
 
-    const saved =
-      typeof window !== "undefined"
-        ? localStorage.getItem("raileats_pnr_details")
-        : null;
-
-    if (!saved) return;
-
-    const parsed = JSON.parse(saved);
-
-    if (String(parsed?.pnr || "") === String(finalPnr)) {
-      setCoach(String(parsed?.coach || ""));
-      setSeat(String(parsed?.berth || ""));
+    if (savedPnr === finalPnr) {
+      setCoach(savedCoach);
+      setSeat(savedSeat);
       setIsPnrLocked(true);
-      setIsPnrVerified(!!parsed?.coach && !!parsed?.berth);
+      setIsPnrVerified(!!savedCoach && !!savedSeat);
       setPnrError("");
     }
   } catch (e) {
     console.error("PNR preload failed", e);
   }
-}, [searchParams, firstCartItem?.pnr]);
+}, [searchParams, firstCartItem?.pnr, trainNumber]);
 
   /* ================= FETCH PNR DETAILS ================= */
 useEffect(() => {
