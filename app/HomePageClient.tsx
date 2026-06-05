@@ -12,6 +12,65 @@ import Steps from "./components/Steps";
 import ExploreRailInfo from "./components/ExploreRailInfo";
 import FooterLinks from "./components/FooterLinks";
 
+async function trackEvent(
+  event_name: string,
+  payload: {
+    section?: string;
+    user_name?: string | null;
+    user_email?: string | null;
+    user_mobile?: string | null;
+    metadata?: Record<string, any>;
+  } = {}
+) {
+  try {
+    if (typeof window === "undefined") return;
+
+    const key = "raileats_session_id";
+    let sessionId = localStorage.getItem(key);
+
+    if (!sessionId) {
+      sessionId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      localStorage.setItem(key, sessionId);
+    }
+
+    await fetch("/api/website-events", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      keepalive: true,
+      body: JSON.stringify({
+        event_name,
+        section: payload.section || null,
+        page_url: window.location.href,
+        page_path: window.location.pathname,
+        user_name: payload.user_name || null,
+        user_email: payload.user_email || null,
+        user_mobile: payload.user_mobile || null,
+        session_id: sessionId,
+        device:
+          window.innerWidth < 640
+            ? "mobile"
+            : window.innerWidth < 1024
+            ? "tablet"
+            : "desktop",
+        browser: navigator.userAgent.includes("Edg")
+          ? "Edge"
+          : navigator.userAgent.includes("Chrome")
+          ? "Chrome"
+          : navigator.userAgent.includes("Firefox")
+          ? "Firefox"
+          : navigator.userAgent.includes("Safari")
+          ? "Safari"
+          : "Other",
+        metadata: payload.metadata || {},
+      }),
+    });
+  } catch (err) {
+    console.error("trackEvent failed:", err);
+  }
+}
+
 export default function HomePageClient() {
   const search = useSearchParams();
   const user = useAuth((s) => s.user);
@@ -31,6 +90,14 @@ export default function HomePageClient() {
     if (clean.startsWith("91") && clean.length === 12) return `+${clean}`;
     if (clean.length === 10) return `+91${clean}`;
     return num;
+  };
+
+  const getTrackingUser = () => {
+    return {
+      user_name: user?.name || name || null,
+      user_email: user?.email || email || null,
+      user_mobile: user?.mobile || formatMobile(mobile) || null,
+    };
   };
 
   const handleSubmit = async () => {
@@ -62,6 +129,17 @@ export default function HomePageClient() {
         alert("Error submitting enquiry");
         return;
       }
+
+      trackEvent("home_bulk_order_query_submit", {
+        section: "home_bulk_order",
+        ...getTrackingUser(),
+        metadata: {
+          trainNumber,
+          journeyDate,
+          quantity,
+          loggedIn: !!user,
+        },
+      });
 
       setSuccess(true);
       setTrainNumber("");
@@ -108,6 +186,14 @@ export default function HomePageClient() {
           <button
             type="button"
             onClick={() => {
+              trackEvent("home_bulk_order_click", {
+                section: "home_bulk_order",
+                ...getTrackingUser(),
+                metadata: {
+                  loggedIn: !!user,
+                },
+              });
+
               if (!user) {
                 localStorage.setItem("afterLoginAction", "bulk");
                 window.dispatchEvent(new CustomEvent("raileats:open-login"));
