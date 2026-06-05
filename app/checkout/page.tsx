@@ -53,15 +53,20 @@ export default function CheckoutPage() {
   /* ================= PNR AUTO LOAD ================= */
 useEffect(() => {
   try {
-    const urlPnr = searchParams.get("pnr");
+    const urlPnr = searchParams.get("pnr") || "";
+    const cartPnr = String(firstCartItem?.pnr || "");
+    const finalPnr = urlPnr || cartPnr;
 
-    if (!urlPnr) {
+    if (!finalPnr) {
       setPnr("");
       setCoach("");
       setSeat("");
       setIsPnrLocked(false);
+      setIsPnrVerified(false);
       return;
     }
+
+    setPnr(finalPnr);
 
     const saved =
       typeof window !== "undefined"
@@ -72,25 +77,57 @@ useEffect(() => {
 
     const parsed = JSON.parse(saved);
 
-    if (parsed?.pnr === urlPnr) {
-      setPnr(parsed?.pnr || "");
-      setCoach(parsed?.coach || "");
-      setSeat(parsed?.berth || "");
+    if (String(parsed?.pnr || "") === String(finalPnr)) {
+      setCoach(String(parsed?.coach || ""));
+      setSeat(String(parsed?.berth || ""));
       setIsPnrLocked(true);
+      setIsPnrVerified(!!parsed?.coach && !!parsed?.berth);
+      setPnrError("");
     }
   } catch (e) {
     console.error("PNR preload failed", e);
   }
-}, [searchParams]);
-
+}, [searchParams, firstCartItem?.pnr]);
   /* ================= SAFE COALESCING VARIABLES ================= */
-  const trainName = journey?.trainName || "N/A";
-  const trainNumber = journey?.trainNumber || "";
-  const stationName = journey?.stationName || "N/A";
-  const stationCode = journey?.stationCode || "";
-  const deliveryDate = journey?.deliveryDate || "N/A";
-  const deliveryTime = journey?.deliveryTime || "N/A";
-  const vendorName = journey?.vendorName || "N/A";
+const firstCartItem = cartItems[0] as any;
+
+const trainName =
+  journey?.trainName ||
+  firstCartItem?.trainName ||
+  "N/A";
+
+const trainNumber =
+  journey?.trainNumber ||
+  firstCartItem?.trainNumber ||
+  "";
+
+const stationName =
+  journey?.stationName ||
+  firstCartItem?.station_name ||
+  firstCartItem?.stationName ||
+  "N/A";
+
+const stationCode =
+  journey?.stationCode ||
+  firstCartItem?.station_code ||
+  firstCartItem?.stationCode ||
+  "";
+
+const deliveryDate =
+  journey?.deliveryDate ||
+  firstCartItem?.deliveryDate ||
+  "N/A";
+
+const deliveryTime =
+  journey?.deliveryTime ||
+  firstCartItem?.deliveryTime ||
+  "N/A";
+
+const vendorName =
+  journey?.vendorName ||
+  firstCartItem?.vendorName ||
+  firstCartItem?.restro_name ||
+  "N/A";
 
   /* ================= FETCH PNR DETAILS ================= */
 useEffect(() => {
