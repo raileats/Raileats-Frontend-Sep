@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import StationSearchBox from "./StationSearchBox";
 import TrainAutocomplete from "./TrainAutocomplete";
-import { useCart } from "../lib/useCart";
+import { trackEvent } from "@/lib/trackEvent";
 
 function makeTrainSlug(trainNoRaw: string) {
   const clean = String(trainNoRaw || "").trim();
@@ -29,8 +29,6 @@ function todayIso() {
 }
 
 export default function SearchBox() {
-  const { clearCart } = useCart();
-
   const [searchType, setSearchType] = useState("train");
   const [inputValue, setInputValue] = useState("");
   const [selectedTrain, setSelectedTrain] = useState<any>(null);
@@ -94,6 +92,14 @@ export default function SearchBox() {
     const trainNo = t.train_no || t.trainNumber;
     const trainName = t.train_name || t.trainName || "Train";
 
+    trackEvent("home_train_suggestion_select", {
+      section: "home_search_box",
+      metadata: {
+        trainNo,
+        trainName,
+      },
+    });
+
     setSelectedTrain(t);
     setInputValue(`${trainNo} - ${trainName}`);
     setDate(todayIso());
@@ -101,6 +107,10 @@ export default function SearchBox() {
   }
 
   const resetSearch = (type: string) => {
+    trackEvent(`home_${type}_tab_click`, {
+      section: "home_search_tabs",
+    });
+
     setSearchType(type);
     setInputValue("");
     setSelectedTrain(null);
@@ -111,23 +121,23 @@ export default function SearchBox() {
     setDate(todayIso());
   };
 
-  const clearCartBeforeNewSearch = () => {
-    clearCart();
-
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("raileats_min_order");
-      localStorage.removeItem("pendingCartItem");
-      localStorage.removeItem("pendingJourney");
-    }
-  };
-
   const handleSearch = () => {
     const cleanInput = inputValue.trim();
 
+    trackEvent("home_search_food_click", {
+      section: "home_search_box",
+      metadata: {
+        searchType,
+        inputValue: cleanInput,
+        trainNo: selectedTrain?.train_no || selectedTrain?.trainNumber || null,
+        boarding,
+        date,
+        stationCode: selectedStationData?.StationCode || null,
+      },
+    });
+
     if (searchType === "pnr") {
       if (!cleanInput) return alert("Enter PNR first");
-
-      clearCartBeforeNewSearch();
       window.location.href = `/pnr/${encodeURIComponent(cleanInput)}`;
       return;
     }
@@ -142,7 +152,6 @@ export default function SearchBox() {
         selectedStationData.StationCode
       );
 
-      clearCartBeforeNewSearch();
       window.location.href = `/stations/${slug}`;
       return;
     }
@@ -154,7 +163,6 @@ export default function SearchBox() {
       const trainNo = selectedTrain.train_no || selectedTrain.trainNumber;
       const slug = makeTrainSlug(trainNo);
 
-      clearCartBeforeNewSearch();
       window.location.href = `/trains/${slug}?date=${date}&boarding=${boarding}`;
     }
   };
@@ -211,6 +219,14 @@ export default function SearchBox() {
             <div className="[&_input]:w-full [&_button]:font-semibold">
               <StationSearchBox
                 onSelect={(s: any) => {
+                  trackEvent("home_station_suggestion_select", {
+                    section: "home_search_box",
+                    metadata: {
+                      stationName: s?.StationName || null,
+                      stationCode: s?.StationCode || null,
+                    },
+                  });
+
                   setSelectedStationData(s);
                   setInputValue(
                     s?.StationName && s?.StationCode
@@ -234,7 +250,16 @@ export default function SearchBox() {
               <input
                 type="date"
                 value={date}
-                onChange={(e) => setDate(e.target.value)}
+                onChange={(e) => {
+                  trackEvent("home_journey_date_change", {
+                    section: "home_search_box",
+                    metadata: {
+                      date: e.target.value,
+                    },
+                  });
+
+                  setDate(e.target.value);
+                }}
                 className="app-input"
               />
 
@@ -242,6 +267,10 @@ export default function SearchBox() {
                 <button
                   type="button"
                   onClick={() => {
+                    trackEvent("home_boarding_dropdown_click", {
+                      section: "home_search_box",
+                    });
+
                     setShowStationList((prev) => {
                       const next = !prev;
                       if (next) scrollBoardingListIntoView();
@@ -273,6 +302,14 @@ export default function SearchBox() {
                         key={s.code}
                         type="button"
                         onClick={() => {
+                          trackEvent("home_boarding_station_select", {
+                            section: "home_search_box",
+                            metadata: {
+                              stationName: s.name,
+                              stationCode: s.code,
+                            },
+                          });
+
                           setBoarding(s.code);
                           setShowStationList(false);
                           scrollSearchButtonIntoView();
