@@ -1,173 +1,400 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
+
+type PnrPassenger = {
+  serial?: number;
+  bookingStatus?: string | null;
+  bookingDetails?: string | null;
+  currentStatus?: string | null;
+  currentDetails?: string | null;
+  currentCoachId?: string | null;
+  currentBerthNo?: string | number | null;
+};
+
+type PnrResult = {
+  ok: boolean;
+  pnr: string;
+  trainNo?: string | null;
+  trainName?: string | null;
+  dateOfJourney?: string | null;
+  boardingPoint?: string | null;
+  source?: string | null;
+  destination?: string | null;
+  chartStatus?: string | null;
+  passengersCount?: number;
+  passengers?: PnrPassenger[];
+  raw?: any;
+};
+
+async function trackEvent(
+  event_name: string,
+  payload: {
+    section?: string;
+    metadata?: Record<string, any>;
+  } = {}
+) {
+  try {
+    if (typeof window === "undefined") return;
+
+    const key = "raileats_session_id";
+    let sessionId = localStorage.getItem(key);
+
+    if (!sessionId) {
+      sessionId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      localStorage.setItem(key, sessionId);
+    }
+
+    await fetch("/api/website-events", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      keepalive: true,
+      body: JSON.stringify({
+        event_name,
+        section: payload.section || null,
+        page_url: window.location.href,
+        page_path: window.location.pathname,
+        session_id: sessionId,
+        device:
+          window.innerWidth < 640
+            ? "mobile"
+            : window.innerWidth < 1024
+            ? "tablet"
+            : "desktop",
+        browser: navigator.userAgent.includes("Edg")
+          ? "Edge"
+          : navigator.userAgent.includes("Chrome")
+          ? "Chrome"
+          : navigator.userAgent.includes("Firefox")
+          ? "Firefox"
+          : navigator.userAgent.includes("Safari")
+          ? "Safari"
+          : "Other",
+        metadata: payload.metadata || {},
+      }),
+    });
+  } catch (err) {
+    console.error("trackEvent failed:", err);
+  }
+}
+
+function formatDateTime(value?: string | null) {
+  if (!value) return "N/A";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+
+  return date.toLocaleString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function getStatusTone(status?: string | null) {
+  const clean = String(status || "").toUpperCase();
+
+  if (clean.includes("WL")) {
+    return {
+      bg: "#fee2e2",
+      color: "#b91c1c",
+    };
+  }
+
+  if (clean.includes("RAC")) {
+    return {
+      bg: "#dbeafe",
+      color: "#1d4ed8",
+    };
+  }
+
+  if (clean.includes("CNF") || clean.includes("CONFIRM")) {
+    return {
+      bg: "#dcfce7",
+      color: "#15803d",
+    };
+  }
+
+  return {
+    bg: "#f1f5f9",
+    color: "#334155",
+  };
+}
+
+function getCountdown(value?: string | null) {
+  if (!value) return "";
+
+  const target = new Date(value).getTime();
+  if (!Number.isFinite(target)) return "";
+
+  const diff = target - Date.now();
+
+  if (diff <= 0) return "Train departed";
+
+  const totalMin = Math.floor(diff / 60000);
+  const days = Math.floor(totalMin / 1440);
+  const hours = Math.floor((totalMin % 1440) / 60);
+  const mins = totalMin % 60;
+
+  if (days > 0) return `${days}d ${hours}h ${mins}m left`;
+  if (hours > 0) return `${hours}h ${mins}m left`;
+  return `${mins}m left`;
+}
+
+function getShortDay(value?: string | null) {
+  if (!value) return "";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+
+  return date
+    .toLocaleDateString("en-IN", {
+      weekday: "short",
+    })
+    .toUpperCase();
+}
+
+function todayKey() {
+  return new Date().toLocaleDateString("en-CA", {
+    timeZone: "Asia/Kolkata",
+  });
+}
+
+function canSearchToday() {
+  if (typeof window === "undefined") return true;
+
+  const key = "raileats_pnr_search_limit";
+  const today = todayKey();
+  const saved = localStorage.getItem(key);
+
+  if (!saved) return true;
+
+  try {
+    const parsed = JSON.parse(saved);
+    if (parsed.date !== today) return true;
+    return Number(parsed.count || 0) < 5;
+  } catch {
+    return true;
+  }
+}
+
+function increaseSearchCount() {
+  if (typeof window === "undefined") return;
+
+  const key = "raileats_pnr_search_limit";
+  const today = todayKey();
+  const saved = localStorage.getItem(key);
+
+  let count = 0;
+
+  try {
+    const parsed = saved ? JSON.parse(saved) : null;
+    if (parsed?.date === today) {
+      count = Number(parsed.count || 0);
+    }
+  } catch {}
+
+  localStorage.setItem(
+    key,
+    JSON.stringify({
+      date: today,
+      count: count + 1,
+    })
+  );
+}
 
 export default function PnrStatusClient() {
   const [pnr, setPnr] = useState("");
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<any>(null);
+  const [result, setResult] = useState<PnrResult | null>(null);
   const [error, setError] = useState("");
 
-  async function checkPnr() {
-    const clean = pnr.trim();
+  const passengers = useMemo(() => {
+    return result?.passengers || result?.raw?.passengerList || [];
+  }, [result]);
 
-    if (!/^\d{10}$/.test(clean)) {
-      setError("Please enter valid 10 digit PNR number.");
+  const handlePnrSearch = async () => {
+    const clean = pnr.replace(/\D/g, "");
+
+    if (clean.length !== 10) {
+      setError("Please enter valid 10 digit PNR");
       return;
     }
 
-    setLoading(true);
-    setError("");
-    setResult(null);
+    if (!canSearchToday()) {
+      setError("Daily PNR search limit complete ho gaya. Please kal try karein.");
+      return;
+    }
 
     try {
-      const res = await fetch(`/api/pnr/${clean}`, { cache: "no-store" });
+      setLoading(true);
+      setError("");
+      setResult(null);
+
+      trackEvent("pnr_status_page_search_click", {
+        section: "pnr_status_page",
+        metadata: {
+          pnr: clean,
+        },
+      });
+
+      const res = await fetch(`/api/pnr/${clean}`, {
+        cache: "no-store",
+      });
+
       const json = await res.json();
 
-      if (!res.ok || !json.ok) {
-        setError(json?.message || "PNR status not found. Please try again.");
+      if (!res.ok || !json?.ok) {
+        setError(json?.message || json?.error || "PNR details not found");
         return;
       }
 
+      increaseSearchCount();
       setResult(json);
-    } catch {
-      setError("Unable to check PNR right now. Please try again.");
+
+      try {
+        localStorage.setItem("raileats_pnr_details", JSON.stringify(json));
+      } catch {}
+    } catch (err) {
+      console.error(err);
+      setError("Unable to fetch PNR details");
     } finally {
       setLoading(false);
     }
-  }
+  };
 
   return (
     <main className="customer-app-main">
-      <section className="site-container">
+      <section className="site-container max-w-2xl">
         <div className="app-card p-5 sm:p-6">
-          <p className="text-sm font-black uppercase tracking-wide text-orange-600">
-            Indian Railway PNR Status
-          </p>
+          <div>
+            <p className="text-sm font-black uppercase tracking-wide text-orange-600">
+              Indian Railway PNR Status
+            </p>
 
-          <h1 className="mt-2 text-3xl font-black leading-tight text-slate-950 sm:text-4xl">
-            Check PNR Status Online
-          </h1>
+            <h1 className="mt-2 text-3xl font-black leading-tight text-slate-950 sm:text-4xl">
+              Check PNR Status Online
+            </h1>
 
-          <p className="mt-3 text-sm font-semibold leading-6 text-slate-600">
-            Enter your 10 digit PNR number to check train name, journey date,
-            chart status, coach and seat details. You can also order fresh food
-            in train with RailEats after checking your journey details.
-          </p>
+            <p className="mt-3 text-sm font-semibold leading-6 text-slate-600">
+              Enter 10 digit PNR to view train, journey, chart, coach and seat
+              details.
+            </p>
+          </div>
 
-          <div className="mt-5 flex gap-2">
+          <div className="mt-5 grid grid-cols-[1fr_auto] gap-3">
             <input
               value={pnr}
-              onChange={(e) => setPnr(e.target.value.replace(/\D/g, "").slice(0, 10))}
-              placeholder="Enter 10 digit PNR"
-              className="app-input flex-1"
+              onChange={(e) =>
+                setPnr(e.target.value.replace(/\D/g, "").slice(0, 10))
+              }
+              placeholder="Enter PNR"
+              className="app-input"
               inputMode="numeric"
             />
+
             <button
               type="button"
-              onClick={checkPnr}
+              onClick={handlePnrSearch}
               disabled={loading}
-              className="app-btn-primary shrink-0"
+              className="app-btn-primary min-w-[92px]"
             >
-              {loading ? "Checking..." : "Check"}
+              {loading ? "..." : "Search"}
             </button>
           </div>
 
           {error && (
-            <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-bold text-red-700">
+            <div className="mt-4 rounded-xl bg-red-50 border border-red-100 px-4 py-3 text-sm font-bold text-red-600">
               {error}
             </div>
           )}
 
           {result && (
-            <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <div className="text-xs font-black uppercase text-slate-500">
-                    PNR
-                  </div>
-                  <div className="text-2xl font-black text-slate-950">
-                    {result.pnr}
-                  </div>
-                </div>
-
-                <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-black text-green-700">
-                  {result.chartStatus || "Status Available"}
-                </span>
-              </div>
-
-              <div className="mt-4 text-lg font-black text-slate-950">
-                🚆 {result.trainNo} - {result.trainName}
-              </div>
-
-              <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-                <Info label="Journey" value={result.dateOfJourney || "-"} />
-                <Info label="Boarding" value={result.boardingPoint || "-"} />
-                <Info label="From" value={result.source || "-"} />
-                <Info label="To" value={result.destination || "-"} />
-              </div>
-
-              {Array.isArray(result.passengers) && result.passengers.length > 0 && (
-                <div className="mt-5 space-y-3">
-                  <h2 className="text-lg font-black text-slate-950">
-                    Passenger Details
-                  </h2>
-
-                  {result.passengers.map((p: any, index: number) => (
-                    <div
-                      key={index}
-                      className="rounded-2xl border border-slate-200 bg-white p-4"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="font-black text-slate-950">
-                          Passenger {index + 1}
-                        </div>
-                        <span className="rounded-full bg-green-100 px-3 py-1 text-sm font-black text-green-700">
-                          {p.currentStatus || "-"}
-                        </span>
-                      </div>
-
-                      <div className="mt-3 text-sm font-bold text-slate-700">
-                        Current:{" "}
-                        <span className="font-black text-slate-950">
-                          {p.currentDetails || "-"}
-                        </span>
-                      </div>
-
-                      <div className="mt-1 text-sm text-slate-600">
-                        Booking: {p.bookingDetails || "-"}
-                      </div>
+            <div className="mt-5 space-y-5">
+              <div className="rounded-3xl border border-slate-200 bg-gradient-to-br from-white to-sky-50 p-4 shadow-sm">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="text-xs font-black text-slate-500">PNR</div>
+                    <div className="text-2xl font-black text-slate-950">
+                      {result.pnr}
                     </div>
-                  ))}
+                  </div>
+
+                  {result.chartStatus && (
+                    <div className="rounded-full bg-green-100 px-3 py-1 text-xs font-black text-green-700">
+                      {result.chartStatus}
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-          )}
-        </div>
 
-        <section className="mt-5 app-card p-5">
-          <h2 className="text-xl font-black text-slate-950">
-            What is PNR status?
-          </h2>
-          <p className="mt-2 text-sm font-semibold leading-6 text-slate-600">
-            PNR status shows your railway ticket booking details, current seat
-            confirmation, coach, berth and chart preparation status. RailEats
-            helps passengers check PNR details and order food for their train
-            journey.
-          </p>
-        </section>
-      </section>
-    </main>
-  );
-}
+                <div className="mt-4 text-base font-black text-slate-950">
+                  🚆 {result.trainNo || "N/A"} - {result.trainName || "Train"}
+                </div>
 
-function Info({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-xl border border-slate-200 bg-white p-3">
-      <div className="text-xs font-black uppercase text-slate-400">{label}</div>
-      <div className="mt-1 break-words text-sm font-black text-slate-900">
-        {value}
-      </div>
-    </div>
-  );
-}
+                <div className="mt-4 grid grid-cols-2 gap-3">
+                  <div className="rounded-2xl border border-slate-200 bg-white p-3">
+                    <div className="text-xs font-black text-slate-400">
+                      Journey
+                    </div>
+                    <div className="mt-1 text-sm font-black text-slate-950">
+                      {formatDateTime(result.dateOfJourney)}
+                    </div>
+                    <div className="mt-1 text-xs font-black text-orange-600">
+                      {getShortDay(result.dateOfJourney)}
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-slate-200 bg-white p-3">
+                    <div className="text-xs font-black text-slate-400">
+                      Boarding countdown
+                    </div>
+                    <div className="mt-1 text-sm font-black text-slate-950">
+                      {getCountdown(result.dateOfJourney)}
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-slate-200 bg-white p-3">
+                    <div className="text-xs font-black text-slate-400">
+                      Class
+                    </div>
+                    <div className="mt-1 text-sm font-black text-slate-950">
+                      {result.raw?.journeyClass || "N/A"}
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-slate-200 bg-white p-3">
+                    <div className="text-xs font-black text-slate-400">
+                      Chart
+                    </div>
+                    <div className="mt-1 text-sm font-black text-slate-950">
+                      {result.chartStatus || "N/A"}
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-slate-200 bg-white p-3">
+                    <div className="text-xs font-black text-slate-400">
+                      Boarding
+                    </div>
+                    <div className="mt-1 text-sm font-black text-slate-950">
+                      {result.boardingPoint || result.source || "N/A"}
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-slate-200 bg-white p-3">
+                    <div className="text-xs font-black text-slate-400">
+                      Destination
+                    </div>
+                    <div className="mt-1 text-sm font-black text-slate-950">
+                      {result.destination || result.raw?.reservationUpto || "N/A"}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <h2 className="text-lg font-black text-slate-950 mb-3">
+                  Passenger Details ({pass
