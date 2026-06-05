@@ -50,44 +50,6 @@ export default function CheckoutPage() {
     }
   }, [user]);
 
-  /* ================= PNR AUTO LOAD ================= */
-useEffect(() => {
-  try {
-    const urlPnr = searchParams.get("pnr") || "";
-    const cartPnr = String(firstCartItem?.pnr || "");
-    const finalPnr = urlPnr || cartPnr;
-
-    if (!finalPnr) {
-      setPnr("");
-      setCoach("");
-      setSeat("");
-      setIsPnrLocked(false);
-      setIsPnrVerified(false);
-      return;
-    }
-
-    setPnr(finalPnr);
-
-    const saved =
-      typeof window !== "undefined"
-        ? localStorage.getItem("raileats_pnr_details")
-        : null;
-
-    if (!saved) return;
-
-    const parsed = JSON.parse(saved);
-
-    if (String(parsed?.pnr || "") === String(finalPnr)) {
-      setCoach(String(parsed?.coach || ""));
-      setSeat(String(parsed?.berth || ""));
-      setIsPnrLocked(true);
-      setIsPnrVerified(!!parsed?.coach && !!parsed?.berth);
-      setPnrError("");
-    }
-  } catch (e) {
-    console.error("PNR preload failed", e);
-  }
-}, [searchParams, firstCartItem?.pnr]);
   /* ================= SAFE COALESCING VARIABLES ================= */
 const firstCartItem = cartItems[0] as any;
 
@@ -128,6 +90,45 @@ const vendorName =
   firstCartItem?.vendorName ||
   firstCartItem?.restro_name ||
   "N/A";
+
+  /* ================= PNR AUTO LOAD ================= */
+useEffect(() => {
+  try {
+    const urlPnr = searchParams.get("pnr") || "";
+    const cartPnr = String(firstCartItem?.pnr || "");
+    const finalPnr = urlPnr || cartPnr;
+
+    if (!finalPnr) {
+      setPnr("");
+      setCoach("");
+      setSeat("");
+      setIsPnrLocked(false);
+      setIsPnrVerified(false);
+      return;
+    }
+
+    setPnr(finalPnr);
+
+    const saved =
+      typeof window !== "undefined"
+        ? localStorage.getItem("raileats_pnr_details")
+        : null;
+
+    if (!saved) return;
+
+    const parsed = JSON.parse(saved);
+
+    if (String(parsed?.pnr || "") === String(finalPnr)) {
+      setCoach(String(parsed?.coach || ""));
+      setSeat(String(parsed?.berth || ""));
+      setIsPnrLocked(true);
+      setIsPnrVerified(!!parsed?.coach && !!parsed?.berth);
+      setPnrError("");
+    }
+  } catch (e) {
+    console.error("PNR preload failed", e);
+  }
+}, [searchParams, firstCartItem?.pnr]);
 
   /* ================= FETCH PNR DETAILS ================= */
 useEffect(() => {
