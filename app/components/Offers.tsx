@@ -1,6 +1,6 @@
 "use client";
 
-import { trackEvent } from "../lib/trackEvent";
+import { trackEvent } from "@/lib/trackEvent";
 
 export default function Offers() {
   return (
