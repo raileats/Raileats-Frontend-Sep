@@ -433,16 +433,46 @@ export default function PnrStatusClient() {
         </div>
 
         <section className="mt-5 app-card p-5">
-          <h2 className="text-xl font-black text-slate-950">
-            What is PNR status?
-          </h2>
-          <p className="mt-2 text-sm font-semibold leading-6 text-slate-600">
-            PNR status shows railway ticket journey details, chart preparation,
-            current booking confirmation, coach and berth information. RailEats
-            helps passengers check PNR status and order fresh food in train.
-          </p>
-        </section>
-      </section>
-    </main>
-  );
-}
+  <h2 className="text-xl font-black text-slate-950">
+    Check Indian Railway PNR Status Online
+  </h2>
+
+  <p className="mt-2 text-sm font-semibold leading-6 text-slate-600">
+    RailEats helps passengers check PNR status online using a 10 digit PNR
+    number. You can view train number, train name, journey date, boarding
+    station, destination station, chart status, coach and seat details in one
+    place.
+  </p>
+
+  <h2 className="mt-5 text-lg font-black text-slate-950">
+    What is PNR status?
+  </h2>
+
+  <p className="mt-2 text-sm font-semibold leading-6 text-slate-600">
+    PNR status shows the current status of your Indian Railway ticket. It helps
+    you know whether your ticket is confirmed, RAC or waitlisted. After checking
+    your train PNR status, you can order fresh food in train on RailEats for
+    available stations on your route.
+  </p>
+
+  <h2 className="mt-5 text-lg font-black text-slate-950">
+    How to check PNR status on RailEats?
+  </h2>
+
+  <ol className="mt-2 list-decimal space-y-2 pl-5 text-sm font-semibold leading-6 text-slate-600">
+    <li>Enter your 10 digit PNR number in the PNR status box.</li>
+    <li>Click on Search to fetch your train journey details.</li>
+    <li>View train name, journey date, chart status, coach and seat details.</li>
+    <li>Order food in train if RailEats service is available on your route.</li>
+  </ol>
+
+  <div className="mt-5 rounded-2xl border border-orange-100 bg-orange-50 p-4">
+    <h3 className="text-base font-black text-slate-950">
+      Order food in train after checking PNR
+    </h3>
+    <p className="mt-2 text-sm font-semibold leading-6 text-slate-600">
+      Once your PNR status is checked, you can search food delivery by train
+      number or station and place your order with RailEats.
+    </p>
+  </div>
+</section>
