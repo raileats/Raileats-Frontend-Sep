@@ -88,13 +88,23 @@ export default function ExploreRailInfo() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
         <button
           type="button"
-          onClick={() =>
-            handleExploreClick("home_track_live_train_click", "track_live_train")
-          }
-          className="p-4 bg-white shadow rounded"
-        >
-          🚆 Track Live Train
-        </button>
+          <button
+  type="button"
+  onClick={() => {
+    trackEvent("home_track_live_train_click", {
+      section: "home_explore_railway_information",
+      metadata: {
+        clicked_section: "live_train_status",
+        target: "/live-train-status",
+      },
+    });
+
+    window.location.href = "/live-train-status";
+  }}
+  className="p-4 bg-white shadow rounded"
+>
+  🚆 Live Train Status
+</button>
 
         <button
           type="button"
