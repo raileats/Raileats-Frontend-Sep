@@ -214,14 +214,21 @@ export default function SearchBox() {
     }
 
     if (searchType === "train") {
-      if (!selectedTrain) return alert("Select train first");
-      if (!boarding) return alert("Select boarding station");
+  if (!selectedTrain) return alert("Select train first");
+  if (!boarding) return alert("Select boarding station");
 
-      const trainNo = selectedTrain.train_no || selectedTrain.trainNumber;
-      const slug = makeTrainSlug(trainNo);
+  const trainNo = String(
+    selectedTrain.train_no || selectedTrain.trainNumber || ""
+  ).replace(/\D/g, "");
 
-      window.location.href = `/trains/${slug}?date=${date}&boarding=${boarding}`;
-    }
+  if (!/^\d{5}$/.test(trainNo)) {
+    return alert("Please select a valid 5-digit train number.");
+  }
+
+  const slug = makeTrainSlug(trainNo);
+
+  window.location.href = `/trains/${slug}?date=${date}&boarding=${boarding}`;
+}
   };
 
   const selectedStation =
@@ -269,7 +276,10 @@ export default function SearchBox() {
           {searchType === "train" ? (
             <TrainAutocomplete
               value={inputValue}
-              onChange={setInputValue}
+              onChange={(value: string) => {
+  const onlyDigits = value.replace(/\D/g, "").slice(0, 5);
+  setInputValue(onlyDigits);
+}}
               onSelect={handleTrainSelect}
             />
           ) : searchType === "station" ? (
@@ -308,7 +318,7 @@ export default function SearchBox() {
 }}
   inputMode="numeric"
   maxLength={10}
-  placeholder="Enter 10 digit PNR"
+  placeholder="Enter 10 digit PNR starting with 2, 4, 6, or 8"
   className="app-input"
 />
           )}
