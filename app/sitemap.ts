@@ -37,6 +37,42 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 1,
     },
     {
+      url: `${baseUrl}/order-food-in-train`,
+      lastModified: now,
+      changeFrequency: "daily",
+      priority: 0.98,
+    },
+    {
+      url: `${baseUrl}/book-food-in-train`,
+      lastModified: now,
+      changeFrequency: "daily",
+      priority: 0.98,
+    },
+    {
+      url: `${baseUrl}/food-delivery-in-train`,
+      lastModified: now,
+      changeFrequency: "daily",
+      priority: 0.98,
+    },
+    {
+      url: `${baseUrl}/train-food-delivery`,
+      lastModified: now,
+      changeFrequency: "daily",
+      priority: 0.96,
+    },
+    {
+      url: `${baseUrl}/best-food-delivery-in-train`,
+      lastModified: now,
+      changeFrequency: "daily",
+      priority: 0.96,
+    },
+    {
+      url: `${baseUrl}/food-delivery-in-train-from-restaurants`,
+      lastModified: now,
+      changeFrequency: "daily",
+      priority: 0.95,
+    },
+    {
       url: `${baseUrl}/pnr-status`,
       lastModified: now,
       changeFrequency: "daily",
@@ -47,18 +83,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       lastModified: now,
       changeFrequency: "daily",
       priority: 0.95,
-    },
-    {
-      url: `${baseUrl}/about`,
-      lastModified: now,
-      changeFrequency: "monthly",
-      priority: 0.7,
-    },
-    {
-      url: `${baseUrl}/contact`,
-      lastModified: now,
-      changeFrequency: "monthly",
-      priority: 0.7,
     },
     {
       url: `${baseUrl}/offers`,
@@ -72,41 +96,58 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "weekly",
       priority: 0.8,
     },
+    {
+      url: `${baseUrl}/about`,
+      lastModified: now,
+      changeFrequency: "monthly",
+      priority: 0.7,
+    },
+    {
+      url: `${baseUrl}/contact`,
+      lastModified: now,
+      changeFrequency: "monthly",
+      priority: 0.7,
+    },
   ];
-
-  const { data: restros } = await serviceClient
-    .from("RestroMaster")
-    .select("RestroCode, RestroName, StationCode, StationName, RaileatsStatus");
 
   const dynamicRoutes: MetadataRoute.Sitemap = [];
 
-  for (const r of restros || []) {
-    if (!isActive(r.RaileatsStatus)) continue;
+  try {
+    const { data: restros } = await serviceClient
+      .from("RestroMaster")
+      .select("RestroCode, RestroName, StationCode, StationName, RaileatsStatus");
 
-    const stationName = slugify(r.StationName || "");
-    const stationCode = slugify(r.StationCode || "");
-    const restroName = slugify(r.RestroName || "");
+    for (const r of restros || []) {
+      if (!isActive(r.RaileatsStatus)) continue;
 
-    if (!stationName || !stationCode || !r.RestroCode || !restroName) {
-      continue;
+      const stationName = slugify(r.StationName || "");
+      const stationCode = slugify(r.StationCode || "");
+      const restroName = slugify(r.RestroName || "");
+      const restroCode = String(r.RestroCode || "").trim();
+
+      if (!stationName || !stationCode || !restroCode || !restroName) {
+        continue;
+      }
+
+      const stationSlug = `${stationName}-${stationCode}-food-delivery`;
+      const restroSlug = `${restroCode}-${restroName}`;
+
+      dynamicRoutes.push({
+        url: `${baseUrl}/stations/${stationSlug}`,
+        lastModified: now,
+        changeFrequency: "daily",
+        priority: 0.9,
+      });
+
+      dynamicRoutes.push({
+        url: `${baseUrl}/stations/${stationSlug}/${restroSlug}`,
+        lastModified: now,
+        changeFrequency: "daily",
+        priority: 0.8,
+      });
     }
-
-    const stationSlug = `${stationName}-${stationCode}-food-delivery`;
-    const restroSlug = `${r.RestroCode}-${restroName}`;
-
-    dynamicRoutes.push({
-      url: `${baseUrl}/stations/${stationSlug}`,
-      lastModified: now,
-      changeFrequency: "daily",
-      priority: 0.9,
-    });
-
-    dynamicRoutes.push({
-      url: `${baseUrl}/stations/${stationSlug}/${restroSlug}`,
-      lastModified: now,
-      changeFrequency: "daily",
-      priority: 0.8,
-    });
+  } catch (error) {
+    console.error("Sitemap RestroMaster fetch failed:", error);
   }
 
   const uniqueMap = new Map<string, MetadataRoute.Sitemap[number]>();
