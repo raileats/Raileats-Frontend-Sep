@@ -58,25 +58,22 @@ async function trackEvent(
 }
 
 export default function ExploreRailInfo() {
-  const handleExploreClick = (eventName: string, clickedSection: string) => {
+  const handleExploreClick = (
+    eventName: string,
+    clickedSection: string,
+    target?: string
+  ) => {
     trackEvent(eventName, {
       section: "home_explore_railway_information",
       metadata: {
         clicked_section: clickedSection,
-      },
-    });
-  };
-
-  const goToPnrStatus = () => {
-    trackEvent("home_check_pnr_click", {
-      section: "home_explore_railway_information",
-      metadata: {
-        clicked_section: "check_pnr_status",
-        target: "/pnr-status",
+        target: target || null,
       },
     });
 
-    window.location.href = "/pnr-status";
+    if (target) {
+      window.location.href = target;
+    }
   };
 
   return (
@@ -88,27 +85,27 @@ export default function ExploreRailInfo() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
         <button
           type="button"
-          <button
-  type="button"
-  onClick={() => {
-    trackEvent("home_track_live_train_click", {
-      section: "home_explore_railway_information",
-      metadata: {
-        clicked_section: "live_train_status",
-        target: "/live-train-status",
-      },
-    });
-
-    window.location.href = "/live-train-status";
-  }}
-  className="p-4 bg-white shadow rounded"
->
-  🚆 Live Train Status
-</button>
+          onClick={() =>
+            handleExploreClick(
+              "home_live_train_status_click",
+              "live_train_status",
+              "/live-train-status"
+            )
+          }
+          className="p-4 bg-white shadow rounded"
+        >
+          🚆 Live Train Status
+        </button>
 
         <button
           type="button"
-          onClick={goToPnrStatus}
+          onClick={() =>
+            handleExploreClick(
+              "home_check_pnr_click",
+              "check_pnr_status",
+              "/pnr-status"
+            )
+          }
           className="p-4 bg-white shadow rounded"
         >
           📋 Check PNR Status
