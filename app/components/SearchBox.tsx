@@ -189,10 +189,15 @@ export default function SearchBox() {
     });
 
     if (searchType === "pnr") {
-      if (!cleanInput) return alert("Enter PNR first");
-      window.location.href = `/pnr/${encodeURIComponent(cleanInput)}`;
-      return;
-    }
+  const cleanPnr = cleanInput.replace(/\D/g, "");
+
+  if (!/^[2468][0-9]{9}$/.test(cleanPnr)) {
+    return alert("Please enter a valid 10-digit PNR starting with 2, 4, 6, or 8.");
+  }
+
+  window.location.href = `/pnr/${encodeURIComponent(cleanPnr)}`;
+  return;
+}
 
     if (searchType === "station") {
       if (!selectedStationData?.StationName || !selectedStationData?.StationCode) {
@@ -290,11 +295,16 @@ export default function SearchBox() {
             </div>
           ) : (
             <input
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              placeholder="Enter 10 digit PNR"
-              className="app-input"
-            />
+  value={inputValue}
+  onChange={(e) => {
+    const onlyDigits = e.target.value.replace(/\D/g, "").slice(0, 10);
+    setInputValue(onlyDigits);
+  }}
+  inputMode="numeric"
+  maxLength={10}
+  placeholder="Enter 10 digit PNR"
+  className="app-input"
+/>
           )}
 
           {searchType === "train" && selectedTrain && (
