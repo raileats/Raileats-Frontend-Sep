@@ -28,7 +28,7 @@ function dayLabel(day: string) {
 
 function friendlyProviderMessage(day: string, rawMessage?: string) {
   if (day === "-1") {
-    return "Yesterday ka running status provider se available nahi hai. Today select karke try karein.";
+    return "Yesterday's running status is not available from the provider. Please select today's date and try again.";
   }
 
   if (rawMessage?.toLowerCase().includes("http error")) {
