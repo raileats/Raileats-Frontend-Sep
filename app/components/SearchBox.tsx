@@ -297,9 +297,9 @@ export default function SearchBox() {
             <input
   value={inputValue}
   onChange={(e) => {
-    const onlyDigits = e.target.value.replace(/\D/g, "").slice(0, 10);
-    setInputValue(onlyDigits);
-  }}
+  const onlyDigits = e.target.value.replace(/\D/g, "").slice(0, 10);
+  setInputValue(onlyDigits);
+}}
   inputMode="numeric"
   maxLength={10}
   placeholder="Enter 10 digit PNR"
