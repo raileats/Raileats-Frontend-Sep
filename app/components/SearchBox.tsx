@@ -279,8 +279,6 @@ export default function SearchBox() {
   onChange={setInputValue}
   onSelect={handleTrainSelect}
 />
-              onSelect={handleTrainSelect}
-            />
           ) : searchType === "station" ? (
             <div className="[&_input]:w-full [&_button]:font-semibold">
               <StationSearchBox
