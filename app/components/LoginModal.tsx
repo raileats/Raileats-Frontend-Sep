@@ -54,7 +54,9 @@ export default function LoginModal() {
 
   /* ================= SEND OTP ================= */
   const sendOtp = async () => {
-    if (!mobile) return alert("Enter mobile");
+    if (!/^[6-9][0-9]{9}$/.test(mobile)) {
+  return alert("Please enter a valid 10-digit mobile number.");
+}
 
     try {
       setLoading(true);
