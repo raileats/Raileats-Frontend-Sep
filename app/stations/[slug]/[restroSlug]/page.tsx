@@ -81,20 +81,12 @@ function parseStationInfo(slugRaw: string, fallbackCode: string) {
   return { code, name };
 }
 
-function buildCanonical(params: any, searchParams: any) {
-  const qs = new URLSearchParams();
-
-  Object.entries(searchParams || {}).forEach(([key, value]) => {
-    const clean = firstParam(value);
-    if (clean !== "") qs.set(key, String(clean));
-  });
-
+function buildCanonical(params: any) {
   const path = `/stations/${encodeURIComponent(params.slug || "")}/${encodeURIComponent(
     params.restroSlug || ""
   )}`;
 
-  const query = qs.toString();
-  return `${SITE_URL}${path}${query ? `?${query}` : ""}`;
+  return `${SITE_URL}${path}`;
 }
 /* ================= FETCH ================= */
 
@@ -284,7 +276,7 @@ const outletName = humanizeFromSlug(params.restroSlug);
     ? `Order food from ${outletName} for train ${trainNumber} at ${stationName}. View live menu, prices, veg and non-veg items, minimum order and delivery time on RailEats.`
     : `Order food from ${outletName} at ${stationName}. View menu, prices, veg and non-veg items, minimum order and delivery options on RailEats.`;
 
-  const canonical = buildCanonical(params, searchParams);
+  const canonical = buildCanonical(params);
 
   return {
     title,
@@ -396,7 +388,7 @@ const header = {
     mode: firstParam(searchParams?.mode),
   };
 
-  const canonical = buildCanonical(params, searchParams);
+  const canonical = buildCanonical(params);
 
   const restaurantSchema = {
     "@context": "https://schema.org",
@@ -462,6 +454,37 @@ const header = {
     ],
   };
 
+  const faqSchema = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: [
+      {
+        "@type": "Question",
+        name: `How can I view ${outletName} menu at ${stationName} station?`,
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: `You can view ${outletName} menu at ${stationName} railway station on RailEats with item prices, food categories, descriptions and serving times.`,
+        },
+      },
+      {
+        "@type": "Question",
+        name: `Does ${outletName} provide food delivery in train?`,
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: `${outletName} can accept train food delivery orders through RailEats when the restaurant is active, service timing is available and your train arrival matches the order cutoff time.`,
+        },
+      },
+      {
+        "@type": "Question",
+        name: "What details are shown in the restaurant menu?",
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: "RailEats menu pages show food item name, price, veg or non-veg category, menu type, description, item timing and restaurant minimum order details where available.",
+        },
+      },
+    ],
+  };
+
   return (
     <main className="w-full">
       <script
@@ -475,6 +498,12 @@ const header = {
         type="application/ld+json"
         dangerouslySetInnerHTML={{
           __html: JSON.stringify(breadcrumbSchema),
+        }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(faqSchema),
         }}
       />
 
