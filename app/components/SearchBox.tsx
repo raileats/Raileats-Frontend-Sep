@@ -277,7 +277,7 @@ export default function SearchBox() {
             <TrainAutocomplete
               value={inputValue}
               onChange={(value: string) => {
-  const onlyDigits = value.replace(/\D/g, "").slice(0, 5);
+  onChange={setInputValue}
   setInputValue(onlyDigits);
 }}
               onSelect={handleTrainSelect}
