@@ -5,11 +5,7 @@ export const runtime = "nodejs";
 
 function normalizeDay(value: string | null) {
   const day = String(value ?? "0").trim();
-
-  if (day === "-1" || day === "0" || day === "1") {
-    return day;
-  }
-
+  if (day === "-1" || day === "0" || day === "1") return day;
   return "0";
 }
 
@@ -19,29 +15,45 @@ function normalizeTrain(value: string | null) {
 
 function cleanPath(value?: string) {
   const path = String(value || "").trim();
-
   if (!path) return "/";
-
   return path.startsWith("/") ? path : `/${path}`;
 }
 
-function buildProviderUrl(host: string, path: string, train: string, day: string) {
-  const providerUrl = new URL(`https://${host}${cleanPath(path)}`);
+function buildUrls(host: string, train: string, day: string) {
+  const envPath = cleanPath(process.env.LIVE_TRAIN_RAPIDAPI_PATH || "");
 
-  /*
-    RapidAPI ke actual params unknown hain, isliye same value common names me bhej rahe hain.
-    Provider sirf apne required params use karega, extra params usually ignore ho jaate hain.
-  */
-  providerUrl.searchParams.set("train_number", train);
-  providerUrl.searchParams.set("trainNumber", train);
-  providerUrl.searchParams.set("train_no", train);
-  providerUrl.searchParams.set("trainNo", train);
+  const paths = Array.from(
+    new Set([
+      envPath,
+      "/get-running-status",
+      "/running-status",
+      "/train-running-status",
+      "/live-train-status",
+      "/getTrainRunningStatus",
+      "/trainRunningStatus",
+      `/get-running-status/${train}/${day}`,
+      `/running-status/${train}/${day}`,
+      `/train-running-status/${train}/${day}`,
+    ])
+  );
 
-  providerUrl.searchParams.set("start_day", day);
-  providerUrl.searchParams.set("startDay", day);
-  providerUrl.searchParams.set("day", day);
+  return paths.map((path) => {
+    const providerUrl = new URL(`https://${host}${cleanPath(path)}`);
 
-  return providerUrl;
+    providerUrl.searchParams.set("train_number", train);
+    providerUrl.searchParams.set("trainNumber", train);
+    providerUrl.searchParams.set("train_no", train);
+    providerUrl.searchParams.set("trainNo", train);
+
+    providerUrl.searchParams.set("start_day", day);
+    providerUrl.searchParams.set("startDay", day);
+    providerUrl.searchParams.set("day", day);
+
+    return {
+      path: cleanPath(path),
+      url: providerUrl,
+    };
+  });
 }
 
 export async function GET(req: Request) {
@@ -50,10 +62,6 @@ export async function GET(req: Request) {
     const rapidHost =
       process.env.LIVE_TRAIN_RAPIDAPI_HOST ||
       "train-running-api.p.rapidapi.com";
-
-    const rapidPath =
-      process.env.LIVE_TRAIN_RAPIDAPI_PATH ||
-      "/get-running-status";
 
     if (!apiKey) {
       return NextResponse.json(
@@ -94,60 +102,53 @@ export async function GET(req: Request) {
       );
     }
 
-    const providerUrl = buildProviderUrl(rapidHost, rapidPath, train, day);
+    const candidates = buildUrls(rapidHost, train, day);
+    const attempts: any[] = [];
 
-    const res = await fetch(providerUrl.toString(), {
-      method: "GET",
-      headers: {
-        "x-rapidapi-host": rapidHost,
-        "x-rapidapi-key": apiKey,
-        Accept: "application/json",
-      },
-      cache: "no-store",
-    });
-
-    const json = await res.json().catch(() => null);
-
-    if (!res.ok) {
-      return NextResponse.json(
-        {
-          status: "failed",
-          ok: false,
-          error: "provider_failed",
-          message: json?.message || "Train running provider failed.",
-          providerUrl: providerUrl.toString().replace(apiKey, "***"),
-          raw: json,
+    for (const candidate of candidates) {
+      const res = await fetch(candidate.url.toString(), {
+        method: "GET",
+        headers: {
+          "x-rapidapi-host": rapidHost,
+          "x-rapidapi-key": apiKey,
+          Accept: "application/json",
         },
-        { status: res.status }
-      );
+        cache: "no-store",
+      });
+
+      const json = await res.json().catch(() => null);
+
+      attempts.push({
+        path: candidate.path,
+        status: res.status,
+        message: json?.message || json?.status || null,
+      });
+
+      if (res.ok && json?.status === "success") {
+        return NextResponse.json({
+          ...json,
+          ok: true,
+          fromCache: false,
+          workingPath: candidate.path,
+          requested: {
+            train,
+            day,
+          },
+        });
+      }
     }
 
-    if (json?.status !== "success") {
-      return NextResponse.json(
-        {
-          status: "failed",
-          ok: false,
-          error: "train_status_not_found",
-          message:
-            json?.message ||
-            json?.status_message ||
-            "Live train status not found.",
-          providerUrl: providerUrl.toString(),
-          raw: json,
-        },
-        { status: 404 }
-      );
-    }
-
-    return NextResponse.json({
-      ...json,
-      ok: true,
-      fromCache: false,
-      requested: {
-        train,
-        day,
+    return NextResponse.json(
+      {
+        status: "failed",
+        ok: false,
+        error: "provider_failed",
+        message:
+          "Koi guessed endpoint path work nahi hua. RapidAPI Code Snippet ka exact --url bhejna padega.",
+        attempts,
       },
-    });
+      { status: 502 }
+    );
   } catch (err) {
     console.error("LIVE TRAIN STATUS API ERROR:", err);
 
