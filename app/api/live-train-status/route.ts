@@ -26,6 +26,18 @@ function dayLabel(day: string) {
   return "Today";
 }
 
+function friendlyProviderMessage(day: string, rawMessage?: string) {
+  if (day === "-1") {
+    return "Yesterday ka running status provider se available nahi hai. Today select karke try karein.";
+  }
+
+  if (rawMessage?.toLowerCase().includes("http error")) {
+    return "Train running provider abhi response nahi de raha. Thodi der baad try karein.";
+  }
+
+  return rawMessage || `${dayLabel(day)} ka live train status available nahi hai.`;
+}
+
 export async function GET(req: Request) {
   try {
     const apiKey = process.env.RAPIDAPI_KEY;
@@ -86,16 +98,14 @@ export async function GET(req: Request) {
     });
 
     const json = await res.json().catch(() => null);
+    const providerMessage = String(json?.message || json?.status_message || "");
 
     if (!res.ok) {
       return NextResponse.json({
         status: "failed",
         ok: false,
         error: "provider_failed",
-        message:
-          day === "-1"
-            ? "Yesterday train running data provider se available nahi hai. Today select karke try karein."
-            : json?.message || "Train running provider failed. Thodi der baad try karein.",
+        message: friendlyProviderMessage(day, providerMessage),
         providerStatus: res.status,
         requested: {
           train,
@@ -111,10 +121,7 @@ export async function GET(req: Request) {
         status: "failed",
         ok: false,
         error: "train_status_not_found",
-        message:
-          json?.message ||
-          json?.status_message ||
-          `${dayLabel(day)} ka live train status available nahi hai.`,
+        message: friendlyProviderMessage(day, providerMessage),
         requested: {
           train,
           day,
