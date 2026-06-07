@@ -17,12 +17,43 @@ function normalizeTrain(value: string | null) {
   return String(value ?? "").replace(/\D/g, "").slice(0, 5);
 }
 
+function cleanPath(value?: string) {
+  const path = String(value || "").trim();
+
+  if (!path) return "/";
+
+  return path.startsWith("/") ? path : `/${path}`;
+}
+
+function buildProviderUrl(host: string, path: string, train: string, day: string) {
+  const providerUrl = new URL(`https://${host}${cleanPath(path)}`);
+
+  /*
+    RapidAPI ke actual params unknown hain, isliye same value common names me bhej rahe hain.
+    Provider sirf apne required params use karega, extra params usually ignore ho jaate hain.
+  */
+  providerUrl.searchParams.set("train_number", train);
+  providerUrl.searchParams.set("trainNumber", train);
+  providerUrl.searchParams.set("train_no", train);
+  providerUrl.searchParams.set("trainNo", train);
+
+  providerUrl.searchParams.set("start_day", day);
+  providerUrl.searchParams.set("startDay", day);
+  providerUrl.searchParams.set("day", day);
+
+  return providerUrl;
+}
+
 export async function GET(req: Request) {
   try {
     const apiKey = process.env.RAPIDAPI_KEY;
     const rapidHost =
       process.env.LIVE_TRAIN_RAPIDAPI_HOST ||
       "train-running-api.p.rapidapi.com";
+
+    const rapidPath =
+      process.env.LIVE_TRAIN_RAPIDAPI_PATH ||
+      "/get-running-status";
 
     if (!apiKey) {
       return NextResponse.json(
@@ -41,7 +72,8 @@ export async function GET(req: Request) {
     const train = normalizeTrain(
       url.searchParams.get("train") ||
         url.searchParams.get("trainNumber") ||
-        url.searchParams.get("train_no")
+        url.searchParams.get("train_no") ||
+        url.searchParams.get("trainNo")
     );
 
     const day = normalizeDay(
@@ -62,16 +94,14 @@ export async function GET(req: Request) {
       );
     }
 
-    const providerUrl = new URL(`https://${rapidHost}/`);
-
-    providerUrl.searchParams.set("train_number", train);
-providerUrl.searchParams.set("start_day", day);
+    const providerUrl = buildProviderUrl(rapidHost, rapidPath, train, day);
 
     const res = await fetch(providerUrl.toString(), {
       method: "GET",
       headers: {
         "x-rapidapi-host": rapidHost,
         "x-rapidapi-key": apiKey,
+        Accept: "application/json",
       },
       cache: "no-store",
     });
@@ -85,6 +115,7 @@ providerUrl.searchParams.set("start_day", day);
           ok: false,
           error: "provider_failed",
           message: json?.message || "Train running provider failed.",
+          providerUrl: providerUrl.toString().replace(apiKey, "***"),
           raw: json,
         },
         { status: res.status }
@@ -101,6 +132,7 @@ providerUrl.searchParams.set("start_day", day);
             json?.message ||
             json?.status_message ||
             "Live train status not found.",
+          providerUrl: providerUrl.toString(),
           raw: json,
         },
         { status: 404 }
