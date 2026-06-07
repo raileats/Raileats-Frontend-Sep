@@ -3,8 +3,6 @@ import { NextResponse } from "next/server";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-const RAPIDAPI_HOST = "train-running-api.p.rapidapi.com";
-
 function normalizeDay(value: string | null) {
   const day = String(value ?? "0").trim();
 
@@ -22,6 +20,9 @@ function normalizeTrain(value: string | null) {
 export async function GET(req: Request) {
   try {
     const apiKey = process.env.RAPIDAPI_KEY;
+    const rapidHost =
+      process.env.LIVE_TRAIN_RAPIDAPI_HOST ||
+      "train-running-api.p.rapidapi.com";
 
     if (!apiKey) {
       return NextResponse.json(
@@ -61,9 +62,7 @@ export async function GET(req: Request) {
       );
     }
 
-    const providerUrl = new URL(
-      `https://${RAPIDAPI_HOST}/getRunningStatus`
-    );
+    const providerUrl = new URL(`https://${rapidHost}/getRunningStatus`);
 
     providerUrl.searchParams.set("train_number", train);
     providerUrl.searchParams.set("start_day", day);
@@ -71,7 +70,7 @@ export async function GET(req: Request) {
     const res = await fetch(providerUrl.toString(), {
       method: "GET",
       headers: {
-        "x-rapidapi-host": RAPIDAPI_HOST,
+        "x-rapidapi-host": rapidHost,
         "x-rapidapi-key": apiKey,
       },
       cache: "no-store",
