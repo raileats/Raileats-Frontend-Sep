@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 
 function digitsOnly(value: string) {
-  return value.replace(/\D/g, "").slice(0, 5);
+  return String(value || "").replace(/\D/g, "").slice(0, 5);
 }
 
 function safe(value: any, fallback = "N/A") {
@@ -12,7 +12,7 @@ function safe(value: any, fallback = "N/A") {
 }
 
 function titleCase(value: any) {
-  return String(value || "")
+  return String(value ?? "")
     .trim()
     .toLowerCase()
     .split(" ")
@@ -22,53 +22,53 @@ function titleCase(value: any) {
 }
 
 function formatDate(value: any) {
-  const text = String(value || "").trim();
+  const text = String(value ?? "").trim();
   if (!text) return "N/A";
-
-  if (/^\d{2}-\d{2}-\d{4}$/.test(text)) {
-    const [dd, mm, yyyy] = text.split("-");
-    return `${dd}-${mm}-${yyyy}`;
-  }
-
-  if (/^\d{4}-\d{2}-\d{2}$/.test(text)) {
-    const [yyyy, mm, dd] = text.split("-");
-    return `${dd}-${mm}-${yyyy}`;
-  }
-
   return text;
 }
 
 function formatTime(value: any) {
-  const text = String(value || "").trim();
-  return text || "--";
+  const text = String(value ?? "").trim();
+  return text || "N/A";
 }
 
 function delayBadge(delayStatus: any) {
-  const text = String(delayStatus || "").trim();
+  const text = String(delayStatus ?? "").trim();
   const lower = text.toLowerCase();
 
-  if (!text) return { text: "", className: "" };
-
-  if (lower.includes("delay")) {
-    return { text, className: "bg-red-500 text-white" };
+  if (!text) {
+    return {
+      label: "Status N/A",
+      className: "bg-slate-100 text-slate-700 border-slate-200",
+    };
   }
 
-  if (lower.includes("on")) {
+  if (lower.includes("delay")) {
     return {
-      text: "On Time",
-      className: "border border-green-200 bg-green-100 text-green-700",
+      label: text,
+      className: "bg-red-50 text-red-700 border-red-200",
+    };
+  }
+
+  if (lower.includes("on time") || lower.includes("ontime")) {
+    return {
+      label: "On Time",
+      className: "bg-emerald-50 text-emerald-700 border-emerald-200",
     };
   }
 
   return {
-    text,
-    className: "border border-slate-200 bg-slate-100 text-slate-700",
+    label: text,
+    className: "bg-blue-50 text-blue-700 border-blue-200",
   };
 }
 
 function getCurrentIndex(stations: any[], data: any) {
-  const direct = stations.findIndex((s) => s?.is_current || s?.is_live_station);
-  if (direct >= 0) return direct;
+  const currentFromFlag = stations.findIndex(
+    (station) => station?.is_current || station?.is_live_station
+  );
+
+  if (currentFromFlag >= 0) return currentFromFlag;
 
   const currentCode = String(
     data?.current_station_code || data?.current_station || ""
@@ -76,24 +76,16 @@ function getCurrentIndex(stations: any[], data: any) {
     .trim()
     .toUpperCase();
 
-  if (currentCode) {
-    const byCode = stations.findIndex(
-      (s) => String(s?.code || "").trim().toUpperCase() === currentCode
-    );
+  if (!currentCode) return -1;
 
-    if (byCode >= 0) return byCode;
-  }
-
-  return -1;
+  return stations.findIndex(
+    (station) => String(station?.code || "").trim().toUpperCase() === currentCode
+  );
 }
 
 function getProgress(currentIndex: number, total: number) {
-  if (currentIndex < 0 || total <= 1) return 0;
-
-  return Math.max(
-    4,
-    Math.min(96, Math.round((currentIndex / (total - 1)) * 100))
-  );
+  if (total <= 1 || currentIndex < 0) return 0;
+  return Math.min(100, Math.max(0, Math.round((currentIndex / (total - 1)) * 100)));
 }
 
 export default function LiveTrainStatusClient() {
@@ -106,77 +98,97 @@ export default function LiveTrainStatusClient() {
   const data = result?.data || null;
 
   const stations = useMemo(() => {
-    if (Array.isArray(data?.stations)) return data.stations;
-    return [];
+    if (!Array.isArray(data?.stations)) return [];
+    return data.stations;
   }, [data]);
 
-  const currentIndex = useMemo(
-    () => getCurrentIndex(stations, data),
-    [stations, data]
-  );
+  const currentIndex = useMemo(() => {
+    return getCurrentIndex(stations, data);
+  }, [stations, data]);
 
-  const progress = getProgress(currentIndex, stations.length);
-  const currentStation = currentIndex >= 0 ? stations[currentIndex] : null;
+  const progress = useMemo(() => {
+    return getProgress(currentIndex, stations.length);
+  }, [currentIndex, stations.length]);
+
+  const currentStation =
+    currentIndex >= 0 ? stations[currentIndex] : stations.find((s: any) => s?.is_current);
 
   const searchTrain = async () => {
     const cleanTrain = digitsOnly(train);
 
-    if (cleanTrain.length < 4) {
-      setError("Please enter valid train number.");
+    if (!cleanTrain || cleanTrain.length < 4) {
+      setError("Valid train number enter karein.");
+      setResult(null);
       return;
     }
 
-    setLoading(true);
-    setError("");
-    setResult(null);
-
     try {
+      setLoading(true);
+      setError("");
+      setResult(null);
+
       const res = await fetch(
-        `/api/live-train-status?train=${encodeURIComponent(
-          cleanTrain
-        )}&day=${encodeURIComponent(day)}`,
+        `/api/live-train-status?train=${encodeURIComponent(cleanTrain)}&day=${encodeURIComponent(day)}`,
         { cache: "no-store" }
       );
 
-      const json = await res.json();
+      const json = await res.json().catch(() => ({}));
 
-      if (!res.ok || json?.status !== "success") {
-        setError(json?.message || json?.error || "Live train status not found.");
+      if (!res.ok || json?.ok === false || json?.status === "failed") {
+        if (res.status === 429) {
+          setError("Live train status provider ka monthly quota khatam ho gaya hai. Please try again later.");
+        } else {
+          setError(json?.message || "Live train status abhi available nahi hai.");
+        }
         return;
       }
 
       setResult(json);
-    } catch {
-      setError("Unable to fetch live train status. Please try again.");
+    } catch (err) {
+      console.error("Live train status search failed:", err);
+      setError("Network error. Please try again.");
     } finally {
       setLoading(false);
     }
   };
+
+  const trainTitle = data
+    ? `${safe(data.train_number, "")} - ${safe(data.train_name, "Train")}`
+    : "";
+
+  const badge = delayBadge(
+    currentStation?.delay_status || data?.status || data?.status_message
+  );
+
+  const disclaimer =
+    "Disclaimer: Live train running status is fetched from a third-party railway data provider and may change due to railway operations. Please verify important travel details with official railway sources.";
 
   return (
     <main className="customer-app-main">
       <section className="site-container max-w-3xl space-y-5">
         <div className="app-card overflow-hidden p-0">
           <div className="p-4 sm:p-5">
-            <p className="text-xs font-black uppercase tracking-wide text-orange-600">
+            <p className="text-sm font-black uppercase tracking-wide text-orange-600">
               Indian Railway Live Status
             </p>
 
-            <h1 className="mt-1 text-2xl font-black text-slate-950 sm:text-3xl">
-              Live Train Running Status | Spot Your Train
+            <h1 className="mt-1 text-3xl font-black leading-tight text-slate-950 sm:text-4xl">
+              Live Train Running Status
             </h1>
 
             <p className="mt-2 text-sm font-semibold text-slate-600">
-              Enter train number to check where is my train, NTES train running
-              status, delay, platform and route details.
+              Enter train number to check current train running status, delay and route details.
             </p>
 
-            <div className="mt-4 grid gap-2 sm:grid-cols-[1fr_150px_auto]">
+            <div className="mt-5 grid gap-3 sm:grid-cols-[1fr_180px_120px]">
               <input
                 value={train}
                 onChange={(e) => setTrain(digitsOnly(e.target.value))}
-                placeholder="Enter train number"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") searchTrain();
+                }}
                 inputMode="numeric"
+                placeholder="Enter train number"
                 className="app-input"
               />
 
@@ -194,237 +206,215 @@ export default function LiveTrainStatusClient() {
                 type="button"
                 onClick={searchTrain}
                 disabled={loading}
-                className="app-btn-primary min-w-[96px]"
+                className="app-btn-primary"
               >
-                {loading ? "..." : "Search"}
+                {loading ? "Checking..." : "Search"}
               </button>
             </div>
 
             {error ? (
-              <div className="mt-4 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-bold text-red-600">
+              <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
                 {error}
               </div>
             ) : null}
           </div>
 
           {data ? (
-            <div className="border-t border-slate-200">
-              <div className="bg-[#1e96e8] px-4 py-3 text-white sm:px-5">
-                <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="border-t border-slate-200 bg-slate-50 p-4 sm:p-5">
+              <div className="rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50 to-white p-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <div className="text-lg font-black">
-                      {safe(data.train_number)} {safe(data.train_name, "Train")}
+                    <div className="text-xs font-black uppercase text-slate-500">
+                      Train
                     </div>
+                    <h2 className="mt-1 flex items-center gap-2 text-xl font-black text-slate-950">
+                      <span>🚆</span>
+                      <span>{trainTitle}</span>
+                    </h2>
+                    <p className="mt-1 text-sm font-bold text-slate-600">
+                      {safe(data?.source || data?.source_stn_name || data?.stations?.[0]?.code)} to{" "}
+                      {safe(data?.destination || data?.dest_stn_name || data?.stations?.[stations.length - 1]?.code)}
+                    </p>
+                  </div>
 
-                    <div className="text-sm font-semibold opacity-95">
-                      {safe(data.source)} - {safe(data.destination)}
+                  <span
+                    className={`rounded-full border px-3 py-1 text-xs font-black ${badge.className}`}
+                  >
+                    {badge.label}
+                  </span>
+                </div>
+
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-xl border border-slate-200 bg-white p-3">
+                    <div className="text-xs font-black text-slate-400">
+                      Current Station
+                    </div>
+                    <div className="mt-1 text-sm font-black text-slate-950">
+                      {currentStation
+                        ? `${safe(currentStation.code)} - ${titleCase(currentStation.name) || safe(currentStation.name)}`
+                        : safe(data?.current_station_name || data?.current_station)}
                     </div>
                   </div>
 
-                  <div className="rounded bg-white/15 px-3 py-1 text-xs font-black">
-                    Start Date:{" "}
-                    {formatDate(data.start_date || data.train_start_date)}
+                  <div className="rounded-xl border border-slate-200 bg-white p-3">
+                    <div className="text-xs font-black text-slate-400">
+                      Platform
+                    </div>
+                    <div className="mt-1 text-sm font-black text-slate-950">
+                      {safe(currentStation?.platform || data?.platform_number)}
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-slate-200 bg-white p-3">
+                    <div className="text-xs font-black text-slate-400">
+                      ETA
+                    </div>
+                    <div className="mt-1 text-sm font-black text-slate-950">
+                      {formatTime(currentStation?.arrival_actual || data?.eta)}
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-slate-200 bg-white p-3">
+                    <div className="text-xs font-black text-slate-400">
+                      ETD
+                    </div>
+                    <div className="mt-1 text-sm font-black text-slate-950">
+                      {formatTime(currentStation?.departure_actual || data?.etd)}
+                    </div>
                   </div>
                 </div>
 
-                {data.status_message ? (
-                  <div className="mt-3 rounded-lg bg-white/15 px-3 py-2 text-sm font-bold">
-                    {data.status_message}
+                {stations.length > 0 ? (
+                  <div className="mt-4">
+                    <div className="flex items-center justify-between text-xs font-black text-slate-500">
+                      <span>Route Progress</span>
+                      <span>{progress}%</span>
+                    </div>
+                    <div className="mt-2 h-3 overflow-hidden rounded-full bg-slate-200">
+                      <div
+                        className="h-full rounded-full bg-green-500"
+                        style={{ width: `${progress}%` }}
+                      />
+                    </div>
                   </div>
                 ) : null}
+              </div>
 
-                <div className="mt-3 rounded-lg bg-white/10 p-3">
-                  <div className="flex items-center justify-between text-xs font-black">
-                    <span>{safe(data.source)}</span>
-                    <span>{safe(data.destination)}</span>
+              {stations.length > 0 ? (
+                <div className="mt-4 rounded-2xl border border-slate-200 bg-white">
+                  <div className="border-b border-slate-200 px-4 py-3">
+                    <h3 className="text-base font-black text-slate-950">
+                      Train Route Status
+                    </h3>
                   </div>
 
-                  <div className="relative mt-2 h-3 rounded-full bg-white/30">
-                    <div
-                      className="absolute left-0 top-0 h-3 rounded-full bg-green-400"
-                      style={{ width: `${progress}%` }}
-                    />
+                  <div className="divide-y divide-slate-100">
+                    {stations.map((station: any, index: number) => {
+                      const isCurrent = index === currentIndex;
+                      const isPassed = currentIndex >= 0 && index < currentIndex;
+                      const stationBadge = delayBadge(station?.delay_status);
 
-                    <div
-                      className="absolute top-1/2 h-5 w-5 -translate-y-1/2 rounded-full border-4 border-white bg-green-500 shadow"
-                      style={{ left: `calc(${progress}% - 10px)` }}
-                    />
-                  </div>
+                      return (
+                        <div
+                          key={`${station?.sequence || index}-${station?.code || index}`}
+                          className={
+                            isCurrent
+                              ? "bg-amber-50 px-4 py-3"
+                              : "px-4 py-3"
+                          }
+                        >
+                          <div className="grid grid-cols-[52px_1fr_82px] gap-3">
+                            <div className="text-right text-xs font-black text-slate-500">
+                              <div>{formatTime(station?.arrival_actual || station?.arrival_scheduled)}</div>
+                              <div className="mt-2 text-slate-400">
+                                {formatTime(station?.departure_actual || station?.departure_scheduled)}
+                              </div>
+                            </div>
 
-                  <div className="mt-2 text-center text-xs font-black text-white">
-                    {currentStation
-                      ? `Current Position: ${titleCase(
-                          currentStation.name
-                        )} (${safe(currentStation.code)})`
-                      : "Current position not available"}
+                            <div className="relative pl-5">
+                              <span
+                                className={
+                                  isCurrent
+                                    ? "absolute left-0 top-1 h-3 w-3 rounded-full bg-amber-500 ring-4 ring-amber-100"
+                                    : isPassed
+                                    ? "absolute left-0 top-1 h-3 w-3 rounded-full bg-green-500"
+                                    : "absolute left-0 top-1 h-3 w-3 rounded-full bg-slate-300"
+                                }
+                              />
+
+                              <div className="text-sm font-black text-slate-950">
+                                {safe(station?.code)}{" "}
+                                <span className="font-bold text-slate-600">
+                                  {titleCase(station?.name)}
+                                </span>
+                              </div>
+
+                              <div className="mt-1 flex flex-wrap items-center gap-2 text-xs font-bold text-slate-500">
+                                <span>{safe(station?.distance, "0")} km</span>
+                                {station?.platform ? <span>PF {station.platform}</span> : null}
+                                {isCurrent ? (
+                                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-amber-700">
+                                    Current Position
+                                  </span>
+                                ) : null}
+                              </div>
+                            </div>
+
+                            <div className="text-right">
+                              <span
+                                className={`inline-flex rounded-full border px-2 py-1 text-[11px] font-black ${stationBadge.className}`}
+                              >
+                                {stationBadge.label}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
-              </div>
+              ) : null}
 
-              <div className="grid grid-cols-[86px_28px_1fr_86px] bg-[#1e96e8] px-3 py-2 text-xs font-black text-white sm:grid-cols-[120px_34px_1fr_120px]">
-                <div>Arrival</div>
-                <div />
-                <div>Station</div>
-                <div className="text-right">Departure</div>
-              </div>
-
-              <div className="bg-white">
-                {stations.length === 0 ? (
-                  <div className="p-5 text-center text-sm font-bold text-slate-500">
-                    Route stations not available.
-                  </div>
-                ) : (
-                  stations.map((station: any, index: number) => {
-                    const isCurrent = index === currentIndex;
-                    const badge = delayBadge(station.delay_status);
-
-                    return (
-                      <div
-                        key={`${station.sequence || index}-${
-                          station.code || index
-                        }`}
-                        className={`grid grid-cols-[86px_28px_1fr_86px] gap-0 border-b border-slate-200 px-3 py-3 text-xs sm:grid-cols-[120px_34px_1fr_120px] ${
-                          isCurrent ? "bg-amber-50" : "bg-white"
-                        }`}
-                      >
-                        <div className="text-left">
-                          <div className="font-black text-slate-950">
-                            {formatTime(station.arrival_scheduled)}
-                          </div>
-
-                          <div
-                            className={
-                              station.arrival_actual &&
-                              station.arrival_actual !== station.arrival_scheduled
-                                ? "mt-1 font-black text-red-600"
-                                : "mt-1 font-bold text-slate-500"
-                            }
-                          >
-                            {formatTime(station.arrival_actual)}
-                          </div>
-                        </div>
-
-                        <div className="relative flex justify-center">
-                          <div className="absolute bottom-[-12px] top-[-12px] w-[3px] bg-slate-300" />
-
-                          <div
-                            className={`relative z-10 mt-1 h-4 w-4 rounded-full border-2 border-white shadow ${
-                              isCurrent
-                                ? "bg-amber-500"
-                                : index < currentIndex
-                                ? "bg-green-600"
-                                : "bg-slate-400"
-                            }`}
-                          />
-                        </div>
-
-                        <div className="min-w-0 pr-2">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <div className="font-black uppercase text-slate-950">
-                              {titleCase(station.name) || safe(station.code)}
-                            </div>
-
-                            <div className="text-xs font-black text-slate-700">
-                              {safe(station.code, "")}
-                            </div>
-
-                            {station.platform ? (
-                              <span className="rounded bg-yellow-400 px-1.5 py-0.5 text-[10px] font-black text-slate-950">
-                                PF {station.platform}
-                              </span>
-                            ) : null}
-                          </div>
-
-                          <div className="mt-1 text-[11px] font-bold text-slate-500">
-                            {Number(station.distance || 0)} Kms
-                          </div>
-
-                          {isCurrent ? (
-                            <div className="mt-2 rounded bg-slate-700 px-3 py-2 text-xs font-black text-white">
-                              Departed from {titleCase(station.name)} (
-                              {safe(station.code)})
-                            </div>
-                          ) : null}
-                        </div>
-
-                        <div className="text-right">
-                          <div className="font-black text-slate-950">
-                            {formatTime(station.departure_scheduled)}
-                          </div>
-
-                          <div
-                            className={
-                              station.departure_actual &&
-                              station.departure_actual !==
-                                station.departure_scheduled
-                                ? "mt-1 font-black text-red-600"
-                                : "mt-1 font-bold text-slate-500"
-                            }
-                          >
-                            {formatTime(station.departure_actual)}
-                          </div>
-
-                          {badge.text ? (
-                            <div
-                              className={`mt-2 inline-flex rounded px-2 py-1 text-[10px] font-black ${badge.className}`}
-                            >
-                              {badge.text}
-                            </div>
-                          ) : null}
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-
-              <div className="m-4 rounded-2xl border border-amber-100 bg-amber-50 p-3 text-xs font-semibold text-amber-800">
-                Disclaimer: Live train running status is fetched from a third-party railway data provider and may change due to railway operations. Please verify important travel details with official railway sources.
+              <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-semibold leading-relaxed text-amber-800">
+                {disclaimer}
               </div>
             </div>
           ) : null}
         </div>
 
         <section className="app-card p-5 sm:p-6">
-          <h2 className="text-xl font-black text-slate-950">
-            Where is my train? Check live train running status online
+          <h2 className="text-2xl font-black text-slate-950">
+            Live Train Running Status | Spot Your Train
           </h2>
 
           <p className="mt-3 text-sm font-semibold leading-7 text-slate-700">
-            RailEats helps passengers check live train running status online
-            using a train number. You can spot your train, view current station,
-            delay status, expected arrival, expected departure, platform number
-            and route updates in one place.
+            RailEats helps passengers check live train running status online by
+            train number. You can use this page to know where is my train,
+            current station, delay status, expected arrival, expected departure,
+            platform number and route updates.
           </p>
 
           <h3 className="mt-5 text-lg font-black text-slate-950">
-            NTES train running status details
+            What is live train running status?
           </h3>
 
           <p className="mt-2 text-sm font-semibold leading-7 text-slate-700">
-            This page is useful for passengers searching for NTES train running
-            status, live train status, train current location, train delay status
-            and spot your train information before planning food delivery at
-            upcoming stations.
+            Live train running status shows the latest movement information of
+            an Indian Railway train. It can help passengers track train delay,
+            station arrival, platform details and route progress before ordering
+            food in train on RailEats.
           </p>
 
           <h3 className="mt-5 text-lg font-black text-slate-950">
-            How to check live train status on RailEats?
+            How to check NTES train running status on RailEats?
           </h3>
 
-          <ol className="mt-3 list-decimal space-y-2 pl-5 text-sm font-semibold leading-7 text-slate-700">
-            <li>Enter your train number in the live train status box.</li>
-            <li>Select Today, Yesterday or Tomorrow as per your journey.</li>
-            <li>Click Search to fetch current running details.</li>
-            <li>
-              View train name, current station, delay, platform and route
-              details.
-            </li>
+          <ol className="mt-3 space-y-2 text-sm font-semibold text-slate-700">
+            <li>1. Enter your train number in the live train status box.</li>
+            <li>2. Select Today, Yesterday or Tomorrow as the start day.</li>
+            <li>3. Click Search to view current train running information.</li>
+            <li>4. Check current station, ETA, ETD, platform and delay status.</li>
           </ol>
-
-         
-            
-          </div>
         </section>
       </section>
     </main>
