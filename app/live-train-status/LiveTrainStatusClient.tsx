@@ -422,7 +422,7 @@ export default function LiveTrainStatusClient() {
             </li>
           </ol>
 
-          <div className="mt-5 rounded-xl border border-yellow-200 bg-yellow-50 p-4 text-xs font-bold leading-6 text-yellow-900">
+         
             
           </div>
         </section>
