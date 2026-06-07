@@ -275,11 +275,10 @@ export default function SearchBox() {
         <div className="space-y-3">
           {searchType === "train" ? (
             <TrainAutocomplete
-              value={inputValue}
-              onChange={(value: string) => {
+  value={inputValue}
   onChange={setInputValue}
-  setInputValue(onlyDigits);
-}}
+  onSelect={handleTrainSelect}
+/>
               onSelect={handleTrainSelect}
             />
           ) : searchType === "station" ? (
