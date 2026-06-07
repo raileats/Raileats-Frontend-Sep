@@ -86,7 +86,9 @@ export default function LoginModal() {
 
   /* ================= VERIFY OTP ================= */
   const verifyOtp = async () => {
-    if (!otp) return alert("Enter OTP");
+    if (!/^[0-9]{4,6}$/.test(otp)) {
+  return alert("Please enter valid OTP.");
+}
 
     try {
       setLoading(true);
@@ -209,11 +211,22 @@ export default function LoginModal() {
         {step === "mobile" && (
           <>
             <input
-              placeholder="Enter Mobile"
-              value={mobile}
-              onChange={(e) => setMobile(e.target.value)}
-              className="border p-2 w-full rounded-md"
-            />
+  type="tel"
+  placeholder="Enter 10 digit mobile number"
+  value={mobile}
+  onChange={(e) => {
+    let value = e.target.value.replace(/\D/g, "");
+
+    if (value.length === 1 && !/[6-9]/.test(value)) {
+      return;
+    }
+
+    setMobile(value.slice(0, 10));
+  }}
+  inputMode="numeric"
+  maxLength={10}
+  className="border p-2 w-full rounded-md"
+/>
             <button onClick={sendOtp} className="bg-blue-600 text-white w-full p-2 rounded-md">
               {loading ? "Sending..." : "Send OTP"}
             </button>
@@ -223,11 +236,17 @@ export default function LoginModal() {
         {step === "otp" && (
           <>
             <input
-              placeholder="Enter OTP"
-              value={otp}
-              onChange={(e) => setOtp(e.target.value)}
-              className="border p-2 w-full rounded-md"
-            />
+  type="text"
+  placeholder="Enter OTP"
+  value={otp}
+  onChange={(e) => {
+    const onlyDigits = e.target.value.replace(/\D/g, "").slice(0, 6);
+    setOtp(onlyDigits);
+  }}
+  inputMode="numeric"
+  maxLength={6}
+  className="border p-2 w-full rounded-md"
+/>
             <button onClick={verifyOtp} className="bg-green-600 text-white w-full p-2 rounded-md">
               {loading ? "Verifying..." : "Verify OTP"}
             </button>
