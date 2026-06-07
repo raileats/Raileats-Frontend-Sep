@@ -14,6 +14,7 @@ function slugify(value: string) {
 
 function isActive(value: any) {
   const v = String(value ?? "").trim().toLowerCase();
+
   return (
     value === true ||
     value === 1 ||
@@ -29,12 +30,48 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
 
   const staticRoutes: MetadataRoute.Sitemap = [
-    { url: baseUrl, lastModified: now, changeFrequency: "daily", priority: 1 },
-    { url: `${baseUrl}/pnr-status`, lastModified: now, changeFrequency: "daily", priority: 0.95 },
-    { url: `${baseUrl}/about`, lastModified: now, changeFrequency: "monthly", priority: 0.7 },
-    { url: `${baseUrl}/contact`, lastModified: now, changeFrequency: "monthly", priority: 0.7 },
-    { url: `${baseUrl}/offers`, lastModified: now, changeFrequency: "daily", priority: 0.9 },
-    { url: `${baseUrl}/vendor`, lastModified: now, changeFrequency: "weekly", priority: 0.8 },
+    {
+      url: baseUrl,
+      lastModified: now,
+      changeFrequency: "daily",
+      priority: 1,
+    },
+    {
+      url: `${baseUrl}/pnr-status`,
+      lastModified: now,
+      changeFrequency: "daily",
+      priority: 0.95,
+    },
+    {
+      url: `${baseUrl}/live-train-status`,
+      lastModified: now,
+      changeFrequency: "daily",
+      priority: 0.95,
+    },
+    {
+      url: `${baseUrl}/about`,
+      lastModified: now,
+      changeFrequency: "monthly",
+      priority: 0.7,
+    },
+    {
+      url: `${baseUrl}/contact`,
+      lastModified: now,
+      changeFrequency: "monthly",
+      priority: 0.7,
+    },
+    {
+      url: `${baseUrl}/offers`,
+      lastModified: now,
+      changeFrequency: "daily",
+      priority: 0.9,
+    },
+    {
+      url: `${baseUrl}/vendor`,
+      lastModified: now,
+      changeFrequency: "weekly",
+      priority: 0.8,
+    },
   ];
 
   const { data: restros } = await serviceClient
@@ -50,7 +87,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const stationCode = slugify(r.StationCode || "");
     const restroName = slugify(r.RestroName || "");
 
-    if (!stationName || !stationCode || !r.RestroCode || !restroName) continue;
+    if (!stationName || !stationCode || !r.RestroCode || !restroName) {
+      continue;
+    }
 
     const stationSlug = `${stationName}-${stationCode}-food-delivery`;
     const restroSlug = `${r.RestroCode}-${restroName}`;
