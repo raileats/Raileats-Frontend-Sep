@@ -47,30 +47,22 @@ function delayBadge(delayStatus: any) {
   const text = String(delayStatus || "").trim();
   const lower = text.toLowerCase();
 
-  if (!text) {
-    return {
-      text: "",
-      className: "",
-    };
-  }
+  if (!text) return { text: "", className: "" };
 
   if (lower.includes("delay")) {
-    return {
-      text,
-      className: "bg-red-500 text-white",
-    };
+    return { text, className: "bg-red-500 text-white" };
   }
 
   if (lower.includes("on")) {
     return {
       text: "On Time",
-      className: "bg-green-100 text-green-700 border border-green-200",
+      className: "border border-green-200 bg-green-100 text-green-700",
     };
   }
 
   return {
     text,
-    className: "bg-slate-100 text-slate-700 border border-slate-200",
+    className: "border border-slate-200 bg-slate-100 text-slate-700",
   };
 }
 
@@ -88,6 +80,7 @@ function getCurrentIndex(stations: any[], data: any) {
     const byCode = stations.findIndex(
       (s) => String(s?.code || "").trim().toUpperCase() === currentCode
     );
+
     if (byCode >= 0) return byCode;
   }
 
@@ -96,7 +89,11 @@ function getCurrentIndex(stations: any[], data: any) {
 
 function getProgress(currentIndex: number, total: number) {
   if (currentIndex < 0 || total <= 1) return 0;
-  return Math.max(4, Math.min(96, Math.round((currentIndex / (total - 1)) * 100)));
+
+  return Math.max(
+    4,
+    Math.min(96, Math.round((currentIndex / (total - 1)) * 100))
+  );
 }
 
 export default function LiveTrainStatusClient() {
@@ -113,7 +110,11 @@ export default function LiveTrainStatusClient() {
     return [];
   }, [data]);
 
-  const currentIndex = useMemo(() => getCurrentIndex(stations, data), [stations, data]);
+  const currentIndex = useMemo(
+    () => getCurrentIndex(stations, data),
+    [stations, data]
+  );
+
   const progress = getProgress(currentIndex, stations.length);
   const currentStation = currentIndex >= 0 ? stations[currentIndex] : null;
 
@@ -154,7 +155,7 @@ export default function LiveTrainStatusClient() {
 
   return (
     <main className="customer-app-main">
-      <section className="site-container max-w-3xl">
+      <section className="site-container max-w-3xl space-y-5">
         <div className="app-card overflow-hidden p-0">
           <div className="p-4 sm:p-5">
             <p className="text-xs font-black uppercase tracking-wide text-orange-600">
@@ -162,11 +163,12 @@ export default function LiveTrainStatusClient() {
             </p>
 
             <h1 className="mt-1 text-2xl font-black text-slate-950 sm:text-3xl">
-              Live Train Running Status
+              Live Train Running Status | Spot Your Train
             </h1>
 
             <p className="mt-2 text-sm font-semibold text-slate-600">
-              Enter train number to check current train running status, delay and route details.
+              Enter train number to check where is my train, NTES train running
+              status, delay, platform and route details.
             </p>
 
             <div className="mt-4 grid gap-2 sm:grid-cols-[1fr_150px_auto]">
@@ -213,13 +215,15 @@ export default function LiveTrainStatusClient() {
                     <div className="text-lg font-black">
                       {safe(data.train_number)} {safe(data.train_name, "Train")}
                     </div>
+
                     <div className="text-sm font-semibold opacity-95">
                       {safe(data.source)} - {safe(data.destination)}
                     </div>
                   </div>
 
                   <div className="rounded bg-white/15 px-3 py-1 text-xs font-black">
-                    Start Date: {formatDate(data.start_date || data.train_start_date)}
+                    Start Date:{" "}
+                    {formatDate(data.start_date || data.train_start_date)}
                   </div>
                 </div>
 
@@ -240,6 +244,7 @@ export default function LiveTrainStatusClient() {
                       className="absolute left-0 top-0 h-3 rounded-full bg-green-400"
                       style={{ width: `${progress}%` }}
                     />
+
                     <div
                       className="absolute top-1/2 h-5 w-5 -translate-y-1/2 rounded-full border-4 border-white bg-green-500 shadow"
                       style={{ left: `calc(${progress}% - 10px)` }}
@@ -248,9 +253,9 @@ export default function LiveTrainStatusClient() {
 
                   <div className="mt-2 text-center text-xs font-black text-white">
                     {currentStation
-                      ? `Current Position: ${titleCase(currentStation.name)} (${safe(
-                          currentStation.code
-                        )})`
+                      ? `Current Position: ${titleCase(
+                          currentStation.name
+                        )} (${safe(currentStation.code)})`
                       : "Current position not available"}
                   </div>
                 </div>
@@ -275,7 +280,9 @@ export default function LiveTrainStatusClient() {
 
                     return (
                       <div
-                        key={`${station.sequence || index}-${station.code || index}`}
+                        key={`${station.sequence || index}-${
+                          station.code || index
+                        }`}
                         className={`grid grid-cols-[86px_28px_1fr_86px] gap-0 border-b border-slate-200 px-3 py-3 text-xs sm:grid-cols-[120px_34px_1fr_120px] ${
                           isCurrent ? "bg-amber-50" : "bg-white"
                         }`}
@@ -284,6 +291,7 @@ export default function LiveTrainStatusClient() {
                           <div className="font-black text-slate-950">
                             {formatTime(station.arrival_scheduled)}
                           </div>
+
                           <div
                             className={
                               station.arrival_actual &&
@@ -298,6 +306,7 @@ export default function LiveTrainStatusClient() {
 
                         <div className="relative flex justify-center">
                           <div className="absolute bottom-[-12px] top-[-12px] w-[3px] bg-slate-300" />
+
                           <div
                             className={`relative z-10 mt-1 h-4 w-4 rounded-full border-2 border-white shadow ${
                               isCurrent
@@ -332,7 +341,8 @@ export default function LiveTrainStatusClient() {
 
                           {isCurrent ? (
                             <div className="mt-2 rounded bg-slate-700 px-3 py-2 text-xs font-black text-white">
-                              Departed from {titleCase(station.name)} ({safe(station.code)})
+                              Departed from {titleCase(station.name)} (
+                              {safe(station.code)})
                             </div>
                           ) : null}
                         </div>
@@ -341,10 +351,12 @@ export default function LiveTrainStatusClient() {
                           <div className="font-black text-slate-950">
                             {formatTime(station.departure_scheduled)}
                           </div>
+
                           <div
                             className={
                               station.departure_actual &&
-                              station.departure_actual !== station.departure_scheduled
+                              station.departure_actual !==
+                                station.departure_scheduled
                                 ? "mt-1 font-black text-red-600"
                                 : "mt-1 font-bold text-slate-500"
                             }
@@ -367,13 +379,58 @@ export default function LiveTrainStatusClient() {
               </div>
 
               <div className="m-4 rounded-2xl border border-amber-100 bg-amber-50 p-3 text-xs font-semibold text-amber-800">
-                Disclaimer: Live train status third-party railway data provider se fetch hota hai
-                aur kabhi bhi change ho sakta hai. Important travel details official railway
-                source se verify karein.
+                Disclaimer: Live train status third-party railway data provider
+                se fetch hota hai aur kabhi bhi change ho sakta hai. Important
+                travel details official railway source se verify karein.
               </div>
             </div>
           ) : null}
         </div>
+
+        <section className="app-card p-5 sm:p-6">
+          <h2 className="text-xl font-black text-slate-950">
+            Where is my train? Check live train running status online
+          </h2>
+
+          <p className="mt-3 text-sm font-semibold leading-7 text-slate-700">
+            RailEats helps passengers check live train running status online
+            using a train number. You can spot your train, view current station,
+            delay status, expected arrival, expected departure, platform number
+            and route updates in one place.
+          </p>
+
+          <h3 className="mt-5 text-lg font-black text-slate-950">
+            NTES train running status details
+          </h3>
+
+          <p className="mt-2 text-sm font-semibold leading-7 text-slate-700">
+            This page is useful for passengers searching for NTES train running
+            status, live train status, train current location, train delay status
+            and spot your train information before planning food delivery at
+            upcoming stations.
+          </p>
+
+          <h3 className="mt-5 text-lg font-black text-slate-950">
+            How to check live train status on RailEats?
+          </h3>
+
+          <ol className="mt-3 list-decimal space-y-2 pl-5 text-sm font-semibold leading-7 text-slate-700">
+            <li>Enter your train number in the live train status box.</li>
+            <li>Select Today, Yesterday or Tomorrow as per your journey.</li>
+            <li>Click Search to fetch current running details.</li>
+            <li>
+              View train name, current station, delay, platform and route
+              details.
+            </li>
+          </ol>
+
+          <div className="mt-5 rounded-xl border border-yellow-200 bg-yellow-50 p-4 text-xs font-bold leading-6 text-yellow-900">
+            Disclaimer: Live train running status is fetched from a third-party
+            railway data provider and may change due to railway operations.
+            Please verify important travel details with official railway
+            sources.
+          </div>
+        </section>
       </section>
     </main>
   );
