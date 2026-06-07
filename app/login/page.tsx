@@ -15,7 +15,9 @@ export default function LoginPage() {
   const sendOtp = async (e: any) => {
     e.preventDefault();
 
-    if (!phone) return alert("Enter mobile number");
+    if (!/^[0-9]{10}$/.test(phone)) {
+  return alert("Please enter a valid 10-digit mobile number.");
+}
 
     try {
       setLoading(true);
@@ -106,12 +108,17 @@ export default function LoginPage() {
         <form onSubmit={sendOtp} className="space-y-3">
 
           <input
-            type="tel"
-            placeholder="Enter mobile number"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            className="border p-2 w-full"
-          />
+  type="tel"
+  placeholder="Enter 10 digit mobile number"
+  value={phone}
+  onChange={(e) => {
+    const onlyDigits = e.target.value.replace(/\D/g, "").slice(0, 10);
+    setPhone(onlyDigits);
+  }}
+  inputMode="numeric"
+  maxLength={10}
+  className="border p-2 w-full"
+/>
 
           <button
             type="submit"
@@ -127,12 +134,17 @@ export default function LoginPage() {
         <form onSubmit={verifyOtp} className="space-y-3">
 
           <input
-            type="text"
-            placeholder="Enter OTP"
-            value={otp}
-            onChange={(e) => setOtp(e.target.value)}
-            className="border p-2 w-full"
-          />
+  type="text"
+  placeholder="Enter OTP"
+  value={otp}
+  onChange={(e) => {
+    const onlyDigits = e.target.value.replace(/\D/g, "").slice(0, 6);
+    setOtp(onlyDigits);
+  }}
+  inputMode="numeric"
+  maxLength={6}
+  className="border p-2 w-full"
+/>
 
           <button
             type="submit"
