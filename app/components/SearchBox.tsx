@@ -297,8 +297,14 @@ export default function SearchBox() {
             <input
   value={inputValue}
   onChange={(e) => {
-  const onlyDigits = e.target.value.replace(/\D/g, "").slice(0, 10);
-  setInputValue(onlyDigits);
+  let value = e.target.value.replace(/\D/g, "");
+
+  // First digit must be 2,4,6,8
+  if (value.length > 0 && !["2", "4", "6", "8"].includes(value.charAt(0))) {
+    return;
+  }
+
+  setInputValue(value.slice(0, 10));
 }}
   inputMode="numeric"
   maxLength={10}
