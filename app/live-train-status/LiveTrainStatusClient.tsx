@@ -379,9 +379,7 @@ export default function LiveTrainStatusClient() {
               </div>
 
               <div className="m-4 rounded-2xl border border-amber-100 bg-amber-50 p-3 text-xs font-semibold text-amber-800">
-                Disclaimer: Live train status third-party railway data provider
-                se fetch hota hai aur kabhi bhi change ho sakta hai. Important
-                travel details official railway source se verify karein.
+                Disclaimer: Live train running status is fetched from a third-party railway data provider and may change due to railway operations. Please verify important travel details with official railway sources.
               </div>
             </div>
           ) : null}
@@ -425,10 +423,7 @@ export default function LiveTrainStatusClient() {
           </ol>
 
           <div className="mt-5 rounded-xl border border-yellow-200 bg-yellow-50 p-4 text-xs font-bold leading-6 text-yellow-900">
-            Disclaimer: Live train running status is fetched from a third-party
-            railway data provider and may change due to railway operations.
-            Please verify important travel details with official railway
-            sources.
+            
           </div>
         </section>
       </section>
