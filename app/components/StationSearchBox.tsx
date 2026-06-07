@@ -126,10 +126,14 @@ export default function StationSearchBox({
         placeholder="Enter station name or code..."
         value={q}
         onChange={(e) => {
-          setQ(e.target.value);
-          setSelectedStation(null);
-          onSelect?.(null);
-        }}
+  const cleanValue = e.target.value
+    .replace(/[^a-zA-Z\s]/g, "")
+    .toUpperCase();
+
+  setQ(cleanValue);
+  setSelectedStation(null);
+  onSelect?.(null);
+}}
         onKeyDown={onKeyDown}
         className="app-input"
       />
