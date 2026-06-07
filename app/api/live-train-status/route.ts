@@ -62,7 +62,7 @@ export async function GET(req: Request) {
       );
     }
 
-    const providerUrl = new URL(`https://${rapidHost}/getRunningStatus`);
+    const providerUrl = new URL(`https://${rapidHost}/api/v1/getTrainRunningStatus`);
 
     providerUrl.searchParams.set("train_number", train);
     providerUrl.searchParams.set("start_day", day);
