@@ -20,6 +20,12 @@ function normalizeTrain(value: string | null) {
   return String(value ?? "").replace(/\D/g, "").slice(0, 5);
 }
 
+function dayLabel(day: string) {
+  if (day === "-1") return "Yesterday";
+  if (day === "1") return "Tomorrow";
+  return "Today";
+}
+
 export async function GET(req: Request) {
   try {
     const apiKey = process.env.RAPIDAPI_KEY;
@@ -66,7 +72,6 @@ export async function GET(req: Request) {
     }
 
     const providerUrl = new URL(`https://${rapidHost}${LIVE_TRAIN_PATH}`);
-
     providerUrl.searchParams.set("trainnumber", train);
     providerUrl.searchParams.set("start_day", day);
 
@@ -83,32 +88,40 @@ export async function GET(req: Request) {
     const json = await res.json().catch(() => null);
 
     if (!res.ok) {
-      return NextResponse.json(
-        {
-          status: "failed",
-          ok: false,
-          error: "provider_failed",
-          message: json?.message || "Train running provider failed.",
-          raw: json,
+      return NextResponse.json({
+        status: "failed",
+        ok: false,
+        error: "provider_failed",
+        message:
+          day === "-1"
+            ? "Yesterday train running data provider se available nahi hai. Today select karke try karein."
+            : json?.message || "Train running provider failed. Thodi der baad try karein.",
+        providerStatus: res.status,
+        requested: {
+          train,
+          day,
+          dayLabel: dayLabel(day),
         },
-        { status: res.status }
-      );
+        raw: json,
+      });
     }
 
     if (json?.status !== "success") {
-      return NextResponse.json(
-        {
-          status: "failed",
-          ok: false,
-          error: "train_status_not_found",
-          message:
-            json?.message ||
-            json?.status_message ||
-            "Live train status not found.",
-          raw: json,
+      return NextResponse.json({
+        status: "failed",
+        ok: false,
+        error: "train_status_not_found",
+        message:
+          json?.message ||
+          json?.status_message ||
+          `${dayLabel(day)} ka live train status available nahi hai.`,
+        requested: {
+          train,
+          day,
+          dayLabel: dayLabel(day),
         },
-        { status: 404 }
-      );
+        raw: json,
+      });
     }
 
     return NextResponse.json({
@@ -118,19 +131,17 @@ export async function GET(req: Request) {
       requested: {
         train,
         day,
+        dayLabel: dayLabel(day),
       },
     });
   } catch (err) {
     console.error("LIVE TRAIN STATUS API ERROR:", err);
 
-    return NextResponse.json(
-      {
-        status: "failed",
-        ok: false,
-        error: "server_error",
-        message: "Live train status server error.",
-      },
-      { status: 500 }
-    );
+    return NextResponse.json({
+      status: "failed",
+      ok: false,
+      error: "server_error",
+      message: "Live train status server error. Thodi der baad try karein.",
+    });
   }
 }
