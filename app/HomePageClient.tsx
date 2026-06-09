@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useAuth } from "./lib/useAuth";
@@ -12,42 +13,92 @@ import Steps from "./components/Steps";
 import ExploreRailInfo from "./components/ExploreRailInfo";
 import FooterLinks from "./components/FooterLinks";
 
+const TRAIN_FOOD_LINKS = [
+  {
+    href: "/order-food-in-train",
+    title: "Order Food in Train",
+    desc: "Book fresh meals online for your train journey.",
+  },
+  {
+    href: "/book-food-in-train",
+    title: "Book Food in Train",
+    desc: "Search by PNR or train and choose restaurants on your route.",
+  },
+  {
+    href: "/food-delivery-in-train",
+    title: "Food Delivery in Train",
+    desc: "Get food delivered to your seat at available stations.",
+  },
+  {
+    href: "/train-food-delivery",
+    title: "Train Food Delivery",
+    desc: "Find train food options from RailEats restaurant partners.",
+  },
+  {
+    href: "/best-food-delivery-in-train",
+    title: "Best Food Delivery in Train",
+    desc: "Compare fresh meal options for your railway journey.",
+  },
+  {
+    href: "/food-delivery-in-train-from-restaurants",
+    title: "Food Delivery in Train from Restaurants",
+    desc: "Order meals from available restaurants on your train route.",
+  },
+];
+
+const RAILWAY_TOOL_LINKS = [
+  {
+    href: "/pnr-status",
+    title: "Check PNR Status",
+    desc: "View train, journey, chart, coach and seat details.",
+  },
+  {
+    href: "/live-train-status",
+    title: "Live Train Running Status",
+    desc: "Spot your train and check current running status.",
+  },
+];
+
+function getSessionId() {
+  if (typeof window === "undefined") return "";
+
+  const key = "raileats_session_id";
+  let sessionId = localStorage.getItem(key);
+
+  if (!sessionId) {
+    sessionId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    localStorage.setItem(key, sessionId);
+  }
+
+  return sessionId;
+}
+
 async function trackEvent(
   event_name: string,
   payload: {
     section?: string;
+    email?: string | null;
+    mobile?: string | null;
     user_name?: string | null;
-    user_email?: string | null;
-    user_mobile?: string | null;
     metadata?: Record<string, any>;
   } = {}
 ) {
   try {
     if (typeof window === "undefined") return;
 
-    const key = "raileats_session_id";
-    let sessionId = localStorage.getItem(key);
-
-    if (!sessionId) {
-      sessionId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-      localStorage.setItem(key, sessionId);
-    }
-
     await fetch("/api/website-events", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       keepalive: true,
       body: JSON.stringify({
         event_name,
         section: payload.section || null,
+        email: payload.email || null,
+        mobile: payload.mobile || null,
+        user_name: payload.user_name || null,
         page_url: window.location.href,
         page_path: window.location.pathname,
-        user_name: payload.user_name || null,
-        user_email: payload.user_email || null,
-        user_mobile: payload.user_mobile || null,
-        session_id: sessionId,
+        session_id: getSessionId(),
         device:
           window.innerWidth < 640
             ? "mobile"
@@ -72,296 +123,376 @@ async function trackEvent(
 }
 
 export default function HomePageClient() {
-  const search = useSearchParams();
-  const user = useAuth((s) => s.user);
+  const searchParams = useSearchParams();
+  const { user } = useAuth();
 
-  const [showBulkModal, setShowBulkModal] = useState(false);
-  const [name, setName] = useState("");
-  const [mobile, setMobile] = useState("");
-  const [email, setEmail] = useState("");
-  const [trainNumber, setTrainNumber] = useState("");
-  const [journeyDate, setJourneyDate] = useState("");
-  const [quantity, setQuantity] = useState("");
-  const [success, setSuccess] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulkName, setBulkName] = useState("");
+  const [bulkMobile, setBulkMobile] = useState("");
+  const [bulkTrain, setBulkTrain] = useState("");
+  const [bulkMessage, setBulkMessage] = useState("");
+  const [bulkLoading, setBulkLoading] = useState(false);
 
-  const formatMobile = (num: string) => {
-    const clean = String(num || "").replace(/\D/g, "");
-    if (clean.startsWith("91") && clean.length === 12) return `+${clean}`;
-    if (clean.length === 10) return `+91${clean}`;
-    return num;
-  };
+  const getTrackingUser = () => ({
+    email: user?.email || null,
+    mobile: user?.mobile || null,
+    user_name: user?.name || null,
+  });
 
-  const getTrackingUser = () => {
-    return {
-      user_name: user?.name || name || null,
-      user_email: user?.email || email || null,
-      user_mobile: user?.mobile || formatMobile(mobile) || null,
-    };
-  };
+  const formatMobile = (value: string) => value.replace(/\D/g, "").slice(0, 10);
 
-  const handleSubmit = async () => {
-    if (!trainNumber || !journeyDate || !quantity) {
-      alert("Please fill all required fields");
+  useEffect(() => {
+    trackEvent("home_page_view", {
+      section: "home",
+      ...getTrackingUser(),
+      metadata: {
+        source: "home_page",
+      },
+    });
+  }, [user?.email, user?.mobile, user?.name]);
+
+  useEffect(() => {
+    const goto = searchParams.get("goto");
+
+    if (goto === "offers") {
+      setTimeout(() => {
+        document.getElementById("offers")?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      }, 300);
+
+      trackEvent("home_goto_offers", {
+        section: "home_offers",
+        ...getTrackingUser(),
+      });
+    }
+
+    if (goto === "bulk-order") {
+      setBulkOpen(true);
+
+      trackEvent("home_bulk_order_modal_open_query", {
+        section: "home_bulk_order",
+        ...getTrackingUser(),
+      });
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
+    const afterLoginAction = localStorage.getItem("raileats_after_login_action");
+
+    if (afterLoginAction === "bulk_order") {
+      localStorage.removeItem("raileats_after_login_action");
+      setBulkOpen(true);
+
+      trackEvent("home_bulk_order_modal_open_after_login", {
+        section: "home_bulk_order",
+        ...getTrackingUser(),
+      });
+    }
+  }, [user?.mobile]);
+
+  const handleBulkSubmit = async () => {
+    const mobile = formatMobile(bulkMobile);
+
+    if (!bulkName.trim()) {
+      alert("Name enter karo");
       return;
     }
 
-    if (!user && (!name || !mobile)) {
-      alert("Please fill your details");
+    if (mobile.length !== 10) {
+      alert("Valid 10 digit mobile number enter karo");
       return;
     }
 
     try {
-      setLoading(true);
+      setBulkLoading(true);
 
-      const { error } = await supabase.from("bulk_order_queries").insert([
-        {
-          name: user?.name || name,
-          mobile: user?.mobile || formatMobile(mobile),
-          email: user?.email || email,
-          train_number: trainNumber,
-          journey_date: journeyDate,
-          quantity,
-        },
-      ]);
-
-      if (error) {
-        alert("Error submitting enquiry");
-        return;
-      }
-
-      trackEvent("home_bulk_order_query_submit", {
+      trackEvent("home_bulk_order_submit_click", {
         section: "home_bulk_order",
-        ...getTrackingUser(),
+        mobile,
+        user_name: bulkName.trim(),
+        email: user?.email || null,
         metadata: {
-          trainNumber,
-          journeyDate,
-          quantity,
-          loggedIn: !!user,
+          train: bulkTrain.trim(),
+          message: bulkMessage.trim(),
         },
       });
 
-      setSuccess(true);
-      setTrainNumber("");
-      setJourneyDate("");
-      setQuantity("");
-      setName("");
-      setMobile("");
-      setEmail("");
+      const { error } = await supabase.from("BulkOrderRequests").insert({
+        Name: bulkName.trim(),
+        Mobile: mobile,
+        TrainNumber: bulkTrain.trim() || null,
+        Message: bulkMessage.trim() || null,
+        Status: "New",
+        Source: "Customer Website",
+        CreatedAt: new Date().toISOString(),
+      });
+
+      if (error) throw error;
+
+      trackEvent("home_bulk_order_submit_success", {
+        section: "home_bulk_order",
+        mobile,
+        user_name: bulkName.trim(),
+      });
+
+      alert("Bulk order request received. RailEats team will contact you soon.");
+
+      setBulkName("");
+      setBulkMobile("");
+      setBulkTrain("");
+      setBulkMessage("");
+      setBulkOpen(false);
     } catch (err) {
-      console.error(err);
-      alert("Something went wrong");
+      console.error("Bulk order request failed:", err);
+
+      trackEvent("home_bulk_order_submit_failed", {
+        section: "home_bulk_order",
+        mobile,
+        user_name: bulkName.trim(),
+      });
+
+      alert("Bulk order request submit nahi ho paya. Please try again.");
     } finally {
-      setLoading(false);
+      setBulkLoading(false);
     }
   };
 
-  useEffect(() => {
-    const goto = search.get("goto");
-    if (goto === "offers") {
-      document.getElementById("offers")?.scrollIntoView({ behavior: "smooth" });
-    }
-  }, [search]);
+  const handleSeoLinkClick = (href: string, title: string) => {
+    trackEvent("home_seo_internal_link_click", {
+      section: "home_popular_train_food_searches",
+      ...getTrackingUser(),
+      metadata: {
+        href,
+        title,
+      },
+    });
+  };
 
-  useEffect(() => {
-    if (!user) return;
-
-    const action = localStorage.getItem("afterLoginAction");
-    if (action === "bulk") {
-      setShowBulkModal(true);
-      localStorage.removeItem("afterLoginAction");
-    }
-  }, [user]);
+  const handleToolLinkClick = (href: string, title: string) => {
+    trackEvent("home_railway_tool_link_click", {
+      section: "home_railway_tools",
+      ...getTrackingUser(),
+      metadata: {
+        href,
+        title,
+      },
+    });
+  };
 
   return (
-    <main className="min-h-screen">
-      <div className="mx-auto w-full md:max-w-4xl md:px-6">
-        <HeroSlider />
-        <SearchBox />
-        <ExploreRailInfo />
-        <Offers />
-        <Steps />
+    <main className="customer-app-main">
+      <HeroSlider />
 
-        <section className="mt-6">
-          <button
-            type="button"
-            onClick={() => {
-              trackEvent("home_bulk_order_click", {
-                section: "home_bulk_order",
-                ...getTrackingUser(),
-                metadata: {
-                  loggedIn: !!user,
-                },
-              });
+      <SearchBox />
 
-              if (!user) {
-                localStorage.setItem("afterLoginAction", "bulk");
-                window.dispatchEvent(new CustomEvent("raileats:open-login"));
-              } else {
-                setShowBulkModal(true);
-              }
-            }}
-            className="app-card w-full text-left p-4"
-          >
-            <h2 className="font-semibold text-base">Bulk Food Order in Train</h2>
-            <p className="text-sm text-slate-500 mt-1">
-              Planning a group journey? Send a bulk order query for train meals
-              with best pricing and support.
-            </p>
-          </button>
-        </section>
+      <ExploreRailInfo />
 
-        <section className="mt-6 app-card p-4">
-          <h2 className="app-section-title">Order Food in Train with RailEats</h2>
-          <p className="app-muted mt-2">
-            RailEats helps passengers order fresh meals online by train number,
-            PNR or railway station. Choose from available station restaurants,
-            add food items to cart and get your meal delivered to your seat.
+      <Offers />
+
+      <section className="container-app">
+        <div className="app-card p-4 sm:p-5">
+          <p className="text-xs font-black uppercase tracking-wide text-orange-600">
+            Train food delivery
           </p>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4 text-sm">
-            <div className="rounded-lg border border-slate-200 p-3 bg-white">
-              <strong>Search Train</strong>
-              <p className="text-slate-500 mt-1">Find restaurants on your train route.</p>
-            </div>
-            <div className="rounded-lg border border-slate-200 p-3 bg-white">
-              <strong>Select Restaurant</strong>
-              <p className="text-slate-500 mt-1">Order from available station outlets.</p>
-            </div>
-            <div className="rounded-lg border border-slate-200 p-3 bg-white">
-              <strong>Get Delivery</strong>
-              <p className="text-slate-500 mt-1">Receive food at your train seat.</p>
-            </div>
-          </div>
-        </section>
+          <h1 className="mt-2 text-2xl font-black leading-tight text-slate-950 sm:text-3xl">
+            Order food in train with RailEats
+          </h1>
 
-        <section className="mt-6 app-card p-4">
-          <h2 className="app-section-title">Popular Train Food Searches</h2>
-          <div className="mt-3 flex flex-wrap gap-2 text-sm">
-            {[
-              "Food delivery in train",
-              "Order food by train number",
-              "Food at railway station",
-              "Veg food in train",
-              "Fresh meals on train",
-              "Train food booking online",
-            ].map((item) => (
-              <span
-                key={item}
-                className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-slate-700"
-              >
-                {item}
-              </span>
-            ))}
-          </div>
-        </section>
+          <p className="mt-3 text-sm font-semibold leading-6 text-slate-600">
+            RailEats helps passengers book food in train by PNR, train number or
+            station. Search your journey, choose available restaurants, add food
+            items to cart and get fresh meals delivered to your seat.
+          </p>
 
-        <section className="mt-6 app-card p-4">
-          <h2 className="app-section-title">Food Delivery in Train FAQs</h2>
-          <div className="mt-3 space-y-3 text-sm">
-            <div>
-              <h3 className="font-semibold">Can I order food using train number?</h3>
-              <p className="text-slate-500">
-                Yes. Enter your train number, select journey date and boarding
-                station, then RailEats shows available restaurants on the route.
-              </p>
-            </div>
-            <div>
-              <h3 className="font-semibold">How does RailEats decide available restaurants?</h3>
-              <p className="text-slate-500">
-                Availability depends on train arrival time, restaurant service
-                hours, cutoff time, weekly off, holiday status and active outlet status.
-              </p>
-            </div>
-            <div>
-              <h3 className="font-semibold">Can I pay online or cash on delivery?</h3>
-              <p className="text-slate-500">
-                Payment options depend on the restaurant configuration and are
-                shown during checkout.
-              </p>
-            </div>
-          </div>
-        </section>
-
-        <FooterLinks />
-      </div>
-
-      {showBulkModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
-          <div className="bg-white p-5 rounded-xl w-full max-w-md space-y-3 relative">
-            <button
-              type="button"
-              onClick={() => setShowBulkModal(false)}
-              className="absolute top-3 right-3 text-xl"
-              aria-label="Close bulk order form"
-            >
-              x
-            </button>
-
-            <h2 className="text-center font-semibold">Bulk Order Query</h2>
-
-            {success ? (
-              <div className="text-green-600 text-center font-semibold">
-                Query submitted successfully
+          <div className="mt-4 grid gap-3 sm:grid-cols-3">
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+              <div className="text-sm font-black text-slate-950">
+                Search Journey
               </div>
-            ) : (
-              <>
-                {!user && (
-                  <>
-                    <input
-                      placeholder="Name"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      className="app-input"
-                    />
-                    <input
-                      placeholder="Mobile"
-                      value={mobile}
-                      onChange={(e) =>
-                        setMobile(e.target.value.replace(/\D/g, "").slice(0, 10))
-                      }
-                      className="app-input"
-                    />
-                    <input
-                      placeholder="Email optional"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="app-input"
-                    />
-                  </>
-                )}
+              <p className="mt-1 text-xs font-semibold leading-5 text-slate-600">
+                Enter PNR, train number or station to find food delivery options.
+              </p>
+            </div>
 
-                <input
-                  placeholder="Train Number"
-                  value={trainNumber}
-                  onChange={(e) => setTrainNumber(e.target.value)}
-                  className="app-input"
-                />
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+              <div className="text-sm font-black text-slate-950">
+                Choose Restaurant
+              </div>
+              <p className="mt-1 text-xs font-semibold leading-5 text-slate-600">
+                View restaurants, menu, prices, minimum order and delivery time.
+              </p>
+            </div>
 
-                <input
-                  type="date"
-                  value={journeyDate}
-                  onChange={(e) => setJourneyDate(e.target.value)}
-                  className="app-input"
-                />
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+              <div className="text-sm font-black text-slate-950">
+                Get Seat Delivery
+              </div>
+              <p className="mt-1 text-xs font-semibold leading-5 text-slate-600">
+                Place your order and receive food at your selected railway station.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
 
-                <input
-                  placeholder="Quantity"
-                  value={quantity}
-                  onChange={(e) => setQuantity(e.target.value.replace(/\D/g, ""))}
-                  className="app-input"
-                />
+      <section className="container-app">
+        <div className="mb-3">
+          <h2 className="app-section-title">Popular Train Food Searches</h2>
+          <p className="app-muted text-sm">
+            Quick links for passengers searching food delivery in train.
+          </p>
+        </div>
 
-                <button
-                  type="button"
-                  onClick={handleSubmit}
-                  disabled={loading}
-                  className="app-btn-primary w-full"
-                >
-                  {loading ? "Submitting..." : "Submit"}
-                </button>
-              </>
-            )}
+        <div className="grid gap-3 sm:grid-cols-2">
+          {TRAIN_FOOD_LINKS.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              onClick={() => handleSeoLinkClick(item.href, item.title)}
+              className="app-card-compact block p-4 no-underline transition hover:-translate-y-0.5 hover:border-orange-200 hover:shadow-md"
+            >
+              <h3 className="text-base font-black text-slate-950">
+                {item.title}
+              </h3>
+              <p className="mt-1 text-sm font-semibold leading-5 text-slate-600">
+                {item.desc}
+              </p>
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      <section className="container-app">
+        <div className="mb-3">
+          <h2 className="app-section-title">Useful Railway Tools</h2>
+          <p className="app-muted text-sm">
+            Check railway information before ordering food.
+          </p>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          {RAILWAY_TOOL_LINKS.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              onClick={() => handleToolLinkClick(item.href, item.title)}
+              className="app-card-compact block p-4 no-underline transition hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md"
+            >
+              <h3 className="text-base font-black text-slate-950">
+                {item.title}
+              </h3>
+              <p className="mt-1 text-sm font-semibold leading-5 text-slate-600">
+                {item.desc}
+              </p>
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      <Steps />
+
+      <section className="container-app">
+        <div className="app-card p-4 sm:p-5">
+          <h2 className="text-xl font-black text-slate-950">
+            Why RailEats for train food delivery?
+          </h2>
+
+          <div className="mt-4 space-y-4 text-sm font-semibold leading-6 text-slate-600">
+            <p>
+              RailEats is built for passengers who want simple and reliable food
+              delivery in train. You can search your train route, compare
+              restaurants at available stations and order meals based on delivery
+              date, arrival time and restaurant availability.
+            </p>
+
+            <p>
+              The system checks station availability, restaurant timing, minimum
+              order value, cut-off time and menu item timing before showing food
+              options. This helps customers order from restaurants that can serve
+              the train journey properly.
+            </p>
+
+            <p>
+              Passengers can also use RailEats to check PNR status and live train
+              running status before ordering food for their journey.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <FooterLinks />
+
+      {bulkOpen && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 px-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h2 className="text-xl font-black text-slate-950">
+                  Bulk Order Request
+                </h2>
+                <p className="mt-1 text-sm font-semibold text-slate-500">
+                  Group order ke liye details bhejein. RailEats team contact karegi.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setBulkOpen(false);
+                  trackEvent("home_bulk_order_modal_close", {
+                    section: "home_bulk_order",
+                    ...getTrackingUser(),
+                  });
+                }}
+                className="h-9 w-9 rounded-full border border-slate-200 bg-white text-lg font-black text-slate-700"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="mt-5 space-y-3">
+              <input
+                value={bulkName}
+                onChange={(e) => setBulkName(e.target.value)}
+                placeholder="Name"
+                className="app-input"
+              />
+
+              <input
+                value={bulkMobile}
+                onChange={(e) => setBulkMobile(formatMobile(e.target.value))}
+                placeholder="10 digit mobile"
+                inputMode="numeric"
+                className="app-input"
+              />
+
+              <input
+                value={bulkTrain}
+                onChange={(e) => setBulkTrain(e.target.value)}
+                placeholder="Train number / journey details"
+                className="app-input"
+              />
+
+              <textarea
+                value={bulkMessage}
+                onChange={(e) => setBulkMessage(e.target.value)}
+                placeholder="Order details, passenger count, station, date"
+                rows={4}
+                className="app-input min-h-[110px] py-3"
+              />
+
+              <button
+                type="button"
+                onClick={handleBulkSubmit}
+                disabled={bulkLoading}
+                className="app-btn-primary w-full"
+              >
+                {bulkLoading ? "Submitting..." : "Submit Request"}
+              </button>
+            </div>
           </div>
         </div>
       )}
