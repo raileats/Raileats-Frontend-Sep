@@ -1,9 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { RecaptchaVerifier, signInWithPhoneNumber } from "firebase/auth";
+import { firebaseAuth } from "../../lib/firebase";
 import { useAuth } from "../lib/useAuth";
 import { useCart } from "../lib/useCart";
 import { useRouter } from "next/navigation";
+
+declare global {
+  interface Window {
+    recaptchaVerifier?: RecaptchaVerifier;
+    confirmationResult?: any;
+  }
+}
 
 export default function LoginModal() {
   const { setUser } = useAuth();
@@ -24,7 +33,6 @@ export default function LoginModal() {
   const [pendingJourney, setPendingJourney] = useState<any>(null);
   const [loading, setLoading] = useState(false);
 
-  /* ✅ CLOSE MODAL FUNCTION */
   const closeModal = () => {
     setOpen(false);
     setStep("mobile");
@@ -37,7 +45,6 @@ export default function LoginModal() {
     setPendingJourney(null);
   };
 
-  /* 🔥 OPEN MODAL */
   useEffect(() => {
     const handler = (e: any) => {
       setOpen(true);
@@ -48,65 +55,62 @@ export default function LoginModal() {
     };
 
     window.addEventListener("raileats:open-login", handler);
-    return () =>
-      window.removeEventListener("raileats:open-login", handler);
+    return () => window.removeEventListener("raileats:open-login", handler);
   }, []);
 
-  /* ================= SEND OTP ================= */
   const sendOtp = async () => {
     if (!/^[6-9][0-9]{9}$/.test(mobile)) {
-  return alert("Please enter a valid 10-digit mobile number.");
-}
+      return alert("Please enter a valid 10-digit mobile number.");
+    }
 
     try {
       setLoading(true);
 
-      const res = await fetch("/api/send-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: "+91" + mobile }),
-      });
-
-      const json = await res.json();
-
-      if (!json.success) {
-        alert("OTP send failed");
-        return;
+      if (!window.recaptchaVerifier) {
+        window.recaptchaVerifier = new RecaptchaVerifier(
+          firebaseAuth,
+          "recaptcha-container",
+          { size: "invisible" }
+        );
       }
+
+      const phone = "+91" + mobile;
+
+      const confirmationResult = await signInWithPhoneNumber(
+        firebaseAuth,
+        phone,
+        window.recaptchaVerifier
+      );
+
+      window.confirmationResult = confirmationResult;
 
       alert("Your OTP has been sent to your mobile");
       setStep("otp");
-
-    } catch {
-      alert("Error sending OTP");
+    } catch (err: any) {
+      console.error(err);
+      alert(err?.message || "Error sending OTP");
     } finally {
       setLoading(false);
     }
   };
 
-  /* ================= VERIFY OTP ================= */
   const verifyOtp = async () => {
     if (!/^[0-9]{4,6}$/.test(otp)) {
-  return alert("Please enter valid OTP.");
-}
+      return alert("Please enter valid OTP.");
+    }
 
     try {
       setLoading(true);
 
-      const phone = "+91" + mobile;
-
-      const res = await fetch("/api/verify-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone, otp }),
-      });
-
-      const json = await res.json();
-
-      if (!json.success) {
-        alert("Wrong OTP");
+      if (!window.confirmationResult) {
+        alert("OTP session expired. Please send OTP again.");
+        setStep("mobile");
         return;
       }
+
+      await window.confirmationResult.confirm(otp);
+
+      const phone = "+91" + mobile;
 
       const userRes = await fetch("/api/get-user", {
         method: "POST",
@@ -125,15 +129,14 @@ export default function LoginModal() {
       }
 
       setStep("profile");
-
-    } catch {
-      alert("Error verifying OTP");
+    } catch (err: any) {
+      console.error(err);
+      alert("Wrong OTP");
     } finally {
       setLoading(false);
     }
   };
 
-  /* ================= SAVE PROFILE ================= */
   const saveProfile = async () => {
     if (!name || !email) {
       alert("Name & Email required");
@@ -144,7 +147,6 @@ export default function LoginModal() {
       setLoading(true);
 
       const phone = "+91" + mobile;
-
       const user = { mobile: phone, name, email };
 
       const res = await fetch("/api/save-user", {
@@ -168,9 +170,7 @@ export default function LoginModal() {
 
       setUser(user);
 
-      if (pendingJourney) {
-        setJourney(pendingJourney);
-      }
+      if (pendingJourney) setJourney(pendingJourney);
 
       if (pendingCartItem) {
         add(pendingCartItem);
@@ -184,9 +184,7 @@ export default function LoginModal() {
       }
 
       closeModal();
-
       router.refresh();
-
     } catch {
       alert("Error saving profile");
     } finally {
@@ -199,8 +197,8 @@ export default function LoginModal() {
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
       <div className="relative bg-white p-5 rounded-xl w-80 space-y-4 shadow-lg">
+        <div id="recaptcha-container"></div>
 
-        {/* ❌ CLEAN RED CLOSE BUTTON */}
         <button
           onClick={closeModal}
           className="absolute top-3 right-3 text-red-500 hover:text-red-700 text-lg font-bold"
@@ -211,23 +209,24 @@ export default function LoginModal() {
         {step === "mobile" && (
           <>
             <input
-  type="tel"
-  placeholder="Enter 10 digit mobile number"
-  value={mobile}
-  onChange={(e) => {
-    let value = e.target.value.replace(/\D/g, "");
+              type="tel"
+              placeholder="Enter 10 digit mobile number"
+              value={mobile}
+              onChange={(e) => {
+                let value = e.target.value.replace(/\D/g, "");
+                if (value.length === 1 && !/[6-9]/.test(value)) return;
+                setMobile(value.slice(0, 10));
+              }}
+              inputMode="numeric"
+              maxLength={10}
+              className="border p-2 w-full rounded-md"
+            />
 
-    if (value.length === 1 && !/[6-9]/.test(value)) {
-      return;
-    }
-
-    setMobile(value.slice(0, 10));
-  }}
-  inputMode="numeric"
-  maxLength={10}
-  className="border p-2 w-full rounded-md"
-/>
-            <button onClick={sendOtp} className="bg-blue-600 text-white w-full p-2 rounded-md">
+            <button
+              onClick={sendOtp}
+              disabled={loading}
+              className="bg-blue-600 text-white w-full p-2 rounded-md disabled:opacity-60"
+            >
               {loading ? "Sending..." : "Send OTP"}
             </button>
           </>
@@ -236,18 +235,23 @@ export default function LoginModal() {
         {step === "otp" && (
           <>
             <input
-  type="text"
-  placeholder="Enter OTP"
-  value={otp}
-  onChange={(e) => {
-    const onlyDigits = e.target.value.replace(/\D/g, "").slice(0, 6);
-    setOtp(onlyDigits);
-  }}
-  inputMode="numeric"
-  maxLength={6}
-  className="border p-2 w-full rounded-md"
-/>
-            <button onClick={verifyOtp} className="bg-green-600 text-white w-full p-2 rounded-md">
+              type="text"
+              placeholder="Enter OTP"
+              value={otp}
+              onChange={(e) => {
+                const onlyDigits = e.target.value.replace(/\D/g, "").slice(0, 6);
+                setOtp(onlyDigits);
+              }}
+              inputMode="numeric"
+              maxLength={6}
+              className="border p-2 w-full rounded-md"
+            />
+
+            <button
+              onClick={verifyOtp}
+              disabled={loading}
+              className="bg-green-600 text-white w-full p-2 rounded-md disabled:opacity-60"
+            >
               {loading ? "Verifying..." : "Verify OTP"}
             </button>
           </>
@@ -261,18 +265,23 @@ export default function LoginModal() {
               onChange={(e) => setName(e.target.value)}
               className="border p-2 w-full rounded-md"
             />
+
             <input
               placeholder="Email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="border p-2 w-full rounded-md"
             />
-            <button onClick={saveProfile} className="bg-orange-600 text-white w-full p-2 rounded-md">
+
+            <button
+              onClick={saveProfile}
+              disabled={loading}
+              className="bg-orange-600 text-white w-full p-2 rounded-md disabled:opacity-60"
+            >
               {loading ? "Saving..." : "Save"}
             </button>
           </>
         )}
-
       </div>
     </div>
   );
