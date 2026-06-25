@@ -11,5 +11,6 @@ const firebaseConfig = {
 };
 
 const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
+console.log("Firebase API Key:", process.env.NEXT_PUBLIC_FIREBASE_API_KEY);
 
 export const firebaseAuth = getAuth(app);
