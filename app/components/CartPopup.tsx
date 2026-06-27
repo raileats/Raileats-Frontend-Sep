@@ -61,7 +61,7 @@ export default function CartPopup() {
         <div
   className="shrink-0 border-t bg-white px-4 pt-3"
   style={{
-    paddingBottom: "calc(var(--nav-h, 70px) + 14px + env(safe-area-inset-bottom))",
+    paddingBottom: "calc(var(--nav-h, 55px) + 6px + env(safe-area-inset-bottom))",
   }}
 >
           <div className="flex justify-between mb-3 font-semibold px-2">
