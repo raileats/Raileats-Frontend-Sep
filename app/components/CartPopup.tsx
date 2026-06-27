@@ -24,7 +24,7 @@ export default function CartPopup() {
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40">
       <div
-        className="bg-white w-full md:w-[380px] rounded-t-2xl shadow-xl flex flex-col overflow-hidden"
+        className="bg-white w-[calc(100vw-16px)] max-w-[430px] md:w-[380px] rounded-t-2xl shadow-xl flex flex-col overflow-hidden mx-auto"
         style={{
           height: "calc(100dvh - var(--nav-h, 70px) - env(safe-area-inset-bottom) - 8px)",
           maxHeight: "calc(100dvh - env(safe-area-inset-bottom) - 8px)",
