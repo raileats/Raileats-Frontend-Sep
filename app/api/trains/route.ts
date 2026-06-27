@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { serviceClient } from "../../lib/supabaseServer";
 
+function normalizeTrain(v: string) {
+  const digits = String(v || "").replace(/\D/g, "");
+  return digits ? digits.padStart(5, "0") : "";
+}
+
 export async function GET(req: Request) {
   const url = new URL(req.url);
   const search = (url.searchParams.get("search") || "").trim();
@@ -10,12 +15,18 @@ export async function GET(req: Request) {
   }
 
   const supa = serviceClient;
+  const trainNo = normalizeTrain(search);
 
-  // Search both trainName and trainNumber using OR
+  const orParts = [`trainName.ilike.%${search}%`];
+
+  if (trainNo) {
+    orParts.push(`trainNumber.eq.${trainNo}`);
+  }
+
   const { data, error } = await supa
     .from("TrainRoute")
     .select("trainNumber, trainName")
-    .or(`trainName.ilike.%${search}%,trainNumber.eq.${isNaN(Number(search)) ? -1 : Number(search)}`)
+    .or(orParts.join(","))
     .limit(50);
 
   if (error) {
@@ -23,11 +34,10 @@ export async function GET(req: Request) {
     return NextResponse.json([]);
   }
 
-  // Remove duplicates
   const seen = new Set();
   const result = [];
 
-  for (const row of (data || [])) {
+  for (const row of data || []) {
     const key = `${row.trainNumber}-${row.trainName}`;
     if (!seen.has(key)) {
       seen.add(key);
