@@ -1,9 +1,8 @@
 import { NextResponse } from "next/server";
 import { serviceClient } from "../../lib/supabaseServer";
 
-function normalizeTrain(v: string) {
-  const digits = String(v || "").replace(/\D/g, "");
-  return digits ? digits.padStart(5, "0") : "";
+function digitsOnly(v: string) {
+  return String(v || "").replace(/\D/g, "");
 }
 
 export async function GET(req: Request) {
@@ -15,12 +14,15 @@ export async function GET(req: Request) {
   }
 
   const supa = serviceClient;
-  const trainNo = normalizeTrain(search);
+  const digits = digitsOnly(search);
 
   const orParts = [`trainName.ilike.%${search}%`];
 
-  if (trainNo) {
-    orParts.push(`trainNumber.eq.${trainNo}`);
+  if (digits) {
+    orParts.push(`trainNumber.ilike.%${digits}%`);
+    if (digits.length < 5) {
+      orParts.push(`trainNumber.ilike.%${digits.padStart(5, "0")}%`);
+    }
   }
 
   const { data, error } = await supa
