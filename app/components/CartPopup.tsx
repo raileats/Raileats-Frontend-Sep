@@ -22,7 +22,7 @@ export default function CartPopup() {
   if (!open || items.length === 0) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40">
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 px-2">
       <div
         className="bg-white w-[calc(100vw-16px)] max-w-[430px] md:w-[380px] rounded-t-2xl shadow-xl flex flex-col overflow-hidden mx-auto"
         style={{
