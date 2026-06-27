@@ -22,9 +22,9 @@ export default function CartPopup() {
   if (!open || items.length === 0) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 px-2">
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 px-3">
       <div
-        className="bg-white w-full max-w-[420px] md:w-[380px] rounded-t-2xl shadow-xl flex flex-col overflow-hidden mx-auto"
+        className="bg-white w-full max-w-[400px] md:w-[380px] rounded-t-2xl shadow-xl flex flex-col overflow-hidden mx-auto"
         style={{
           height: "calc(100dvh - var(--nav-h, 70px) - env(safe-area-inset-bottom) - 8px)",
           maxHeight: "calc(100dvh - env(safe-area-inset-bottom) - 8px)",
