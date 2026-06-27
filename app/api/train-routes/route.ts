@@ -43,6 +43,7 @@ export async function GET(req: Request) {
   try {
     const url = new URL(req.url);
     const train = (url.searchParams.get("train") || "").trim();
+    const trainNo = train.replace(/\D/g, "").padStart(5, "0");
     const station = (url.searchParams.get("station") || "").trim();
     const date = (url.searchParams.get("date") || "").trim() || todayIST();
 
@@ -61,7 +62,7 @@ export async function GET(req: Request) {
         StnNumber, StationCode, StationName,
         Arrives, Departs, Distance, Platform, Day
       `)
-      .eq("trainNumber", Number(train))
+      .eq("trainNumber", trainNo)
       .order("StnNumber", { ascending: true });
 
     if (!routeRows?.length) {
@@ -211,14 +212,14 @@ export async function GET(req: Request) {
     if (station) {
       return NextResponse.json({
         ok: true,
-        train: { trainNumber: train, trainName },
+        train: { trainNumber: trainNo, trainName },
         rows: mapped.filter(r => normalize(r.StationCode) === normalize(station)),
       });
     }
 
     return NextResponse.json({
       ok: true,
-      train: { trainNumber: train, trainName },
+      train: { trainNumber: trainNo, trainName },
       rows: mapped,
       meta: { date, boardingDate },
     });
