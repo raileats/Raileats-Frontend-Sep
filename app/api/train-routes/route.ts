@@ -20,6 +20,10 @@ function normalize(v: any) {
   return String(v ?? "").trim().toUpperCase();
 }
 
+function normalizeTrain(v: any) {
+  return String(v ?? "").replace(/\D/g, "").padStart(5, "0");
+}
+
 function toMinutes(t?: string | null): number | null {
   if (!t) return null;
   const [h, m] = t.slice(0, 5).split(":").map(Number);
@@ -43,7 +47,7 @@ export async function GET(req: Request) {
   try {
     const url = new URL(req.url);
     const train = (url.searchParams.get("train") || "").trim();
-    const trainNo = train.replace(/\D/g, "").padStart(5, "0");
+    const trainNo = normalizeTrain(train);
     const station = (url.searchParams.get("station") || "").trim();
     const date = (url.searchParams.get("date") || "").trim() || todayIST();
 
@@ -117,7 +121,6 @@ export async function GET(req: Request) {
     const mapped = routeRows.map(r => {
       const sc = normalize(r.StationCode);
 
-      // ✅ Station search = user date, else train logic
       const arrivalDate = station
         ? date
         : typeof r.Day === "number"
@@ -140,13 +143,11 @@ export async function GET(req: Request) {
           const reasons: string[] = [];
           const restroKey = String(x.RestroCode).trim();
 
-          /* ❌ Past date */
           if (arrivalDate < today) {
             available = false;
             reasons.push("Train already departed");
           }
 
-          /* ❌ Weekly Off */
           if (available && x.WeeklyOff) {
             const offs = normalize(x.WeeklyOff).split(",").map(d => d.trim());
             if (offs.includes(arrivalDayName)) {
@@ -155,7 +156,6 @@ export async function GET(req: Request) {
             }
           }
 
-          /* ❌ HOLIDAY (ARRIVAL TIME BASED – IST SAFE) */
           if (available && arrivalDateTime) {
             const hs = holidayMap[restroKey] || [];
             if (
@@ -170,7 +170,6 @@ export async function GET(req: Request) {
             }
           }
 
-          /* ⏰ CUT-OFF (ONLY IF booking date == arrival date) */
           if (
             available &&
             arrivalDate === today &&
@@ -206,8 +205,6 @@ export async function GET(req: Request) {
         restroCount: vendors.filter(v => v.available).length,
       };
     });
-
-    /* ================= RESPONSE ================= */
 
     if (station) {
       return NextResponse.json({
