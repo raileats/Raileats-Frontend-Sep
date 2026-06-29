@@ -265,7 +265,7 @@ function normalizeItems(rawItems: any[], arrivalTime: string) {
     });
 }
 
-/* ================= DYNAMIC SEO ================= */
+/* ================= SEO CONTENT ================= */
 
 function extractMenuTerms(items: any[]) {
   const cuisineTerms = items.flatMap((it) => splitTerms(it.item_cuisine));
@@ -294,7 +294,7 @@ function buildDescription({
 }) {
   const foodText = terms.length ? ` including ${terms.slice(0, 3).join(", ")}` : "";
   return clampDescription(
-    `Order food from ${outletName} at ${stationName} Railway Station (${stationCode}) on ${SITE_NAME}. View ${itemCount} live menu items${foodText}.`
+    `Order fresh food from ${outletName} at ${stationName} Railway Station (${stationCode}). Browse ${itemCount} menu item${itemCount === 1 ? "" : "s"}${foodText} for seat delivery.`
   );
 }
 
@@ -366,28 +366,30 @@ function buildFaqs({
 
   return [
     {
-      question: `How can I order food from ${outletName} at ${stationName} Railway Station?`,
-      answer: `Use ${SITE_NAME} to view ${outletName} at ${stationName} (${stationCode}), select from ${itemCount} active menu item${itemCount === 1 ? "" : "s"} and continue the train food order flow.`,
+      question: `Can I order food from ${outletName} before my train reaches ${stationName}?`,
+      answer: `Yes. Open the menu, choose your items and continue with your train details so the order can be prepared for the halt at ${stationName} (${stationCode}).`,
     },
     {
-      question: `What food is available from ${outletName}?`,
-      answer: `${outletName} currently shows ${foodText} on this page, generated from live menu data available for the selected arrival time.`,
+      question: `What can I order from ${outletName}?`,
+      answer: `${outletName} offers ${foodText}. Final availability can depend on restaurant timing, preparation window and the selected arrival time.`,
     },
     {
-      question: `Does ${outletName} deliver food in train at ${stationName}?`,
-      answer: `${outletName} can appear for train food delivery at ${stationName} when the restaurant, menu items and timing are active on ${SITE_NAME}.`,
+      question: `Does ${outletName} deliver to train seats at ${stationName}?`,
+      answer: `Seat delivery is supported where service is available. Enter accurate coach, berth and phone details so the delivery can be coordinated smoothly.`,
     },
     {
-      question: `What is the minimum order for ${outletName}?`,
-      answer: `The current minimum order value passed for ${outletName} is Rs ${minimumOrder}. The final checkout flow should be followed for live order rules.`,
+      question: `What is the minimum order value at ${outletName}?`,
+      answer: minimumOrder > 0
+        ? `${outletName} currently shows a minimum order value of Rs ${minimumOrder}. Check the cart before checkout for the final payable amount.`
+        : `Minimum order details are shown during menu selection and checkout for ${outletName}.`,
     },
     {
-      question: `Are menu prices for ${outletName} dynamic?`,
-      answer: `Yes. Menu names, prices, cuisines, item types, images and availability are generated from the current menu response and update when database records change.`,
+      question: `Can I pay online for ${outletName} orders?`,
+      answer: `Payment options are shown during checkout on ${SITE_NAME}. Choose the method available for your train food order before confirming.`,
     },
     {
-      question: `Can I order ${outletName} food using train details?`,
-      answer: `Yes. Continue through ${SITE_NAME} with train, station, delivery date and delivery time details so the order can be connected to your journey.`,
+      question: `Can I order ${outletName} food for someone else?`,
+      answer: `Yes. Use the traveller's train, coach, berth and contact details so the restaurant can deliver the order at ${stationName}.`,
     },
   ];
 }
@@ -801,13 +803,13 @@ export default async function Page({ params, searchParams }: any) {
         </h1>
 
         <p className="mt-3 leading-7 text-slate-700">
-          {outletName} is listed on {SITE_NAME} for train food ordering at{" "}
-          {stationName} ({stationCode}). This page is generated from live menu
-          data and currently shows {items.length} active item
+          {outletName} serves train travellers ordering food at {stationName}{" "}
+          ({stationCode}). Browse the menu before your train reaches the
+          station, choose from {items.length} available item
           {items.length === 1 ? "" : "s"}
-          {terms.length > 0 ? ` including ${terms.slice(0, 6).join(", ")}` : ""}.
-          Menu names, prices, cuisine signals, item images and availability
-          update automatically whenever restaurant data changes.
+          {terms.length > 0 ? ` such as ${terms.slice(0, 6).join(", ")}` : ""},
+          and continue with your train, coach and seat details for delivery
+          during the halt.
         </p>
       </section>
 
@@ -833,6 +835,7 @@ export default async function Page({ params, searchParams }: any) {
                       width={84}
                       height={84}
                       loading="lazy"
+                      decoding="async"
                       className="h-[84px] w-[84px] rounded-xl object-cover"
                     />
                   ) : null}
@@ -842,6 +845,11 @@ export default async function Page({ params, searchParams }: any) {
                     <p className="mt-1 text-sm text-slate-600">
                       {it.menu_type} {it.item_cuisine ? `• ${it.item_cuisine}` : ""}
                     </p>
+                    {it.item_description ? (
+                      <p className="mt-1 text-sm leading-6 text-slate-600">
+                        {it.item_description}
+                      </p>
+                    ) : null}
                     <p className="mt-1 text-sm font-bold text-slate-900">
                       Rs {it.base_price}
                     </p>
@@ -852,6 +860,56 @@ export default async function Page({ params, searchParams }: any) {
           </div>
         </section>
       ) : null}
+
+      <section className="mx-auto mt-6 max-w-[560px] rounded-3xl border bg-white p-6 shadow-sm">
+        <h2 className="text-2xl font-bold text-slate-900">
+          About {outletName}
+        </h2>
+
+        <p className="mt-3 leading-7 text-slate-700">
+          {outletName} is available for food ordering at {stationName} Railway
+          Station. The menu is useful for planning a meal around your train
+          timing, especially when you want fresh food delivered to your seat
+          instead of searching on the platform.
+        </p>
+
+        {terms.length > 0 ? (
+          <p className="mt-3 leading-7 text-slate-700">
+            Popular choices from this restaurant include{" "}
+            {terms.slice(0, 8).join(", ")}. Select your items, review the cart
+            and continue through checkout with accurate journey details.
+          </p>
+        ) : null}
+
+        {minimumOrder > 0 ? (
+          <p className="mt-3 leading-7 text-slate-700">
+            Minimum order value shown for {outletName}: Rs {minimumOrder}.
+          </p>
+        ) : null}
+      </section>
+
+      <section className="mx-auto mt-6 max-w-[560px] rounded-3xl border bg-white p-6 shadow-sm">
+        <h2 className="text-2xl font-bold text-slate-900">
+          Why Order Here
+        </h2>
+
+        <div className="mt-4 grid gap-3">
+          {[
+            "Fresh food prepared by the restaurant",
+            "Seat delivery for train travellers",
+            "Online ordering with clear menu prices",
+            terms.length > 0
+              ? `Cuisine choices: ${terms.slice(0, 4).join(", ")}`
+              : "",
+          ]
+            .filter(Boolean)
+            .map((item) => (
+              <div key={item} className="rounded-2xl border border-slate-200 p-4">
+                <h3 className="text-sm font-bold text-slate-900">{item}</h3>
+              </div>
+            ))}
+        </div>
+      </section>
 
       <section className="mx-auto mt-6 max-w-[560px] rounded-3xl border bg-white p-6 shadow-sm">
         <h2 className="text-2xl font-bold text-slate-900">
