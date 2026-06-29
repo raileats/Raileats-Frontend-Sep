@@ -1,5 +1,6 @@
 import React from "react";
 import Link from "next/link";
+import Image from "next/image";
 import type { Metadata } from "next";
 import { serviceClient } from "../../lib/supabaseServer";
 
@@ -179,6 +180,20 @@ function sortRestaurants(restros: any[]) {
     if (newDiff) return newDiff;
 
     return restaurantName(a).localeCompare(restaurantName(b));
+  });
+}
+
+function dedupeSchema(items: any[]) {
+  const seen = new Set<string>();
+
+  return items.filter((item) => {
+    const key =
+      item?.["@id"] ||
+      `${item?.["@type"] || "Thing"}:${item?.name || item?.url || JSON.stringify(item).slice(0, 120)}`;
+
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
   });
 }
 
@@ -555,7 +570,7 @@ export default async function Page({ params }: { params: { slug: string } }) {
     { name: stationName, href: `/stations/${params.slug}` },
   ];
 
-  const schema = [
+  const schema = dedupeSchema([
     {
       "@context": "https://schema.org",
       "@type": "Organization",
@@ -681,7 +696,7 @@ export default async function Page({ params }: { params: { slug: string } }) {
         },
       })),
     },
-  ];
+  ]);
 
   return (
     <>
@@ -801,7 +816,7 @@ export default async function Page({ params }: { params: { slug: string } }) {
 
                       <div className="flex w-[108px] shrink-0 flex-col items-center gap-2">
                         <div className="h-[86px] w-[86px] overflow-hidden rounded-2xl border border-slate-200 bg-slate-100">
-                          <img
+                          <Image
                             src={restroImage(r)}
                             alt={`${restaurantName} food for train travellers at ${stationName}`}
                             title={`${restaurantName} at ${stationName} Railway Station`}
@@ -810,6 +825,7 @@ export default async function Page({ params }: { params: { slug: string } }) {
                             decoding="async"
                             width={86}
                             height={86}
+                            unoptimized
                           />
                         </div>
 
