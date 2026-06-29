@@ -143,9 +143,29 @@ function clampDescription(value: string) {
 }
 
 function buildMetaDescription(stationName: string, code: string, restroCount = 0) {
+  const restaurantText =
+    restroCount > 0
+      ? ` Choose from ${restroCount} trusted restaurant${restroCount === 1 ? "" : "s"}`
+      : " Browse available restaurants";
+
   return clampDescription(
-    `Food Delivery in Train at ${stationName} (${code}) Railway Station. Order Food in Train online with ${siteName} from ${restroCount} active restaurants.`
+    `Order fresh food in train at ${stationName} Railway Station (${code}).${restaurantText} and get hygienic meals delivered to your seat.`
   );
+}
+
+function buildStationTitle(stationName: string, code: string) {
+  const templates = [
+    `Food Delivery at ${stationName} Railway Station (${code}) | ${siteName}`,
+    `Order Food in Train at ${stationName} (${code}) | ${siteName}`,
+    `Train Food Delivery at ${stationName} Railway Station | ${siteName}`,
+    `Online Food Order at ${stationName} Station (${code}) | ${siteName}`,
+    `Best Food Options at ${stationName} Railway Station | ${siteName}`,
+  ];
+  const seed = String(code || stationName)
+    .split("")
+    .reduce((sum, char) => sum + char.charCodeAt(0), 0);
+
+  return templates[seed % templates.length];
 }
 
 function extractSeoTerms(restros: any[]) {
@@ -274,36 +294,36 @@ function buildFaqs({
 
   return [
     {
-      question: `How can I order food in train at ${stationName} Railway Station?`,
-      answer: `Search your train, PNR or station on ${siteName}, choose from ${restroCount} active restaurant${restroCount === 1 ? "" : "s"} at ${stationName} (${code}), select food and confirm seat delivery.`,
+      question: `Can I order food before reaching ${stationName}?`,
+      answer: `Yes. Search by train, PNR or station on ${siteName}, choose ${stationName} (${code}), pick a restaurant and place the order before your train arrives.`,
     },
     {
-      question: `Is Food Delivery in Train available at ${stationName} (${code})?`,
-      answer: `${siteName} shows live restaurant availability for ${stationName}. Currently ${restroCount} active restaurant${restroCount === 1 ? "" : "s"} can appear for this station when service conditions match your journey.`,
+      question: `How early should I place my food order at ${stationName}?`,
+      answer: `It is better to order as early as possible after confirming your journey details. Restaurant choice and preparation time can vary by train arrival time.`,
     },
     {
-      question: `What food can passengers order at ${stationName}?`,
-      answer: `Food options at ${stationName} are generated from active restaurant data. Available choices may include ${foodText}, depending on menus, cuisines and restaurant status.`,
+      question: `What food options are available at ${stationName}?`,
+      answer: `You may find options such as ${foodText}. The exact choice depends on restaurant timing, menu availability and service status for your journey.`,
     },
     {
-      question: `Which restaurants deliver at ${stationName} Railway Station?`,
-      answer: `The restaurant list on this page is generated from current database records for ${stationName}. If a restaurant is added, renamed, removed, rated or marked inactive, the page updates automatically.`,
+      question: `Which restaurants serve train food at ${stationName}?`,
+      answer: `${restroCount} restaurant${restroCount === 1 ? "" : "s"} are shown for ${stationName} when they are available for orders. Open a restaurant card to view its menu and minimum order value.`,
     },
     {
-      question: `Can I order food at ${stationName} without changing my railway booking?`,
-      answer: `Yes. ${siteName} is an online food ordering service for train passengers. Your train journey remains unchanged while you place a food order using train, PNR or station details.`,
+      question: `Can I order without a PNR?`,
+      answer: `You can start with train or station details. If checkout asks for more journey information, enter accurate coach, berth and contact details for smooth seat delivery.`,
     },
     {
-      question: `Does ${siteName} support seat delivery at ${stationName}?`,
-      answer: `${siteName} is built for train seat delivery where restaurant service is available. Use accurate train, coach and seat details so delivery can be coordinated at ${stationName}.`,
+      question: `Will the food be delivered to my seat?`,
+      answer: `Yes, seat delivery is the usual flow where service is available. Keep your coach, berth and phone number correct so the restaurant can coordinate at ${stationName}.`,
     },
     {
-      question: `Can restaurant availability change at ${stationName}?`,
-      answer: `Yes. Availability depends on live restaurant status, timings, holiday settings and station service. This page uses current data so passengers see the latest available options.`,
+      question: `What payment methods are accepted?`,
+      answer: `${siteName} supports online ordering, and available payment options are shown during checkout. Some restaurants may also support cash on delivery where enabled.`,
     },
     {
-      question: `Why is ${siteName} useful for ${stationName} passengers?`,
-      answer: `${siteName} helps passengers avoid platform rush by checking active restaurants, food choices and order options before the train reaches ${stationName} Railway Station.`,
+      question: `Can I order for someone else travelling through ${stationName}?`,
+      answer: `Yes. Enter the traveller's correct train, coach, berth and contact details while placing the order so delivery can be handled properly.`,
     },
   ];
 }
@@ -329,7 +349,7 @@ export async function generateMetadata({
     (r: any) => isActive(r.RaileatsStatus) && !isHolidayOn(r.HolidayStatus)
   );
   const seoTerms = extractSeoTerms(activeRestros);
-  const title = `Food Delivery in Train at ${stationName} Junction (${stationBase.code}) Railway Station | Order Food Online | ${siteName}`;
+  const title = buildStationTitle(stationName, stationBase.code);
   const description = buildMetaDescription(
     stationName,
     stationBase.code,
@@ -617,17 +637,14 @@ export default async function Page({ params }: { params: { slug: string } }) {
           </h1>
 
           <p className="mt-3 text-[13px] leading-6 text-slate-600">
-            {siteName} helps passengers order food in train at {stationName}{" "}
-            Railway Station using live restaurant data for station code{" "}
-            {stationBase.code}. This page currently reflects{" "}
-            {activeRestros.length} active restaurant
+            Order fresh meals for your journey at {stationName} Railway Station
+            ({stationBase.code}) with {siteName}. Choose from{" "}
+            {activeRestros.length} available restaurant
             {activeRestros.length === 1 ? "" : "s"}
-            {seoTerms.length > 0 ? ` and food options such as ${seoTerms.slice(0, 6).join(", ")}` : ""}
-            . Travellers can search by train, PNR or station, choose from
-            available restaurant partners and place an online food order for
-            train seat delivery. Whenever the database changes, including
-            restaurant status, rating, cuisine, menu, holiday settings or
-            station details, Order fresh and hygienic food in train at LALITPUR JN. (LAR) from trusted restaurant partners. Search by train, PNR or station, choose your preferred restaurant and get food delivered directly to your seat.
+            {seoTerms.length > 0 ? ` serving ${seoTerms.slice(0, 5).join(", ")}` : ""}
+            , confirm your train details and get food delivered to your seat.
+            It is a simple way to plan breakfast, lunch, dinner or snacks before
+            your train reaches the station.
           </p>
 
           <Link
@@ -676,8 +693,7 @@ export default async function Page({ params }: { params: { slug: string } }) {
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0 flex-1">
                         <h3 className="text-[16px] font-black leading-5 tracking-[-0.2px] text-slate-900">
-                          🍴 {restaurantName} – Food Delivery in Train at{" "}
-                          {stationName}
+                          {restaurantName}
                         </h3>
 
                         <p className="mt-2 text-[13px] font-bold leading-5 text-slate-600">
@@ -698,10 +714,11 @@ export default async function Page({ params }: { params: { slug: string } }) {
                         <div className="h-[86px] w-[86px] overflow-hidden rounded-2xl border border-slate-200 bg-slate-100">
                           <img
                             src={restroImage(r)}
-                            alt={`Best Food Delivery in Train at ${stationName} - ${restaurantName}`}
-                            title={`Food Delivery at ${stationName} Railway Station`}
+                            alt={`${restaurantName} food for train travellers at ${stationName}`}
+                            title={`${restaurantName} at ${stationName} Railway Station`}
                             className="h-full w-full object-cover"
                             loading="lazy"
+                            decoding="async"
                             width={86}
                             height={86}
                           />
@@ -725,25 +742,22 @@ export default async function Page({ params }: { params: { slug: string } }) {
 
         <section className="mt-5 rounded-[20px] border border-slate-200 bg-white p-4 shadow-sm">
           <h2 className="text-lg font-bold tracking-[-0.2px] text-slate-900">
-            About {stationName}
+            Station Overview
           </h2>
           <p className="mt-2 text-[13px] leading-6 text-slate-600">
-            {stationName} Railway Station ({stationBase.code}) serves
-            passengers looking for timely food delivery during their train
-            journey. The information on this page is generated from current
-            restaurant records, so it adapts when stations, restaurant names,
-            ratings, cuisines, images, menus or active status change in the
-            database. {siteName} keeps the ordering experience connected to live
-            operational data instead of static SEO text.
+            {stationName} Railway Station ({stationBase.code}) is an important
+            stop for travellers who want a reliable meal without stepping out
+            into platform rush. With {siteName}, you can check restaurants
+            serving this station, compare menu choices and place an order that
+            reaches your train seat during the scheduled halt.
           </p>
           <p className="mt-2 text-[13px] leading-6 text-slate-600">
-            Passengers can use {siteName} to search by train, PNR or station,
-            choose available restaurants at {stationName}, and order food for
-            seat delivery where service is available. Current food signals for
-            this station are{" "}
-            {seoTerms.length > 0 ? seoTerms.join(", ") : "based on active restaurant data"}
-            . These terms are derived from restaurant records, cuisines, menu
-            fields and station availability, Available food options at LALITPUR JN. depend on active restaurants and their current menu, helping passengers choose from fresh meals available for delivery during their journey.
+            The restaurant selection here is built around convenience: fresh
+            preparation, trusted food partners, secure ordering and delivery at
+            your berth or seat.{" "}
+            {seoTerms.length > 0
+              ? `Current food choices include ${seoTerms.slice(0, 8).join(", ")}.`
+              : "Food choices depend on restaurant availability and train timing."}
           </p>
         </section>
 
@@ -774,17 +788,30 @@ export default async function Page({ params }: { params: { slug: string } }) {
           </h2>
           <div className="mt-3 grid gap-3">
             {[
-              `${activeRestros.length} active restaurant${activeRestros.length === 1 ? "" : "s"}`,
-              `${seoTerms.length} food signal${seoTerms.length === 1 ? "" : "s"} from restaurant data`,
-              `Station code ${stationBase.code}`,
-              "Train seat delivery flow",
-              "Live restaurant availability",
+              {
+                title: `${activeRestros.length} restaurant${activeRestros.length === 1 ? "" : "s"} at ${stationName}`,
+                copy: "Browse available partners before choosing what suits your journey.",
+              },
+              {
+                title: "Fresh food for the train",
+                copy: "Meals are prepared by restaurant partners and sent for seat delivery.",
+              },
+              {
+                title: "Secure online ordering",
+                copy: "Use train, PNR or station details and complete the order in a guided flow.",
+              },
+              {
+                title: "Choice by cuisine",
+                copy:
+                  seoTerms.length > 0
+                    ? `Popular choices include ${seoTerms.slice(0, 4).join(", ")}.`
+                    : "Cuisine options appear according to restaurant availability.",
+              },
             ].map((item) => (
-              <div key={item} className="rounded-2xl border border-slate-200 p-3">
-                <h3 className="text-sm font-bold text-slate-900">{item}</h3>
+              <div key={item.title} className="rounded-2xl border border-slate-200 p-3">
+                <h3 className="text-sm font-bold text-slate-900">{item.title}</h3>
                 <p className="mt-1.5 text-xs leading-5 text-slate-600">
-                  This detail is generated from current station and restaurant
-                  records for {stationName}.
+                  {item.copy}
                 </p>
               </div>
             ))}
@@ -812,11 +839,11 @@ export default async function Page({ params }: { params: { slug: string } }) {
           </ol>
         </section>
 
-        <section className="mt-5 rounded-[20px] border border-slate-200 bg-white p-4 shadow-sm">
-          <h2 className="text-lg font-bold tracking-[-0.2px] text-slate-900">
-            Nearby Stations
-          </h2>
-          {relatedStations.length > 0 ? (
+        {relatedStations.length > 0 ? (
+          <section className="mt-5 rounded-[20px] border border-slate-200 bg-white p-4 shadow-sm">
+            <h2 className="text-lg font-bold tracking-[-0.2px] text-slate-900">
+              Nearby Stations
+            </h2>
             <div className="mt-3 flex flex-wrap gap-2">
               {relatedStations.map((station) => (
                 <Link
@@ -824,34 +851,31 @@ export default async function Page({ params }: { params: { slug: string } }) {
                   href={`/stations/${station.slug}`}
                   className="rounded-full border border-slate-200 px-3 py-2 text-xs font-bold text-orange-600"
                 >
-                  Food Delivery at {station.name}
+                  Order Food at {station.name}
                 </Link>
               ))}
             </div>
-          ) : (
-            <p className="mt-2 text-[13px] leading-6 text-slate-600">
-              Nearby station suggestions will appear automatically when active
-              station records are available in the database.
-            </p>
-          )}
-        </section>
+          </section>
+        ) : null}
 
         <section className="mt-5 rounded-[20px] border border-slate-200 bg-white p-4 shadow-sm">
           <h2 className="text-lg font-bold tracking-[-0.2px] text-slate-900">
-            Related Searches
+            More Ways to Order at {stationName}
           </h2>
-          <div className="mt-3 grid gap-2">
-            {buildKeywords(stationName, stationBase.code, seoTerms)
-              .slice(0, 8)
-              .map((text) => (
-                <Link
-                  key={text}
-                  href={`/stations/${params.slug}`}
-                  className="rounded-2xl border border-slate-200 p-3 text-sm font-bold text-slate-800"
-                >
-                  {text}
-                </Link>
-              ))}
+          <div className="mt-3 flex flex-wrap gap-2">
+            {[
+              `Restaurants at ${stationName}`,
+              `Order Food at ${stationName}`,
+              ...seoTerms.slice(0, 6).map((term) => `${term} at ${stationName}`),
+            ].map((text) => (
+              <Link
+                key={text}
+                href={`/stations/${params.slug}`}
+                className="rounded-full border border-slate-200 px-3 py-2 text-xs font-bold text-orange-600"
+              >
+                {text}
+              </Link>
+            ))}
           </div>
         </section>
 
@@ -874,10 +898,6 @@ export default async function Page({ params }: { params: { slug: string } }) {
           </div>
         </section>
 
-        <footer className="mt-5 rounded-[20px] border border-slate-200 bg-white p-4 text-xs leading-5 text-slate-500 shadow-sm">
-          {siteName} dynamically updates this station page from live restaurant
-          and station records for {stationName} ({stationBase.code}).
-        </footer>
       </main>
     </>
   );
