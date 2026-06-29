@@ -106,8 +106,8 @@ export const metadata: Metadata = {
   icons: {
     icon: "/raileats-logo.png",
     shortcut: "/raileats-logo.png",
-    apple: "/raileats-logo.png",
-  },
+    apple: "/apple-touch-icon.png",
+}
 };
 
 export const viewport: Viewport = {
