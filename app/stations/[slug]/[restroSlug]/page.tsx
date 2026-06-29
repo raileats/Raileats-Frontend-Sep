@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import Image from "next/image";
 import { extractRestroCode } from "../../../lib/restroSlug";
 import { serviceClient } from "../../../lib/supabaseServer";
 import RestroMenuClient from "./RestroMenuClient";
@@ -162,6 +163,31 @@ function sortRestaurants(restros: any[]) {
     if (activeDiff) return activeDiff;
 
     return restaurantName(a).localeCompare(restaurantName(b));
+  });
+}
+
+function firstString(source: any, keys: string[]) {
+  for (const key of keys) {
+    const value = source?.[key];
+    if (value !== null && value !== undefined && String(value).trim()) {
+      return String(value).trim();
+    }
+  }
+
+  return "";
+}
+
+function dedupeSchema(items: any[]) {
+  const seen = new Set<string>();
+
+  return items.filter((item) => {
+    const key =
+      item?.["@id"] ||
+      `${item?.["@type"] || "Thing"}:${item?.name || item?.url || JSON.stringify(item).slice(0, 120)}`;
+
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
   });
 }
 
@@ -712,6 +738,42 @@ export default async function Page({ params, searchParams }: any) {
         ...(reviewCount ? { reviewCount: String(reviewCount) } : {}),
       }
     : undefined;
+  const telephone = firstString(firstRestaurantRow, [
+    "phone",
+    "Phone",
+    "RestroPhone",
+    "restaurant_phone",
+    "mobile",
+    "Mobile",
+  ]);
+  const openingHours = firstString(firstRestaurantRow, [
+    "openingHours",
+    "OpeningHours",
+    "OpenHours",
+    "Timings",
+    "timings",
+  ]);
+  const priceRange = firstString(firstRestaurantRow, [
+    "priceRange",
+    "PriceRange",
+    "cost_for_two",
+    "CostForTwo",
+    "AverageCost",
+  ]);
+  const paymentAccepted = firstString(firstRestaurantRow, [
+    "paymentAccepted",
+    "PaymentAccepted",
+    "PaymentModes",
+    "payment_modes",
+  ]);
+  const sameAs = splitTerms(
+    firstRestaurantRow.sameAs ||
+      firstRestaurantRow.SameAs ||
+      firstRestaurantRow.website ||
+      firstRestaurantRow.Website ||
+      firstRestaurantRow.socialLinks ||
+      firstRestaurantRow.SocialLinks
+  ).filter((link) => /^https?:\/\//i.test(link));
 
   const restaurantSchema = {
     "@context": "https://schema.org",
@@ -723,6 +785,13 @@ export default async function Page({ params, searchParams }: any) {
       items.find((it: any) => it.menu_item_image)?.menu_item_image || DEFAULT_IMAGE
     ),
     servesCuisine: unique(items.map((it: any) => it.item_cuisine).filter(Boolean)),
+    ...(telephone ? { telephone } : {}),
+    ...(openingHours ? { openingHours } : {}),
+    ...(priceRange ? { priceRange } : {}),
+    ...(paymentAccepted ? { paymentAccepted } : {}),
+    currenciesAccepted: "INR",
+    acceptsReservations: false,
+    ...(sameAs.length > 0 ? { sameAs } : {}),
     aggregateRating,
     menu: {
       "@type": "Menu",
@@ -796,9 +865,15 @@ export default async function Page({ params, searchParams }: any) {
     .map((it: any) => ({
       "@context": "https://schema.org",
       "@type": "ImageObject",
+      "@id": `${canonical}#image-${slugify(it.item_name || String(it.id || ""))}`,
       contentUrl: absoluteImage(it.menu_item_image),
+      thumbnailUrl: absoluteImage(it.menu_item_image),
       name: `${it.item_name} from ${outletName}`,
       caption: `${it.item_name} delivery at ${stationName}`,
+      representativeOfPage: false,
+      creator: {
+        "@id": `${SITE_URL}#organization`,
+      },
     }));
 
   const offerCatalogSchema = {
@@ -901,7 +976,7 @@ export default async function Page({ params, searchParams }: any) {
     },
   };
 
-  const schema = [
+  const schema = dedupeSchema([
     organizationSchema,
     searchActionSchema,
     collectionPageSchema,
@@ -914,7 +989,7 @@ export default async function Page({ params, searchParams }: any) {
     breadcrumbSchema,
     faqSchema,
     ...imageSchema,
-  ];
+  ]);
 
   return (
     <main className="w-full">
@@ -981,7 +1056,7 @@ export default async function Page({ params, searchParams }: any) {
               >
                 <div className="flex gap-3">
                   {it.menu_item_image ? (
-                    <img
+                    <Image
                       src={it.menu_item_image}
                       alt={`${it.item_name} from ${outletName} at ${stationName}`}
                       title={`${it.item_name} train food delivery at ${stationName}`}
@@ -990,6 +1065,7 @@ export default async function Page({ params, searchParams }: any) {
                       loading="lazy"
                       decoding="async"
                       className="h-[84px] w-[84px] rounded-xl object-cover"
+                      unoptimized
                     />
                   ) : null}
 
