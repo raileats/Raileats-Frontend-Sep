@@ -627,8 +627,7 @@ export default async function Page({ params }: { params: { slug: string } }) {
             available restaurant partners and place an online food order for
             train seat delivery. Whenever the database changes, including
             restaurant status, rating, cuisine, menu, holiday settings or
-            station details, this page updates automatically without manual SEO
-            editing.
+            station details, Order fresh and hygienic food in train at LALITPUR JN. (LAR) from trusted restaurant partners. Search by train, PNR or station, choose your preferred restaurant and get food delivered directly to your seat.
           </p>
 
           <Link
@@ -744,8 +743,7 @@ export default async function Page({ params }: { params: { slug: string } }) {
             this station are{" "}
             {seoTerms.length > 0 ? seoTerms.join(", ") : "based on active restaurant data"}
             . These terms are derived from restaurant records, cuisines, menu
-            fields and station availability, which keeps the page useful for
-            search engines and real passengers without hardcoded station SEO.
+            fields and station availability, Available food options at LALITPUR JN. depend on active restaurants and their current menu, helping passengers choose from fresh meals available for delivery during their journey.
           </p>
         </section>
 
