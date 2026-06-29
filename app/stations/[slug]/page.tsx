@@ -129,11 +129,57 @@ function stationSlug(name: string, code: string) {
 }
 
 function stationUrl(slug: string) {
-  return `${siteUrl}/stations/${slug}`;
+  const cleanSlug = String(slug || "")
+    .trim()
+    .replace(/^\/+|\/+$/g, "")
+    .replace(/^stations\//i, "");
+
+  return `${siteUrl}/stations/${cleanSlug}`;
 }
 
 function absoluteImage(src: string) {
   return src.startsWith("http") ? src : `${siteUrl}${src}`;
+}
+
+function normalizeAbsoluteUrl(value: string) {
+  return String(value || "")
+    .replace(/([^:]\/)\/+/g, "$1")
+    .replace(/\/+$/g, "");
+}
+
+function numericValue(value: any) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : 0;
+}
+
+function dateValue(value: any) {
+  const time = new Date(value || 0).getTime();
+  return Number.isFinite(time) ? time : 0;
+}
+
+function restaurantName(row: any) {
+  return String(row?.RestroName || row?.RestaurantName || "Restaurant").trim();
+}
+
+function restaurantHref(slug: string, row: any) {
+  return `/stations/${slug}/${row.RestroCode}-${slugify(restaurantName(row))}`;
+}
+
+function sortRestaurants(restros: any[]) {
+  return [...restros].sort((a, b) => {
+    const ratingDiff = numericValue(b?.RestroRating) - numericValue(a?.RestroRating);
+    if (ratingDiff) return ratingDiff;
+
+    const activeDiff = Number(isActive(b?.RaileatsStatus)) - Number(isActive(a?.RaileatsStatus));
+    if (activeDiff) return activeDiff;
+
+    const newDiff =
+      dateValue(b?.created_at || b?.CreatedAt || b?.UpdatedAt) -
+      dateValue(a?.created_at || a?.CreatedAt || a?.UpdatedAt);
+    if (newDiff) return newDiff;
+
+    return restaurantName(a).localeCompare(restaurantName(b));
+  });
 }
 
 function clampDescription(value: string) {
@@ -345,9 +391,9 @@ export async function generateMetadata({
     .eq("StationCode", stationBase.code)
     .order("RestroRating", { ascending: false });
 
-  const activeRestros = (data || []).filter(
+  const activeRestros = sortRestaurants((data || []).filter(
     (r: any) => isActive(r.RaileatsStatus) && !isHolidayOn(r.HolidayStatus)
-  );
+  ));
   const seoTerms = extractSeoTerms(activeRestros);
   const title = buildStationTitle(stationName, stationBase.code);
   const description = buildMetaDescription(
@@ -355,13 +401,15 @@ export async function generateMetadata({
     stationBase.code,
     activeRestros.length
   );
-  const absoluteUrl = stationUrl(params.slug);
+  const absoluteUrl = normalizeAbsoluteUrl(stationUrl(params.slug));
+  const ogRestaurant = activeRestros.find((r: any) => restroImage(r) !== defaultImage);
+  const ogImage = absoluteImage(ogRestaurant ? restroImage(ogRestaurant) : defaultImage);
 
   return {
     title,
     description,
     alternates: {
-      canonical: `/stations/${params.slug}`,
+      canonical: absoluteUrl,
     },
     keywords: buildKeywords(stationName, stationBase.code, seoTerms),
     robots: {
@@ -382,10 +430,12 @@ export async function generateMetadata({
       siteName,
       images: [
         {
-          url: absoluteImage(defaultImage),
+          url: ogImage,
           width: 1200,
           height: 630,
-          alt: `${siteName} Food Delivery in Train at ${stationName}`,
+          alt: ogRestaurant
+            ? `${restaurantName(ogRestaurant)} food at ${stationName}`
+            : `${siteName} food ordering at ${stationName}`,
         },
       ],
       locale: "en_IN",
@@ -395,7 +445,7 @@ export async function generateMetadata({
       card: "summary_large_image",
       title,
       description,
-      images: [absoluteImage(defaultImage)],
+      images: [ogImage],
     },
   };
 }
@@ -432,13 +482,13 @@ export default async function Page({ params }: { params: { slug: string } }) {
     (holidaysRaw || []).map((h: any) => Number(h.RestroCode))
   );
 
-  const activeRestros = restros.filter((r: any) => {
+  const activeRestros = sortRestaurants(restros.filter((r: any) => {
     const active = isActive(r.RaileatsStatus);
     const holidayFromHolidayTable = holidaySet.has(Number(r.RestroCode));
     const holidayFromMaster = isHolidayOn(r.HolidayStatus);
 
     return active && !holidayFromHolidayTable && !holidayFromMaster;
-  });
+  }));
 
   const seoTerms = extractSeoTerms(activeRestros);
   const relatedStations = await getRelatedStations(stationBase.code);
@@ -448,13 +498,21 @@ export default async function Page({ params }: { params: { slug: string } }) {
     restroCount: activeRestros.length,
     seoTerms,
   });
-  const absoluteUrl = stationUrl(params.slug);
+  const absoluteUrl = normalizeAbsoluteUrl(stationUrl(params.slug));
+  const topRestaurants = activeRestros
+    .filter((r: any) => numericValue(r.RestroRating) > 0)
+    .slice(0, 6);
+  const recentRestaurants = [...activeRestros]
+    .sort(
+      (a: any, b: any) =>
+        dateValue(b?.created_at || b?.CreatedAt || b?.UpdatedAt) -
+        dateValue(a?.created_at || a?.CreatedAt || a?.UpdatedAt)
+    )
+    .slice(0, 6);
 
   const restaurantList = activeRestros.map((r: any, index: number) => {
     const restaurantName = String(r.RestroName || "Restaurant").trim();
-    const restaurantUrl = `${siteUrl}/stations/${params.slug}/${
-      r.RestroCode
-    }-${slugify(restaurantName)}`;
+    const restaurantUrl = normalizeAbsoluteUrl(`${siteUrl}${restaurantHref(params.slug, r)}`);
 
     return {
       "@type": "ListItem",
@@ -476,6 +534,14 @@ export default async function Page({ params }: { params: { slug: string } }) {
               "@type": "AggregateRating",
               ratingValue: String(r.RestroRating),
               bestRating: "5",
+              worstRating: "1",
+              ...(numericValue(r.ReviewCount || r.review_count || r.RatingCount)
+                ? {
+                    reviewCount: String(
+                      numericValue(r.ReviewCount || r.review_count || r.RatingCount)
+                    ),
+                  }
+                : {}),
             }
           : undefined,
       },
@@ -545,9 +611,7 @@ export default async function Page({ params }: { params: { slug: string } }) {
     },
     ...activeRestros.slice(0, 12).map((r: any) => {
       const restaurantName = String(r.RestroName || "Restaurant").trim();
-      const restaurantUrl = `${siteUrl}/stations/${params.slug}/${
-        r.RestroCode
-      }-${slugify(restaurantName)}`;
+      const restaurantUrl = normalizeAbsoluteUrl(`${siteUrl}${restaurantHref(params.slug, r)}`);
 
       return {
         "@context": "https://schema.org",
@@ -564,6 +628,33 @@ export default async function Page({ params }: { params: { slug: string } }) {
         },
       };
     }),
+    {
+      "@context": "https://schema.org",
+      "@type": "CollectionPage",
+      "@id": `${absoluteUrl}#collection`,
+      name: `${stationName} food ordering options`,
+      url: absoluteUrl,
+      mainEntity: { "@id": `${absoluteUrl}#restaurants` },
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "Service",
+      "@id": `${absoluteUrl}#seat-delivery-service`,
+      name: `Train food ordering at ${stationName}`,
+      areaServed: `${stationName} Railway Station (${stationBase.code})`,
+      provider: { "@id": `${siteUrl}#organization` },
+    },
+    ...activeRestros
+      .filter((r: any) => restroImage(r) !== defaultImage)
+      .slice(0, 8)
+      .map((r: any, index: number) => ({
+        "@context": "https://schema.org",
+        "@type": "ImageObject",
+        "@id": `${absoluteUrl}#restaurant-image-${index + 1}`,
+        contentUrl: absoluteImage(restroImage(r)),
+        name: `${restaurantName(r)} food at ${stationName}`,
+        caption: `${restaurantName(r)} at ${stationName} Railway Station`,
+      })),
     {
       "@context": "https://schema.org",
       "@type": "LocalBusiness",
@@ -680,9 +771,7 @@ export default async function Page({ params }: { params: { slug: string } }) {
                 const restaurantName = String(
                   r.RestroName || "Restaurant"
                 ).trim();
-                const href = `/stations/${params.slug}/${r.RestroCode}-${slugify(
-                  restaurantName
-                )}?mode=station`;
+                const href = `${restaurantHref(params.slug, r)}?mode=station`;
 
                 return (
                   <article
@@ -739,6 +828,45 @@ export default async function Page({ params }: { params: { slug: string } }) {
             </div>
           )}
         </section>
+
+        {topRestaurants.length > 0 ? (
+          <section className="mt-5 rounded-[20px] border border-slate-200 bg-white p-4 shadow-sm">
+            <h2 className="text-lg font-bold tracking-[-0.2px] text-slate-900">
+              Best Rated Restaurants at {stationName}
+            </h2>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {topRestaurants.map((r: any) => (
+                <Link
+                  key={`top-${r.RestroCode}`}
+                  href={`${restaurantHref(params.slug, r)}?mode=station`}
+                  className="rounded-full border border-slate-200 px-3 py-2 text-xs font-bold text-orange-600"
+                >
+                  {restaurantName(r)}
+                  {numericValue(r.RestroRating) > 0 ? ` · ${r.RestroRating}` : ""}
+                </Link>
+              ))}
+            </div>
+          </section>
+        ) : null}
+
+        {recentRestaurants.length > 0 ? (
+          <section className="mt-5 rounded-[20px] border border-slate-200 bg-white p-4 shadow-sm">
+            <h2 className="text-lg font-bold tracking-[-0.2px] text-slate-900">
+              More Restaurants at {stationName}
+            </h2>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {recentRestaurants.map((r: any) => (
+                <Link
+                  key={`recent-${r.RestroCode}`}
+                  href={`${restaurantHref(params.slug, r)}?mode=station`}
+                  className="rounded-full border border-slate-200 px-3 py-2 text-xs font-bold text-orange-600"
+                >
+                  {restaurantName(r)}
+                </Link>
+              ))}
+            </div>
+          </section>
+        ) : null}
 
         <section className="mt-5 rounded-[20px] border border-slate-200 bg-white p-4 shadow-sm">
           <h2 className="text-lg font-bold tracking-[-0.2px] text-slate-900">
