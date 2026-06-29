@@ -23,13 +23,23 @@ const siteUrl = "https://www.raileats.in";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
+
   title: {
     default: "RailEats | Order Fresh Food Delivery in Train",
     template: "%s | RailEats",
   },
+
   description:
     "Order fresh, hygienic and affordable food delivery in train from trusted restaurants at railway stations across India.",
+
   applicationName: "RailEats",
+
+  category: "Food & Drink",
+
+  manifest: "/manifest.webmanifest",
+
+  referrer: "origin-when-cross-origin",
+
   keywords: [
     "food delivery in train",
     "train food order",
@@ -39,32 +49,36 @@ export const metadata: Metadata = {
     "RailEats",
     "IRCTC food delivery",
   ],
+
   alternates: {
     canonical: "/",
   },
+
   openGraph: {
     type: "website",
     url: siteUrl,
     siteName: "RailEats",
     title: "RailEats | Order Fresh Food Delivery in Train",
     description:
-      "Book fresh meals from railway station restaurants and get food delivered to your train seat.",
+      "Book fresh meals from railway station restaurants and get food delivered directly to your train seat.",
     images: [
       {
         url: "/raileats-logo.png",
         width: 512,
         height: 512,
-        alt: "RailEats train food delivery",
+        alt: "RailEats Train Food Delivery",
       },
     ],
   },
+
   twitter: {
     card: "summary_large_image",
     title: "RailEats | Order Fresh Food Delivery in Train",
     description:
-      "Fresh food delivery in train from trusted station restaurants.",
+      "Fresh food delivery in train from trusted railway station restaurants across India.",
     images: ["/raileats-logo.png"],
   },
+
   robots: {
     index: true,
     follow: true,
@@ -76,8 +90,22 @@ export const metadata: Metadata = {
       "max-video-preview": -1,
     },
   },
+
+  appleWebApp: {
+    capable: true,
+    title: "RailEats",
+    statusBarStyle: "default",
+  },
+
+  formatDetection: {
+    telephone: false,
+    email: false,
+    address: false,
+  },
+
   icons: {
     icon: "/raileats-logo.png",
+    shortcut: "/raileats-logo.png",
     apple: "/raileats-logo.png",
   },
 };
@@ -95,7 +123,6 @@ const organizationSchema = {
   name: "RailEats",
   url: siteUrl,
   logo: `${siteUrl}/raileats-logo.png`,
-  sameAs: [siteUrl],
 };
 
 export default function RootLayout({
@@ -104,15 +131,21 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en-IN" className={`${inter.variable} h-full scroll-smooth`}>
+    <html
+      lang="en-IN"
+      className={`${inter.variable} h-full scroll-smooth`}
+    >
       <body className="min-h-screen bg-slate-50/60 text-slate-900 font-sans antialiased selection:bg-amber-500 selection:text-white touch-pan-y">
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(organizationSchema),
+          }}
         />
 
         <Providers>
           <AuthLoader />
+
           <ForceReloadOnBack />
 
           <div
