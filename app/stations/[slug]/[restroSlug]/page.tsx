@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { extractRestroCode } from "../../../lib/restroSlug";
+import { serviceClient } from "../../../lib/supabaseServer";
 import RestroMenuClient from "./RestroMenuClient";
 
 export const revalidate = 60;
@@ -69,7 +70,7 @@ function buildCanonical(params: any) {
     params.slug || ""
   )}/${encodeURIComponent(params.restroSlug || "")}`;
 
-  return `${SITE_URL}${path}`;
+  return normalizeAbsoluteUrl(`${SITE_URL}${path}`);
 }
 
 function slugify(value: string) {
@@ -95,6 +96,73 @@ function unique(values: string[]) {
 function absoluteImage(src?: string) {
   const image = src || DEFAULT_IMAGE;
   return image.startsWith("http") ? image : `${SITE_URL}${image}`;
+}
+
+function normalizeAbsoluteUrl(value: string) {
+  return String(value || "")
+    .replace(/([^:]\/)\/+/g, "$1")
+    .replace(/\/+$/g, "");
+}
+
+function isActive(value: any) {
+  const v = String(value ?? "").trim().toLowerCase();
+  return (
+    value === true ||
+    value === 1 ||
+    v === "1" ||
+    v === "on" ||
+    v === "active" ||
+    v === "true" ||
+    v === "yes"
+  );
+}
+
+function isHolidayOn(value: any) {
+  const v = String(value ?? "").trim().toLowerCase();
+  return (
+    value === true ||
+    value === 1 ||
+    v === "1" ||
+    v === "on" ||
+    v === "active" ||
+    v === "true" ||
+    v === "yes"
+  );
+}
+
+function restaurantName(row: any) {
+  return String(row?.RestroName || row?.RestaurantName || "Restaurant").trim();
+}
+
+function restaurantHref(stationSlug: string, row: any) {
+  return `/stations/${stationSlug}/${row.RestroCode}-${slugify(restaurantName(row))}`;
+}
+
+function rowImage(row: any) {
+  return (
+    row?.RestroImage ||
+    row?.restroImage ||
+    row?.image ||
+    row?.Image ||
+    row?.photo ||
+    row?.Photo ||
+    row?.logo ||
+    row?.Logo ||
+    ""
+  );
+}
+
+function sortRestaurants(restros: any[]) {
+  return [...restros].sort((a, b) => {
+    const ratingDiff =
+      Number(b?.RestroRating || b?.rating || 0) - Number(a?.RestroRating || a?.rating || 0);
+    if (ratingDiff) return ratingDiff;
+
+    const activeDiff = Number(isActive(b?.RaileatsStatus)) - Number(isActive(a?.RaileatsStatus));
+    if (activeDiff) return activeDiff;
+
+    return restaurantName(a).localeCompare(restaurantName(b));
+  });
 }
 
 function clampDescription(value: string) {
@@ -150,6 +218,28 @@ async function fetchOnMenu(restroCode: string | number, arrivalTime: string) {
   } catch {
     return [];
   }
+}
+
+async function fetchStationRestaurants(stationCode: string, currentRestroCode: string) {
+  if (!stationCode) return [];
+
+  const { data } = await serviceClient
+    .from("RestroMaster")
+    .select("*")
+    .eq("StationCode", stationCode)
+    .limit(100);
+
+  return sortRestaurants(
+    (data || []).filter((row: any) => {
+      const code = String(row?.RestroCode || "");
+      return (
+        code &&
+        code !== String(currentRestroCode || "") &&
+        isActive(row?.RaileatsStatus) &&
+        !isHolidayOn(row?.HolidayStatus)
+      );
+    })
+  );
 }
 
 /* ================= TIME CHECK ================= */
@@ -504,11 +594,31 @@ export default async function Page({ params, searchParams }: any) {
 
   const arrivalTime = deliveryTime ? `${deliveryTime.slice(0, 5)}:00` : "12:00:00";
   const rawItems = await fetchOnMenu(restroCode, arrivalTime);
+  const stationRestaurants = await fetchStationRestaurants(stationCode, String(restroCode));
 
   const items = normalizeItems(rawItems, arrivalTime);
   const terms = extractMenuTerms(items);
   const canonical = buildCanonical(params);
   const minimumOrder = Number(minOrderFromUrl || 0);
+  const sameStationRestaurants = stationRestaurants.slice(0, 8);
+  const similarCuisineRestaurants = stationRestaurants
+    .filter((row: any) => {
+      const rowTerms = splitTerms([
+        row.Cuisine,
+        row.Cuisines,
+        row.CuisineType,
+        row.FoodType,
+        row.FoodTypes,
+        row.Category,
+        row.Categories,
+      ]).map((term) => term.toLowerCase());
+
+      return terms.some((term) => rowTerms.includes(term.toLowerCase()));
+    })
+    .slice(0, 8);
+  const ratedRestaurants = stationRestaurants
+    .filter((row: any) => positiveNumber(row.RestroRating || row.rating))
+    .slice(0, 8);
   const faqs = buildFaqs({
     outletName,
     stationName,
@@ -708,6 +818,24 @@ export default async function Page({ params, searchParams }: any) {
     })),
   };
 
+  const relatedRestaurantSchema = {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    "@id": `${canonical}#related-restaurants`,
+    name: `More restaurants at ${stationName}`,
+    itemListElement: sameStationRestaurants.map((row: any, index: number) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      item: {
+        "@type": "Restaurant",
+        "@id": `${normalizeAbsoluteUrl(`${SITE_URL}${restaurantHref(params.slug, row)}`)}#restaurant`,
+        name: restaurantName(row),
+        url: normalizeAbsoluteUrl(`${SITE_URL}${restaurantHref(params.slug, row)}`),
+        image: rowImage(row) ? absoluteImage(rowImage(row)) : undefined,
+      },
+    })),
+  };
+
   const webPageSchema = {
     "@context": "https://schema.org",
     "@type": "WebPage",
@@ -751,13 +879,38 @@ export default async function Page({ params, searchParams }: any) {
     },
   };
 
+  const collectionPageSchema = {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    "@id": `${canonical}#collection`,
+    name: `${outletName} menu and restaurants at ${stationName}`,
+    url: canonical,
+    mainEntity: {
+      "@id": `${canonical}#restaurant`,
+    },
+  };
+
+  const serviceSchema = {
+    "@context": "https://schema.org",
+    "@type": "Service",
+    "@id": `${canonical}#seat-delivery-service`,
+    name: `Train food ordering from ${outletName}`,
+    areaServed: `${stationName} Railway Station (${stationCode})`,
+    provider: {
+      "@id": `${SITE_URL}#organization`,
+    },
+  };
+
   const schema = [
     organizationSchema,
     searchActionSchema,
+    collectionPageSchema,
+    serviceSchema,
     webPageSchema,
     restaurantSchema,
     itemListSchema,
     offerCatalogSchema,
+    ...(sameStationRestaurants.length > 0 ? [relatedRestaurantSchema] : []),
     breadcrumbSchema,
     faqSchema,
     ...imageSchema,
@@ -909,6 +1062,82 @@ export default async function Page({ params, searchParams }: any) {
               </div>
             ))}
         </div>
+      </section>
+
+      {similarCuisineRestaurants.length > 0 ? (
+        <section className="mx-auto mt-6 max-w-[560px] rounded-3xl border bg-white p-6 shadow-sm">
+          <h2 className="text-2xl font-bold text-slate-900">
+            Similar Cuisine Restaurants
+          </h2>
+
+          <div className="mt-4 flex flex-wrap gap-2">
+            {similarCuisineRestaurants.map((row: any) => (
+              <Link
+                key={`similar-${row.RestroCode}`}
+                href={`${restaurantHref(params.slug, row)}?mode=station`}
+                className="rounded-full border border-slate-200 px-3 py-2 text-xs font-bold text-orange-600"
+              >
+                {restaurantName(row)}
+              </Link>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {ratedRestaurants.length > 0 ? (
+        <section className="mx-auto mt-6 max-w-[560px] rounded-3xl border bg-white p-6 shadow-sm">
+          <h2 className="text-2xl font-bold text-slate-900">
+            More Restaurants by Rating
+          </h2>
+
+          <div className="mt-4 flex flex-wrap gap-2">
+            {ratedRestaurants.map((row: any) => (
+              <Link
+                key={`rated-${row.RestroCode}`}
+                href={`${restaurantHref(params.slug, row)}?mode=station`}
+                className="rounded-full border border-slate-200 px-3 py-2 text-xs font-bold text-orange-600"
+              >
+                {restaurantName(row)}
+                {positiveNumber(row.RestroRating || row.rating)
+                  ? ` · ${row.RestroRating || row.rating}`
+                  : ""}
+              </Link>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {sameStationRestaurants.length > 0 ? (
+        <section className="mx-auto mt-6 max-w-[560px] rounded-3xl border bg-white p-6 shadow-sm">
+          <h2 className="text-2xl font-bold text-slate-900">
+            Other Restaurants at {stationName}
+          </h2>
+
+          <div className="mt-4 flex flex-wrap gap-2">
+            {sameStationRestaurants.map((row: any) => (
+              <Link
+                key={`same-${row.RestroCode}`}
+                href={`${restaurantHref(params.slug, row)}?mode=station`}
+                className="rounded-full border border-slate-200 px-3 py-2 text-xs font-bold text-orange-600"
+              >
+                {restaurantName(row)}
+              </Link>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      <section className="mx-auto mt-6 max-w-[560px] rounded-3xl border bg-white p-6 shadow-sm">
+        <h2 className="text-2xl font-bold text-slate-900">
+          Back to {stationName}
+        </h2>
+
+        <Link
+          href={`/stations/${params.slug}`}
+          className="mt-4 inline-block rounded-xl border border-slate-200 px-4 py-3 text-sm font-bold text-orange-600"
+        >
+          View all restaurants at {stationName}
+        </Link>
       </section>
 
       <section className="mx-auto mt-6 max-w-[560px] rounded-3xl border bg-white p-6 shadow-sm">
