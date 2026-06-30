@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 const BUCKET = "vendor-leads";
 
 async function uploadFile(file: File | null, folder: string) {
-  if (!file) return null;
+  if (!file || file.size === 0) return null;
 
   const bytes = await file.arrayBuffer();
   const buffer = Buffer.from(bytes);
@@ -15,16 +15,21 @@ async function uploadFile(file: File | null, folder: string) {
   const ext = file.name.split(".").pop() || "jpg";
   const fileName = `${folder}/${Date.now()}-${Math.random()
     .toString(36)
-    .substring(2)}.${ext}`;
+    .slice(2)}.${ext}`;
 
-  const { error } = await serviceClient.storage
+  console.log(`📤 Uploading ${file.name} -> ${fileName}`);
+
+  const { error: uploadError } = await serviceClient.storage
     .from(BUCKET)
     .upload(fileName, buffer, {
       contentType: file.type,
       upsert: false,
     });
 
-  if (error) throw error;
+  if (uploadError) {
+    console.error("❌ Storage Upload Error:", uploadError);
+    throw uploadError;
+  }
 
   const {
     data: { publicUrl },
@@ -35,14 +40,37 @@ async function uploadFile(file: File | null, folder: string) {
 
 export async function POST(req: NextRequest) {
   try {
+    console.log("========== Vendor Lead API Called ==========");
+
     const form = await req.formData();
 
-    const restaurantName = String(form.get("restaurantName") || "");
-    const ownerName = String(form.get("ownerName") || "");
-    const mobile = String(form.get("mobile") || "");
-    const city = String(form.get("city") || "");
-    const fssai = String(form.get("fssai") || "");
-    const gst = String(form.get("gst") || "");
+    const restaurantName = String(form.get("restaurantName") || "").trim();
+    const ownerName = String(form.get("ownerName") || "").trim();
+    const mobile = String(form.get("mobile") || "").trim();
+    const city = String(form.get("city") || "").trim();
+    const fssai = String(form.get("fssai") || "").trim();
+    const gst = String(form.get("gst") || "").trim();
+
+    console.log({
+      restaurantName,
+      ownerName,
+      mobile,
+      city,
+      fssai,
+      gst,
+    });
+
+    if (!restaurantName || !mobile || !city) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Restaurant Name, Mobile and City are required.",
+        },
+        {
+          status: 400,
+        }
+      );
+    }
 
     const fssaiPhoto = await uploadFile(
       form.get("fssaiphoto") as File | null,
@@ -69,35 +97,45 @@ export async function POST(req: NextRequest) {
       "front"
     );
 
-    const { error } = await serviceClient.from("vendor_leads").insert({
-      restaurant_name: restaurantName,
-      owner_name: ownerName,
-      mobile,
-      city,
-      fssai,
-      gst,
+    console.log("📥 Inserting into vendor_leads...");
 
-      fssai_photo_url: fssaiPhoto,
-      gst_photo_url: gstPhoto,
-      kitchen_photo_url: kitchenPhoto,
-      dining_photo_url: diningPhoto,
-      front_photo_url: frontPhoto,
+    const { data, error } = await serviceClient
+      .from("vendor_leads")
+      .insert({
+        restaurant_name: restaurantName,
+        owner_name: ownerName,
+        mobile,
+        city,
+        fssai,
+        gst,
+        fssai_photo_url: fssaiPhoto,
+        gst_photo_url: gstPhoto,
+        kitchen_photo_url: kitchenPhoto,
+        dining_photo_url: diningPhoto,
+        front_photo_url: frontPhoto,
+        status: "Pending",
+      })
+      .select()
+      .single();
 
-      status: "Pending",
-    });
+    if (error) {
+      console.error("❌ Supabase Insert Error:", error);
+      throw error;
+    }
 
-    if (error) throw error;
+    console.log("✅ Vendor Lead Saved:", data);
 
     return NextResponse.json({
       success: true,
+      data,
     });
-  } catch (e: any) {
-    console.error(e);
+  } catch (err: any) {
+    console.error("❌ Vendor Lead API Error:", err);
 
     return NextResponse.json(
       {
         success: false,
-        error: e.message,
+        error: err?.message || "Unknown Error",
       },
       {
         status: 500,
