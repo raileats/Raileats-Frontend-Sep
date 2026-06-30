@@ -27,12 +27,72 @@ export default function PartnerForm({ onClose }: { onClose: () => void }) {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    console.log("📩 Submitted Data:", formData);
-    alert("✅ Vendor Lead Submitted! (Data will go to Admin)");
+  const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+
+  try {
+    const fd = new FormData();
+
+    fd.append("restaurantName", formData.restaurantName);
+    fd.append("ownerName", formData.ownerName);
+    fd.append("mobile", formData.mobile);
+    fd.append("city", formData.city);
+    fd.append("fssai", formData.fssai);
+    fd.append("gst", formData.gst);
+
+    if (formData.fssaiphoto) {
+      fd.append("fssaiphoto", formData.fssaiphoto);
+    }
+
+    if (formData.gstphoto) {
+      fd.append("gstphoto", formData.gstphoto);
+    }
+
+    if (formData.kitchenPhoto) {
+      fd.append("kitchenPhoto", formData.kitchenPhoto);
+    }
+
+    if (formData.diningPhoto) {
+      fd.append("diningPhoto", formData.diningPhoto);
+    }
+
+    if (formData.frontPhoto) {
+      fd.append("frontPhoto", formData.frontPhoto);
+    }
+
+    const response = await fetch("/api/vendor-lead", {
+      method: "POST",
+      body: fd,
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+      throw new Error(result.error || "Submission failed");
+    }
+
+    alert("✅ Vendor Lead Submitted Successfully!");
+
+    setFormData({
+      restaurantName: "",
+      ownerName: "",
+      mobile: "",
+      city: "",
+      fssai: "",
+      fssaiphoto: null,
+      gst: "",
+      gstphoto: null,
+      kitchenPhoto: null,
+      diningPhoto: null,
+      frontPhoto: null,
+    });
+
     onClose();
-  };
+  } catch (error) {
+    console.error(error);
+    alert("❌ Failed to submit vendor lead.");
+  }
+};
 
   return (
     <div className="fixed inset-0 bg-black/60 flex justify-center items-center z-50">
