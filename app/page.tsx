@@ -234,170 +234,131 @@ export default function Page() {
         <HomePageClient />
       </Suspense>
 
+      <h1 id="homepage-seo-title" className="sr-only">
+        Order Food in Train Online with RailEats
+      </h1>
+
       <section
         id="order-food"
         aria-labelledby="homepage-seo-title"
-        className="mx-auto mt-8 max-w-5xl space-y-6 px-4 pb-8 text-slate-800"
+        className="mx-auto mt-6 max-w-6xl px-4 pb-24 text-slate-800"
       >
-        <header className="space-y-3">
-          <p className="text-xs font-semibold uppercase tracking-wide text-amber-600">
-            RailEats train food delivery
-          </p>
-          <h1
-            id="homepage-seo-title"
-            className="text-2xl font-bold leading-tight text-slate-950 sm:text-3xl"
-          >
-            Order Food in Train Online with RailEats
-          </h1>
-          <p className="text-sm leading-6 text-slate-700 sm:text-base">
-            RailEats helps passengers order fresh food in train by train number,
-            PNR or railway station. Search your journey, check available station
-            restaurants, choose suitable meals and place an order for delivery to
-            your train seat where service is available. The ordering flow is
-            designed for real train travel, so passengers can plan meals around
-            route stations, restaurant availability and train arrival timing.
-          </p>
-        </header>
-
-        <nav
-          aria-label="RailEats homepage links"
-          className="grid gap-3 sm:grid-cols-3"
-        >
-          <Link
-            href="#search-by-train"
-            className="rounded-lg border border-slate-200 bg-white p-4 text-sm font-semibold text-slate-900 shadow-sm"
-          >
-            Search by Train Number
-          </Link>
-          <Link
-            href="#search-by-pnr"
-            className="rounded-lg border border-slate-200 bg-white p-4 text-sm font-semibold text-slate-900 shadow-sm"
-          >
-            Order Food by PNR
-          </Link>
-          <Link
-            href="#search-by-station"
-            className="rounded-lg border border-slate-200 bg-white p-4 text-sm font-semibold text-slate-900 shadow-sm"
-          >
-            Find Station Restaurants
-          </Link>
-        </nav>
-
-        <div className="grid gap-4 md:grid-cols-3">
-          <article
-            id="search-by-train"
-            className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm"
-          >
-            <h2 className="text-lg font-bold text-slate-950">
-              Food Delivery by Train Number
-            </h2>
-            <p className="mt-2 text-sm leading-6 text-slate-700">
-              Enter a train number to explore route-based food delivery options.
-              RailEats shows available stations and restaurants according to the
-              journey flow, helping passengers choose food before the train
-              reaches a supported stop.
-            </p>
-          </article>
-
-          <article
-            id="search-by-pnr"
-            className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm"
-          >
-            <h2 className="text-lg font-bold text-slate-950">
-              Order Food in Train by PNR
-            </h2>
-            <p className="mt-2 text-sm leading-6 text-slate-700">
-              PNR search can make ordering easier by connecting the food order
-              with journey details. Passengers can review available choices,
-              select items from restaurant menus and continue through checkout.
-            </p>
-          </article>
-
-          <article
-            id="search-by-station"
-            className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm"
-          >
-            <h2 className="text-lg font-bold text-slate-950">
-              Railway Station Food Delivery
-            </h2>
-            <p className="mt-2 text-sm leading-6 text-slate-700">
-              Station search helps passengers find food options at supported
-              railway stations. Menu availability, restaurant status and delivery
-              timing can vary, so RailEats keeps the website as the source of
-              truth for current ordering choices.
-            </p>
-          </article>
-        </div>
-
-        <section aria-labelledby="why-raileats" className="space-y-3">
-          <h2 id="why-raileats" className="text-xl font-bold text-slate-950">
-            Why Choose RailEats for Train Food Delivery?
-          </h2>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {[
-              "Fresh meals from trusted restaurants",
-              "Search by train, PNR or station",
-              "Delivery to train seat where available",
-              "Menus and availability managed online",
-              "Simple cart and checkout flow",
-              "Useful for planned train journeys",
-              "Food options based on active stations",
-              "RailEats website stays the source of truth",
-            ].map((item) => (
-              <p
-                key={item}
-                className="rounded-lg border border-slate-200 bg-white p-3 text-sm font-medium text-slate-800 shadow-sm"
-              >
-                {item}
+        <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_18px_60px_rgba(15,23,42,0.08)]">
+          <div className="grid gap-0 lg:grid-cols-[1.1fr_0.9fr]">
+            <article className="space-y-4 p-5 sm:p-7">
+              <p className="text-xs font-bold uppercase tracking-[0.22em] text-orange-600">
+                RailEats travel guide
               </p>
-            ))}
+              <h2 className="text-2xl font-black leading-tight text-slate-950">
+                Food delivery in train, planned around your journey
+              </h2>
+              <p className="text-sm leading-7 text-slate-700">
+                RailEats helps passengers order food in train by train number,
+                PNR or railway station. Search your journey, check available
+                station restaurants, compare menus and place an order for
+                delivery to your train seat where service is available. The
+                website keeps restaurant availability, menu details and checkout
+                flow online, so passengers can plan meals around route stations,
+                train timing and active delivery partners.
+              </p>
+
+              <nav
+                aria-label="RailEats homepage SEO links"
+                className="grid gap-2 sm:grid-cols-3"
+              >
+                <Link
+                  href="#search-by-train"
+                  className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-950 transition hover:border-orange-300 hover:bg-orange-50"
+                >
+                  Train number search
+                </Link>
+                <Link
+                  href="#search-by-pnr"
+                  className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-950 transition hover:border-orange-300 hover:bg-orange-50"
+                >
+                  PNR food order
+                </Link>
+                <Link
+                  href="#search-by-station"
+                  className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-950 transition hover:border-orange-300 hover:bg-orange-50"
+                >
+                  Station restaurants
+                </Link>
+              </nav>
+            </article>
+
+            <aside className="border-t border-slate-200 bg-slate-950 p-5 text-white sm:p-7 lg:border-l lg:border-t-0">
+              <h2 className="text-lg font-black">
+                Why passengers use RailEats
+              </h2>
+              <div className="mt-4 grid gap-3">
+                {[
+                  "Search by train, PNR or station",
+                  "Compare restaurant menus before ordering",
+                  "Plan meals around railway station stops",
+                  "Checkout flow built for train journeys",
+                ].map((item) => (
+                  <p
+                    key={item}
+                    className="rounded-xl border border-white/10 bg-white/5 p-3 text-sm font-medium text-slate-100"
+                  >
+                    {item}
+                  </p>
+                ))}
+              </div>
+            </aside>
           </div>
         </section>
 
-        <section aria-labelledby="how-it-works" className="space-y-3">
-          <h2 id="how-it-works" className="text-xl font-bold text-slate-950">
-            How RailEats Food Ordering Works
-          </h2>
-          <ol className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-            {[
-              "Search your train, PNR or station",
-              "Choose an available delivery station",
-              "Select a restaurant and menu items",
-              "Confirm passenger and order details",
-              "Receive food at the train seat where supported",
-            ].map((step, index) => (
-              <li
-                key={step}
-                className="rounded-lg border border-slate-200 bg-white p-4 text-sm leading-6 text-slate-700 shadow-sm"
-              >
-                <span className="mb-2 block text-base font-bold text-amber-600">
-                  {index + 1}
-                </span>
-                {step}
-              </li>
-            ))}
-          </ol>
-        </section>
+        <section
+          aria-labelledby="how-it-works"
+          className="mt-5 grid gap-4 lg:grid-cols-[0.85fr_1.15fr]"
+        >
+          <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+            <h2 id="how-it-works" className="text-xl font-black text-slate-950">
+              How RailEats food ordering works
+            </h2>
+            <ol className="mt-4 space-y-3">
+              {[
+                "Search your train, PNR or station",
+                "Choose an available delivery station",
+                "Select a restaurant and menu items",
+                "Confirm passenger and order details",
+                "Receive food at the train seat where supported",
+              ].map((step, index) => (
+                <li
+                  key={step}
+                  className="flex gap-3 text-sm leading-6 text-slate-700"
+                >
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-orange-100 text-xs font-black text-orange-700">
+                    {index + 1}
+                  </span>
+                  <span>{step}</span>
+                </li>
+              ))}
+            </ol>
+          </article>
 
-        <section aria-labelledby="homepage-faq" className="space-y-3">
-          <h2 id="homepage-faq" className="text-xl font-bold text-slate-950">
-            RailEats Food Delivery FAQ
-          </h2>
-          <div className="grid gap-3 md:grid-cols-2">
-            {faqItems.map((item) => (
-              <article
-                key={item.question}
-                className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm"
-              >
-                <h3 className="text-base font-bold text-slate-950">
-                  {item.question}
-                </h3>
-                <p className="mt-2 text-sm leading-6 text-slate-700">
-                  {item.answer}
-                </p>
-              </article>
-            ))}
-          </div>
+          <article
+            aria-labelledby="homepage-faq"
+            className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6"
+          >
+            <h2 id="homepage-faq" className="text-xl font-black text-slate-950">
+              RailEats food delivery FAQ
+            </h2>
+            <div className="mt-4 divide-y divide-slate-200">
+              {faqItems.slice(0, 5).map((item) => (
+                <details key={item.question} className="group py-3">
+                  <summary className="cursor-pointer list-none text-sm font-bold text-slate-950">
+                    {item.question}
+                  </summary>
+                  <p className="mt-2 text-sm leading-6 text-slate-700">
+                    {item.answer}
+                  </p>
+                </details>
+              ))}
+            </div>
+          </article>
         </section>
       </section>
     </>
