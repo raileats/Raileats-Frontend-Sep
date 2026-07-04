@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useCallback, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
@@ -72,21 +73,33 @@ export default function BottomNav() {
           <li>
             <Item onClick={() => setShowPartner(true)}>
               <span className="bottom-logo-pill">
-                <img src="/logo.png" alt="Vendor" />
+                <Image
+                  src="/logo.png"
+                  alt="Vendor"
+                  width={34}
+                  height={34}
+                  unoptimized
+                />
               </span>
               <span>Vendor</span>
             </Item>
           </li>
 
           <li>
-            <Item active={pathname.startsWith("/menu")} onClick={() => router.push("/menu")}>
+            <Item
+              active={pathname.startsWith("/menu")}
+              onClick={() => router.push("/menu")}
+            >
               <Menu className="bottom-nav-icon text-green-600" />
               <span>My Menu</span>
             </Item>
           </li>
 
           <li>
-            <Item active={pathname.startsWith("/profile")} onClick={() => router.push("/profile")}>
+            <Item
+              active={pathname.startsWith("/profile")}
+              onClick={() => router.push("/profile")}
+            >
               <User className="bottom-nav-icon text-purple-600" />
               <span>Profile</span>
             </Item>
