@@ -336,7 +336,7 @@ export default function HomePageClient() {
 
   return (
     <main className="customer-app-main home-app-shell">
-      <section className="mobile-native-home md:hidden" aria-label="RailEats mobile home">
+      <section className="mobile-native-home app-first-home" aria-label="RailEats home">
         <div className="mobile-home-hero">
           <div className="mobile-home-topline">
             <div>
@@ -435,7 +435,7 @@ export default function HomePageClient() {
         </section>
       </section>
 
-      <div className="hidden md:block">
+      <div className="hidden">
         <HeroSlider />
         <SearchBox />
       </div>
