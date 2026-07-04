@@ -1011,3 +1011,443 @@ textarea {
     padding: 9px 10px;
   }
 }
+
+/* ================= MOBILE APP-FIRST HOME ================= */
+
+.home-app-shell {
+  background:
+    radial-gradient(circle at 20% 0%, rgba(246, 196, 0, 0.2), transparent 30%),
+    linear-gradient(180deg, #fff9d7 0%, #f7fafc 34%, #eef3f8 100%);
+}
+
+.mobile-native-home {
+  width: 100%;
+  max-width: var(--app-max);
+  margin: 0 auto;
+  padding: 0 0 12px;
+}
+
+.mobile-home-hero {
+  margin: -4px 0 12px;
+  padding: 16px 14px 18px;
+  border-radius: 0 0 28px 28px;
+  background:
+    linear-gradient(135deg, rgba(255, 230, 0, 0.95), rgba(255, 183, 3, 0.96)),
+    url("/raileats-logo.png") right 12px top 10px / 92px 92px no-repeat;
+  box-shadow: 0 20px 42px rgba(214, 128, 0, 0.18);
+}
+
+.mobile-home-topline {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.mobile-home-kicker {
+  margin: 0 0 4px;
+  color: rgba(15, 23, 42, 0.7);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.mobile-home-title {
+  max-width: 230px;
+  color: #101827;
+  font-size: 28px;
+  line-height: 1.05;
+  font-weight: 1000;
+  letter-spacing: 0;
+}
+
+.mobile-home-topline p:last-child {
+  margin: 7px 0 0;
+  color: rgba(15, 23, 42, 0.74);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.mobile-login-chip {
+  flex: 0 0 auto;
+  min-height: 34px;
+  border: 0;
+  border-radius: 999px;
+  padding: 0 13px;
+  background: rgba(15, 23, 42, 0.92);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 900;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.18);
+}
+
+.mobile-search-shell {
+  margin-top: 16px;
+}
+
+.mobile-search-shell .container-app,
+.mobile-search-shell .site-container,
+.mobile-search-shell > * {
+  max-width: 100%;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.mobile-offer-rail,
+.mobile-category-row {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding: 4px 14px 14px;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+}
+
+.mobile-offer-rail::-webkit-scrollbar,
+.mobile-category-row::-webkit-scrollbar {
+  display: none;
+}
+
+.mobile-offer-card {
+  min-width: 78%;
+  min-height: 118px;
+  scroll-snap-align: start;
+  border-radius: 22px;
+  padding: 18px;
+  color: #fff;
+  box-shadow: 0 18px 34px rgba(15, 23, 42, 0.16);
+}
+
+.mobile-offer-card span {
+  display: inline-flex;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18);
+  padding: 5px 9px;
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.mobile-offer-card strong {
+  display: block;
+  margin-top: 14px;
+  font-size: 20px;
+  line-height: 1.1;
+  font-weight: 1000;
+}
+
+.mobile-offer-card p {
+  margin: 6px 0 0;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.mobile-category-section,
+.mobile-restro-section {
+  margin-top: 2px;
+}
+
+.mobile-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 14px 10px;
+}
+
+.mobile-section-head h2 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 18px;
+  line-height: 1.15;
+  font-weight: 1000;
+}
+
+.mobile-section-head span {
+  color: #f97316;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.mobile-category-pill {
+  flex: 0 0 74px;
+  border: 0;
+  background: transparent;
+  color: #0f172a;
+  text-align: center;
+  cursor: pointer;
+}
+
+.mobile-category-pill span {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 8px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background:
+    radial-gradient(circle at 35% 25%, #fff 0 18%, transparent 19%),
+    linear-gradient(135deg, #fff7cc, #ffb703);
+  color: #111827;
+  font-size: 25px;
+  font-weight: 1000;
+  box-shadow: 0 12px 24px rgba(245, 158, 11, 0.22);
+}
+
+.mobile-category-pill strong {
+  display: block;
+  font-size: 12px;
+  line-height: 1.2;
+  font-weight: 900;
+}
+
+.mobile-restro-list {
+  display: grid;
+  gap: 12px;
+  padding: 0 14px 14px;
+}
+
+.mobile-restro-card {
+  display: grid;
+  grid-template-columns: 112px minmax(0, 1fr);
+  gap: 12px;
+  border: 1px solid rgba(203, 213, 225, 0.85);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.96);
+  padding: 10px;
+  box-shadow: 0 14px 30px rgba(15, 23, 42, 0.08);
+}
+
+.mobile-restro-card img {
+  width: 112px;
+  height: 96px;
+  border-radius: 16px;
+  object-fit: cover;
+}
+
+.mobile-restro-copy {
+  min-width: 0;
+  padding: 4px 2px;
+}
+
+.mobile-restro-title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.mobile-restro-title-row h3 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 15px;
+  line-height: 1.18;
+  font-weight: 1000;
+}
+
+.mobile-restro-title-row span {
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: #16a34a;
+  color: #fff;
+  padding: 3px 7px;
+  font-size: 11px;
+  font-weight: 1000;
+}
+
+.mobile-restro-copy p {
+  margin: 8px 0 0;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.35;
+  font-weight: 750;
+}
+
+.mobile-restro-copy small {
+  display: block;
+  margin-top: 8px;
+  color: #f97316;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+@media (max-width: 767px) {
+  .navbar {
+    height: 52px;
+    padding: 0 10px;
+    background: rgba(255, 255, 255, 0.78);
+    box-shadow: none;
+  }
+
+  .brand-logo {
+    width: 34px;
+    height: 34px;
+  }
+
+  .brand-text {
+    display: none;
+  }
+
+  .nav-login-btn,
+  .nav-user-btn {
+    min-height: 30px;
+    border-radius: 999px;
+    padding: 0 12px;
+    font-size: 12px;
+  }
+
+  .customer-app-main {
+    padding-top: calc(var(--nav-h) + 4px);
+  }
+
+  .desktop-seo-rich,
+  .mobile-hide-app-junk {
+    display: none !important;
+  }
+
+  .mobile-tools-strip {
+    margin-top: 4px;
+  }
+
+  .mobile-tools-strip .mb-3 {
+    padding: 0 2px;
+  }
+
+  .mobile-tools-strip .grid {
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    scrollbar-width: none;
+  }
+
+  .mobile-tools-strip .grid::-webkit-scrollbar {
+    display: none;
+  }
+
+  .mobile-tools-strip a {
+    flex: 0 0 72%;
+    border-radius: 18px;
+  }
+
+  .bottom-nav {
+    background: rgba(255, 255, 255, 0.92);
+    box-shadow: 0 -18px 42px rgba(15, 23, 42, 0.12);
+  }
+
+  .bottom-nav-hit {
+    transition: transform 140ms ease;
+  }
+
+  .bottom-nav-hit:active {
+    transform: scale(0.95);
+  }
+
+  .bottom-nav-item.active {
+    color: #111827;
+  }
+
+  .bottom-nav-item.active .bottom-nav-icon {
+    filter: drop-shadow(0 5px 10px rgba(37, 99, 235, 0.24));
+  }
+}
+
+/* ================= PREMIUM SEARCH BOX ================= */
+
+.searchbox-shell {
+  position: relative;
+}
+
+.searchbox-card {
+  border-radius: 22px;
+  border-color: rgba(203, 213, 225, 0.9);
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 20px 54px rgba(15, 23, 42, 0.1);
+}
+
+.searchbox-tabs {
+  background: #eef3f8;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+.searchbox-tab-active {
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+}
+
+.searchbox-field-wrap {
+  position: relative;
+}
+
+.searchbox-controls .app-input,
+.searchbox-input {
+  min-height: 48px;
+  border-color: #cbd7e6;
+  border-radius: 14px;
+  background: #fff;
+  font-weight: 650;
+  box-shadow: 0 1px 0 rgba(15, 23, 42, 0.02);
+}
+
+.searchbox-controls .app-input:focus,
+.searchbox-input:focus {
+  border-color: #f97316;
+  box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.13);
+}
+
+.searchbox-dropdown {
+  overscroll-behavior: contain;
+}
+
+.searchbox-submit {
+  min-height: 48px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #ff7a1a, #f15a13);
+  box-shadow: 0 14px 28px rgba(249, 115, 22, 0.28);
+}
+
+@media (max-width: 767px) {
+  .searchbox-shell {
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+
+  .mobile-search-shell .searchbox-card {
+    border-radius: 22px;
+    border: 1px solid rgba(255, 255, 255, 0.72);
+    box-shadow: 0 18px 40px rgba(108, 67, 0, 0.18);
+  }
+
+  .mobile-search-shell .searchbox-heading {
+    display: none;
+  }
+
+  .searchbox-tabs {
+    margin-bottom: 14px;
+    border-radius: 18px;
+  }
+
+  .searchbox-tabs button {
+    min-height: 42px;
+    border-radius: 15px;
+  }
+
+  .searchbox-controls {
+    gap: 12px;
+  }
+
+  .searchbox-controls .app-input,
+  .searchbox-input {
+    min-height: 50px;
+    border-radius: 16px;
+    font-size: 14px;
+  }
+
+  .searchbox-submit {
+    min-height: 52px;
+    border-radius: 16px;
+    font-size: 15px;
+  }
+}
