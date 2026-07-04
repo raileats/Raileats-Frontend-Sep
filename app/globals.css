@@ -1274,6 +1274,72 @@ textarea {
   font-weight: 900;
 }
 
+@media (min-width: 768px) {
+  .app-first-home {
+    max-width: 1120px;
+    padding: 8px 14px 18px;
+  }
+
+  .mobile-home-hero {
+    margin: 0 0 18px;
+    padding: 26px;
+    border-radius: 30px;
+    background:
+      linear-gradient(135deg, rgba(255, 230, 0, 0.96), rgba(255, 183, 3, 0.97)),
+      url("/raileats-logo.png") right 28px top 22px / 132px 132px no-repeat;
+  }
+
+  .mobile-home-title {
+    max-width: 520px;
+    font-size: 42px;
+  }
+
+  .mobile-home-topline p:last-child {
+    font-size: 15px;
+  }
+
+  .mobile-search-shell {
+    max-width: 760px;
+  }
+
+  .mobile-offer-rail {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    overflow: visible;
+    padding: 4px 0 18px;
+  }
+
+  .mobile-offer-card {
+    min-width: 0;
+  }
+
+  .mobile-category-row {
+    display: grid;
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+    overflow: visible;
+    padding: 4px 0 18px;
+  }
+
+  .mobile-section-head {
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .mobile-restro-list {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .mobile-restro-card {
+    grid-template-columns: 104px minmax(0, 1fr);
+  }
+
+  .mobile-restro-card img {
+    width: 104px;
+  }
+}
+
 @media (max-width: 767px) {
   .navbar {
     height: 52px;
