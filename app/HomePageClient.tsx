@@ -59,6 +59,59 @@ const RAILWAY_TOOL_LINKS = [
   },
 ];
 
+const APP_OFFER_BANNERS = [
+  {
+    title: "Fresh train meals",
+    desc: "Order before your station arrives",
+    accent: "from-orange-500 to-amber-400",
+  },
+  {
+    title: "Seat delivery",
+    desc: "Food delivered at available stations",
+    accent: "from-emerald-500 to-lime-400",
+  },
+  {
+    title: "Route restaurants",
+    desc: "Compare menus on your journey",
+    accent: "from-slate-900 to-slate-700",
+  },
+];
+
+const FOOD_CATEGORIES = [
+  "Thali",
+  "Biryani",
+  "Breakfast",
+  "Snacks",
+  "Chinese",
+  "Tea",
+  "Meals",
+  "Dessert",
+];
+
+const RESTAURANT_PREVIEWS = [
+  {
+    name: "Station Restaurant",
+    cuisine: "North Indian, Thali, Snacks",
+    rating: "4.2",
+    image:
+      "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=800&q=80",
+  },
+  {
+    name: "RailEats Partner Kitchen",
+    cuisine: "Biryani, Meals, Beverages",
+    rating: "4.4",
+    image:
+      "https://images.unsplash.com/photo-1563379091339-03246963d51a?auto=format&fit=crop&w=800&q=80",
+  },
+  {
+    name: "Fresh Food Counter",
+    cuisine: "Breakfast, Tea, Fast Food",
+    rating: "4.1",
+    image:
+      "https://images.unsplash.com/photo-1600891964599-f61ba0e24092?auto=format&fit=crop&w=800&q=80",
+  },
+];
+
 function getSessionId() {
   if (typeof window === "undefined") return "";
 
@@ -282,24 +335,126 @@ export default function HomePageClient() {
   };
 
   return (
-    <main className="customer-app-main">
-      <HeroSlider />
+    <main className="customer-app-main home-app-shell">
+      <section className="mobile-native-home md:hidden" aria-label="RailEats mobile home">
+        <div className="mobile-home-hero">
+          <div className="mobile-home-topline">
+            <div>
+              <p className="mobile-home-kicker">RailEats</p>
+              <div className="mobile-home-title">Order food in train</div>
+              <p>Search by train, PNR or station</p>
+            </div>
+            <button
+              type="button"
+              className="mobile-login-chip active:scale-95"
+              onClick={() =>
+                user
+                  ? window.location.assign("/profile")
+                  : window.dispatchEvent(new CustomEvent("raileats:open-login"))
+              }
+            >
+              {user ? "Profile" : "Login"}
+            </button>
+          </div>
 
-      <SearchBox />
+          <div className="mobile-search-shell">
+            <SearchBox />
+          </div>
+        </div>
 
-      <ExploreRailInfo />
+        <div className="mobile-offer-rail" aria-label="RailEats offers">
+          {APP_OFFER_BANNERS.map((offer) => (
+            <article
+              key={offer.title}
+              className={`mobile-offer-card bg-gradient-to-br ${offer.accent}`}
+            >
+              <span>RailEats special</span>
+              <strong>{offer.title}</strong>
+              <p>{offer.desc}</p>
+            </article>
+          ))}
+        </div>
+
+        <section className="mobile-category-section" aria-labelledby="food-category-title">
+          <div className="mobile-section-head">
+            <h2 id="food-category-title">What are you craving?</h2>
+            <span>Swipe</span>
+          </div>
+          <div className="mobile-category-row">
+            {FOOD_CATEGORIES.map((category) => (
+              <button
+                key={category}
+                type="button"
+                className="mobile-category-pill active:scale-95"
+                onClick={() => {
+                  document.getElementById("order-food")?.scrollIntoView({
+                    behavior: "smooth",
+                    block: "start",
+                  });
+                  trackEvent("home_mobile_category_click", {
+                    section: "mobile_categories",
+                    ...getTrackingUser(),
+                    metadata: { category },
+                  });
+                }}
+              >
+                <span>{category.slice(0, 1)}</span>
+                <strong>{category}</strong>
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <section className="mobile-restro-section" aria-labelledby="mobile-restro-title">
+          <div className="mobile-section-head">
+            <h2 id="mobile-restro-title">Popular near your route</h2>
+            <span>Live menus</span>
+          </div>
+          <div className="mobile-restro-list">
+            {RESTAURANT_PREVIEWS.map((restro) => (
+              <article key={restro.name} className="mobile-restro-card">
+                <img
+                  src={restro.image}
+                  alt={`${restro.name} food on RailEats`}
+                  title={`${restro.name} food delivery in train`}
+                  width={112}
+                  height={96}
+                  loading="lazy"
+                />
+                <div className="mobile-restro-copy">
+                  <div className="mobile-restro-title-row">
+                    <h3>{restro.name}</h3>
+                    <span>{restro.rating} ★</span>
+                  </div>
+                  <p>{restro.cuisine}</p>
+                  <small>Available after train and station selection</small>
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+      </section>
+
+      <div className="hidden md:block">
+        <HeroSlider />
+        <SearchBox />
+      </div>
+
+      <div className="mobile-hide-app-junk">
+        <ExploreRailInfo />
+      </div>
 
       <Offers />
 
-      <section className="container-app">
+      <section className="container-app desktop-seo-rich">
         <div className="app-card p-4 sm:p-5">
           <p className="text-xs font-black uppercase tracking-wide text-orange-600">
             Train food delivery
           </p>
 
-          <h1 className="mt-2 text-2xl font-black leading-tight text-slate-950 sm:text-3xl">
+          <h2 className="mt-2 text-2xl font-black leading-tight text-slate-950 sm:text-3xl">
             Order food in train with RailEats
-          </h1>
+          </h2>
 
           <p className="mt-3 text-sm font-semibold leading-6 text-slate-600">
             RailEats helps passengers book food in train by PNR, train number or
@@ -338,7 +493,7 @@ export default function HomePageClient() {
         </div>
       </section>
 
-      <section className="container-app">
+      <section className="container-app desktop-seo-rich">
         <div className="mb-3">
           <h2 className="app-section-title">Popular Train Food Searches</h2>
           <p className="app-muted text-sm">
@@ -365,7 +520,7 @@ export default function HomePageClient() {
         </div>
       </section>
 
-      <section className="container-app">
+      <section className="container-app mobile-tools-strip">
         <div className="mb-3">
           <h2 className="app-section-title">Useful Railway Tools</h2>
           <p className="app-muted text-sm">
@@ -392,9 +547,11 @@ export default function HomePageClient() {
         </div>
       </section>
 
-      <Steps />
+      <div className="mobile-hide-app-junk">
+        <Steps />
+      </div>
 
-      <section className="container-app">
+      <section className="container-app desktop-seo-rich">
         <div className="app-card p-4 sm:p-5">
           <h2 className="text-xl font-black text-slate-950">
             Why RailEats for train food delivery?
@@ -423,7 +580,9 @@ export default function HomePageClient() {
         </div>
       </section>
 
-      <FooterLinks />
+      <div className="mobile-hide-app-junk">
+        <FooterLinks />
+      </div>
 
       {bulkOpen && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 px-4">
