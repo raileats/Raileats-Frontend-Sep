@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../lib/useAuth";
@@ -11,9 +12,16 @@ export default function Navbar() {
 
   return (
     <header className="navbar">
-      <Link href="/" className="brand-lockup" aria-label="RailEats home">
+      <Link href="/" className="brand-lockup active:scale-95" aria-label="RailEats home">
         <span className="brand-logo">
-          <img src="/logo.png" alt="RailEats" />
+          <Image
+            src="/logo.png"
+            alt="RailEats"
+            width={42}
+            height={42}
+            priority
+            unoptimized
+          />
         </span>
         <span className="brand-text">
           Rail<span>Eats</span>
@@ -31,7 +39,7 @@ export default function Navbar() {
             onClick={() =>
               window.dispatchEvent(new CustomEvent("raileats:open-login"))
             }
-            className="nav-login-btn"
+            className="nav-login-btn active:scale-95"
           >
             Login
           </button>
@@ -39,7 +47,7 @@ export default function Navbar() {
           <button
             type="button"
             onClick={() => router.push("/profile")}
-            className="nav-user-btn"
+            className="nav-user-btn active:scale-95"
           >
             {user?.name || user?.mobile || "User"}
           </button>
