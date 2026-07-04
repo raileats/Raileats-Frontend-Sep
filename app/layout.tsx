@@ -1,4 +1,5 @@
 import "./globals.css";
+import Image from "next/image";
 import { Inter } from "next/font/google";
 import type { Metadata, Viewport } from "next";
 
@@ -48,6 +49,9 @@ export const metadata: Metadata = {
     "food on train",
     "RailEats",
     "IRCTC food delivery",
+    "PNR food order",
+    "train meal delivery",
+    "railway station restaurant",
   ],
 
   alternates: {
@@ -61,6 +65,7 @@ export const metadata: Metadata = {
     title: "RailEats | Order Fresh Food Delivery in Train",
     description:
       "Book fresh meals from railway station restaurants and get food delivered directly to your train seat.",
+    locale: "en_IN",
     images: [
       {
         url: "/raileats-logo.png",
@@ -107,7 +112,7 @@ export const metadata: Metadata = {
     icon: "/raileats-logo.png",
     shortcut: "/raileats-logo.png",
     apple: "/apple-touch-icon.png",
-}
+  },
 };
 
 export const viewport: Viewport = {
@@ -120,9 +125,15 @@ export const viewport: Viewport = {
 const organizationSchema = {
   "@context": "https://schema.org",
   "@type": "Organization",
+  "@id": `${siteUrl}/#organization`,
   name: "RailEats",
   url: siteUrl,
-  logo: `${siteUrl}/raileats-logo.png`,
+  logo: {
+    "@type": "ImageObject",
+    url: `${siteUrl}/raileats-logo.png`,
+    width: 512,
+    height: 512,
+  },
 };
 
 export default function RootLayout({
@@ -131,10 +142,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html
-      lang="en-IN"
-      className={`${inter.variable} h-full scroll-smooth`}
-    >
+    <html lang="en-IN" className={`${inter.variable} h-full scroll-smooth`}>
       <body className="min-h-screen bg-slate-50/60 text-slate-900 font-sans antialiased selection:bg-amber-500 selection:text-white touch-pan-y">
         <script
           type="application/ld+json"
@@ -155,10 +163,14 @@ export default function RootLayout({
           >
             <div className="outer-ring" aria-hidden>
               <div className="inner-logo" aria-hidden>
-                <img
+                <Image
                   src="/raileats-logo.png"
                   alt="RailEats"
-                  className="w-full h-full object-contain"
+                  width={96}
+                  height={96}
+                  priority
+                  unoptimized
+                  className="h-full w-full object-contain"
                 />
               </div>
             </div>
@@ -167,7 +179,7 @@ export default function RootLayout({
           <div className="flex flex-col min-h-screen isolation-isolate">
             <Navbar />
 
-            <main className="customer-app-main">
+            <main className="customer-app-main" id="main-content">
               <div
                 className="site-container"
                 style={{
