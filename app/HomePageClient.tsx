@@ -338,23 +338,8 @@ export default function HomePageClient() {
     <main className="customer-app-main home-app-shell">
       <section className="mobile-native-home app-first-home" aria-label="RailEats home">
         <div className="mobile-home-hero">
-          <div className="mobile-home-topline">
-            <div>
-              <p className="mobile-home-kicker">RailEats</p>
-              <div className="mobile-home-title">Order food in train</div>
-              <p>Search by train, PNR or station</p>
-            </div>
-            <button
-              type="button"
-              className="mobile-login-chip active:scale-95"
-              onClick={() =>
-                user
-                  ? window.location.assign("/profile")
-                  : window.dispatchEvent(new CustomEvent("raileats:open-login"))
-              }
-            >
-              {user ? "Profile" : "Login"}
-            </button>
+          <div className="home-hero-slider-slot" aria-label="RailEats offers and highlights">
+            <HeroSlider />
           </div>
 
           <div className="mobile-search-shell">
