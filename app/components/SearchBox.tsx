@@ -235,18 +235,18 @@ export default function SearchBox() {
     stations.find((s) => String(s.code) === String(boarding)) || null;
 
   return (
-    <section className="container-app">
-      <div className="app-card overflow-visible p-4">
-        <div className="mb-4">
-          <h1 className="text-[22px] font-black leading-tight text-slate-950">
+    <section className="container-app searchbox-shell" aria-label="Order food search">
+      <div className="app-card searchbox-card overflow-visible p-4">
+        <div className="mb-4 searchbox-heading">
+          <h2 className="text-[22px] font-black leading-tight text-slate-950">
             Order food on train
-          </h1>
+          </h2>
           <p className="mt-1 text-sm font-semibold text-slate-500">
             Search by train, PNR, or station.
           </p>
         </div>
 
-        <div className="mb-4 grid grid-cols-3 gap-2 rounded-2xl bg-slate-100 p-1">
+        <div className="mb-4 grid grid-cols-3 gap-2 rounded-2xl bg-slate-100 p-1 searchbox-tabs">
           {[
             { key: "pnr", label: "PNR" },
             { key: "train", label: "Train" },
@@ -260,9 +260,9 @@ export default function SearchBox() {
                 type="button"
                 onClick={() => resetSearch(item.key)}
                 className={[
-                  "min-h-[40px] rounded-xl text-sm font-black transition",
+                  "min-h-[40px] rounded-xl text-sm font-black transition active:scale-95",
                   active
-                    ? "bg-white text-orange-600 shadow-sm"
+                    ? "bg-white text-orange-600 shadow-sm searchbox-tab-active"
                     : "text-slate-500",
                 ].join(" ")}
               >
@@ -272,15 +272,17 @@ export default function SearchBox() {
           })}
         </div>
 
-        <div className="space-y-3">
+        <div className="space-y-3 searchbox-controls">
           {searchType === "train" ? (
-            <TrainAutocomplete
+            <div className="searchbox-field-wrap">
+              <TrainAutocomplete
   value={inputValue}
   onChange={setInputValue}
   onSelect={handleTrainSelect}
 />
+            </div>
           ) : searchType === "station" ? (
-            <div className="[&_input]:w-full [&_button]:font-semibold">
+            <div className="searchbox-field-wrap [&_input]:w-full [&_button]:font-semibold">
               <StationSearchBox
                 onSelect={(s: any) => {
                   trackEvent("home_station_suggestion_select", {
@@ -316,12 +318,12 @@ export default function SearchBox() {
   inputMode="numeric"
   maxLength={10}
   placeholder="Enter 10 digit PNR starting with 2, 4, 6, or 8"
-  className="app-input"
+  className="app-input searchbox-input"
 />
           )}
 
           {searchType === "train" && selectedTrain && (
-            <div className="grid gap-3">
+            <div className="grid gap-3 searchbox-journey-fields">
               <input
                 type="date"
                 value={date}
@@ -335,7 +337,7 @@ export default function SearchBox() {
 
                   setDate(e.target.value);
                 }}
-                className="app-input"
+                className="app-input searchbox-input"
               />
 
               <div ref={boardingBoxRef} className="relative">
@@ -352,7 +354,7 @@ export default function SearchBox() {
                       return next;
                     });
                   }}
-                  className="app-input flex items-center justify-between text-left"
+                  className="app-input searchbox-input flex items-center justify-between text-left active:scale-[0.99]"
                 >
                   <span>
                     {selectedStation
@@ -361,11 +363,11 @@ export default function SearchBox() {
                       ? "Loading route stations..."
                       : "Select boarding station"}
                   </span>
-                  <span className="text-slate-400">v</span>
+                  <span className="text-slate-400">⌄</span>
                 </button>
 
                 {showStationList && (
-                  <div className="absolute left-0 right-0 top-[calc(100%+8px)] z-50 max-h-64 overflow-auto rounded-2xl border border-slate-200 bg-white shadow-xl">
+                  <div className="absolute left-0 right-0 top-[calc(100%+8px)] z-50 max-h-64 overflow-auto rounded-2xl border border-slate-200 bg-white shadow-xl searchbox-dropdown">
                     {stations.length === 0 && (
                       <div className="p-3 text-sm font-semibold text-slate-500">
                         No stations found
@@ -389,7 +391,7 @@ export default function SearchBox() {
                           setShowStationList(false);
                           scrollSearchButtonIntoView();
                         }}
-                        className="flex w-full items-center justify-between border-b border-slate-100 px-4 py-3 text-left hover:bg-orange-50"
+                        className="flex w-full items-center justify-between border-b border-slate-100 px-4 py-3 text-left transition hover:bg-orange-50 active:scale-[0.99]"
                       >
                         <span className="font-bold text-slate-800">
                           {s.name}
@@ -409,7 +411,7 @@ export default function SearchBox() {
             ref={searchBtnRef}
             type="button"
             onClick={handleSearch}
-            className="app-btn-primary w-full"
+            className="app-btn-primary searchbox-submit w-full active:scale-[0.99]"
           >
             Search Food
           </button>
