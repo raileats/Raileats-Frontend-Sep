@@ -40,7 +40,7 @@ body {
   min-height: 100%;
   margin: 0;
   padding: 0;
-  background: var(--rail-bg);
+  background: #fff;
   color: var(--rail-ink);
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   overflow-x: hidden;
@@ -81,6 +81,7 @@ textarea {
 .main-content,
 .customer-app-main {
   min-height: 100vh;
+  background: #fff;
   padding-top: calc(var(--nav-h) + 16px);
   padding-bottom: calc(var(--bottom-h) + env(safe-area-inset-bottom, 0px) + 24px);
 }
@@ -1015,9 +1016,7 @@ textarea {
 /* ================= MOBILE APP-FIRST HOME ================= */
 
 .home-app-shell {
-  background:
-    radial-gradient(circle at 20% 0%, rgba(246, 196, 0, 0.2), transparent 30%),
-    linear-gradient(180deg, #fff9d7 0%, #f7fafc 34%, #eef3f8 100%);
+  background: #fff;
 }
 
 .mobile-native-home {
@@ -1029,12 +1028,24 @@ textarea {
 
 .mobile-home-hero {
   margin: -4px 0 12px;
-  padding: 16px 14px 18px;
-  border-radius: 0 0 28px 28px;
-  background:
-    linear-gradient(135deg, rgba(255, 230, 0, 0.95), rgba(255, 183, 3, 0.96)),
-    url("/raileats-logo.png") right 12px top 10px / 92px 92px no-repeat;
-  box-shadow: 0 20px 42px rgba(214, 128, 0, 0.18);
+  padding: 0 14px 14px;
+  border-radius: 0;
+  background: #fff;
+  box-shadow: none;
+}
+
+.home-hero-slider-slot {
+  overflow: hidden;
+  border-radius: 22px;
+  background: #fff;
+}
+
+.home-hero-slider-slot .container-app,
+.home-hero-slider-slot .site-container,
+.home-hero-slider-slot > * {
+  max-width: 100%;
+  padding-left: 0;
+  padding-right: 0;
 }
 
 .mobile-home-topline {
@@ -1282,11 +1293,9 @@ textarea {
 
   .mobile-home-hero {
     margin: 0 0 18px;
-    padding: 26px;
+    padding: 0;
     border-radius: 30px;
-    background:
-      linear-gradient(135deg, rgba(255, 230, 0, 0.96), rgba(255, 183, 3, 0.97)),
-      url("/raileats-logo.png") right 28px top 22px / 132px 132px no-repeat;
+    background: #fff;
   }
 
   .mobile-home-title {
@@ -1300,6 +1309,8 @@ textarea {
 
   .mobile-search-shell {
     max-width: 760px;
+    margin-left: auto;
+    margin-right: auto;
   }
 
   .mobile-offer-rail {
@@ -1354,7 +1365,9 @@ textarea {
   }
 
   .brand-text {
-    display: none;
+    display: inline-flex;
+    align-items: baseline;
+    font-size: 18px;
   }
 
   .nav-login-btn,
