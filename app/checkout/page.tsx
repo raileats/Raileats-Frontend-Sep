@@ -459,6 +459,42 @@ const finalStationName =
 
   return (
     <div className="mx-auto h-screen w-full max-w-[640px] flex flex-col bg-slate-50 px-2 pt-4 pb-[150px]">
+      {showPaymentPopup && (
+      <div className="fixed inset-0 z-[9999] bg-black/40 flex items-center justify-center px-4">
+        <div className="bg-white rounded-2xl shadow-xl w-full max-w-[360px] p-5 text-center">
+          <h2 className="text-lg font-extrabold text-slate-900 mb-2">
+            Payment Gateway Not Responding
+          </h2>
+
+          <p className="text-sm font-medium text-slate-600 leading-6">
+            Payment Gateway is currently not responding.
+            <br />
+            Please try after some time.
+            <br />
+            You can also place your order using Cash on Delivery (COD).
+          </p>
+
+          <button
+            type="button"
+            onClick={() => {
+              setPaymentMode("COD");
+              setShowPaymentPopup(false);
+            }}
+            className="mt-5 w-full rounded-lg bg-green-600 text-white font-bold py-3"
+          >
+            Switch to Cash on Delivery
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setShowPaymentPopup(false)}
+            className="mt-2 w-full rounded-lg border border-slate-200 text-slate-700 font-bold py-3"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    )}
       {/* SCROLL AREA */}
       <div className="flex-1 overflow-y-auto space-y-4 scrollbar-hide">
         
