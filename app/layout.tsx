@@ -34,11 +34,8 @@ export const metadata: Metadata = {
     "Order fresh, hygienic and affordable food delivery in train from trusted restaurants at railway stations across India.",
 
   applicationName: "RailEats",
-
   category: "Food & Drink",
-
   manifest: "/manifest.webmanifest",
-
   referrer: "origin-when-cross-origin",
 
   keywords: [
@@ -143,7 +140,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en-IN" className={`${inter.variable} h-full scroll-smooth`}>
-      <body className="min-h-screen bg-slate-50/60 text-slate-900 font-sans antialiased selection:bg-amber-500 selection:text-white touch-pan-y">
+      <body className="min-h-screen bg-white text-slate-900 font-sans antialiased selection:bg-amber-500 selection:text-white touch-pan-y">
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
@@ -151,9 +148,37 @@ export default function RootLayout({
           }}
         />
 
+        <style
+          dangerouslySetInnerHTML={{
+            __html: `
+              .customer-app-main .customer-app-main {
+                padding-top: 0 !important;
+                padding-bottom: 0 !important;
+                min-height: auto !important;
+              }
+
+              .customer-app-main .home-app-shell {
+                padding-top: 0 !important;
+                margin-top: 0 !important;
+              }
+
+              .customer-app-main .mobile-native-home {
+                padding-top: 0 !important;
+              }
+
+              .customer-app-main .mobile-home-hero {
+                margin-top: 0 !important;
+              }
+
+              .customer-app-main .home-hero-slider-slot .container-app {
+                padding-top: 0 !important;
+              }
+            `,
+          }}
+        />
+
         <Providers>
           <AuthLoader />
-
           <ForceReloadOnBack />
 
           <div
