@@ -28,6 +28,7 @@ export default function CheckoutPage() {
   const [promo, setPromo] = useState("");
 
   const [paymentMode, setPaymentMode] = useState("COD");
+  const [showPaymentPopup, setShowPaymentPopup] = useState(false);
 
   /* ================= LOAD USER ================= */
   useEffect(() => {
@@ -347,16 +348,22 @@ useEffect(() => {
   cartItems.length > 0;
 
   /* ================= PLACE ORDER ================= */
-  const placeOrder = async () => {
-    if (!cartItems.length) {
-      alert("Cart empty");
-      return;
-    }
+const placeOrder = async () => {
 
-    if (!mobile) {
-      alert("Mobile required");
-      return;
-    }
+  if (paymentMode === "ONLINE") {
+    setShowPaymentPopup(true);
+    return;
+  }
+
+  if (!cartItems.length) {
+    alert("Cart empty");
+    return;
+  }
+
+  if (!mobile) {
+    alert("Mobile required");
+    return;
+  }
 
     const firstItem = cartItems[0];
     const finalStationCode =
