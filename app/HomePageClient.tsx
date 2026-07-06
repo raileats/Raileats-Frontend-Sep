@@ -496,7 +496,7 @@ export default function HomePageClient() {
         <section className="mobile-restro-section" aria-labelledby="mobile-restro-title">
           <div className="mobile-section-head">
             <h2 id="mobile-restro-title">Popular Restaurants</h2>
-            <span>Live menus</span>
+            <Link href="/popular-restaurants-train-journey">Live menus</Link>
           </div>
           <div className="mobile-restro-list">
             {restaurantsToShow.map((restro) => (
