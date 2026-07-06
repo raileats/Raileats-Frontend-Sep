@@ -126,7 +126,10 @@ export default function HeroSlider() {
   }, [slides]);
 
   return (
-    <section className="container-app pb-0" aria-label="RailEats hero offers from Admin CMS">
+    <section
+      className="container-app !pt-3 pb-0"
+      aria-label="RailEats hero offers from Admin CMS"
+    >
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-black shadow-lg">
         <Slider {...settings}>
           {normalizedSlides.map((slide, idx) => {
@@ -134,7 +137,7 @@ export default function HeroSlider() {
 
             return (
               <div key={slide.id || `${slide.image_url}-${idx}`} className="!w-full">
-                <div className="relative aspect-[16/7] w-full overflow-hidden bg-black sm:aspect-[16/6]">
+                <div className="relative aspect-[16/8] w-full overflow-hidden bg-black sm:aspect-[16/7] lg:aspect-[16/6.8]">
                   <Image
                     src={slide.image_url}
                     alt={text}
