@@ -81,7 +81,7 @@ function todayIso() {
 }
 
 export default function SearchBox() {
-  const [searchType, setSearchType] = useState("train");
+  const [searchType, setSearchType] = useState("pnr");
   const [inputValue, setInputValue] = useState("");
   const [selectedTrain, setSelectedTrain] = useState<any>(null);
   const [selectedStationData, setSelectedStationData] = useState<any>(null);
