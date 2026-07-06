@@ -17,6 +17,8 @@ type HeroSliderApiResponse = {
   error?: string;
 };
 
+const HERO_SLIDER_API = "https://admin.raileats.in/api/hero-slider";
+
 const fallbackSlides: HeroSlide[] = [
   {
     id: "fallback-happy-new-year",
@@ -67,16 +69,18 @@ const settings = {
 } as const;
 
 export default function HeroSlider() {
-  const [slides, setSlides] = useState<HeroSlide[]>(fallbackSlides);
+  const [slides, setSlides] = useState<HeroSlide[]>([]);
+  const [hasLoaded, setHasLoaded] = useState(false);
 
   useEffect(() => {
     let ignore = false;
 
-    async function loadSlides() {
+    async function loadSlidesFromAdminCms() {
       try {
-        const response = await fetch("https://admin.raileats.in/api/hero-slider", {
+        const response = await fetch(HERO_SLIDER_API, {
           method: "GET",
           cache: "no-store",
+          mode: "cors",
         });
 
         const result = (await response.json()) as HeroSliderApiResponse;
@@ -89,16 +93,23 @@ export default function HeroSlider() {
           Array.isArray(result.data) &&
           result.data.length > 0
         ) {
+          console.log("RailEats HeroSlider: loaded from Admin CMS", result.data);
           setSlides(result.data);
         } else {
+          console.warn("RailEats HeroSlider: Admin CMS empty, using fallback", result);
           setSlides(fallbackSlides);
         }
-      } catch {
-        if (!ignore) setSlides(fallbackSlides);
+      } catch (error) {
+        if (!ignore) {
+          console.error("RailEats HeroSlider: Admin CMS fetch failed, using fallback", error);
+          setSlides(fallbackSlides);
+        }
+      } finally {
+        if (!ignore) setHasLoaded(true);
       }
     }
 
-    loadSlides();
+    loadSlidesFromAdminCms();
 
     return () => {
       ignore = true;
@@ -106,43 +117,7 @@ export default function HeroSlider() {
   }, []);
 
   const normalizedSlides = useMemo(() => {
-    const validSlides = slides.filter((slide) => slide.image_url);
-    return validSlides.length > 0 ? validSlides : fallbackSlides;
-  }, [slides]);
-
-  return (
-    <section className="container-app pb-0">
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-black shadow-lg">
-        <Slider {...settings}>
-          {normalizedSlides.map((slide, idx) => {
-            const text = slide.title || "RailEats train food delivery";
-
-            return (
-              <div key={slide.id || `${slide.image_url}-${idx}`} className="!w-full">
-                <div className="relative aspect-[16/7] w-full overflow-hidden bg-black sm:aspect-[16/6]">
-                  <Image
-                    src={slide.image_url}
-                    alt={text}
-                    title={text}
-                    fill
-                    priority={idx === 0}
-                    loading={idx === 0 ? "eager" : "lazy"}
-                    className="object-cover"
-                    sizes="(max-width: 768px) 100vw, 760px"
-                    unoptimized={slide.image_url.startsWith("http")}
-                  />
-
-                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-4">
-                    <span className="inline-flex rounded-full bg-white/95 px-3 py-1 text-xs font-black text-slate-950 shadow">
-                      {text}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </Slider>
-      </div>
-    </section>
-  );
-}
+    const sourceSlides = slides.length > 0 ? slides : fallbackSlides;
+    const validSlides = sourceSlides
+      .filter((slide) => slide.image_url)
+      .sort((a, b) => Number(a.sort_order ?? 999) -
