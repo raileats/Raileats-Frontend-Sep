@@ -78,36 +78,63 @@ const APP_OFFER_BANNERS = [
 ];
 
 const FOOD_CATEGORIES = [
-  "Thali",
-  "Biryani",
-  "Breakfast",
-  "Snacks",
-  "Chinese",
-  "Tea",
-  "Meals",
-  "Dessert",
+  {
+    name: "Thali",
+    image: "/categories/thali.png",
+  },
+  {
+    name: "Biryani",
+    image: "/categories/biryani.png",
+  },
+  {
+    name: "Breakfast",
+    image: "/categories/breakfast.png",
+  },
+  {
+    name: "Snacks",
+    image: "/categories/snacks.png",
+  },
+  {
+    name: "Chinese",
+    image: "/categories/chinese.png",
+  },
+  {
+    name: "Tea",
+    image: "/categories/tea.png",
+  },
+  {
+    name: "Meals",
+    image: "/categories/meals.png",
+  },
+  {
+    name: "Dessert",
+    image: "/categories/dessert.png",
+  },
 ];
 
 const RESTAURANT_PREVIEWS = [
   {
-    name: "Station Restaurant",
-    cuisine: "North Indian, Thali, Snacks",
-    rating: "4.2",
-    image:
+    RestroCode: "fallback-station-restaurant",
+    RestroName: "Station Restaurant",
+    StationCode: "",
+    StationName: "Available station",
+    RestroDisplayPhoto:
       "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=800&q=80",
   },
   {
-    name: "RailEats Partner Kitchen",
-    cuisine: "Biryani, Meals, Beverages",
-    rating: "4.4",
-    image:
+    RestroCode: "fallback-raileats-partner-kitchen",
+    RestroName: "RailEats Partner Kitchen",
+    StationCode: "",
+    StationName: "Available station",
+    RestroDisplayPhoto:
       "https://images.unsplash.com/photo-1563379091339-03246963d51a?auto=format&fit=crop&w=800&q=80",
   },
   {
-    name: "Fresh Food Counter",
-    cuisine: "Breakfast, Tea, Fast Food",
-    rating: "4.1",
-    image:
+    RestroCode: "fallback-fresh-food-counter",
+    RestroName: "Fresh Food Counter",
+    StationCode: "",
+    StationName: "Available station",
+    RestroDisplayPhoto:
       "https://images.unsplash.com/photo-1600891964599-f61ba0e24092?auto=format&fit=crop&w=800&q=80",
   },
 ];
@@ -175,6 +202,37 @@ async function trackEvent(
   }
 }
 
+function scrollToSearchBox() {
+  const mobileSearchShell = document.querySelector(".mobile-search-shell");
+
+  if (mobileSearchShell) {
+    mobileSearchShell.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+    return;
+  }
+
+  document.getElementById("order-food")?.scrollIntoView({
+    behavior: "smooth",
+    block: "start",
+  });
+}
+
+function getRestaurantImage(restro: any) {
+  return restro?.RestroDisplayPhoto || "/raileats-logo.png";
+}
+
+function getStationLabel(restro: any) {
+  const stationCode = restro?.StationCode || "";
+  const stationName = restro?.StationName || "";
+
+  if (stationCode && stationName) return `${stationCode} - ${stationName}`;
+  if (stationCode) return stationCode;
+  if (stationName) return stationName;
+  return "Available station";
+}
+
 export default function HomePageClient() {
   const searchParams = useSearchParams();
   const { user } = useAuth();
@@ -185,6 +243,7 @@ export default function HomePageClient() {
   const [bulkTrain, setBulkTrain] = useState("");
   const [bulkMessage, setBulkMessage] = useState("");
   const [bulkLoading, setBulkLoading] = useState(false);
+  const [popularRestaurants, setPopularRestaurants] = useState<any[]>([]);
 
   const getTrackingUser = () => ({
     email: user?.email || null,
@@ -203,6 +262,37 @@ export default function HomePageClient() {
       },
     });
   }, [user?.email, user?.mobile, user?.name]);
+
+  useEffect(() => {
+    let ignore = false;
+
+    async function loadPopularRestaurants() {
+      try {
+        const { data, error } = await supabase
+          .from("RestroMaster")
+          .select(
+            "RestroCode, RestroName, StationCode, StationName, RestroDisplayPhoto, RaileatsStatus, IRCTCStatus"
+          )
+          .or("RaileatsStatus.eq.Active,IRCTCStatus.eq.Active")
+          .limit(10);
+
+        if (error) throw error;
+
+        if (!ignore) {
+          setPopularRestaurants(Array.isArray(data) && data.length > 0 ? data : []);
+        }
+      } catch (err) {
+        console.error("Popular restaurants fetch failed:", err);
+        if (!ignore) setPopularRestaurants([]);
+      }
+    }
+
+    loadPopularRestaurants();
+
+    return () => {
+      ignore = true;
+    };
+  }, []);
 
   useEffect(() => {
     const goto = searchParams.get("goto");
@@ -334,6 +424,9 @@ export default function HomePageClient() {
     });
   };
 
+  const restaurantsToShow =
+    popularRestaurants.length > 0 ? popularRestaurants : RESTAURANT_PREVIEWS;
+
   return (
     <main className="customer-app-main home-app-shell">
       <section className="mobile-native-home app-first-home" aria-label="RailEats home">
@@ -368,23 +461,28 @@ export default function HomePageClient() {
           <div className="mobile-category-row">
             {FOOD_CATEGORIES.map((category) => (
               <button
-                key={category}
+                key={category.name}
                 type="button"
                 className="mobile-category-pill active:scale-95"
                 onClick={() => {
-                  document.getElementById("order-food")?.scrollIntoView({
-                    behavior: "smooth",
-                    block: "start",
-                  });
+                  scrollToSearchBox();
                   trackEvent("home_mobile_category_click", {
                     section: "mobile_categories",
                     ...getTrackingUser(),
-                    metadata: { category },
+                    metadata: { category: category.name },
                   });
                 }}
               >
-                <span>{category.slice(0, 1)}</span>
-                <strong>{category}</strong>
+                <img
+                  src={category.image}
+                  alt={`${category.name} food category on RailEats`}
+                  title={`${category.name} food on train`}
+                  width={64}
+                  height={64}
+                  loading="lazy"
+                  className="h-16 w-16 rounded-full object-cover shadow-sm"
+                />
+                <strong>{category.name}</strong>
               </button>
             ))}
           </div>
@@ -392,27 +490,26 @@ export default function HomePageClient() {
 
         <section className="mobile-restro-section" aria-labelledby="mobile-restro-title">
           <div className="mobile-section-head">
-            <h2 id="mobile-restro-title">Popular near your route</h2>
+            <h2 id="mobile-restro-title">Popular Restaurants</h2>
             <span>Live menus</span>
           </div>
           <div className="mobile-restro-list">
-            {RESTAURANT_PREVIEWS.map((restro) => (
-              <article key={restro.name} className="mobile-restro-card">
+            {restaurantsToShow.map((restro) => (
+              <article key={restro.RestroCode || restro.RestroName} className="mobile-restro-card">
                 <img
-                  src={restro.image}
-                  alt={`${restro.name} food on RailEats`}
-                  title={`${restro.name} food delivery in train`}
+                  src={getRestaurantImage(restro)}
+                  alt={`${restro.RestroName} food on RailEats`}
+                  title={`${restro.RestroName} food delivery in train`}
                   width={112}
                   height={96}
                   loading="lazy"
                 />
                 <div className="mobile-restro-copy">
                   <div className="mobile-restro-title-row">
-                    <h3>{restro.name}</h3>
-                    <span>{restro.rating} ★</span>
+                    <h3>{restro.RestroName}</h3>
                   </div>
-                  <p>{restro.cuisine}</p>
-                  <small>Available after train and station selection</small>
+                  <p>{getStationLabel(restro)}</p>
+                  <small>Available restaurant</small>
                 </div>
               </article>
             ))}
@@ -593,7 +690,7 @@ export default function HomePageClient() {
                 }}
                 className="h-9 w-9 rounded-full border border-slate-200 bg-white text-lg font-black text-slate-700"
               >
-                ×
+                x
               </button>
             </div>
 
