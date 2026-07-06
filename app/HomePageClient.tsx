@@ -264,36 +264,41 @@ export default function HomePageClient() {
   }, [user?.email, user?.mobile, user?.name]);
 
   useEffect(() => {
-    let ignore = false;
+  let ignore = false;
 
-    async function loadPopularRestaurants() {
-      try {
-        const { data, error } = await supabase
-          .from("RestroMaster")
-          .select(
-            "RestroCode, RestroName, StationCode, StationName, RestroDisplayPhoto, RaileatsStatus, IRCTCStatus"
-          )
-          .or("RaileatsStatus.eq.Active,IRCTCStatus.eq.Active")
-          .limit(10);
+  async function loadPopularRestaurants() {
+    try {
+      const response = await fetch("/api/home/popular-restaurants", {
+        method: "GET",
+        cache: "no-store",
+      });
 
-        if (error) throw error;
+      const result = await response.json();
 
-        if (!ignore) {
-          setPopularRestaurants(Array.isArray(data) && data.length > 0 ? data : []);
-        }
-      } catch (err) {
-        console.error("Popular restaurants fetch failed:", err);
-        if (!ignore) setPopularRestaurants([]);
+      if (ignore) return;
+
+      if (
+        response.ok &&
+        result?.success &&
+        Array.isArray(result.data) &&
+        result.data.length > 0
+      ) {
+        setPopularRestaurants(result.data);
+      } else {
+        setPopularRestaurants([]);
       }
+    } catch (err) {
+      console.error("Popular restaurants fetch failed:", err);
+      if (!ignore) setPopularRestaurants([]);
     }
+  }
 
-    loadPopularRestaurants();
+  loadPopularRestaurants();
 
-    return () => {
-      ignore = true;
-    };
-  }, []);
-
+  return () => {
+    ignore = true;
+  };
+}, []);
   useEffect(() => {
     const goto = searchParams.get("goto");
 
