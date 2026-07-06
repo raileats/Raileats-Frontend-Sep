@@ -80,7 +80,7 @@ const APP_OFFER_BANNERS = [
 const FOOD_CATEGORIES = [
   {
     name: "Thali",
-    image: "/categories/thali.png",
+    image: "/categories/thali.webp",
   },
   {
     name: "Biryani",
