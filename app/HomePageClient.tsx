@@ -445,19 +445,6 @@ export default function HomePageClient() {
           </div>
         </div>
 
-        <div className="mobile-offer-rail" aria-label="RailEats offers">
-          {APP_OFFER_BANNERS.map((offer) => (
-            <article
-              key={offer.title}
-              className={`mobile-offer-card bg-gradient-to-br ${offer.accent}`}
-            >
-              <span>RailEats special</span>
-              <strong>{offer.title}</strong>
-              <p>{offer.desc}</p>
-            </article>
-          ))}
-        </div>
-
         <section className="mobile-category-section" aria-labelledby="food-category-title">
           <div className="mobile-section-head">
             <h2 id="food-category-title">What are you craving?</h2>
@@ -492,6 +479,20 @@ export default function HomePageClient() {
             ))}
           </div>
         </section>
+
+        <div className="mobile-offer-rail" aria-label="RailEats offers">
+          {APP_OFFER_BANNERS.map((offer) => (
+            <article
+              key={offer.title}
+              className={`mobile-offer-card bg-gradient-to-br ${offer.accent}`}
+            >
+              <span>RailEats special</span>
+              <strong>{offer.title}</strong>
+              <p>{offer.desc}</p>
+            </article>
+          ))}
+        </div>
+
 
         <section className="mobile-restro-section" aria-labelledby="mobile-restro-title">
           <div className="mobile-section-head">
