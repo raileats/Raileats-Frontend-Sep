@@ -29,7 +29,7 @@
   }
 
   html {
-    font-size: 90%;
+    font-size: 100%;
   }
 }
 
@@ -224,7 +224,7 @@ textarea {
   height: var(--bottom-h);
   margin: 0 auto;
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   padding: 0;
   list-style: none;
 }
