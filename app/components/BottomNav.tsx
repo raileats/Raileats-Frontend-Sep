@@ -3,7 +3,7 @@
 import { useCallback } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ClipboardList, Home, Menu, TrainFront, User } from "lucide-react";
+import { ClipboardList, Home, TrainFront, User } from "lucide-react";
 
 type ItemProps = {
   active?: boolean;
@@ -63,16 +63,6 @@ export default function BottomNav() {
           >
             <TrainFront className="bottom-nav-icon text-amber-600" />
             <span>Train Status</span>
-          </Item>
-        </li>
-
-        <li>
-          <Item
-            active={pathname.startsWith("/menu")}
-            onClick={() => router.push("/menu")}
-          >
-            <Menu className="bottom-nav-icon text-green-600" />
-            <span>My Menu</span>
           </Item>
         </li>
 
