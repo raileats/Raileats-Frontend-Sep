@@ -10,7 +10,8 @@ export const revalidate = 0;
 const siteUrl = "https://www.raileats.in";
 const siteName = "RailEats";
 const defaultImage = "/raileats-logo.png";
-const defaultRestroImage = "/categories/thali.png";
+const SUPABASE_PUBLIC_STORAGE =
+  "https://ygisiztmuzwxpnvhwrmr.supabase.co/storage/v1/object/public";
 
 function titleCase(str: string) {
   return String(str || "")
@@ -109,8 +110,13 @@ function restroImage(r: any) {
     "";
 
   const image = String(rawImage || "").trim();
+  const restroCode = String(r?.RestroCode || "");
 
-  if (!image) return defaultRestroImage;
+  const codeImage = restroCode
+    ? encodeURI(`${SUPABASE_PUBLIC_STORAGE}/RestroDisplayPhoto/${restroCode}.webp`)
+    : defaultImage;
+
+  if (!image) return codeImage;
 
   if (image.startsWith("http://") || image.startsWith("https://")) {
     return image;
@@ -124,27 +130,26 @@ function restroImage(r: any) {
     return image;
   }
 
-  const supabaseUrl =
-    process.env.NEXT_PUBLIC_SUPABASE_URL ||
-    process.env.SUPABASE_URL ||
-    process.env.SUPABASE_PROJECT_URL ||
-    "";
-
-  if (!supabaseUrl) return defaultRestroImage;
-
-  const cleanSupabaseUrl = supabaseUrl.replace(/\/$/, "");
   const cleanImage = image.replace(/^\/+/, "");
 
   if (cleanImage.startsWith("storage/v1/object/public/")) {
-    return `${cleanSupabaseUrl}/${cleanImage}`;
+    return encodeURI(`https://ygisiztmuzwxpnvhwrmr.supabase.co/${cleanImage}`);
   }
 
   if (cleanImage.includes("/storage/v1/object/public/")) {
     const storagePath = cleanImage.split("/storage/v1/object/public/").pop() || "";
-    return `${cleanSupabaseUrl}/storage/v1/object/public/${storagePath}`;
+    return encodeURI(`${SUPABASE_PUBLIC_STORAGE}/${storagePath}`);
   }
 
-  return `${cleanSupabaseUrl}/storage/v1/object/public/restro/${cleanImage}`;
+  if (cleanImage.startsWith("RestroDisplayPhoto/")) {
+    return encodeURI(`${SUPABASE_PUBLIC_STORAGE}/${cleanImage}`);
+  }
+
+  if (/^\d+\.(webp|png|jpg|jpeg)$/i.test(cleanImage)) {
+    return encodeURI(`${SUPABASE_PUBLIC_STORAGE}/RestroDisplayPhoto/${cleanImage}`);
+  }
+
+  return codeImage;
 }
 
 function minOrderValue(r: any) {
