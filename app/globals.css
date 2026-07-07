@@ -1530,3 +1530,210 @@ textarea {
     font-size: 15px;
   }
 }
+/* ================= MOBILE APP FEEL POLISH - STEP 1 ================= */
+
+@media (max-width: 767px) {
+  :root {
+    --app-max: 100%;
+    --bottom-h: 70px;
+  }
+
+  .site-container {
+    max-width: none;
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .container-app,
+  .mobile-native-home {
+    width: calc(100% - 28px);
+    max-width: none;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .mobile-home-hero {
+    width: 100%;
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .home-hero-slider-slot {
+    border-radius: 22px;
+  }
+
+  .mobile-search-shell {
+    width: 100%;
+    margin-top: 18px;
+  }
+
+  .mobile-category-section,
+  .mobile-restro-section {
+    width: 100%;
+  }
+
+  .mobile-section-head {
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .mobile-section-head h2 {
+    font-size: 22px;
+    line-height: 1.08;
+  }
+
+  .mobile-section-head span {
+    font-size: 13px;
+  }
+
+  .mobile-category-row {
+    width: 100%;
+    padding-left: 0;
+    padding-right: 0;
+    gap: 18px;
+    scroll-padding-left: 0;
+  }
+
+  .mobile-category-pill {
+    flex: 0 0 86px;
+  }
+
+  .mobile-category-pill img {
+    width: 76px !important;
+    height: 76px !important;
+    margin-left: auto;
+    margin-right: auto;
+    border-radius: 999px;
+    object-fit: cover;
+    box-shadow: 0 12px 26px rgba(15, 23, 42, 0.16);
+  }
+
+  .mobile-category-pill strong {
+    margin-top: 7px;
+    font-size: 13px;
+    line-height: 1.1;
+  }
+
+  .mobile-offer-rail {
+    width: 100%;
+    padding-left: 0;
+    padding-right: 0;
+    gap: 14px;
+  }
+
+  .mobile-offer-card {
+    min-width: 82%;
+    min-height: 126px;
+    border-radius: 24px;
+    padding: 20px;
+  }
+
+  .mobile-offer-card strong {
+    font-size: 22px;
+  }
+
+  .mobile-restro-list {
+    width: 100%;
+    padding-left: 0;
+    padding-right: 0;
+    gap: 14px;
+  }
+
+  .mobile-restro-card {
+    width: 100%;
+    grid-template-columns: 94px minmax(0, 1fr);
+    gap: 14px;
+    padding: 12px;
+    border-radius: 22px;
+    box-shadow: 0 16px 36px rgba(15, 23, 42, 0.08);
+  }
+
+  .mobile-restro-card img {
+    width: 94px !important;
+    height: 94px !important;
+    border-radius: 18px;
+    object-fit: cover;
+    background: #fff7cc;
+  }
+
+  .mobile-restro-title-row h3 {
+    font-size: 17px;
+    line-height: 1.16;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .mobile-restro-copy p {
+    font-size: 13px;
+    margin-top: 8px;
+  }
+
+  .mobile-restro-copy small {
+    font-size: 12px;
+    margin-top: 9px;
+  }
+
+  .mobile-tools-strip {
+    width: calc(100% - 28px);
+    max-width: none;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .mobile-tools-strip .grid {
+    display: flex;
+    gap: 14px;
+    overflow-x: auto;
+    padding-bottom: 8px;
+    scroll-snap-type: x mandatory;
+  }
+
+  .mobile-tools-strip a {
+    flex: 0 0 82%;
+    min-height: 130px;
+    border-radius: 22px;
+    scroll-snap-align: start;
+  }
+
+  .mobile-tools-strip h3 {
+    font-size: 19px;
+    line-height: 1.15;
+  }
+
+  .mobile-tools-strip p {
+    font-size: 14px;
+    line-height: 1.35;
+  }
+
+  .bottom-nav-grid {
+    width: calc(100% - 12px);
+    max-width: none;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .bottom-nav-item {
+    gap: 4px;
+    font-size: 12px;
+    font-weight: 850;
+  }
+
+  .bottom-nav-icon {
+    width: 26px;
+    height: 26px;
+  }
+
+  .app-card {
+    border-radius: 22px;
+  }
+
+  .app-card p {
+    line-height: 1.45;
+  }
+
+  .app-card .text-2xl {
+    font-size: 1.8rem;
+    line-height: 1.08;
+  }
+}
