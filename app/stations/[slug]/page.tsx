@@ -79,7 +79,9 @@ function safeRating(value: any) {
 }
 
 function restroImage(r: any) {
-  return (
+  const rawImage =
+    r?.RestroDisplayPhoto ||
+    r?.restroDisplayPhoto ||
     r?.RestroImage ||
     r?.restroImage ||
     r?.image ||
@@ -88,8 +90,41 @@ function restroImage(r: any) {
     r?.Photo ||
     r?.logo ||
     r?.Logo ||
-    defaultImage
+    "";
+
+  const image = String(rawImage || "").trim();
+
+  if (!image) return defaultImage;
+
+  if (image.startsWith("http://") || image.startsWith("https://")) {
+    return image;
+  }
+
+  if (image.startsWith("/")) {
+    return image;
+  }
+
+  const supabaseUrl =
+    process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    process.env.SUPABASE_URL ||
+    process.env.SUPABASE_PROJECT_URL ||
+    "";
+
+  if (!supabaseUrl) return defaultImage;
+
+  return `${supabaseUrl.replace(/\/$/, "")}/storage/v1/object/public/restro/${image.replace(/^\/+/, "")}`;
+}
+
+function minOrderValue(r: any) {
+  const value = Number(
+    r?.MinimumOrderValue ??
+      r?.minimumOrderValue ??
+      r?.MinOrder ??
+      r?.MinimumOrder ??
+      0
   );
+
+  return Number.isFinite(value) && value > 0 ? value : 0;
 }
 
 function slugify(value: string) {
@@ -139,7 +174,9 @@ function stationUrl(slug: string) {
 }
 
 function absoluteImage(src: string) {
-  return src.startsWith("http") ? src : `${siteUrl}${src}`;
+  if (!src) return `${siteUrl}${defaultImage}`;
+  if (src.startsWith("http://") || src.startsWith("https://")) return src;
+  return `${siteUrl}${src.startsWith("/") ? src : `/${src}`}`;
 }
 
 function normalizeAbsoluteUrl(value: string) {
@@ -802,7 +839,7 @@ export default async function Page({ params }: { params: { slug: string } }) {
 
                         <p className="mt-2 text-[13px] font-bold leading-5 text-slate-600">
                           Min Order: Rs{" "}
-                          {Number(r.MinOrder || r.MinimumOrder || 0)}
+                          {minOrderValue(r)}
                         </p>
 
                         <p className="mt-1.5 text-[12px] font-semibold leading-5 text-slate-500">
@@ -818,6 +855,7 @@ export default async function Page({ params }: { params: { slug: string } }) {
                         <div className="h-[86px] w-[86px] overflow-hidden rounded-2xl border border-slate-200 bg-slate-100">
                           <Image
                             src={restroImage(r)}
+                            unoptimized={restroImage(r).startsWith("http")}
                             alt={`${restaurantName} food for train travellers at ${stationName}`}
                             title={`${restaurantName} at ${stationName} Railway Station`}
                             className="h-full w-full object-cover"
@@ -825,7 +863,6 @@ export default async function Page({ params }: { params: { slug: string } }) {
                             decoding="async"
                             width={86}
                             height={86}
-                            unoptimized
                           />
                         </div>
 
@@ -1046,3 +1083,4 @@ export default async function Page({ params }: { params: { slug: string } }) {
     </>
   );
 }
+
