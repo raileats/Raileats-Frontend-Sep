@@ -10,6 +10,7 @@ export const revalidate = 0;
 const siteUrl = "https://www.raileats.in";
 const siteName = "RailEats";
 const defaultImage = "/raileats-logo.png";
+const defaultRestroImage = "/categories/thali.png";
 
 function titleCase(str: string) {
   return String(str || "")
@@ -82,6 +83,21 @@ function restroImage(r: any) {
   const rawImage =
     r?.RestroDisplayPhoto ||
     r?.restroDisplayPhoto ||
+    r?.RestroDisplayImage ||
+    r?.restroDisplayImage ||
+    r?.DisplayPhoto ||
+    r?.displayPhoto ||
+    r?.DisplayImage ||
+    r?.displayImage ||
+    r?.RestaurantImage ||
+    r?.restaurantImage ||
+    r?.RestaurantPhoto ||
+    r?.restaurantPhoto ||
+    r?.RestroPhoto ||
+    r?.restroPhoto ||
+    r?.RestroImageUrl ||
+    r?.RestroImageURL ||
+    r?.restroImageUrl ||
     r?.RestroImage ||
     r?.restroImage ||
     r?.image ||
@@ -94,13 +110,17 @@ function restroImage(r: any) {
 
   const image = String(rawImage || "").trim();
 
-  if (!image) return defaultImage;
+  if (!image) return defaultRestroImage;
 
   if (image.startsWith("http://") || image.startsWith("https://")) {
     return image;
   }
 
-  if (image.startsWith("/")) {
+  if (
+    image.startsWith("/") &&
+    !image.startsWith("/storage/") &&
+    !image.includes("/storage/v1/object/public/")
+  ) {
     return image;
   }
 
@@ -110,9 +130,21 @@ function restroImage(r: any) {
     process.env.SUPABASE_PROJECT_URL ||
     "";
 
-  if (!supabaseUrl) return defaultImage;
+  if (!supabaseUrl) return defaultRestroImage;
 
-  return `${supabaseUrl.replace(/\/$/, "")}/storage/v1/object/public/restro/${image.replace(/^\/+/, "")}`;
+  const cleanSupabaseUrl = supabaseUrl.replace(/\/$/, "");
+  const cleanImage = image.replace(/^\/+/, "");
+
+  if (cleanImage.startsWith("storage/v1/object/public/")) {
+    return `${cleanSupabaseUrl}/${cleanImage}`;
+  }
+
+  if (cleanImage.includes("/storage/v1/object/public/")) {
+    const storagePath = cleanImage.split("/storage/v1/object/public/").pop() || "";
+    return `${cleanSupabaseUrl}/storage/v1/object/public/${storagePath}`;
+  }
+
+  return `${cleanSupabaseUrl}/storage/v1/object/public/restro/${cleanImage}`;
 }
 
 function minOrderValue(r: any) {
