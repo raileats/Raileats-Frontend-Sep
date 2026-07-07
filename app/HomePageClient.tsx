@@ -12,6 +12,7 @@ import Offers from "./components/Offers";
 import Steps from "./components/Steps";
 import ExploreRailInfo from "./components/ExploreRailInfo";
 import FooterLinks from "./components/FooterLinks";
+import PartnerForm from "./components/PartnerForm";
 
 const TRAIN_FOOD_LINKS = [
   {
@@ -244,6 +245,7 @@ export default function HomePageClient() {
   const [bulkMessage, setBulkMessage] = useState("");
   const [bulkLoading, setBulkLoading] = useState(false);
   const [popularRestaurants, setPopularRestaurants] = useState<any[]>([]);
+  const [showPartner, setShowPartner] = useState(false);
 
   const getTrackingUser = () => ({
     email: user?.email || null,
@@ -609,6 +611,7 @@ export default function HomePageClient() {
       </section>
 
       <section className="container-app mobile-tools-strip">
+        
         <div className="mb-3">
           <h2 className="app-section-title">Useful Railway Tools</h2>
           <p className="app-muted text-sm">
@@ -632,6 +635,30 @@ export default function HomePageClient() {
               </p>
             </Link>
           ))}
+        </div>
+      </section>
+            <section className="container-app">
+        <div className="app-card p-4 sm:p-5">
+          <p className="text-xs font-black uppercase tracking-wide text-orange-600">
+            RailEats Partner
+          </p>
+
+          <h2 className="mt-2 text-2xl font-black leading-tight text-slate-950">
+            Become Restaurant Partner
+          </h2>
+
+          <p className="mt-2 text-sm font-semibold leading-6 text-slate-600">
+            Join RailEats and receive food orders from train passengers at
+            supported railway stations.
+          </p>
+
+          <button
+            type="button"
+            onClick={() => setShowPartner(true)}
+            className="mt-4 rounded-xl bg-orange-500 px-5 py-3 text-sm font-black text-white shadow-sm active:scale-95"
+          >
+            Become Restaurant Partner
+          </button>
         </div>
       </section>
 
@@ -743,6 +770,7 @@ export default function HomePageClient() {
           </div>
         </div>
       )}
+            {showPartner && <PartnerForm onClose={() => setShowPartner(false)} />}
     </main>
   );
 }
