@@ -17,6 +17,12 @@ type CustomerOrder = {
   trainNumber: string;
   coach: string;
   seat: string;
+  customerName?: string;
+  customerMobile?: string;
+  pnr?: string;
+  subTotal?: number;
+  gstAmount?: number;
+  platformCharge?: number;
   totalAmount: number;
   paymentMode: string;
   status: string;
@@ -63,6 +69,7 @@ export default function ProfilePage() {
   const [orders, setOrders] = useState<CustomerOrder[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [ordersError, setOrdersError] = useState("");
+  const [selectedOrder, setSelectedOrder] = useState<CustomerOrder | null>(null);
 
   const [showBulkModal, setShowBulkModal] = useState(false);
 
@@ -257,6 +264,7 @@ export default function ProfilePage() {
           loading={ordersLoading}
           error={ordersError}
           hasMobile={Boolean(activeMobile)}
+          onOrderOpen={setSelectedOrder}
         />
       )}
 
@@ -322,6 +330,13 @@ export default function ProfilePage() {
           </div>
         </div>
       )}
+
+      {selectedOrder && (
+        <OrderDetailsPanel
+          order={selectedOrder}
+          onClose={() => setSelectedOrder(null)}
+        />
+      )}
     </main>
   );
 }
@@ -331,11 +346,13 @@ function OrderHistorySection({
   loading,
   error,
   hasMobile,
+  onOrderOpen,
 }: {
   orders: CustomerOrder[];
   loading: boolean;
   error: string;
   hasMobile: boolean;
+  onOrderOpen?: (order: CustomerOrder) => void;
 }) {
   return (
     <section className="rounded-2xl border bg-white p-4 shadow space-y-3">
@@ -371,13 +388,19 @@ function OrderHistorySection({
       )}
 
       {!loading && !error && orders.map((order) => (
-        <OrderCard key={order.orderId} order={order} />
+        <OrderCard key={order.orderId} order={order} onOpen={onOrderOpen} />
       ))}
     </section>
   );
 }
 
-function OrderCard({ order }: { order: CustomerOrder }) {
+function OrderCard({
+  order,
+  onOpen,
+}: {
+  order: CustomerOrder;
+  onOpen?: (order: CustomerOrder) => void;
+}) {
   const status = titleCase(order.status || "booked");
   const bookedAt = formatDateTime(order.bookedAt);
   const currentStageAt = formatDateTime(
@@ -423,9 +446,13 @@ function OrderCard({ order }: { order: CustomerOrder }) {
             </div>
 
             <div className="shrink-0 text-right">
-              <div className="text-sm font-black text-slate-800">
+              <button
+                type="button"
+                onClick={() => onOpen?.(order)}
+                className="text-right text-sm font-black text-slate-800 underline-offset-2 hover:underline"
+              >
                 #{order.orderId}
-              </div>
+              </button>
               {order.totalAmount > 0 && (
                 <div className="text-sm font-black text-emerald-600">
                   Rs {Math.round(order.totalAmount)}
@@ -489,7 +516,235 @@ function OrderCard({ order }: { order: CustomerOrder }) {
           {deliveryAt || "-"}
         </span>
       </div>
+
+      <button
+        type="button"
+        onClick={() => onOpen?.(order)}
+        className="w-full border-t border-slate-200 px-4 py-3 text-left text-sm font-black text-orange-600"
+      >
+        View full order details
+      </button>
     </article>
+  );
+}
+
+function OrderDetailsPanel({
+  order,
+  onClose,
+}: {
+  order: CustomerOrder;
+  onClose: () => void;
+}) {
+  const [showJourney, setShowJourney] = useState(false);
+  const [showAmount, setShowAmount] = useState(false);
+  const status = titleCase(order.status || "booked");
+  const bookedAt = formatDateTime(order.bookedAt);
+  const currentStageAt = formatDateTime(
+    order.currentStageAt || order.updatedAt || "",
+  );
+  const deliveryAt = formatDeliveryDate(order.deliveryDate, order.deliveryTime);
+  const items = order.items || [];
+  const history = order.history || [];
+  const subTotal = Number(order.subTotal || 0);
+  const gstAmount = Number(order.gstAmount || 0);
+  const platformCharge = Number(order.platformCharge || 0);
+  const totalAmount = Number(order.totalAmount || 0);
+  const balanceToPay =
+    String(order.paymentMode || "").toLowerCase() === "cod" ? totalAmount : 0;
+  const journeyEntries =
+    history.length > 0
+      ? history
+      : [
+          {
+            oldStatus: "",
+            newStatus: "Booked",
+            note: "Order created",
+            changedBy: "system",
+            changedAt: order.bookedAt,
+            subStatus: "",
+          },
+          {
+            oldStatus: "",
+            newStatus: order.status,
+            note: "Current order stage",
+            changedBy: "",
+            changedAt: order.currentStageAt || order.updatedAt || "",
+            subStatus: order.subStatus || "",
+          },
+        ];
+
+  return (
+    <div className="fixed inset-0 z-[80] overflow-y-auto bg-slate-50">
+      <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 bg-white/95 px-4 py-4 shadow-sm backdrop-blur">
+        <button
+          type="button"
+          onClick={onClose}
+          className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-2xl font-black text-slate-900 shadow-sm"
+          aria-label="Back to profile"
+        >
+          ←
+        </button>
+        <h2 className="text-lg font-black text-slate-950">Order Details</h2>
+        <div className="h-10 w-10" aria-hidden />
+      </div>
+
+      <div className="mx-auto w-full max-w-screen-sm space-y-4 p-4 pb-24">
+        <h3 className="text-xl font-black text-slate-950">Your Order</h3>
+
+        <button
+          type="button"
+          onClick={() => setShowJourney((value) => !value)}
+          className="flex w-full items-center justify-between rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm"
+        >
+          <span className="text-base font-semibold text-slate-900">
+            Current Status : <span className="font-black">{status}</span>
+          </span>
+          <span className="text-xl font-black text-slate-700">
+            {showJourney ? "⌃" : "⌄"}
+          </span>
+        </button>
+
+        {showJourney && (
+          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <h4 className="mb-3 text-sm font-black uppercase tracking-wide text-slate-500">
+              Order Journey
+            </h4>
+            <div className="space-y-4">
+              {journeyEntries.map((entry, index) => (
+                <div key={`${entry.newStatus}-${entry.changedAt}-${index}`} className="flex gap-3">
+                  <div className="flex flex-col items-center">
+                    <span className="mt-1 h-4 w-4 rounded-full bg-green-600" />
+                    {index !== journeyEntries.length - 1 && (
+                      <span className="h-10 w-0.5 bg-green-600" />
+                    )}
+                  </div>
+                  <div>
+                    <div className="text-sm font-black text-slate-900">
+                      {titleCase(entry.newStatus || "Order Update")}
+                    </div>
+                    <div className="text-xs font-semibold text-slate-500">
+                      {formatDateTime(entry.changedAt || "") || "-"}
+                    </div>
+                    {entry.note && (
+                      <div className="text-xs font-semibold text-slate-500">
+                        {entry.note}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          {items.length > 0 ? (
+            <div className="space-y-4">
+              {items.map((item, index) => (
+                <div key={`${item.itemName}-${index}`} className="flex justify-between gap-3">
+                  <div>
+                    <div className="text-base font-black text-slate-950">
+                      {item.itemName || "Food item"}
+                    </div>
+                    <div className="mt-1 text-sm font-semibold text-slate-600">
+                      {item.quantity || 1} x Rs{" "}
+                      {item.quantity > 0
+                        ? Math.round(Number(item.lineTotal || 0) / item.quantity)
+                        : Math.round(Number(item.lineTotal || 0))}
+                    </div>
+                  </div>
+                  <div className="shrink-0 text-base font-black text-slate-900">
+                    Rs {Math.round(Number(item.lineTotal || 0))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-sm font-semibold text-slate-500">
+              Item details are not available for this order.
+            </div>
+          )}
+        </div>
+
+        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <button
+            type="button"
+            onClick={() => setShowAmount((value) => !value)}
+            className="flex w-full items-center justify-between text-left"
+          >
+            <span className="text-base font-semibold text-slate-900">
+              Final Total
+            </span>
+            <span className="text-base font-black text-slate-950">
+              Rs {Math.round(totalAmount)} {showAmount ? "⌃" : "⌄"}
+            </span>
+          </button>
+
+          {showAmount && (
+            <div className="mt-3 space-y-2 border-t border-slate-200 pt-3 text-sm">
+              <AmountRow label="Sub Total" value={subTotal} />
+              <AmountRow label="GST" value={gstAmount} />
+              <AmountRow label="Platform Charge" value={platformCharge} />
+              <AmountRow label="Balance To Pay" value={balanceToPay} />
+            </div>
+          )}
+        </div>
+
+        <DetailBlock
+          rows={[
+            ["RailEats Order Id", order.orderId],
+            ["Status", status],
+            ["Payment Mode", order.paymentMode || "-"],
+            ["Booking Date", bookedAt || "-"],
+            ["Current Stage", currentStageAt || "-"],
+            ["Delivery Date", deliveryAt || "-"],
+          ]}
+        />
+
+        <DetailBlock
+          rows={[
+            ["Passenger Name", order.customerName || "-"],
+            ["Passenger Mobile No.", order.customerMobile || "-"],
+          ]}
+        />
+
+        <DetailBlock
+          rows={[
+            ["PNR", order.pnr || "-"],
+            ["Station Name", stationText(order)],
+            ["Outlet Name", order.restroName],
+            ["Train No.", order.trainNumber || "-"],
+            ["Coach / Seat No.", [order.coach, order.seat].filter(Boolean).join(" / ") || "-"],
+          ]}
+        />
+      </div>
+    </div>
+  );
+}
+
+function AmountRow({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <span className="font-semibold text-slate-600">{label}</span>
+      <span className="font-black text-slate-900">Rs {Math.round(value || 0)}</span>
+    </div>
+  );
+}
+
+function DetailBlock({ rows }: { rows: [string, string][] }) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="space-y-2">
+        {rows.map(([label, value]) => (
+          <div key={label} className="flex justify-between gap-4 text-sm">
+            <span className="font-semibold text-slate-700">{label}</span>
+            <span className="text-right font-semibold text-slate-600">
+              {value || "-"}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
