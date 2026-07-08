@@ -1266,16 +1266,17 @@ textarea {
   .mobile-restro-copy p {
     margin: 0;
     color: #64748b;
-    font-size: 11px;
+    font-size: 13px;
     line-height: 1.3;
-    font-weight: 750;
+    font-weight: 700;
   }
 
   .mobile-restro-copy small {
     display: block;
     margin: 0;
-    font-size: 10px;
-    font-weight: 900;
+    font-size: 11px;
+    font-weight: 700;
+    color: #0f172a;
   }
 @media (min-width: 768px) {
   .app-first-home {
@@ -2165,10 +2166,10 @@ textarea {
   }
 
   .mobile-restro-card .restro-rating-badge {
-    top: 2px;
-    right: 2px;
+    top: 0;
+    right: 0;
     font-size: 11px;
-    padding: 4px 8px;
+    padding: 5px 9px;
   }
 
   .mobile-restro-copy {
@@ -2181,12 +2182,127 @@ textarea {
   .mobile-restro-copy small {
     margin: 0;
   }
+
+  .mobile-restro-title-row h3 {
+    font-size: 14px;
+  }
+
+  .mobile-restro-station {
+    font-size: 12px;
+  }
+
+  .mobile-restro-viewmenu {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: max-content;
+    margin: 2px auto 0;
+    padding: 8px 16px;
+    border-radius: 999px;
+    background: #f97316;
+    color: #ffffff;
+    font-weight: 900;
+    font-size: 13px;
+    box-shadow: 0 8px 20px rgba(249, 115, 22, 0.16);
+    text-align: center;
+    white-space: nowrap;
+  }
 }
 
 @media (min-width: 1180px) {
   .app-first-home {
     max-width: 1240px;
   }
+}
+
+/* Popular restaurants shared card styling */
+.mobile-restro-copy {
+  min-width: 0;
+  padding: 2px 1px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mobile-restro-title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+}
+
+.mobile-restro-title-row h3 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 14px;
+  line-height: 1.18;
+  font-weight: 900;
+}
+
+.mobile-restro-title-row span {
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: #16a34a;
+  color: #fff;
+  padding: 3px 7px;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.mobile-restro-copy p {
+  margin: 0;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.3;
+  font-weight: 700;
+}
+
+.mobile-restro-station {
+  margin: 0;
+  color: #4b5563;
+  font-size: 12px;
+  line-height: 1.3;
+  font-weight: 700;
+}
+
+.mobile-restro-minorder {
+  display: block;
+  margin-top: 2px;
+  color: #0f172a;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.mobile-restro-viewmenu {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: max-content;
+  margin: 2px auto 0;
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: #f97316;
+  color: #ffffff;
+  font-weight: 900;
+  font-size: 13px;
+  box-shadow: 0 8px 20px rgba(249, 115, 22, 0.16);
+  text-align: center;
+  white-space: nowrap;
+}
+
+.restro-rating-badge {
+  position: absolute;
+  top: 0;
+  right: 0;
+  min-width: auto;
+  background: #16a34a;
+  color: #fff;
+  padding: 5px 8px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 11px;
+  line-height: 1;
+  z-index: 40;
+  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.18);
 }
 
 /* ================= CATEGORY CONTINUOUS MARQUEE ================= */
@@ -2575,7 +2691,8 @@ textarea {
     display: block;
     width: 100%;
     flex: 0 0 auto;
-    overflow: visible;
+    overflow: hidden;
+    border-radius: 12px;
   }
 
   .restro-image-wrapper img {
@@ -2587,12 +2704,12 @@ textarea {
 
   .restro-rating-badge {
     position: absolute;
-    top: 2px;
-    right: 2px;
+    top: 0;
+    right: 0;
     min-width: auto;
     background: #16a34a;
     color: #fff;
-    padding: 5px 9px;
+    padding: 5px 8px;
     border-radius: 999px;
     font-weight: 700;
     font-size: 11px;
@@ -2613,14 +2730,14 @@ textarea {
 
   /* restaurant name slightly smaller (~10% down) */
   .mobile-restro-title-row h3 {
-    font-size: 15px;
+    font-size: 14px;
     line-height: 1.12;
     font-weight: 800;
   }
 
   /* station label smaller (~10% down) */
   .mobile-restro-station {
-    font-size: 14px;
+    font-size: 12px;
     color: #4b5563;
     margin-top: 0;
   }
@@ -2630,8 +2747,8 @@ textarea {
     display: block;
     margin-top: 2px;
     color: #0f172a;
-    font-size: 12px;
-    font-weight: 400;
+    font-size: 11px;
+    font-weight: 500;
   }
 
   /* View menu: compact and centered */
@@ -2641,13 +2758,13 @@ textarea {
     justify-content: center;
     width: max-content;
     margin: 2px auto 0;
-    padding: 6px 14px;
-    border-radius: 16px;
-    background: #fff7ed;
-    color: #ea580c;
+    padding: 8px 16px;
+    border-radius: 999px;
+    background: #f97316;
+    color: #ffffff;
     font-weight: 900;
     font-size: 13px;
-    box-shadow: 0 8px 20px rgba(249,115,22,0.12);
+    box-shadow: 0 8px 20px rgba(249,115,22,0.16);
     text-align: center;
     white-space: nowrap;
   }
