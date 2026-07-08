@@ -17,9 +17,13 @@ type OrderRow = {
   Seat?: string | null;
   CustomerName?: string | null;
   CustomerMobile?: string | null;
+  SubTotal?: number | string | null;
+  GSTAmount?: number | string | null;
+  PlatformCharge?: number | string | null;
   TotalAmount?: number | string | null;
   PaymentMode?: string | null;
   Status?: string | null;
+  JourneyPayload?: string | null;
   CreatedAt?: string | null;
   UpdatedAt?: string | null;
   SubStatus?: string | null;
@@ -90,6 +94,17 @@ function getOrderSortTime(order: {
   return Number.isFinite(bookedTime) ? bookedTime : 0;
 }
 
+function parseJourneyPayload(value: unknown) {
+  if (!value) return {};
+
+  try {
+    const parsed = typeof value === "string" ? JSON.parse(value) : value;
+    return parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : {};
+  } catch {
+    return {};
+  }
+}
+
 function groupByOrderId<T extends { OrderId?: string | null }>(rows: T[]) {
   const grouped = new Map<string, T[]>();
 
@@ -132,9 +147,13 @@ export async function GET(req: Request) {
           "Seat",
           "CustomerName",
           "CustomerMobile",
+          "SubTotal",
+          "GSTAmount",
+          "PlatformCharge",
           "TotalAmount",
           "PaymentMode",
           "Status",
+          "JourneyPayload",
           "CreatedAt",
           "UpdatedAt",
           "SubStatus",
@@ -154,9 +173,11 @@ export async function GET(req: Request) {
       );
     }
 
-    const rows = (Array.isArray(data) ? data : []).filter(
+    const fetchedOrders = (Array.isArray(data) ? data : []) as OrderRow[];
+
+    const rows = fetchedOrders.filter(
       (order) => normalizeMobile(order.CustomerMobile || "") === mobile,
-    ) as OrderRow[];
+    );
 
     const orderIds = rows
       .map((order) => String(order.OrderId || ""))
@@ -232,6 +253,7 @@ export async function GET(req: Request) {
       const orderId = order.OrderId || "";
       const restroCode = String(order.RestroCode ?? "");
       const fallbackFile = getRestroFileName(restroCode);
+      const journeyPayload = parseJourneyPayload(order.JourneyPayload);
       const history = historyByOrderId.get(orderId) || [];
       const firstBooked =
         history.find((entry) => normalizeStatus(entry.NewStatus || entry.Status) === "booked") ||
@@ -256,6 +278,12 @@ export async function GET(req: Request) {
         trainNumber: order.TrainNumber || "",
         coach: order.Coach || "",
         seat: order.Seat || "",
+        customerName: order.CustomerName || String(journeyPayload.name || ""),
+        customerMobile: order.CustomerMobile || String(journeyPayload.mobile || ""),
+        pnr: String(journeyPayload.pnr || ""),
+        subTotal: Number(order.SubTotal || 0),
+        gstAmount: Number(order.GSTAmount || 0),
+        platformCharge: Number(order.PlatformCharge || 0),
         totalAmount: Number(order.TotalAmount || 0),
         paymentMode: order.PaymentMode || "",
         status: currentStatus,
