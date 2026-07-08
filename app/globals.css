@@ -1226,65 +1226,57 @@ textarea {
   grid-template-columns: 96px minmax(0, 1fr);
   gap: 10px;
   border: 1px solid rgba(203, 213, 225, 0.85);
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.96);
-  padding: 9px;
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
-}
-
-.mobile-restro-card img {
-  width: 96px;
-  height: 84px;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.96);
+    padding: 9px;
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.05);
   border-radius: 14px;
   object-fit: cover;
 }
 
 .mobile-restro-copy {
-  min-width: 0;
-  padding: 2px 1px;
-}
+    min-width: 0;
+    padding: 2px 1px;
+  }
 
-.mobile-restro-title-row {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 8px;
-}
+  .mobile-restro-title-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-start;
+  }
 
-.mobile-restro-title-row h3 {
-  margin: 0;
-  color: #0f172a;
-  font-size: 14px;
-  line-height: 1.18;
-  font-weight: 1000;
-}
+  .mobile-restro-title-row h3 {
+    margin: 0;
+    color: #0f172a;
+    font-size: 14px;
+    line-height: 1.18;
+    font-weight: 1000;
+  }
 
-.mobile-restro-title-row span {
-  flex: 0 0 auto;
-  border-radius: 999px;
-  background: #16a34a;
-  color: #fff;
-  padding: 3px 7px;
-  font-size: 11px;
-  font-weight: 1000;
-}
+  .mobile-restro-title-row span {
+    flex: 0 0 auto;
+    border-radius: 999px;
+    background: #16a34a;
+    color: #fff;
+    padding: 3px 7px;
+    font-size: 11px;
+    font-weight: 1000;
+  }
 
-.mobile-restro-copy p {
-  margin: 6px 0 0;
-  color: #64748b;
-  font-size: 11px;
-  line-height: 1.3;
-  font-weight: 750;
-}
+  .mobile-restro-copy p {
+    margin: 0;
+    color: #64748b;
+    font-size: 11px;
+    line-height: 1.3;
+    font-weight: 750;
+  }
 
-.mobile-restro-copy small {
-  display: block;
-  margin-top: 6px;
-  color: #f97316;
-  font-size: 10px;
-  font-weight: 900;
-}
-
+  .mobile-restro-copy small {
+    display: block;
+    margin: 0;
+    font-size: 10px;
+    font-weight: 900;
+  }
 @media (min-width: 768px) {
   .app-first-home {
     max-width: 1120px;
@@ -1999,7 +1991,7 @@ textarea {
     padding-top: 4px;
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 4px;
   }
 
   .mobile-restro-title-row h3 {
@@ -2024,9 +2016,9 @@ textarea {
   }
 
   .mobile-restro-copy small {
-    margin-top: 11px;
+    margin-top: 0;
     font-size: 13px;
-    font-weight: 400;
+    font-weight: 500;
     color: #0f172a;
   }
 
@@ -2150,29 +2142,44 @@ textarea {
   }
 
   .mobile-restro-card {
-    min-height: 132px;
+    min-height: 122px;
+    gap: 8px;
+    padding: 10px;
+    border-radius: 14px;
+    box-shadow: 0 7px 16px rgba(15, 23, 42, 0.06);
   }
 
   /* Desktop: ensure image wrapper keeps fixed width so rating overlays correctly */
   .mobile-restro-card .restro-image-wrapper {
     position: relative;
     display: block;
-    flex: 0 0 92px;
-    width: 92px;
+    flex: 0 0 86px;
+    width: 86px;
   }
 
   .mobile-restro-card .restro-image-wrapper img {
     width: 100% !important;
     height: 100% !important;
-    border-radius: 16px !important;
+    border-radius: 14px !important;
     object-fit: cover;
   }
 
   .mobile-restro-card .restro-rating-badge {
-    top: 10px;
-    right: 10px;
-    font-size: 12px;
-    padding: 5px 7px;
+    top: 2px;
+    right: 2px;
+    font-size: 11px;
+    padding: 4px 8px;
+  }
+
+  .mobile-restro-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .mobile-restro-copy p,
+  .mobile-restro-copy small {
+    margin: 0;
   }
 }
 
@@ -2580,15 +2587,15 @@ textarea {
 
   .restro-rating-badge {
     position: absolute;
-    top: 6px;
-    right: 6px;
-    min-width: 40px;
+    top: 2px;
+    right: 2px;
+    min-width: auto;
     background: #16a34a;
     color: #fff;
-    padding: 6px 10px;
+    padding: 5px 9px;
     border-radius: 999px;
     font-weight: 700;
-    font-size: 12px;
+    font-size: 11px;
     line-height: 1;
     z-index: 40;
     box-shadow: 0 6px 14px rgba(15, 23, 42, 0.18);
@@ -2627,20 +2634,20 @@ textarea {
     font-weight: 400;
   }
 
-  /* View menu: larger and centered */
+  /* View menu: compact and centered */
   .mobile-restro-viewmenu {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     width: max-content;
-    margin: 4px auto 0;
-    padding: 8px 18px;
-    border-radius: 18px;
+    margin: 2px auto 0;
+    padding: 6px 14px;
+    border-radius: 16px;
     background: #fff7ed;
     color: #ea580c;
     font-weight: 900;
-    font-size: 18px;
-    box-shadow: 0 8px 22px rgba(249,115,22,0.14);
+    font-size: 13px;
+    box-shadow: 0 8px 20px rgba(249,115,22,0.12);
     text-align: center;
     white-space: nowrap;
   }
