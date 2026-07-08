@@ -315,27 +315,66 @@ export default function HomePageClient() {
   useEffect(() => {
     let ignore = false;
 
+    async function loadPopularRestaurantsFromApi() {
+      const response = await fetch("/api/home/popular-restaurants", {
+        method: "GET",
+        cache: "no-store",
+      });
+
+      const result = await response.json();
+
+      if (
+        response.ok &&
+        result?.success &&
+        Array.isArray(result.data) &&
+        result.data.length > 0
+      ) {
+        return result.data;
+      }
+
+      return [];
+    }
+
+    async function loadPopularRestaurantsFromSupabase() {
+      const { data, error } = await supabase
+        .from("RestroMaster")
+        .select(
+          [
+            "RestroCode",
+            "RestroName",
+            "StationCode",
+            "StationName",
+            "RestroDisplayPhoto",
+            "RaileatsStatus",
+            "RestroRating",
+            "MinimumOrderValue",
+          ].join(",")
+        )
+        .eq("RaileatsStatus", 1)
+        .limit(10);
+
+      if (error) {
+        console.error("Popular restaurants Supabase fallback failed:", error);
+        return [];
+      }
+
+      return Array.isArray(data) ? data : [];
+    }
+
     async function loadPopularRestaurants() {
       try {
-        const response = await fetch("/api/home/popular-restaurants", {
-          method: "GET",
-          cache: "no-store",
-        });
-
-        const result = await response.json();
+        const apiRestaurants = await loadPopularRestaurantsFromApi();
 
         if (ignore) return;
 
-        if (
-          response.ok &&
-          result?.success &&
-          Array.isArray(result.data) &&
-          result.data.length > 0
-        ) {
-          setPopularRestaurants(result.data);
-        } else {
-          setPopularRestaurants([]);
+        if (apiRestaurants.length > 0) {
+          setPopularRestaurants(apiRestaurants);
+          return;
         }
+
+        const supabaseRestaurants = await loadPopularRestaurantsFromSupabase();
+
+        if (!ignore) setPopularRestaurants(supabaseRestaurants);
       } catch (err) {
         console.error("Popular restaurants fetch failed:", err);
         if (!ignore) setPopularRestaurants([]);
