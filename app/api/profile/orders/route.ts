@@ -80,41 +80,33 @@ function normalizeStatus(value: unknown) {
   return String(value ?? "").trim().toLowerCase().replace(/\s+/g, "");
 }
 
+function parseJourneyPayload(value: unknown) {
+  if (!value) return {};
+
+  try {
+    const parsed = typeof value === "string" ? JSON.parse(value) : value;
+    return parsed && typeof parsed === "object"
+      ? (parsed as Record<string, unknown>)
+      : {};
+  } catch {
+    return {};
+  }
+}
+
 function getOrderSortTime(order: {
   deliveryDate: string;
   deliveryTime: string;
   bookedAt: string;
 }) {
   const deliveryTime = order.deliveryTime || "00:00:00";
-  const deliveryDateTime = new Date(`${order.deliveryDate || ""}T${deliveryTime}`).getTime();
+  const deliveryDateTime = new Date(
+    `${order.deliveryDate || ""}T${deliveryTime}`,
+  ).getTime();
 
   if (Number.isFinite(deliveryDateTime)) return deliveryDateTime;
 
   const bookedTime = new Date(order.bookedAt || "").getTime();
   return Number.isFinite(bookedTime) ? bookedTime : 0;
-}
-
-function parseJourneyPayload(value: unknown) {
-  if (!value) return {};
-
-  try {
-    const parsed = typeof value === "string" ? JSON.parse(value) : value;
-    return parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : {};
-  } catch {
-    return {};
-  }
-}
-
-function groupByOrderId<T extends { OrderId?: string | null }>(rows: T[]) {
-  const grouped = new Map<string, T[]>();
-
-  for (const row of rows) {
-    const orderId = String(row.OrderId || "");
-    if (!orderId) continue;
-    grouped.set(orderId, [...(grouped.get(orderId) || []), row]);
-  }
-
-  return grouped;
 }
 
 export async function GET(req: Request) {
@@ -174,7 +166,6 @@ export async function GET(req: Request) {
     }
 
     const fetchedOrders = (Array.isArray(data) ? data : []) as OrderRow[];
-
     const rows = fetchedOrders.filter(
       (order) => normalizeMobile(order.CustomerMobile || "") === mobile,
     );
@@ -191,9 +182,9 @@ export async function GET(req: Request) {
       ),
     );
 
-    const imageByRestroCode = new Map<string, string>();
-    const itemsByOrderId = new Map<string, OrderItemRow[]>();
-    const historyByOrderId = new Map<string, OrderHistoryRow[]>();
+    const imageByRestroCode: Record<string, string> = {};
+    const itemsByOrderId: Record<string, OrderItemRow[]> = {};
+    const historyByOrderId: Record<string, OrderHistoryRow[]> = {};
 
     if (restroCodes.length > 0) {
       const { data: restros, error: restroError } = await serviceClient
@@ -205,15 +196,14 @@ export async function GET(req: Request) {
         console.error("PROFILE RESTRO IMAGE FETCH ERROR:", restroError);
       }
 
-      for (const restro of ((restros || []) as RestroRow[])) {
+      ((restros || []) as RestroRow[]).forEach((restro) => {
         const code = String(restro.RestroCode ?? "");
-        if (code) {
-          imageByRestroCode.set(
-            code,
-            normalizeRestroImage(restro.RestroDisplayPhoto || getRestroFileName(code)),
-          );
-        }
-      }
+        if (!code) return;
+
+        imageByRestroCode[code] = normalizeRestroImage(
+          restro.RestroDisplayPhoto || getRestroFileName(code),
+        );
+      });
     }
 
     if (orderIds.length > 0) {
@@ -225,11 +215,13 @@ export async function GET(req: Request) {
       if (itemsError) {
         console.error("PROFILE ORDER ITEMS FETCH ERROR:", itemsError);
       } else {
-        for (const [orderId, groupedItems] of groupByOrderId(
-          (items || []) as OrderItemRow[],
-        )) {
-          itemsByOrderId.set(orderId, groupedItems);
-        }
+        ((items || []) as OrderItemRow[]).forEach((item) => {
+          const orderId = String(item.OrderId || "");
+          if (!orderId) return;
+
+          if (!itemsByOrderId[orderId]) itemsByOrderId[orderId] = [];
+          itemsByOrderId[orderId].push(item);
+        });
       }
 
       const { data: history, error: historyError } = await serviceClient
@@ -241,11 +233,13 @@ export async function GET(req: Request) {
       if (historyError) {
         console.error("PROFILE ORDER HISTORY FETCH ERROR:", historyError);
       } else {
-        for (const [orderId, groupedHistory] of groupByOrderId(
-          (history || []) as OrderHistoryRow[],
-        )) {
-          historyByOrderId.set(orderId, groupedHistory);
-        }
+        ((history || []) as OrderHistoryRow[]).forEach((entry) => {
+          const orderId = String(entry.OrderId || "");
+          if (!orderId) return;
+
+          if (!historyByOrderId[orderId]) historyByOrderId[orderId] = [];
+          historyByOrderId[orderId].push(entry);
+        });
       }
     }
 
@@ -254,10 +248,11 @@ export async function GET(req: Request) {
       const restroCode = String(order.RestroCode ?? "");
       const fallbackFile = getRestroFileName(restroCode);
       const journeyPayload = parseJourneyPayload(order.JourneyPayload);
-      const history = historyByOrderId.get(orderId) || [];
+      const history = historyByOrderId[orderId] || [];
       const firstBooked =
-        history.find((entry) => normalizeStatus(entry.NewStatus || entry.Status) === "booked") ||
-        history[0];
+        history.find(
+          (entry) => normalizeStatus(entry.NewStatus || entry.Status) === "booked",
+        ) || history[0];
       const lastHistory = history[history.length - 1];
       const currentStatus =
         order.Status ||
@@ -293,9 +288,8 @@ export async function GET(req: Request) {
         currentStageAt,
         bookingSource: order.BookingSource || "",
         imageUrl:
-          imageByRestroCode.get(restroCode) ||
-          normalizeRestroImage(fallbackFile),
-        items: (itemsByOrderId.get(orderId) || []).map((item) => ({
+          imageByRestroCode[restroCode] || normalizeRestroImage(fallbackFile),
+        items: (itemsByOrderId[orderId] || []).map((item) => ({
           itemName: item.ItemName || "",
           quantity: Number(item.Quantity || 0),
           lineTotal: Number(item.LineTotal || 0),
