@@ -1892,7 +1892,7 @@ textarea {
   }
 
   .mobile-section-head h2 {
-    font-size: 26px;
+    font-size: 20px;
     line-height: 1.05;
     letter-spacing: 0;
   }
@@ -2000,7 +2000,7 @@ textarea {
   }
 
   .mobile-restro-title-row h3 {
-    font-size: 19px;
+    font-size: 17px;
     line-height: 1.12;
     font-weight: 800;
     display: -webkit-box;
@@ -2588,6 +2588,23 @@ textarea {
     box-shadow: 0 6px 14px rgba(15,23,42,0.18);
   }
 
+  /* view menu overlay (positioned over image bottom center) */
+  .restro-image-wrapper .mobile-restro-viewmenu {
+    position: absolute;
+    left: 50%;
+    transform: translate(-50%, 50%);
+    bottom: -12px;
+    background: #fff7ed;
+    color: #ea580c;
+    padding: 8px 16px;
+    border-radius: 18px;
+    font-weight: 900;
+    font-size: 20px;
+    box-shadow: 0 8px 18px rgba(249,115,22,0.12);
+    z-index: 9;
+    white-space: nowrap;
+  }
+
   /* hide any legacy inline rating span in title row (server/client mismatch fallback) */
   .mobile-restro-title-row span {
     display: none !important;
@@ -2600,7 +2617,7 @@ textarea {
 
   /* restaurant name slightly smaller (~10% down) */
   .mobile-restro-title-row h3 {
-    font-size: 17px;
+    font-size: 15px;
     line-height: 1.12;
     font-weight: 800;
   }
@@ -2617,7 +2634,7 @@ textarea {
     display: block;
     margin-top: 6px;
     color: #0f172a;
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 400;
   }
 
@@ -2644,6 +2661,16 @@ textarea {
 
   .mobile-restro-card {
     margin: 0 6px;
+    position: relative;
+    padding-bottom: 28px; /* allow space for viewmenu overlay */
+  }
+
+  /* Desktop: also position viewmenu inside image wrapper */
+  .mobile-restro-card .restro-image-wrapper .mobile-restro-viewmenu {
+    font-size: 16px;
+    padding: 6px 12px;
+    bottom: -10px;
+    transform: translateX(-50%) translateY(50%);
   }
 }
 
