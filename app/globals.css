@@ -3052,6 +3052,59 @@ textarea {
   }
 }
 
+/* ================= STRONGER BOTTOM NAV READABILITY ON GLASS ================= */
+
+.bottom-nav-item {
+  color: #475569 !important;
+  font-weight: 800 !important;
+  text-shadow: 0 1px 1px rgba(255, 255, 255, 0.9);
+}
+
+.bottom-nav-item span {
+  color: inherit !important;
+}
+
+.bottom-nav-icon {
+  stroke-width: 2.7 !important;
+  filter: drop-shadow(0 1px 1px rgba(255, 255, 255, 0.75));
+}
+
+.bottom-nav-item.active {
+  color: #0f172a !important;
+}
+
+.nav-home .bottom-nav-icon {
+  color: #0b63f6 !important;
+}
+
+.nav-pnr .bottom-nav-icon {
+  color: #db2777 !important;
+}
+
+.nav-train .bottom-nav-icon {
+  color: #ea580c !important;
+}
+
+.nav-profile .bottom-nav-icon {
+  color: #7c3aed !important;
+}
+
+.bottom-nav-item.active span {
+  color: #1f2937 !important;
+  font-weight: 900 !important;
+}
+
+@media (max-width: 767px) {
+  .bottom-nav-item {
+    color: #526176 !important;
+    font-weight: 850 !important;
+  }
+
+  .bottom-nav-icon {
+    stroke-width: 2.8 !important;
+  }
+}
+
 /* ================= GLASS TOP/BOTTOM BAR + SCROLL HIDE ================= */
 
 .navbar {
