@@ -2149,6 +2149,27 @@ textarea {
   .mobile-restro-card {
     min-height: 132px;
   }
+
+  /* Desktop: ensure image wrapper keeps fixed width so rating overlays correctly */
+  .mobile-restro-card .restro-image-wrapper {
+    display: block;
+    flex: 0 0 126px;
+    width: 126px;
+  }
+
+  .mobile-restro-card .restro-image-wrapper img {
+    width: 100% !important;
+    height: 100% !important;
+    border-radius: 16px !important;
+    object-fit: cover;
+  }
+
+  .mobile-restro-card .restro-rating-badge {
+    top: 10px;
+    right: 10px;
+    font-size: 12px;
+    padding: 5px 7px;
+  }
 }
 
 @media (min-width: 1180px) {
@@ -2558,10 +2579,10 @@ textarea {
     right: 8px;
     background: #16a34a;
     color: #fff;
-    padding: 4px 6px;
+    padding: 6px 8px;
     border-radius: 12px;
     font-weight: 700;
-    font-size: 11px;
+    font-size: 13px;
     line-height: 1;
     z-index: 10;
     box-shadow: 0 6px 14px rgba(15,23,42,0.18);
@@ -2574,13 +2595,14 @@ textarea {
 
   /* Reduce text sizes ~10% for compact view */
   .mobile-section-head h2 {
-    font-size: 24px;
+    font-size: 22px;
   }
 
   /* restaurant name slightly smaller (~10% down) */
   .mobile-restro-title-row h3 {
-    font-size: 19px;
+    font-size: 17px;
     line-height: 1.12;
+    font-weight: 800;
   }
 
   /* station label smaller (~10% down) */
@@ -2608,10 +2630,20 @@ textarea {
     border-radius: 18px;
     background: #fff7ed;
     color: #ea580c;
-    font-weight: 800;
-    font-size: 17px;
+    font-weight: 900;
+    font-size: 19px;
     box-shadow: 0 8px 18px rgba(249,115,22,0.12);
     text-align: center;
+  }
+
+  /* balance gutters between two-up cards */
+  .mobile-restro-list {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .mobile-restro-card {
+    margin: 0 6px;
   }
 }
 
