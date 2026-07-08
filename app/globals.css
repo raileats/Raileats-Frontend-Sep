@@ -2202,10 +2202,17 @@ textarea {
 
 }
 
-/* ================= HOME WIDTH ALIGN FIX ================= */
+/* ================= HOME FINAL RESPONSIVE ALIGN FIX ================= */
 
+/* DESKTOP / LAPTOP */
 @media (min-width: 768px) {
-  .mobile-native-home,
+  .mobile-native-home {
+    width: 100%;
+    max-width: 900px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
   .mobile-home-hero,
   .home-hero-slider-slot,
   .mobile-search-shell,
@@ -2218,31 +2225,30 @@ textarea {
     margin-right: auto;
   }
 
-  .mobile-search-shell {
-    max-width: 900px !important;
-  }
-
-  .mobile-search-shell .searchbox-shell,
   .mobile-search-shell .searchbox-card {
     width: 100%;
-    max-width: 900px;
   }
 
   .mobile-category-row {
+    width: 100%;
     overflow: hidden;
   }
 
   .mobile-category-track {
     display: flex;
-    justify-content: space-between;
-    gap: 20px;
     width: 100%;
+    gap: 22px;
+    justify-content: space-between;
     animation: none !important;
+    transform: none !important;
+  }
+
+  .mobile-category-track .mobile-category-pill:nth-child(n + 9) {
+    display: none;
   }
 
   .mobile-category-pill {
-    flex: 1 1 0;
-    max-width: 90px;
+    flex: 0 0 auto;
   }
 
   .mobile-offer-rail {
@@ -2260,31 +2266,51 @@ textarea {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
     gap: 16px;
-    width: 100%;
   }
 }
 
+/* MOBILE */
 @media (max-width: 767px) {
-  .mobile-native-home,
+  .mobile-native-home {
+    width: 100%;
+    max-width: none;
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
   .mobile-home-hero,
   .home-hero-slider-slot,
   .mobile-search-shell,
   .mobile-category-section,
   .mobile-offer-rail,
   .mobile-restro-section {
-    width: calc(100% - 24px);
-    max-width: 100%;
+    width: 100%;
+    max-width: none;
     margin-left: auto;
     margin-right: auto;
   }
 
   .mobile-search-shell .searchbox-card {
     width: 100%;
+    max-width: none;
+    padding: 18px;
+    border-radius: 24px;
+  }
+
+  .mobile-search-shell .searchbox-tabs {
+    width: 100%;
+  }
+
+  .mobile-search-shell .searchbox-input,
+  .mobile-search-shell .app-input {
+    width: 100%;
   }
 
   .mobile-category-row {
     width: 100%;
     overflow: hidden !important;
+    padding-left: 0;
+    padding-right: 0;
   }
 
   .mobile-category-track {
@@ -2303,23 +2329,24 @@ textarea {
     height: 86px !important;
   }
 
-  .mobile-category-pill strong {
-    font-size: 14px;
-  }
-
   .mobile-offer-rail {
     display: flex;
+    width: 100%;
     overflow-x: auto;
     gap: 14px;
+    padding-left: 0;
+    padding-right: 0;
   }
 
   .mobile-offer-card {
     flex: 0 0 88%;
-    min-width: 88%;
+    min-width: 88% !important;
   }
 
   .mobile-restro-list {
     width: 100%;
+    padding-left: 0;
+    padding-right: 0;
   }
 }
 
