@@ -20,8 +20,25 @@ type CustomerOrder = {
   totalAmount: number;
   paymentMode: string;
   status: string;
+  subStatus?: string;
   bookedAt: string;
+  updatedAt?: string;
+  currentStageAt?: string;
+  bookingSource?: string;
   imageUrl: string;
+  items?: {
+    itemName: string;
+    quantity: number;
+    lineTotal: number;
+  }[];
+  history?: {
+    oldStatus: string;
+    newStatus: string;
+    note: string;
+    changedBy: string;
+    changedAt: string;
+    subStatus: string;
+  }[];
 };
 
 type OrdersResponse = {
@@ -363,7 +380,17 @@ function OrderHistorySection({
 function OrderCard({ order }: { order: CustomerOrder }) {
   const status = titleCase(order.status || "booked");
   const bookedAt = formatDateTime(order.bookedAt);
+  const currentStageAt = formatDateTime(
+    order.currentStageAt || order.updatedAt || "",
+  );
   const deliveryAt = formatDeliveryDate(order.deliveryDate, order.deliveryTime);
+  const itemSummary = (order.items || [])
+    .filter((item) => item.itemName)
+    .slice(0, 2)
+    .map((item) =>
+      item.quantity > 0 ? `${item.quantity}x ${item.itemName}` : item.itemName,
+    )
+    .join(", ");
 
   return (
     <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -388,6 +415,11 @@ function OrderCard({ order }: { order: CustomerOrder }) {
               <p className="text-sm font-semibold text-slate-600">
                 {stationText(order)}
               </p>
+              {itemSummary && (
+                <p className="mt-1 max-w-[220px] truncate text-xs font-semibold text-slate-500">
+                  {itemSummary}
+                </p>
+              )}
             </div>
 
             <div className="shrink-0 text-right">
@@ -435,9 +467,16 @@ function OrderCard({ order }: { order: CustomerOrder }) {
             </div>
 
             <div>
-              <div className="text-sm font-black text-slate-900">{status}</div>
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="text-sm font-black text-slate-900">{status}</div>
+                {order.subStatus && (
+                  <span className="rounded-full bg-orange-50 px-2 py-0.5 text-[10px] font-black text-orange-600">
+                    {titleCase(order.subStatus)}
+                  </span>
+                )}
+              </div>
               <div className="text-xs font-semibold text-slate-500">
-                Current order stage
+                {currentStageAt || "Current order stage"}
               </div>
             </div>
           </div>
