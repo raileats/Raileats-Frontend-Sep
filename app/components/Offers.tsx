@@ -75,15 +75,16 @@ export default function Offers() {
               },
             })
           }
-          className="app-card-compact border-yellow-200 bg-yellow-50 p-4 text-left"
+          className="offer-card offer-yellow"
         >
-          <div className="text-lg font-black text-slate-950">Flat Rs 20 OFF</div>
-          <p className="mt-1 text-sm font-semibold text-slate-600">
-            On all orders above Rs 250
-          </p>
-          <div className="mt-3 inline-flex rounded-full bg-white px-3 py-1 text-xs font-black text-orange-600 shadow-sm">
-            Code: REL20
+          <div className="offer-left">
+            <div className="offer-icon">💳</div>
+            <div>
+              <div className="offer-title">Flat Rs 20 OFF</div>
+              <div className="offer-sub">On all orders above Rs 250</div>
+            </div>
           </div>
+          <div className="offer-code">REL20</div>
         </button>
 
         <button
@@ -97,15 +98,16 @@ export default function Offers() {
               },
             })
           }
-          className="app-card-compact border-orange-200 bg-orange-50 p-4 text-left"
+          className="offer-card offer-green"
         >
-          <div className="text-lg font-black text-slate-950">Flat Rs 50 OFF</div>
-          <p className="mt-1 text-sm font-semibold text-slate-600">
-            On all orders above Rs 500
-          </p>
-          <div className="mt-3 inline-flex rounded-full bg-white px-3 py-1 text-xs font-black text-orange-600 shadow-sm">
-            Code: RE50
+          <div className="offer-left">
+            <div className="offer-icon">🎁</div>
+            <div>
+              <div className="offer-title">Flat Rs 50 OFF</div>
+              <div className="offer-sub">On all orders above Rs 500</div>
+            </div>
           </div>
+          <div className="offer-code">RE50</div>
         </button>
       </div>
     </section>
