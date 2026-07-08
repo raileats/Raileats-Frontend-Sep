@@ -527,6 +527,89 @@ export default function HomePageClient() {
   const restaurantsToShow = popularRestaurants;
   const restroListRef = useRef<HTMLDivElement | null>(null);
 
+  useEffect(() => {
+    const container = restroListRef.current;
+
+    if (!container || restaurantsToShow.length <= 2) return;
+
+    let autoSlideId: ReturnType<typeof window.setInterval> | null = null;
+    let resumeId: ReturnType<typeof window.setTimeout> | null = null;
+    let currentGroup = 0;
+
+    const isMobile = () => window.innerWidth < 768;
+
+    const getGroupCount = () => Math.max(1, Math.ceil(restaurantsToShow.length / 2));
+
+    const scrollToGroup = (group: number) => {
+      if (!isMobile()) return;
+
+      container.scrollTo({
+        left: group * container.clientWidth,
+        behavior: "smooth",
+      });
+    };
+
+    const stopAutoSlide = () => {
+      if (autoSlideId) {
+        window.clearInterval(autoSlideId);
+        autoSlideId = null;
+      }
+    };
+
+    const startAutoSlide = () => {
+      stopAutoSlide();
+
+      if (!isMobile() || restaurantsToShow.length <= 2) return;
+
+      autoSlideId = window.setInterval(() => {
+        const groupCount = getGroupCount();
+        currentGroup = (currentGroup + 1) % groupCount;
+        scrollToGroup(currentGroup);
+      }, 3200);
+    };
+
+    const syncCurrentGroup = () => {
+      if (!isMobile()) return;
+
+      const group = Math.round(container.scrollLeft / Math.max(container.clientWidth, 1));
+      currentGroup = Math.max(0, Math.min(group, getGroupCount() - 1));
+    };
+
+    const pauseThenResume = () => {
+      stopAutoSlide();
+      syncCurrentGroup();
+
+      if (resumeId) window.clearTimeout(resumeId);
+      resumeId = window.setTimeout(startAutoSlide, 2600);
+    };
+
+    const handleScroll = () => {
+      if (resumeId) window.clearTimeout(resumeId);
+      resumeId = window.setTimeout(syncCurrentGroup, 140);
+    };
+
+    const handleResize = () => {
+      syncCurrentGroup();
+      startAutoSlide();
+    };
+
+    container.addEventListener("touchstart", pauseThenResume, { passive: true });
+    container.addEventListener("pointerdown", pauseThenResume, { passive: true });
+    container.addEventListener("scroll", handleScroll, { passive: true });
+    window.addEventListener("resize", handleResize);
+
+    startAutoSlide();
+
+    return () => {
+      stopAutoSlide();
+      if (resumeId) window.clearTimeout(resumeId);
+      container.removeEventListener("touchstart", pauseThenResume);
+      container.removeEventListener("pointerdown", pauseThenResume);
+      container.removeEventListener("scroll", handleScroll);
+      window.removeEventListener("resize", handleResize);
+    };
+  }, [restaurantsToShow.length]);
+
   return (
     <main className="customer-app-main home-app-shell">
       <section className="mobile-native-home app-first-home" aria-label="RailEats home">
@@ -682,59 +765,6 @@ export default function HomePageClient() {
           </div>
         </section>
       </section>
-
-      {/* Mobile: auto-slide popular restaurants in pairs */}
-      <script
-        dangerouslySetInnerHTML={{
-          __html: `
-            (function(){
-              try{
-                const container = document.querySelector('.mobile-restro-list');
-                if(!container) return;
-
-                const cards = container.querySelectorAll('.mobile-restro-card');
-                const total = Math.max(1, Math.ceil(cards.length / 2));
-                if (cards.length <= 2) return;
-
-                let autoId = null;
-                let idx = 0;
-                const startAuto = ()=>{
-                  stopAuto();
-                  autoId = setInterval(()=>{
-                    idx = (idx + 1) % total;
-                    container.scrollTo({ left: idx * container.clientWidth, behavior: 'smooth' });
-                  }, 2000);
-                };
-                const stopAuto = ()=>{ if(autoId){ clearInterval(autoId); autoId = null; } };
-
-                // start only on small screens
-                function shouldRun(){ return window.innerWidth < 768; }
-
-                if(!shouldRun()) return;
-                // set up snapping after user scroll
-                let scrub = null;
-                container.addEventListener('scroll', ()=>{
-                  if(scrub) clearTimeout(scrub);
-                  scrub = setTimeout(()=>{
-                    const group = Math.round(container.scrollLeft / container.clientWidth);
-                    idx = Math.max(0, Math.min(group, total - 1));
-                    container.scrollTo({ left: idx * container.clientWidth, behavior: 'smooth' });
-                  }, 120);
-                }, { passive: true });
-
-                // pause on pointer enter
-                container.addEventListener('pointerenter', stopAuto);
-                container.addEventListener('pointerleave', startAuto);
-
-                startAuto();
-                window.addEventListener('resize', ()=>{
-                  if(!shouldRun()) stopAuto(); else startAuto();
-                });
-              }catch(e){ console.error(e); }
-            })();
-          `,
-        }}
-      />
 
       <div className="hidden">
         <HeroSlider />
