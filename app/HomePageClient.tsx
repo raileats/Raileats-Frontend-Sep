@@ -540,9 +540,10 @@ export default function HomePageClient() {
           </div>
 
           <div className="mobile-category-row">
-            {FOOD_CATEGORIES.map((category) => (
+  <div className="mobile-category-track">
+    {[...FOOD_CATEGORIES, ...FOOD_CATEGORIES].map((category, index) => (
               <button
-                key={category.name}
+                key={`${category.name}-${index}`}
                 type="button"
                 className="mobile-category-pill active:scale-95"
                 onClick={() => {
