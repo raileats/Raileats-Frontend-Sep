@@ -515,7 +515,7 @@ function formatDateTime(value: string) {
   if (Number.isNaN(date.getTime())) return value;
 
   return date.toLocaleString("en-IN", {
-    day: "short",
+    day: "2-digit",
     month: "short",
     year: "numeric",
     hour: "2-digit",
@@ -533,7 +533,7 @@ function formatDeliveryDate(dateValue: string, timeValue: string) {
   }
 
   return date.toLocaleString("en-IN", {
-    day: "short",
+    day: "2-digit",
     month: "short",
     year: "numeric",
     hour: "2-digit",
