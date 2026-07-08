@@ -849,13 +849,23 @@ export default function HomePageClient() {
       </section>
 
       <section className="container-app">
-        <div className="partner-cta-card" onClick={() => setShowPartner(true)}>
+        <div className="partner-cta-card">
           <div className="partner-left">🍽️</div>
           <div className="partner-body">
             <small className="partner-eyebrow">RAILEATS PARTNER</small>
             <div className="partner-title">Become Restaurant Partner</div>
           </div>
           <div className="partner-action">›</div>
+
+          <div className="ml-3">
+            <button
+              type="button"
+              onClick={() => setShowPartner(true)}
+              className="partner-open-button"
+            >
+              Become a Partner
+            </button>
+          </div>
         </div>
       </section>
 
