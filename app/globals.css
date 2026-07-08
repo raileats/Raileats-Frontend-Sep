@@ -1999,12 +1999,12 @@ textarea {
     padding-top: 4px;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 6px;
   }
 
   .mobile-restro-title-row h3 {
     font-size: 17px;
-    line-height: 1.12;
+    line-height: 1.15;
     font-weight: 800;
     display: -webkit-box;
     -webkit-line-clamp: 2;
@@ -2155,9 +2155,10 @@ textarea {
 
   /* Desktop: ensure image wrapper keeps fixed width so rating overlays correctly */
   .mobile-restro-card .restro-image-wrapper {
+    position: relative;
     display: block;
-    flex: 0 0 126px;
-    width: 126px;
+    flex: 0 0 92px;
+    width: 92px;
   }
 
   .mobile-restro-card .restro-image-wrapper img {
@@ -2579,20 +2580,20 @@ textarea {
 
   .restro-rating-badge {
     position: absolute;
-    top: 8px;
-    right: 8px;
+    top: 6px;
+    right: 6px;
+    min-width: 40px;
     background: #16a34a;
     color: #fff;
-    padding: 6px 8px;
-    border-radius: 12px;
+    padding: 6px 10px;
+    border-radius: 999px;
     font-weight: 700;
-    font-size: 13px;
+    font-size: 12px;
     line-height: 1;
     z-index: 40;
-    box-shadow: 0 6px 14px rgba(15,23,42,0.18);
+    box-shadow: 0 6px 14px rgba(15, 23, 42, 0.18);
   }
 
-  /* view menu overlay (positioned over image bottom center) */
   /* hide any legacy inline rating span in title row (server/client mismatch fallback) */
   .mobile-restro-title-row span {
     display: none !important;
@@ -2614,13 +2615,13 @@ textarea {
   .mobile-restro-station {
     font-size: 14px;
     color: #4b5563;
-    margin-top: 4px;
+    margin-top: 0;
   }
 
   /* min-order: smaller, black, not bold */
   .mobile-restro-minorder {
     display: block;
-    margin-top: 6px;
+    margin-top: 2px;
     color: #0f172a;
     font-size: 12px;
     font-weight: 400;
@@ -2628,17 +2629,20 @@ textarea {
 
   /* View menu: larger and centered */
   .mobile-restro-viewmenu {
-    display: block;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     width: max-content;
-    margin: 10px auto 0;
+    margin: 4px auto 0;
     padding: 8px 18px;
     border-radius: 18px;
     background: #fff7ed;
     color: #ea580c;
     font-weight: 900;
-    font-size: 19px;
-    box-shadow: 0 8px 18px rgba(249,115,22,0.12);
+    font-size: 18px;
+    box-shadow: 0 8px 22px rgba(249,115,22,0.14);
     text-align: center;
+    white-space: nowrap;
   }
 
   /* balance gutters between two-up cards */
@@ -2650,16 +2654,8 @@ textarea {
   .mobile-restro-card {
     margin: 0 6px;
     position: relative;
-    padding-bottom: 36px; /* allow space for viewmenu overlay */
+    padding-bottom: 0;
     overflow: visible;
-  }
-
-  /* Desktop: also position viewmenu inside image wrapper */
-  .mobile-restro-card .restro-image-wrapper .mobile-restro-viewmenu {
-    font-size: 16px;
-    padding: 6px 12px;
-    bottom: -10px;
-    transform: translateX(-50%) translateY(50%);
   }
 }
 
