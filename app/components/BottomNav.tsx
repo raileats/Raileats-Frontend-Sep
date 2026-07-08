@@ -42,21 +42,21 @@ export default function BottomNav() {
   return (
     <nav className="bottom-nav" aria-label="Primary mobile navigation">
       <ul className="bottom-nav-grid">
-        <li>
+        <li className="nav-home">
           <Item active={pathname === "/"} onClick={goTop}>
             <Home className="bottom-nav-icon" />
             <span>Home</span>
           </Item>
         </li>
 
-        <li>
+        <li className="nav-pnr">
           <Item active={pathname.startsWith("/pnr-status")} href="/pnr-status">
             <ClipboardList className="bottom-nav-icon" />
             <span>PNR Status</span>
           </Item>
         </li>
 
-        <li>
+        <li className="nav-train">
           <Item
             active={pathname.startsWith("/live-train-status")}
             href="/live-train-status"
@@ -66,7 +66,7 @@ export default function BottomNav() {
           </Item>
         </li>
 
-        <li>
+        <li className="nav-profile">
           <Item
             active={pathname.startsWith("/profile")}
             onClick={() => router.push("/profile")}
