@@ -255,7 +255,7 @@ textarea {
 }
 
 .bottom-nav-item.active {
-  color: #f97316; /* active color (orange) */
+  /* keep label color unchanged; icons have fixed colors per-item */
 }
 
 .bottom-nav-icon {
@@ -269,14 +269,21 @@ textarea {
   position: absolute;
   left: 50%;
   transform: translateX(-50%);
-  bottom: 10px;
+  bottom: 4px; /* place underline low so it does not overlap icons */
   width: 48px;
   height: 4px;
   border-radius: 999px;
-  background: #f97316; /* orange underline for active tab */
+  background: #3F2A1E; /* dark brown underline for active tab */
+  z-index: 0;
 }
 
-.bottom-nav-item.active .bottom-nav-icon{ color: #f97316; }
+.bottom-nav-item .bottom-nav-icon{ position: relative; z-index: 2; }
+
+/* Fixed icon colors per nav item */
+.nav-home .bottom-nav-icon{ color: #2563EB; }
+.nav-pnr .bottom-nav-icon{ color: #ec4899; }
+.nav-train .bottom-nav-icon{ color: #f97316; }
+.nav-profile .bottom-nav-icon{ color: #8b5cf6; }
 
 .bottom-logo-pill {
   width: 34px;
