@@ -255,7 +255,7 @@ textarea {
 }
 
 .bottom-nav-item.active {
-  color: #2563EB; /* active color */
+  color: #f97316; /* active color (orange) */
 }
 
 .bottom-nav-icon {
@@ -273,8 +273,10 @@ textarea {
   width: 48px;
   height: 4px;
   border-radius: 999px;
-  background: #3F2A1E; /* darker brown underline for active tab */
+  background: #f97316; /* orange underline for active tab */
 }
+
+.bottom-nav-item.active .bottom-nav-icon{ color: #f97316; }
 
 .bottom-logo-pill {
   width: 34px;
@@ -2048,10 +2050,19 @@ textarea {
   .railway-body p{ margin:6px 0 0; font-size:13px; color:#64748b; }
   .railway-action{ margin-left:auto; font-size:22px; color:#cbd5e1; }
 
-  /* make railway tool chevron a small pill like design */
-  .railway-action{
-    width:40px; height:40px; display:inline-flex; align-items:center; justify-content:center; border-radius:999px; background:#fff; color:#cbd5e1; box-shadow:0 10px 30px rgba(63,42,30,0.12);
-  }
+  /* variants */
+  .railway-tool-card{ display:flex; align-items:center; gap:12px; padding:14px; border-radius:14px; border:1px solid rgba(226,232,240,0.9); text-decoration:none; }
+  .railway-tool-card .railway-icon{ width:56px; height:56px; border-radius:12px; display:inline-flex; align-items:center; justify-content:center; font-size:22px; }
+
+  .railway-tool-card.blue{ background: linear-gradient(90deg,#f0f8ff,#eef8ff); border-color: rgba(59,130,246,0.09); }
+  .railway-tool-card.blue .railway-icon{ background: linear-gradient(180deg,#ffffff,#eef8ff); color:#2563EB; box-shadow:0 6px 18px rgba(37,99,235,0.06); }
+  .railway-tool-card.blue .tool-underline{ width:36px; height:4px; border-radius:999px; background:#2563EB; margin:8px 0; }
+  .railway-tool-card.blue .railway-action{ width:36px; height:36px; display:inline-flex; align-items:center; justify-content:center; border-radius:999px; background:#2563EB; color:#fff; box-shadow:0 8px 22px rgba(37,99,235,0.12); }
+
+  .railway-tool-card.purple{ background: linear-gradient(90deg,#faf5ff,#f7f3ff); border-color: rgba(139,92,246,0.08); }
+  .railway-tool-card.purple .railway-icon{ background: linear-gradient(180deg,#fff,#f6f0ff); color:#7c3aed; box-shadow:0 6px 18px rgba(124,58,237,0.06); }
+  .railway-tool-card.purple .tool-underline{ width:36px; height:4px; border-radius:999px; background:#7c3aed; margin:8px 0; }
+  .railway-tool-card.purple .railway-action{ width:36px; height:36px; display:inline-flex; align-items:center; justify-content:center; border-radius:999px; background:#7c3aed; color:#fff; box-shadow:0 8px 22px rgba(124,58,237,0.12); }
 
   /* Partner CTA compact card */
   .partner-cta-card{
@@ -2061,9 +2072,12 @@ textarea {
   .partner-eyebrow{ display:block; font-size:11px; font-weight:900; color:#f97316 }
   .partner-title{ font-size:16px; font-weight:900; color:#0f172a }
   .partner-action{ margin-left:auto; font-size:22px; color:#e5e7eb }
+  .partner-desc{ margin-top:8px; color:#475569; font-size:14px; }
+
+  .partner-cta-row{ margin-top:12px }
 
   .partner-open-button{
-    background:#3F2A1E; color:#fff; padding:8px 12px; border-radius:10px; font-weight:800; border:0; cursor:pointer; box-shadow:0 10px 28px rgba(63,42,30,0.14);
+    background:#f97316; color:#fff; padding:10px 16px; border-radius:10px; font-weight:800; border:0; cursor:pointer; box-shadow:0 10px 28px rgba(249,115,22,0.14);
   }
 
   .mobile-restro-card {
