@@ -2916,3 +2916,91 @@ textarea {
   }
 }
 
+/* ================= FINAL MOBILE NAV + TOOLS + RESTRO CAROUSEL FIX ================= */
+
+.bottom-nav-item {
+  padding-bottom: 10px;
+}
+
+.bottom-nav-item.active::after {
+  bottom: -10px !important;
+  z-index: 1;
+}
+
+.bottom-nav-item .bottom-nav-icon,
+.bottom-nav-item span {
+  position: relative;
+  z-index: 2;
+}
+
+@media (max-width: 767px) {
+  .bottom-nav-item {
+    padding-bottom: 11px;
+  }
+
+  .bottom-nav-item.active::after {
+    bottom: -9px !important;
+    width: 46px;
+    height: 4px;
+  }
+
+  .mobile-tools-strip .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .railway-tool-card {
+    min-height: 210px;
+    display: flex !important;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: flex-start;
+    gap: 12px;
+    padding: 18px 16px !important;
+    overflow: hidden;
+  }
+
+  .railway-tool-card .railway-icon {
+    width: 54px;
+    height: 54px;
+    flex: 0 0 auto;
+    margin: 0;
+    font-size: 26px;
+  }
+
+  .railway-body {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .railway-body h3,
+  .railway-title {
+    font-size: clamp(22px, 7.2vw, 30px) !important;
+    line-height: 1.05 !important;
+    letter-spacing: 0 !important;
+    word-break: normal;
+    overflow-wrap: normal;
+  }
+
+  .railway-body p {
+    font-size: clamp(15px, 4.9vw, 19px) !important;
+    line-height: 1.28 !important;
+    margin-top: 8px !important;
+  }
+
+  .railway-tool-card .tool-underline {
+    margin: 10px 0 8px !important;
+  }
+
+  .mobile-restro-list {
+    scroll-behavior: smooth;
+    scroll-padding-left: 12px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .mobile-restro-card {
+    flex: 0 0 calc(50% - 18px) !important;
+    width: calc(50% - 18px) !important;
+    scroll-snap-align: start;
+  }
+}
