@@ -2279,8 +2279,8 @@ textarea {
   .mobile-native-home {
     width: 100%;
     max-width: none;
-    padding-left: 14px;
-    padding-right: 14px;
+    padding-left: 8px;
+    padding-right: 8px;
   }
 
   .mobile-home-hero,
@@ -2291,8 +2291,8 @@ textarea {
   .mobile-restro-section {
     width: 100%;
     max-width: none;
-    margin-left: auto;
-    margin-right: auto;
+    margin-left: 0;
+    margin-right: 0;
   }
 
   .mobile-search-shell .searchbox-card {
@@ -2391,10 +2391,10 @@ textarea {
 
   .mobile-search-shell .searchbox-card {
     /* expand to visually match hero edges with larger bleed */
-    margin-left: -24px;
-    margin-right: -24px;
-    width: calc(100% + 48px);
-    padding: 6px 8px !important;
+    margin-left: -8px;
+    margin-right: -8px;
+    width: calc(100% + 16px);
+    padding: 6px 12px !important;
     border-radius: 16px;
     box-shadow: 0 12px 28px rgba(108, 67, 0, 0.10);
     max-width: none;
@@ -2420,7 +2420,7 @@ textarea {
 
   /* Tighten card paddings so popular restaurants peek into view */
   .mobile-restro-list {
-    gap: 10px;
+    gap: 8px;
     padding-bottom: 6px;
   }
 
