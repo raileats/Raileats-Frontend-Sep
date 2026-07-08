@@ -566,8 +566,9 @@ export default function HomePageClient() {
                 />
                 <strong>{category.name}</strong>
               </button>
-            ))}
+                        ))}
           </div>
+        </div>
         </section>
 
         <div className="mobile-offer-rail" aria-label="RailEats offers">
