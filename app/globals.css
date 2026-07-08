@@ -2000,31 +2000,31 @@ textarea {
   }
 
   .mobile-restro-title-row h3 {
-    font-size: 21px;
+    font-size: 19px;
     line-height: 1.12;
-    font-weight: 1000;
+    font-weight: 800;
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
   }
-
+  /* hide legacy inline rating span and reduce station/minorder sizes */
   .mobile-restro-title-row span {
-    font-size: 12px;
-    padding: 4px 8px;
+    display: none !important;
   }
 
   .mobile-restro-copy p {
     margin-top: 11px;
-    font-size: 16px;
+    font-size: 14px;
     line-height: 1.25;
-    font-weight: 850;
+    font-weight: 600;
   }
 
   .mobile-restro-copy small {
     margin-top: 11px;
-    font-size: 15px;
-    font-weight: 1000;
+    font-size: 13px;
+    font-weight: 400;
+    color: #0f172a;
   }
 
   .mobile-tools-strip {
@@ -2540,9 +2540,9 @@ textarea {
   /* rating badge overlay on image */
   .restro-image-wrapper {
     position: relative;
-    display: inline-block;
-    width: 112px;
-    flex: 0 0 112px;
+    display: block;
+    width: 100%;
+    flex: 0 0 auto;
   }
 
   .restro-image-wrapper img {
@@ -2558,11 +2558,18 @@ textarea {
     right: 8px;
     background: #16a34a;
     color: #fff;
-    padding: 6px 8px;
-    border-radius: 999px;
+    padding: 4px 6px;
+    border-radius: 12px;
     font-weight: 700;
-    font-size: 13px;
+    font-size: 11px;
+    line-height: 1;
+    z-index: 10;
     box-shadow: 0 6px 14px rgba(15,23,42,0.18);
+  }
+
+  /* hide any legacy inline rating span in title row (server/client mismatch fallback) */
+  .mobile-restro-title-row span {
+    display: none !important;
   }
 
   /* Reduce text sizes ~10% for compact view */
@@ -2570,15 +2577,15 @@ textarea {
     font-size: 24px;
   }
 
-  /* restaurant name slightly smaller */
+  /* restaurant name slightly smaller (~10% down) */
   .mobile-restro-title-row h3 {
-    font-size: 17px;
+    font-size: 19px;
     line-height: 1.12;
   }
 
-  /* station label smaller */
+  /* station label smaller (~10% down) */
   .mobile-restro-station {
-    font-size: 13px;
+    font-size: 14px;
     color: #4b5563;
     margin-top: 4px;
   }
@@ -2588,7 +2595,7 @@ textarea {
     display: block;
     margin-top: 6px;
     color: #0f172a;
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 400;
   }
 
@@ -2601,8 +2608,8 @@ textarea {
     border-radius: 18px;
     background: #fff7ed;
     color: #ea580c;
-    font-weight: 900;
-    font-size: 15px;
+    font-weight: 800;
+    font-size: 17px;
     box-shadow: 0 8px 18px rgba(249,115,22,0.12);
     text-align: center;
   }
