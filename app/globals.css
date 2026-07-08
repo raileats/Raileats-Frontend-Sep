@@ -2201,3 +2201,134 @@ textarea {
   }
 
 }
+
+/* ================= HOME WIDTH ALIGN FIX ================= */
+
+@media (min-width: 768px) {
+  .mobile-native-home,
+  .mobile-home-hero,
+  .home-hero-slider-slot,
+  .mobile-search-shell,
+  .mobile-category-section,
+  .mobile-offer-rail,
+  .mobile-restro-section {
+    width: 100%;
+    max-width: 900px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .mobile-search-shell {
+    max-width: 900px !important;
+  }
+
+  .mobile-search-shell .searchbox-shell,
+  .mobile-search-shell .searchbox-card {
+    width: 100%;
+    max-width: 900px;
+  }
+
+  .mobile-category-row {
+    overflow: hidden;
+  }
+
+  .mobile-category-track {
+    display: flex;
+    justify-content: space-between;
+    gap: 20px;
+    width: 100%;
+    animation: none !important;
+  }
+
+  .mobile-category-pill {
+    flex: 1 1 0;
+    max-width: 90px;
+  }
+
+  .mobile-offer-rail {
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+  }
+
+  .mobile-offer-card {
+    min-width: 0 !important;
+    width: 100%;
+  }
+
+  .mobile-restro-list {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+    width: 100%;
+  }
+}
+
+@media (max-width: 767px) {
+  .mobile-native-home,
+  .mobile-home-hero,
+  .home-hero-slider-slot,
+  .mobile-search-shell,
+  .mobile-category-section,
+  .mobile-offer-rail,
+  .mobile-restro-section {
+    width: calc(100% - 24px);
+    max-width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .mobile-search-shell .searchbox-card {
+    width: 100%;
+  }
+
+  .mobile-category-row {
+    width: 100%;
+    overflow: hidden !important;
+  }
+
+  .mobile-category-track {
+    display: flex;
+    gap: 28px;
+    width: max-content;
+    animation: category-marquee 24s linear infinite;
+  }
+
+  .mobile-category-pill {
+    flex: 0 0 96px;
+  }
+
+  .mobile-category-pill img {
+    width: 86px !important;
+    height: 86px !important;
+  }
+
+  .mobile-category-pill strong {
+    font-size: 14px;
+  }
+
+  .mobile-offer-rail {
+    display: flex;
+    overflow-x: auto;
+    gap: 14px;
+  }
+
+  .mobile-offer-card {
+    flex: 0 0 88%;
+    min-width: 88%;
+  }
+
+  .mobile-restro-list {
+    width: 100%;
+  }
+}
+
+@keyframes category-marquee {
+  from {
+    transform: translateX(0);
+  }
+
+  to {
+    transform: translateX(-50%);
+  }
+}
