@@ -638,34 +638,32 @@ export default function HomePageClient() {
                     });
                   }}
                 >
-                  <div className="restro-image-column">
-                    <div className="restro-image-wrapper">
-                      <img
-                        src={getRestaurantImage(restro)}
-                        alt={`${restro.RestroName} food on RailEats`}
-                        title={`${restro.RestroName} food delivery in train`}
-                        width={112}
-                        height={96}
-                        loading="lazy"
-                        onError={(event) => {
-                          event.currentTarget.src = "/raileats-logo.png";
-                        }}
-                      />
+                  <div className="restro-image-wrapper">
+                    <img
+                      src={getRestaurantImage(restro)}
+                      alt={`${restro.RestroName} food on RailEats`}
+                      title={`${restro.RestroName} food delivery in train`}
+                      width={112}
+                      height={96}
+                      loading="lazy"
+                      onError={(event) => {
+                        event.currentTarget.src = "/raileats-logo.png";
+                      }}
+                    />
 
-                      {rating && (
-                        <div className="restro-rating-badge" aria-hidden>
-                          {rating} ★
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="mobile-restro-viewmenu">View Menu</div>
+                    {rating && (
+                      <div className="restro-rating-badge" aria-hidden>
+                        {rating} ★
+                      </div>
+                    )}
                   </div>
 
                   <div className="mobile-restro-copy">
                     <div className="mobile-restro-title-row">
                       <h3>{restro.RestroName}</h3>
                     </div>
+
+                    <div className="mobile-restro-viewmenu">View Menu</div>
 
                     <p className="mobile-restro-station">{getStationLabel(restro)}</p>
 
