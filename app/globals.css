@@ -2421,5 +2421,31 @@ textarea {
     padding: 8px;
     border-radius: 16px;
   }
+
+  /* Align search input and button on mobile: make button match input height and sit flush right */
+  .mobile-search-shell .searchbox-controls {
+    display: flex;
+    gap: 10px;
+    align-items: stretch;
+  }
+
+  .mobile-search-shell .searchbox-controls .app-input,
+  .mobile-search-shell .searchbox-controls .searchbox-input {
+    flex: 1 1 auto;
+    min-height: 42px !important;
+    display: flex;
+    align-items: center;
+  }
+
+  .mobile-search-shell .searchbox-controls .searchbox-submit {
+    flex: 0 0 84px;
+    min-height: 42px !important;
+    align-self: stretch;
+    padding: 0 12px;
+    border-radius: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
 }
 
