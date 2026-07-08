@@ -236,17 +236,17 @@ export default function SearchBox() {
 
   return (
     <section className="container-app searchbox-shell" aria-label="Order food search">
-      <div className="app-card searchbox-card overflow-visible p-4">
-        <div className="mb-4 searchbox-heading">
-          <h2 className="text-[22px] font-black leading-tight text-slate-950">
+      <div className="app-card searchbox-card overflow-visible p-3 sm:p-4">
+        <div className="mb-3 searchbox-heading">
+          <h2 className="text-[20px] font-black leading-tight text-slate-950 sm:text-[22px]">
             Order food on train
           </h2>
-          <p className="mt-1 text-sm font-semibold text-slate-500">
+          <p className="mt-1 text-xs font-semibold text-slate-500 sm:text-sm">
             Search by train, PNR, or station.
           </p>
         </div>
 
-        <div className="mb-4 grid grid-cols-3 gap-2 rounded-2xl bg-slate-100 p-1 searchbox-tabs">
+        <div className="mb-3 grid grid-cols-3 gap-2 rounded-2xl bg-slate-100 p-1 searchbox-tabs">
           {[
             { key: "pnr", label: "PNR" },
             { key: "train", label: "Train" },
@@ -260,7 +260,7 @@ export default function SearchBox() {
                 type="button"
                 onClick={() => resetSearch(item.key)}
                 className={[
-                  "min-h-[40px] rounded-xl text-sm font-black transition active:scale-95",
+                  "min-h-[36px] rounded-xl text-sm font-black transition active:scale-95 sm:min-h-[40px]",
                   active
                     ? "bg-white text-orange-600 shadow-sm searchbox-tab-active"
                     : "text-slate-500",
@@ -272,7 +272,7 @@ export default function SearchBox() {
           })}
         </div>
 
-        <div className="space-y-3 searchbox-controls">
+        <div className="space-y-2.5 searchbox-controls">
           {searchType === "train" ? (
             <div className="searchbox-field-wrap">
               <TrainAutocomplete
@@ -323,7 +323,7 @@ export default function SearchBox() {
           )}
 
           {searchType === "train" && selectedTrain && (
-            <div className="grid gap-3 searchbox-journey-fields">
+            <div className="grid gap-2.5 searchbox-journey-fields">
               <input
                 type="date"
                 value={date}
@@ -411,7 +411,7 @@ export default function SearchBox() {
             ref={searchBtnRef}
             type="button"
             onClick={handleSearch}
-            className="app-btn-primary searchbox-submit w-full active:scale-[0.99]"
+            className="app-btn-primary searchbox-submit w-full min-h-[42px] active:scale-[0.99] sm:min-h-[44px]"
           >
             Search Food
           </button>
