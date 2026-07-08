@@ -690,9 +690,12 @@ export default function HomePageClient() {
                 const container = document.querySelector('.mobile-restro-list');
                 if(!container) return;
 
+                const cards = container.querySelectorAll('.mobile-restro-card');
+                const total = Math.max(1, Math.ceil(cards.length / 2));
+                if (cards.length <= 2) return;
+
                 let autoId = null;
                 let idx = 0;
-                const total = Math.ceil(container.children.length / 2) || 1;
                 const startAuto = ()=>{
                   stopAuto();
                   autoId = setInterval(()=>{
