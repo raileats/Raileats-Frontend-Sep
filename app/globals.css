@@ -2507,5 +2507,51 @@ textarea {
     font-size: 13px;
     line-height: 1.05;
   }
+
+  /* Popular restaurants: two-per-slide carousel on mobile */
+  .mobile-restro-list {
+    display: flex;
+    gap: 12px;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    padding-left: 6px;
+    padding-right: 6px;
+  }
+
+  .mobile-restro-list::-webkit-scrollbar {
+    display: none;
+  }
+
+  .mobile-restro-card {
+    flex: 0 0 calc(50% - 12px);
+    width: calc(50% - 12px);
+    scroll-snap-align: start;
+    display: block;
+  }
+
+  .mobile-restro-card img {
+    width: 100% !important;
+    height: auto !important;
+    max-height: 120px !important;
+    object-fit: cover;
+    border-radius: 12px !important;
+  }
+
+  /* Reduce text sizes ~10% for compact view */
+  .mobile-section-head h2 {
+    font-size: 24px;
+  }
+
+  .mobile-restro-title-row h3 {
+    font-size: 19px;
+  }
+
+  .mobile-restro-copy p {
+    font-size: 14px;
+  }
+
+  .mobile-restro-copy small {
+    font-size: 13px;
+  }
 }
 
