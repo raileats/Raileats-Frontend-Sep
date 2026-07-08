@@ -2367,9 +2367,9 @@ textarea {
 /* ================= COMPACT HERO + SEARCH ADJUSTMENTS ================= */
 
 @media (max-width: 767px) {
-  /* Reduce hero height slightly so next sections show on single screen */
+  /* Restore original hero height so visuals match previous design */
   .home-hero-slider-slot [class*="aspect-"] {
-    min-height: 160px !important;
+    min-height: 218px !important;
   }
 
   /* Bring searchbox closer and make its width visually match the hero */
@@ -2392,6 +2392,11 @@ textarea {
     padding: 12px !important;
     border-radius: 18px;
     box-shadow: 0 12px 28px rgba(108, 67, 0, 0.10);
+    /* Make search card visually the same width as hero (edge gutters match) */
+    width: calc(100% - 24px);
+    max-width: none;
+    margin-left: 12px;
+    margin-right: 12px;
   }
 
   /* Slightly more compact inputs and button while keeping full width */
