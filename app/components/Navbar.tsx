@@ -12,10 +12,27 @@ export default function Navbar() {
   const router = useRouter();
   const lastScrollY = useRef(0);
   const ticking = useRef(false);
+  const scrollStopTimer = useRef<number | null>(null);
   const [hidden, setHidden] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
+    const showAfterScrollStops = () => {
+      if (scrollStopTimer.current !== null) {
+        window.clearTimeout(scrollStopTimer.current);
+      }
+
+      scrollStopTimer.current = window.setTimeout(() => {
+        const focusedElement = document.activeElement as HTMLElement | null;
+        const isTyping =
+          focusedElement?.tagName === "INPUT" ||
+          focusedElement?.tagName === "TEXTAREA" ||
+          focusedElement?.tagName === "SELECT";
+
+        if (!isTyping) setHidden(false);
+      }, 450);
+    };
+
     const updateNavbar = () => {
       const currentY = window.scrollY || 0;
       const scrollingDown = currentY > lastScrollY.current;
@@ -36,6 +53,7 @@ export default function Navbar() {
 
       lastScrollY.current = Math.max(currentY, 0);
       ticking.current = false;
+      showAfterScrollStops();
     };
 
     const onScroll = () => {
@@ -50,6 +68,10 @@ export default function Navbar() {
     window.addEventListener("resize", updateNavbar);
 
     return () => {
+      if (scrollStopTimer.current !== null) {
+        window.clearTimeout(scrollStopTimer.current);
+      }
+
       window.removeEventListener("scroll", onScroll);
       window.removeEventListener("resize", updateNavbar);
     };
