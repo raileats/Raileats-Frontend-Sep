@@ -2391,9 +2391,9 @@ textarea {
 
   .mobile-search-shell .searchbox-card {
     /* expand to visually match hero edges with larger bleed */
-    margin-left: -8px;
-    margin-right: -8px;
-    width: calc(100% + 16px);
+    margin-left: -16px;
+    margin-right: -16px;
+    width: calc(100% + 32px);
     padding: 6px 12px !important;
     border-radius: 16px;
     box-shadow: 0 12px 28px rgba(108, 67, 0, 0.10);
