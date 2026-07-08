@@ -44,14 +44,14 @@ export default function BottomNav() {
       <ul className="bottom-nav-grid">
         <li>
           <Item active={pathname === "/"} onClick={goTop}>
-            <Home className="bottom-nav-icon text-blue-600" />
+            <Home className="bottom-nav-icon" />
             <span>Home</span>
           </Item>
         </li>
 
         <li>
           <Item active={pathname.startsWith("/pnr-status")} href="/pnr-status">
-            <ClipboardList className="bottom-nav-icon text-pink-600" />
+            <ClipboardList className="bottom-nav-icon" />
             <span>PNR Status</span>
           </Item>
         </li>
@@ -61,7 +61,7 @@ export default function BottomNav() {
             active={pathname.startsWith("/live-train-status")}
             href="/live-train-status"
           >
-            <TrainFront className="bottom-nav-icon text-amber-600" />
+            <TrainFront className="bottom-nav-icon" />
             <span>Train Status</span>
           </Item>
         </li>
@@ -71,7 +71,7 @@ export default function BottomNav() {
             active={pathname.startsWith("/profile")}
             onClick={() => router.push("/profile")}
           >
-            <User className="bottom-nav-icon text-purple-600" />
+            <User className="bottom-nav-icon" />
             <span>Profile</span>
           </Item>
         </li>
