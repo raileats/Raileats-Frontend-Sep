@@ -837,15 +837,12 @@ export default function HomePageClient() {
               onClick={() => handleToolLinkClick(item.href, item.title)}
               className={`railway-tool-card ${item.variant || ""}`}
             >
-              <div className="railway-left">
-                <span className="railway-icon">{item.icon}</span>
-              </div>
+              <span className="railway-icon">{item.icon}</span>
               <div className="railway-body">
                 <h3 className="railway-title">{item.title}</h3>
                 <div className="tool-underline" aria-hidden />
                 <p>{item.desc}</p>
               </div>
-              <div className="railway-action">›</div>
             </Link>
           ))}
         </div>
