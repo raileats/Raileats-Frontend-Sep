@@ -268,7 +268,7 @@ function getMinimumOrder(restro: any) {
   const numericValue = Number(value);
 
   if (Number.isFinite(numericValue) && numericValue > 0) {
-    return `Min order Rs ${numericValue}`;
+    return `Min Order Rs ${numericValue}`;
   }
 
   return "";
@@ -663,8 +663,6 @@ export default function HomePageClient() {
                       <h3>{restro.RestroName}</h3>
                     </div>
 
-                    <div className="mobile-restro-viewmenu">View Menu</div>
-
                     <p className="mobile-restro-station">{getStationLabel(restro)}</p>
 
                     {minimumOrder ? (
@@ -672,6 +670,8 @@ export default function HomePageClient() {
                     ) : (
                       <small className="mobile-restro-minorder">Available restaurant</small>
                     )}
+
+                    <div className="mobile-restro-viewmenu">View Menu</div>
                   </div>
                 </Link>
               );
