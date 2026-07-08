@@ -210,7 +210,7 @@ textarea {
   position: fixed;
   inset: auto 0 0 0;
   z-index: 80;
-  height: calc(var(--bottom-h) + env(safe-area-inset-bottom, 0px));
+  height: 56px; /* fixed navigation height */
   padding-bottom: env(safe-area-inset-bottom, 0px);
   background: rgba(255, 255, 255, 0.98);
   border-top: 1px solid rgba(203, 213, 225, 0.95);
@@ -221,7 +221,7 @@ textarea {
 .bottom-nav-grid {
   width: 100%;
   max-width: var(--app-max);
-  height: var(--bottom-h);
+  height: 56px;
   margin: 0 auto;
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -231,7 +231,7 @@ textarea {
 
 .bottom-nav-hit {
   width: 100%;
-  height: var(--bottom-h);
+  height: 56px;
   border: 0;
   background: transparent;
   display: flex;
@@ -246,19 +246,34 @@ textarea {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 3px;
-  color: #64748b;
-  font-size: 11px;
-  font-weight: 700;
+  gap: 4px;
+  color: #9CA3AF; /* inactive color */
+  font-size: 11.5px; /* label size */
+  font-weight: 600;
+  position: relative;
+  padding-top: 2px;
 }
 
 .bottom-nav-item.active {
-  color: var(--rail-blue);
+  color: #2563EB; /* active color */
 }
 
 .bottom-nav-icon {
-  width: 23px;
-  height: 23px;
+  width: 22px;
+  height: 22px;
+}
+
+/* Active underline indicator (rounded pill) */
+.bottom-nav-item.active::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 6px;
+  width: 36px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--rail-orange);
 }
 
 .bottom-logo-pill {
@@ -1420,11 +1435,11 @@ textarea {
   }
 
   .bottom-nav-item.active {
-    color: #111827;
+    color: #2563EB;
   }
 
   .bottom-nav-item.active .bottom-nav-icon {
-    filter: drop-shadow(0 5px 10px rgba(37, 99, 235, 0.24));
+    filter: none;
   }
 }
 
@@ -1710,13 +1725,13 @@ textarea {
 
   .bottom-nav-item {
     gap: 4px;
-    font-size: 12px;
-    font-weight: 850;
+    font-size: 11.5px;
+    font-weight: 600;
   }
 
   .bottom-nav-icon {
-    width: 26px;
-    height: 26px;
+    width: 22px;
+    height: 22px;
   }
 
   .app-card {
@@ -1970,6 +1985,78 @@ textarea {
     padding-bottom: 22px;
   }
 
+  /* Offer card styles matching design */
+  .offer-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 16px;
+    border-radius: 14px;
+    box-shadow: 0 10px 24px rgba(15,23,42,0.06);
+    border: 1px solid rgba(226,232,240,0.9);
+  }
+
+  .offer-card .offer-left {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+  }
+
+  .offer-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 26px;
+    background: rgba(255,255,255,0.6);
+  }
+
+  .offer-title { font-size: 18px; font-weight: 900; color: #0f172a; }
+  .offer-sub { font-size: 13px; color: #475569; margin-top: 4px; }
+
+  .offer-code {
+    background: #ffffff;
+    padding: 8px 12px;
+    border-radius: 12px;
+    font-weight: 900;
+    color: #ea580c;
+    box-shadow: 0 6px 18px rgba(249,115,22,0.08);
+  }
+
+  .offer-yellow { background: linear-gradient(90deg,#fff7cc,#ffefdb); border-color: rgba(250,204,21,0.12); }
+  .offer-green { background: linear-gradient(90deg,#ecfdf5,#f0fff4); border-color: rgba(16,185,129,0.08); }
+
+  /* Railway tool cards */
+  .railway-tool-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: linear-gradient(180deg,#fff,#fbfbfe);
+    border: 1px solid rgba(226,232,240,0.9);
+    text-decoration: none;
+    color: inherit;
+    box-shadow: 0 8px 20px rgba(15,23,42,0.06);
+  }
+
+  .railway-icon { width: 56px; height: 56px; border-radius: 12px; display:inline-flex; align-items:center; justify-content:center; font-size:22px; background: linear-gradient(180deg,#fff,#f3f6ff); }
+  .railway-body h3{ margin:0; font-size:15px; font-weight:900; }
+  .railway-body p{ margin:6px 0 0; font-size:13px; color:#64748b; }
+  .railway-action{ margin-left:auto; font-size:22px; color:#cbd5e1; }
+
+  /* Partner CTA compact card */
+  .partner-cta-card{
+    display:flex; align-items:center; gap:12px; padding:12px 14px; border-radius:14px; background:#fff; border:1px solid rgba(226,232,240,0.9); box-shadow:0 8px 20px rgba(15,23,42,0.06); cursor:pointer;
+  }
+  .partner-left{ width:56px; height:56px; border-radius:12px; display:inline-flex; align-items:center; justify-content:center; background:linear-gradient(90deg,#fff7ed,#fff4f1); font-size:24px }
+  .partner-eyebrow{ display:block; font-size:11px; font-weight:900; color:#f97316 }
+  .partner-title{ font-size:16px; font-weight:900; color:#0f172a }
+  .partner-action{ margin-left:auto; font-size:22px; color:#e5e7eb }
+
   .mobile-restro-card {
     width: 100%;
     grid-template-columns: 126px minmax(0, 1fr);
@@ -2093,14 +2180,14 @@ textarea {
   }
 
   .bottom-nav-item {
-    gap: 5px;
-    font-size: 14px;
-    font-weight: 900;
+    gap: 4px;
+    font-size: 11.5px;
+    font-weight: 600;
   }
 
   .bottom-nav-icon {
-    width: 30px;
-    height: 30px;
+    width: 22px;
+    height: 22px;
   }
 
   .bottom-nav-hit {
@@ -2112,11 +2199,11 @@ textarea {
   }
 
   .bottom-nav-item.active {
-    color: #111827;
+    color: #2563EB;
   }
 
   .bottom-nav-item.active .bottom-nav-icon {
-    filter: drop-shadow(0 5px 10px rgba(37, 99, 235, 0.24));
+    filter: none;
   }
 
   .desktop-seo-rich,
