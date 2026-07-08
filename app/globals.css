@@ -3052,6 +3052,56 @@ textarea {
   }
 }
 
+/* ================= RAILWAY TOOL CARDS FINAL TUNING ================= */
+
+.mobile-tools-strip .railway-tool-card {
+  align-items: center !important;
+  gap: 12px !important;
+  text-align: center !important;
+}
+
+.mobile-tools-strip .railway-tool-card .railway-icon {
+  width: 72px !important;
+  height: 72px !important;
+  margin: 0 auto !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 34px !important;
+  line-height: 1 !important;
+}
+
+.mobile-tools-strip .railway-tool-card .railway-title,
+.mobile-tools-strip .railway-tool-card .railway-body h3 {
+  font-size: clamp(16px, 5.15vw, 22px) !important;
+  line-height: 1.12 !important;
+  letter-spacing: 0 !important;
+  text-align: center !important;
+}
+
+.mobile-tools-strip .railway-tool-card .railway-body p {
+  font-size: clamp(11px, 3.5vw, 13.5px) !important;
+  line-height: 1.35 !important;
+  text-align: center !important;
+}
+
+@media (max-width: 420px) {
+  .mobile-tools-strip .railway-tool-card .railway-icon {
+    width: 68px !important;
+    height: 68px !important;
+    font-size: 32px !important;
+  }
+
+  .mobile-tools-strip .railway-tool-card .railway-title,
+  .mobile-tools-strip .railway-tool-card .railway-body h3 {
+    font-size: clamp(15px, 5vw, 20px) !important;
+  }
+
+  .mobile-tools-strip .railway-tool-card .railway-body p {
+    font-size: clamp(10.5px, 3.45vw, 13px) !important;
+  }
+}
+
 /* ================= STRONGER BOTTOM NAV READABILITY ON GLASS ================= */
 
 .bottom-nav-item {
