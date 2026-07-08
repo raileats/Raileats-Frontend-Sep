@@ -474,9 +474,15 @@ export default function HomePageClient() {
 
   return (
     <main className="customer-app-main home-app-shell">
-      <section className="mobile-native-home app-first-home" aria-label="RailEats home">
+      <section
+        className="mobile-native-home app-first-home"
+        aria-label="RailEats food delivery in train home"
+      >
         <div className="mobile-home-hero">
-          <div className="home-hero-slider-slot" aria-label="RailEats offers and highlights">
+          <div
+            className="home-hero-slider-slot"
+            aria-label="RailEats offers and train food delivery highlights"
+          >
             <HeroSlider />
           </div>
 
@@ -485,13 +491,16 @@ export default function HomePageClient() {
           </div>
         </div>
 
-        <section className="mobile-category-section" aria-labelledby="food-category-title">
+        <section
+          className="mobile-category-section"
+          aria-labelledby="food-category-title"
+        >
           <div className="mobile-section-head">
             <h2 id="food-category-title">What are you craving?</h2>
             <span>Swipe</span>
           </div>
 
-          <div className="mobile-category-row">
+          <div className="mobile-category-row" aria-label="Food categories">
             {FOOD_CATEGORIES.map((category) => (
               <button
                 key={category.name}
@@ -521,7 +530,7 @@ export default function HomePageClient() {
           </div>
         </section>
 
-        <div className="mobile-offer-rail" aria-label="RailEats offers">
+        <div className="mobile-offer-rail" aria-label="RailEats service highlights">
           {APP_OFFER_BANNERS.map((offer) => (
             <article
               key={offer.title}
@@ -534,7 +543,10 @@ export default function HomePageClient() {
           ))}
         </div>
 
-        <section className="mobile-restro-section" aria-labelledby="mobile-restro-title">
+        <section
+          className="mobile-restro-section"
+          aria-labelledby="mobile-restro-title"
+        >
           <div className="mobile-section-head">
             <h2 id="mobile-restro-title">Popular Restaurants</h2>
             <Link href="/popular-restaurants-train-journey">Live menus</Link>
