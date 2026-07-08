@@ -24,6 +24,7 @@ type OrderRow = {
   PaymentMode?: string | null;
   Status?: string | null;
   JourneyPayload?: string | null;
+  PNR?: string | null;
   CreatedAt?: string | null;
   UpdatedAt?: string | null;
   SubStatus?: string | null;
@@ -146,6 +147,7 @@ export async function GET(req: Request) {
           "PaymentMode",
           "Status",
           "JourneyPayload",
+          "PNR",
           "CreatedAt",
           "UpdatedAt",
           "SubStatus",
@@ -276,6 +278,7 @@ export async function GET(req: Request) {
         customerName: order.CustomerName || String(journeyPayload.name || ""),
         customerMobile: order.CustomerMobile || String(journeyPayload.mobile || ""),
         pnr: String(journeyPayload.pnr || ""),
+        pnr: String(order.PNR || journeyPayload.pnr || ""),
         subTotal: Number(order.SubTotal || 0),
         gstAmount: Number(order.GSTAmount || 0),
         platformCharge: Number(order.PlatformCharge || 0),
