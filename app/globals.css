@@ -2537,21 +2537,74 @@ textarea {
     border-radius: 12px !important;
   }
 
+  /* rating badge overlay on image */
+  .restro-image-wrapper {
+    position: relative;
+    display: inline-block;
+    width: 112px;
+    flex: 0 0 112px;
+  }
+
+  .restro-image-wrapper img {
+    display: block;
+    width: 100% !important;
+    height: auto !important;
+    border-radius: 12px !important;
+  }
+
+  .restro-rating-badge {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: #16a34a;
+    color: #fff;
+    padding: 6px 8px;
+    border-radius: 999px;
+    font-weight: 700;
+    font-size: 13px;
+    box-shadow: 0 6px 14px rgba(15,23,42,0.18);
+  }
+
   /* Reduce text sizes ~10% for compact view */
   .mobile-section-head h2 {
     font-size: 24px;
   }
 
+  /* restaurant name slightly smaller */
   .mobile-restro-title-row h3 {
-    font-size: 19px;
+    font-size: 17px;
+    line-height: 1.12;
   }
 
-  .mobile-restro-copy p {
-    font-size: 14px;
-  }
-
-  .mobile-restro-copy small {
+  /* station label smaller */
+  .mobile-restro-station {
     font-size: 13px;
+    color: #4b5563;
+    margin-top: 4px;
+  }
+
+  /* min-order: smaller, black, not bold */
+  .mobile-restro-minorder {
+    display: block;
+    margin-top: 6px;
+    color: #0f172a;
+    font-size: 12px;
+    font-weight: 400;
+  }
+
+  /* View menu: larger and centered */
+  .mobile-restro-viewmenu {
+    display: block;
+    width: max-content;
+    margin: 10px auto 0;
+    padding: 8px 18px;
+    border-radius: 18px;
+    background: #fff7ed;
+    color: #ea580c;
+    font-weight: 900;
+    font-size: 15px;
+    box-shadow: 0 8px 18px rgba(249,115,22,0.12);
+    text-align: center;
   }
 }
 
