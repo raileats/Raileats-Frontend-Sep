@@ -833,46 +833,29 @@ export default function HomePageClient() {
               key={item.href}
               href={item.href}
               onClick={() => handleToolLinkClick(item.href, item.title)}
-              className="app-card-compact flex items-start gap-2.5 p-3 no-underline transition hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md"
+              className="railway-tool-card"
             >
-              <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-orange-50 text-base">
-                {item.icon}
-              </span>
-              <div>
-                <h3 className="text-sm font-black text-slate-950">
-                  {item.title}
-                </h3>
-                <p className="mt-1 text-xs font-semibold leading-5 text-slate-600">
-                  {item.desc}
-                </p>
+              <div className="railway-left">
+                <span className="railway-icon">{item.icon}</span>
               </div>
+              <div className="railway-body">
+                <h3>{item.title}</h3>
+                <p>{item.desc}</p>
+              </div>
+              <div className="railway-action">›</div>
             </Link>
           ))}
         </div>
       </section>
 
       <section className="container-app">
-        <div className="app-card p-4 sm:p-5">
-          <p className="text-xs font-black uppercase tracking-wide text-orange-600">
-            RailEats Partner
-          </p>
-
-          <h2 className="mt-2 text-2xl font-black leading-tight text-slate-950">
-            Become Restaurant Partner
-          </h2>
-
-          <p className="mt-2 text-sm font-semibold leading-6 text-slate-600">
-            Join RailEats and receive food orders from train passengers at
-            supported railway stations.
-          </p>
-
-          <button
-            type="button"
-            onClick={() => setShowPartner(true)}
-            className="mt-4 rounded-xl bg-orange-500 px-5 py-3 text-sm font-black text-white shadow-sm active:scale-95"
-          >
-            Become Restaurant Partner
-          </button>
+        <div className="partner-cta-card" onClick={() => setShowPartner(true)}>
+          <div className="partner-left">🍽️</div>
+          <div className="partner-body">
+            <small className="partner-eyebrow">RAILEATS PARTNER</small>
+            <div className="partner-title">Become Restaurant Partner</div>
+          </div>
+          <div className="partner-action">›</div>
         </div>
       </section>
 
