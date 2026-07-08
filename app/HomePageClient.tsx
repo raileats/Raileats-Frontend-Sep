@@ -531,29 +531,28 @@ export default function HomePageClient() {
     const container = restroListRef.current;
 
     if (!container || restaurantsToShow.length <= 2) return;
+    if (typeof window === "undefined") return;
 
-    let autoSlideId: ReturnType<typeof window.setInterval> | null = null;
-    let resumeId: ReturnType<typeof window.setTimeout> | null = null;
+    let autoSlideId: number | null = null;
+    let resumeId: number | null = null;
     let currentGroup = 0;
 
     const isMobile = () => window.innerWidth < 768;
-
-    const getGroupCount = () => Math.max(1, Math.ceil(restaurantsToShow.length / 2));
-
-    const scrollToGroup = (group: number) => {
-      if (!isMobile()) return;
-
-      container.scrollTo({
-        left: group * container.clientWidth,
-        behavior: "smooth",
-      });
-    };
+    const getGroupCount = () =>
+      Math.max(1, Math.ceil(restaurantsToShow.length / 2));
 
     const stopAutoSlide = () => {
-      if (autoSlideId) {
+      if (autoSlideId !== null) {
         window.clearInterval(autoSlideId);
         autoSlideId = null;
       }
+    };
+
+    const syncCurrentGroup = () => {
+      if (!isMobile() || container.clientWidth <= 0) return;
+
+      const group = Math.round(container.scrollLeft / container.clientWidth);
+      currentGroup = Math.max(0, Math.min(group, getGroupCount() - 1));
     };
 
     const startAutoSlide = () => {
@@ -562,29 +561,32 @@ export default function HomePageClient() {
       if (!isMobile() || restaurantsToShow.length <= 2) return;
 
       autoSlideId = window.setInterval(() => {
-        const groupCount = getGroupCount();
-        currentGroup = (currentGroup + 1) % groupCount;
-        scrollToGroup(currentGroup);
+        const maxScrollLeft = container.scrollWidth - container.clientWidth;
+
+        if (maxScrollLeft <= 0) return;
+
+        currentGroup = (currentGroup + 1) % getGroupCount();
+
+        container.scrollTo({
+          left:
+            currentGroup === 0
+              ? 0
+              : Math.min(maxScrollLeft, currentGroup * container.clientWidth),
+          behavior: "smooth",
+        });
       }, 3200);
-    };
-
-    const syncCurrentGroup = () => {
-      if (!isMobile()) return;
-
-      const group = Math.round(container.scrollLeft / Math.max(container.clientWidth, 1));
-      currentGroup = Math.max(0, Math.min(group, getGroupCount() - 1));
     };
 
     const pauseThenResume = () => {
       stopAutoSlide();
       syncCurrentGroup();
 
-      if (resumeId) window.clearTimeout(resumeId);
+      if (resumeId !== null) window.clearTimeout(resumeId);
       resumeId = window.setTimeout(startAutoSlide, 2600);
     };
 
     const handleScroll = () => {
-      if (resumeId) window.clearTimeout(resumeId);
+      if (resumeId !== null) window.clearTimeout(resumeId);
       resumeId = window.setTimeout(syncCurrentGroup, 140);
     };
 
@@ -593,16 +595,16 @@ export default function HomePageClient() {
       startAutoSlide();
     };
 
-    container.addEventListener("touchstart", pauseThenResume, { passive: true });
-    container.addEventListener("pointerdown", pauseThenResume, { passive: true });
-    container.addEventListener("scroll", handleScroll, { passive: true });
+    container.addEventListener("touchstart", pauseThenResume);
+    container.addEventListener("pointerdown", pauseThenResume);
+    container.addEventListener("scroll", handleScroll);
     window.addEventListener("resize", handleResize);
 
     startAutoSlide();
 
     return () => {
       stopAutoSlide();
-      if (resumeId) window.clearTimeout(resumeId);
+      if (resumeId !== null) window.clearTimeout(resumeId);
       container.removeEventListener("touchstart", pauseThenResume);
       container.removeEventListener("pointerdown", pauseThenResume);
       container.removeEventListener("scroll", handleScroll);
