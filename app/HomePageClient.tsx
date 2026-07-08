@@ -79,38 +79,14 @@ const APP_OFFER_BANNERS = [
 ];
 
 const FOOD_CATEGORIES = [
-  {
-    name: "Thali",
-    image: "/categories/thali.png",
-  },
-  {
-    name: "Biryani",
-    image: "/categories/biryani.png",
-  },
-  {
-    name: "Breakfast",
-    image: "/categories/breakfast.png",
-  },
-  {
-    name: "Snacks",
-    image: "/categories/snacks.png",
-  },
-  {
-    name: "Chinese",
-    image: "/categories/chinese.png",
-  },
-  {
-    name: "Tea",
-    image: "/categories/tea.png",
-  },
-  {
-    name: "Meals",
-    image: "/categories/meals.png",
-  },
-  {
-    name: "Dessert",
-    image: "/categories/dessert.png",
-  },
+  { name: "Thali", image: "/categories/thali.png" },
+  { name: "Biryani", image: "/categories/biryani.png" },
+  { name: "Breakfast", image: "/categories/breakfast.png" },
+  { name: "Snacks", image: "/categories/snacks.png" },
+  { name: "Chinese", image: "/categories/chinese.png" },
+  { name: "Tea", image: "/categories/tea.png" },
+  { name: "Meals", image: "/categories/meals.png" },
+  { name: "Dessert", image: "/categories/dessert.png" },
 ];
 
 const RESTAURANT_PREVIEWS = [
@@ -221,7 +197,24 @@ function scrollToSearchBox() {
 }
 
 function getRestaurantImage(restro: any) {
-  return restro?.RestroDisplayPhoto || "/raileats-logo.png";
+  const directImage =
+    restro?.RestroDisplayPhoto ||
+    restro?.DisplayImage ||
+    restro?.ImageUrl ||
+    restro?.image_url ||
+    restro?.image;
+
+  if (directImage) return directImage;
+
+  const restroCode = restro?.RestroCode || restro?.restro_code || restro?.code;
+
+  if (restroCode) {
+    return `https://ygisiztmuzwxpnvhwrmr.supabase.co/storage/v1/object/public/RestroDisplayPhoto/${encodeURIComponent(
+      String(restroCode)
+    )}.webp`;
+  }
+
+  return "/raileats-logo.png";
 }
 
 function getStationLabel(restro: any) {
@@ -232,6 +225,50 @@ function getStationLabel(restro: any) {
   if (stationCode) return stationCode;
   if (stationName) return stationName;
   return "Available station";
+}
+
+function getRestaurantRating(restro: any) {
+  const rating =
+    restro?.Rating ||
+    restro?.rating ||
+    restro?.AverageRating ||
+    restro?.RestroRating;
+
+  const numericRating = Number(rating);
+
+  if (Number.isFinite(numericRating) && numericRating > 0) {
+    return numericRating.toFixed(1);
+  }
+
+  return "";
+}
+
+function getMinimumOrder(restro: any) {
+  const value =
+    restro?.MinimumOrderValue ||
+    restro?.MinOrder ||
+    restro?.MinimumOrder ||
+    restro?.minimum_order ||
+    restro?.MinOrderValue;
+
+  const numericValue = Number(value);
+
+  if (Number.isFinite(numericValue) && numericValue > 0) {
+    return `Min order Rs ${numericValue}`;
+  }
+
+  return "";
+}
+
+function getRestaurantHref(restro: any) {
+  const stationSlug = restro?.StationSlug || restro?.station_slug;
+  const restroSlug = restro?.RestroSlug || restro?.restro_slug;
+
+  if (stationSlug && restroSlug) {
+    return `/stations/${stationSlug}/${restroSlug}`;
+  }
+
+  return "/popular-restaurants-train-journey";
 }
 
 export default function HomePageClient() {
@@ -266,41 +303,42 @@ export default function HomePageClient() {
   }, [user?.email, user?.mobile, user?.name]);
 
   useEffect(() => {
-  let ignore = false;
+    let ignore = false;
 
-  async function loadPopularRestaurants() {
-    try {
-      const response = await fetch("/api/home/popular-restaurants", {
-        method: "GET",
-        cache: "no-store",
-      });
+    async function loadPopularRestaurants() {
+      try {
+        const response = await fetch("/api/home/popular-restaurants", {
+          method: "GET",
+          cache: "no-store",
+        });
 
-      const result = await response.json();
+        const result = await response.json();
 
-      if (ignore) return;
+        if (ignore) return;
 
-      if (
-        response.ok &&
-        result?.success &&
-        Array.isArray(result.data) &&
-        result.data.length > 0
-      ) {
-        setPopularRestaurants(result.data);
-      } else {
-        setPopularRestaurants([]);
+        if (
+          response.ok &&
+          result?.success &&
+          Array.isArray(result.data) &&
+          result.data.length > 0
+        ) {
+          setPopularRestaurants(result.data);
+        } else {
+          setPopularRestaurants([]);
+        }
+      } catch (err) {
+        console.error("Popular restaurants fetch failed:", err);
+        if (!ignore) setPopularRestaurants([]);
       }
-    } catch (err) {
-      console.error("Popular restaurants fetch failed:", err);
-      if (!ignore) setPopularRestaurants([]);
     }
-  }
 
-  loadPopularRestaurants();
+    loadPopularRestaurants();
 
-  return () => {
-    ignore = true;
-  };
-}, []);
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
   useEffect(() => {
     const goto = searchParams.get("goto");
 
@@ -452,6 +490,7 @@ export default function HomePageClient() {
             <h2 id="food-category-title">What are you craving?</h2>
             <span>Swipe</span>
           </div>
+
           <div className="mobile-category-row">
             {FOOD_CATEGORIES.map((category) => (
               <button
@@ -495,32 +534,69 @@ export default function HomePageClient() {
           ))}
         </div>
 
-
         <section className="mobile-restro-section" aria-labelledby="mobile-restro-title">
           <div className="mobile-section-head">
             <h2 id="mobile-restro-title">Popular Restaurants</h2>
             <Link href="/popular-restaurants-train-journey">Live menus</Link>
           </div>
+
           <div className="mobile-restro-list">
-            {restaurantsToShow.map((restro) => (
-              <article key={restro.RestroCode || restro.RestroName} className="mobile-restro-card">
-                <img
-                  src={getRestaurantImage(restro)}
-                  alt={`${restro.RestroName} food on RailEats`}
-                  title={`${restro.RestroName} food delivery in train`}
-                  width={112}
-                  height={96}
-                  loading="lazy"
-                />
-                <div className="mobile-restro-copy">
-                  <div className="mobile-restro-title-row">
-                    <h3>{restro.RestroName}</h3>
+            {restaurantsToShow.map((restro) => {
+              const rating = getRestaurantRating(restro);
+              const minimumOrder = getMinimumOrder(restro);
+              const restaurantHref = getRestaurantHref(restro);
+
+              return (
+                <Link
+                  key={restro.RestroCode || restro.RestroName}
+                  href={restaurantHref}
+                  className="mobile-restro-card no-underline active:scale-95"
+                  onClick={() => {
+                    trackEvent("home_popular_restaurant_click", {
+                      section: "mobile_popular_restaurants",
+                      ...getTrackingUser(),
+                      metadata: {
+                        restroCode: restro.RestroCode || null,
+                        restroName: restro.RestroName || null,
+                        stationCode: restro.StationCode || null,
+                        href: restaurantHref,
+                      },
+                    });
+                  }}
+                >
+                  <img
+                    src={getRestaurantImage(restro)}
+                    alt={`${restro.RestroName} food on RailEats`}
+                    title={`${restro.RestroName} food delivery in train`}
+                    width={112}
+                    height={96}
+                    loading="lazy"
+                    onError={(event) => {
+                      event.currentTarget.src = "/raileats-logo.png";
+                    }}
+                  />
+
+                  <div className="mobile-restro-copy">
+                    <div className="mobile-restro-title-row">
+                      <h3>{restro.RestroName}</h3>
+                      {rating && <span>{rating} ★</span>}
+                    </div>
+
+                    <p>{getStationLabel(restro)}</p>
+
+                    {minimumOrder ? (
+                      <small>{minimumOrder}</small>
+                    ) : (
+                      <small>Available restaurant</small>
+                    )}
+
+                    <div className="mt-2 inline-flex rounded-full bg-orange-50 px-3 py-1 text-xs font-black text-orange-600">
+                      View Menu
+                    </div>
                   </div>
-                  <p>{getStationLabel(restro)}</p>
-                  <small>Available restaurant</small>
-                </div>
-              </article>
-            ))}
+                </Link>
+              );
+            })}
           </div>
         </section>
       </section>
@@ -611,7 +687,6 @@ export default function HomePageClient() {
       </section>
 
       <section className="container-app mobile-tools-strip">
-        
         <div className="mb-3">
           <h2 className="app-section-title">Useful Railway Tools</h2>
           <p className="app-muted text-sm">
@@ -637,7 +712,8 @@ export default function HomePageClient() {
           ))}
         </div>
       </section>
-            <section className="container-app">
+
+      <section className="container-app">
         <div className="app-card p-4 sm:p-5">
           <p className="text-xs font-black uppercase tracking-wide text-orange-600">
             RailEats Partner
@@ -770,7 +846,8 @@ export default function HomePageClient() {
           </div>
         </div>
       )}
-            {showPartner && <PartnerForm onClose={() => setShowPartner(false)} />}
+
+      {showPartner && <PartnerForm onClose={() => setShowPartner(false)} />}
     </main>
   );
 }
