@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { useAuth } from "./lib/useAuth";
 import { supabase } from "./lib/supabaseClient";
@@ -523,6 +523,7 @@ export default function HomePageClient() {
   };
 
   const restaurantsToShow = popularRestaurants;
+  const restroListRef = useRef<HTMLDivElement | null>(null);
 
   return (
     <main className="customer-app-main home-app-shell">
@@ -594,7 +595,7 @@ export default function HomePageClient() {
             <Link href="/popular-restaurants-train-journey">Live menus</Link>
           </div>
 
-          <div className="mobile-restro-list">
+          <div ref={restroListRef} className="mobile-restro-list">
             {restaurantsToShow.length === 0 ? (
               <div className="mobile-restro-card">
                 <img
@@ -637,35 +638,40 @@ export default function HomePageClient() {
                     });
                   }}
                 >
-                  <img
-                    src={getRestaurantImage(restro)}
-                    alt={`${restro.RestroName} food on RailEats`}
-                    title={`${restro.RestroName} food delivery in train`}
-                    width={112}
-                    height={96}
-                    loading="lazy"
-                    onError={(event) => {
-                      event.currentTarget.src = "/raileats-logo.png";
-                    }}
-                  />
+                  <div className="restro-image-wrapper">
+                    <img
+                      src={getRestaurantImage(restro)}
+                      alt={`${restro.RestroName} food on RailEats`}
+                      title={`${restro.RestroName} food delivery in train`}
+                      width={112}
+                      height={96}
+                      loading="lazy"
+                      onError={(event) => {
+                        event.currentTarget.src = "/raileats-logo.png";
+                      }}
+                    />
+
+                    {rating && (
+                      <div className="restro-rating-badge" aria-hidden>
+                        {rating} ★
+                      </div>
+                    )}
+                  </div>
 
                   <div className="mobile-restro-copy">
                     <div className="mobile-restro-title-row">
                       <h3>{restro.RestroName}</h3>
-                      {rating && <span>{rating} ★</span>}
                     </div>
 
-                    <p>{getStationLabel(restro)}</p>
+                    <div className="mobile-restro-viewmenu">View Menu</div>
+
+                    <p className="mobile-restro-station">{getStationLabel(restro)}</p>
 
                     {minimumOrder ? (
-                      <small>{minimumOrder}</small>
+                      <small className="mobile-restro-minorder">{minimumOrder}</small>
                     ) : (
-                      <small>Available restaurant</small>
+                      <small className="mobile-restro-minorder">Available restaurant</small>
                     )}
-
-                    <div className="mt-2 inline-flex rounded-full bg-orange-50 px-3 py-1 text-xs font-black text-orange-600">
-                      View Menu
-                    </div>
                   </div>
                 </Link>
               );
@@ -674,6 +680,56 @@ export default function HomePageClient() {
           </div>
         </section>
       </section>
+
+      {/* Mobile: auto-slide popular restaurants in pairs */}
+      <script
+        dangerouslySetInnerHTML={{
+          __html: `
+            (function(){
+              try{
+                const container = document.querySelector('.mobile-restro-list');
+                if(!container) return;
+
+                let autoId = null;
+                let idx = 0;
+                const total = Math.ceil(container.children.length / 2) || 1;
+                const startAuto = ()=>{
+                  stopAuto();
+                  autoId = setInterval(()=>{
+                    idx = (idx + 1) % total;
+                    container.scrollTo({ left: idx * container.clientWidth, behavior: 'smooth' });
+                  }, 2000);
+                };
+                const stopAuto = ()=>{ if(autoId){ clearInterval(autoId); autoId = null; } };
+
+                // start only on small screens
+                function shouldRun(){ return window.innerWidth < 768; }
+
+                if(!shouldRun()) return;
+                // set up snapping after user scroll
+                let scrub = null;
+                container.addEventListener('scroll', ()=>{
+                  if(scrub) clearTimeout(scrub);
+                  scrub = setTimeout(()=>{
+                    const group = Math.round(container.scrollLeft / container.clientWidth);
+                    idx = Math.max(0, Math.min(group, total - 1));
+                    container.scrollTo({ left: idx * container.clientWidth, behavior: 'smooth' });
+                  }, 120);
+                }, { passive: true });
+
+                // pause on pointer enter
+                container.addEventListener('pointerenter', stopAuto);
+                container.addEventListener('pointerleave', startAuto);
+
+                startAuto();
+                window.addEventListener('resize', ()=>{
+                  if(!shouldRun()) stopAuto(); else startAuto();
+                });
+              }catch(e){ console.error(e); }
+            })();
+          `,
+        }}
+      />
 
       <div className="hidden">
         <HeroSlider />
