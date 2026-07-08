@@ -1831,7 +1831,7 @@ textarea {
   }
 
   .home-hero-slider-slot [class*="aspect-"] {
-    min-height: 218px;
+    min-height: 180px;
   }
 
   .mobile-search-shell {
@@ -2363,3 +2363,63 @@ textarea {
     transform: translateX(-50%);
   }
 }
+
+/* ================= COMPACT HERO + SEARCH ADJUSTMENTS ================= */
+
+@media (max-width: 767px) {
+  /* Reduce hero height slightly so next sections show on single screen */
+  .home-hero-slider-slot [class*="aspect-"] {
+    min-height: 160px !important;
+  }
+
+  /* Bring searchbox closer and make its width visually match the hero */
+  .mobile-home-hero {
+    padding-left: 12px;
+    padding-right: 12px;
+    padding-bottom: 8px;
+  }
+
+  .mobile-search-shell {
+    width: 100%;
+    margin-top: 10px;
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .mobile-search-shell .searchbox-card {
+    width: 100%;
+    margin: 0;
+    padding: 12px !important;
+    border-radius: 18px;
+    box-shadow: 0 12px 28px rgba(108, 67, 0, 0.10);
+  }
+
+  /* Slightly more compact inputs and button while keeping full width */
+  .mobile-search-shell .searchbox-controls .app-input,
+  .mobile-search-shell .searchbox-input,
+  .searchbox-controls .app-input,
+  .searchbox-input {
+    min-height: 40px !important;
+    padding-left: 12px;
+    padding-right: 12px;
+    font-size: 14px;
+  }
+
+  .searchbox-submit {
+    min-height: 42px !important;
+    font-size: 15px;
+    padding: 0 14px;
+  }
+
+  /* Tighten card paddings so popular restaurants peek into view */
+  .mobile-restro-list {
+    gap: 10px;
+    padding-bottom: 8px;
+  }
+
+  .mobile-restro-card {
+    padding: 8px;
+    border-radius: 16px;
+  }
+}
+
