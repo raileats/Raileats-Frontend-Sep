@@ -2376,24 +2376,25 @@ textarea {
 
   /* Bring searchbox closer and make its width visually match the hero */
   .mobile-home-hero {
-    padding-left: 12px;
-    padding-right: 12px;
-    padding-bottom: 8px;
+    /* reduce side gutters so hero appears wider */
+    padding-left: 6px;
+    padding-right: 6px;
+    padding-bottom: 6px;
   }
 
   .mobile-search-shell {
     width: 100%;
-    margin-top: 10px;
-    padding-left: 12px;
-    padding-right: 12px;
+    margin-top: 6px;
+    padding-left: 6px;
+    padding-right: 6px;
   }
 
   .mobile-search-shell .searchbox-card {
-    /* expand to visually match hero edges and use slightly larger horizontal bleed */
-    margin-left: -20px;
-    margin-right: -20px;
-    width: calc(100% + 40px);
-    padding: 6px 10px !important;
+    /* expand to visually match hero edges with larger bleed */
+    margin-left: -24px;
+    margin-right: -24px;
+    width: calc(100% + 48px);
+    padding: 6px 8px !important;
     border-radius: 16px;
     box-shadow: 0 12px 28px rgba(108, 67, 0, 0.10);
     max-width: none;
@@ -2420,7 +2421,7 @@ textarea {
   /* Tighten card paddings so popular restaurants peek into view */
   .mobile-restro-list {
     gap: 10px;
-    padding-bottom: 8px;
+    padding-bottom: 6px;
   }
 
   .mobile-restro-card {
@@ -2467,7 +2468,7 @@ textarea {
     display: flex;
     gap: 8px;
     justify-content: space-between;
-    padding: 2px 6px 6px 6px;
+    padding: 2px 6px 4px 6px;
   }
 
   .mobile-search-shell .searchbox-tabs button {
@@ -2484,6 +2485,27 @@ textarea {
   .mobile-search-shell .searchbox-card .searchbox-controls {
     padding-top: 4px;
     padding-bottom: 4px;
+  }
+
+  /* Shrink category icons and tighten heading spacing so names show in first viewport */
+  .mobile-section-head {
+    padding-left: 6px;
+    padding-right: 6px;
+    padding-bottom: 6px;
+  }
+
+  .mobile-category-pill img {
+    width: 60px !important;
+    height: 60px !important;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .mobile-category-pill strong {
+    display: block;
+    margin-top: 6px;
+    font-size: 13px;
+    line-height: 1.05;
   }
 }
 
