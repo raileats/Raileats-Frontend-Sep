@@ -89,33 +89,6 @@ const FOOD_CATEGORIES = [
   { name: "Dessert", image: "/categories/dessert.png" },
 ];
 
-const RESTAURANT_PREVIEWS = [
-  {
-    RestroCode: "fallback-station-restaurant",
-    RestroName: "Station Restaurant",
-    StationCode: "",
-    StationName: "Available station",
-    RestroDisplayPhoto:
-      "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=800&q=80",
-  },
-  {
-    RestroCode: "fallback-raileats-partner-kitchen",
-    RestroName: "RailEats Partner Kitchen",
-    StationCode: "",
-    StationName: "Available station",
-    RestroDisplayPhoto:
-      "https://images.unsplash.com/photo-1563379091339-03246963d51a?auto=format&fit=crop&w=800&q=80",
-  },
-  {
-    RestroCode: "fallback-fresh-food-counter",
-    RestroName: "Fresh Food Counter",
-    StationCode: "",
-    StationName: "Available station",
-    RestroDisplayPhoto:
-      "https://images.unsplash.com/photo-1600891964599-f61ba0e24092?auto=format&fit=crop&w=800&q=80",
-  },
-];
-
 function getSessionId() {
   if (typeof window === "undefined") return "";
 
@@ -199,22 +172,59 @@ function scrollToSearchBox() {
 function getRestaurantImage(restro: any) {
   const directImage =
     restro?.RestroDisplayPhoto ||
+    restro?.restroDisplayPhoto ||
+    restro?.RestroDisplayImage ||
+    restro?.restroDisplayImage ||
+    restro?.DisplayPhoto ||
+    restro?.displayPhoto ||
     restro?.DisplayImage ||
+    restro?.displayImage ||
     restro?.ImageUrl ||
+    restro?.imageUrl ||
     restro?.image_url ||
     restro?.image;
 
-  if (directImage) return directImage;
-
   const restroCode = restro?.RestroCode || restro?.restro_code || restro?.code;
+  const codeImage = restroCode
+    ? `https://ygisiztmuzwxpnvhwrmr.supabase.co/storage/v1/object/public/RestroDisplayPhoto/${encodeURIComponent(
+        String(restroCode)
+      )}.webp`
+    : "/raileats-logo.png";
 
-  if (restroCode) {
-    return `https://ygisiztmuzwxpnvhwrmr.supabase.co/storage/v1/object/public/RestroDisplayPhoto/${encodeURIComponent(
-      String(restroCode)
-    )}.webp`;
+  const image = String(directImage || "").trim();
+
+  if (!image) return codeImage;
+
+  if (image.startsWith("http://") || image.startsWith("https://")) return image;
+  if (image.startsWith("/") && !image.includes("/storage/v1/object/public/")) return image;
+
+  const cleanImage = image.replace(/^\/+/, "");
+  const fileName = cleanImage.split("/").pop() || cleanImage;
+
+  if (cleanImage.startsWith("storage/v1/object/public/")) {
+    return `https://ygisiztmuzwxpnvhwrmr.supabase.co/${cleanImage}`;
   }
 
-  return "/raileats-logo.png";
+  if (cleanImage.includes("/storage/v1/object/public/")) {
+    const storagePath = cleanImage.split("/storage/v1/object/public/").pop();
+    return storagePath
+      ? `https://ygisiztmuzwxpnvhwrmr.supabase.co/storage/v1/object/public/${storagePath}`
+      : codeImage;
+  }
+
+  if (cleanImage.startsWith("RestroDisplayPhoto/")) {
+    return `https://ygisiztmuzwxpnvhwrmr.supabase.co/storage/v1/object/public/${cleanImage}`;
+  }
+
+  if (cleanImage.startsWith("restro/") || cleanImage.startsWith("Restro/")) {
+    return `https://ygisiztmuzwxpnvhwrmr.supabase.co/storage/v1/object/public/RestroDisplayPhoto/${fileName}`;
+  }
+
+  if (/\.(webp|png|jpg|jpeg)$/i.test(fileName)) {
+    return `https://ygisiztmuzwxpnvhwrmr.supabase.co/storage/v1/object/public/RestroDisplayPhoto/${fileName}`;
+  }
+
+  return codeImage;
 }
 
 function getStationLabel(restro: any) {
@@ -469,20 +479,13 @@ export default function HomePageClient() {
     });
   };
 
-  const restaurantsToShow =
-    popularRestaurants.length > 0 ? popularRestaurants : RESTAURANT_PREVIEWS;
+  const restaurantsToShow = popularRestaurants;
 
   return (
     <main className="customer-app-main home-app-shell">
-      <section
-        className="mobile-native-home app-first-home"
-        aria-label="RailEats food delivery in train home"
-      >
+      <section className="mobile-native-home app-first-home" aria-label="RailEats home">
         <div className="mobile-home-hero">
-          <div
-            className="home-hero-slider-slot"
-            aria-label="RailEats offers and train food delivery highlights"
-          >
+          <div className="home-hero-slider-slot" aria-label="RailEats offers and highlights">
             <HeroSlider />
           </div>
 
@@ -491,16 +494,13 @@ export default function HomePageClient() {
           </div>
         </div>
 
-        <section
-          className="mobile-category-section"
-          aria-labelledby="food-category-title"
-        >
+        <section className="mobile-category-section" aria-labelledby="food-category-title">
           <div className="mobile-section-head">
             <h2 id="food-category-title">What are you craving?</h2>
             <span>Swipe</span>
           </div>
 
-          <div className="mobile-category-row" aria-label="Food categories">
+          <div className="mobile-category-row">
             {FOOD_CATEGORIES.map((category) => (
               <button
                 key={category.name}
@@ -530,7 +530,7 @@ export default function HomePageClient() {
           </div>
         </section>
 
-        <div className="mobile-offer-rail" aria-label="RailEats service highlights">
+        <div className="mobile-offer-rail" aria-label="RailEats offers">
           {APP_OFFER_BANNERS.map((offer) => (
             <article
               key={offer.title}
@@ -543,17 +543,33 @@ export default function HomePageClient() {
           ))}
         </div>
 
-        <section
-          className="mobile-restro-section"
-          aria-labelledby="mobile-restro-title"
-        >
+        <section className="mobile-restro-section" aria-labelledby="mobile-restro-title">
           <div className="mobile-section-head">
             <h2 id="mobile-restro-title">Popular Restaurants</h2>
             <Link href="/popular-restaurants-train-journey">Live menus</Link>
           </div>
 
           <div className="mobile-restro-list">
-            {restaurantsToShow.map((restro) => {
+            {restaurantsToShow.length === 0 ? (
+              <div className="mobile-restro-card">
+                <img
+                  src="/raileats-logo.png"
+                  alt="RailEats active restaurants"
+                  title="RailEats active restaurants"
+                  width={112}
+                  height={96}
+                  loading="lazy"
+                />
+                <div className="mobile-restro-copy">
+                  <div className="mobile-restro-title-row">
+                    <h3>Active restaurants loading</h3>
+                  </div>
+                  <p>Live menus</p>
+                  <small>Showing only active restaurants</small>
+                </div>
+              </div>
+            ) : (
+              restaurantsToShow.map((restro) => {
               const rating = getRestaurantRating(restro);
               const minimumOrder = getMinimumOrder(restro);
               const restaurantHref = getRestaurantHref(restro);
@@ -608,7 +624,8 @@ export default function HomePageClient() {
                   </div>
                 </Link>
               );
-            })}
+            })
+            )}
           </div>
         </section>
       </section>
