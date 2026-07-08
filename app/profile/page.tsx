@@ -220,21 +220,8 @@ export default function ProfilePage() {
       <div className="rounded-xl border bg-white shadow divide-y">
         <MenuItem
           label="My Orders"
-          onClick={() => setShowOrders((value) => !value)}
-          open={showOrders}
+          onClick={() => router.push("/profile/orders")}
         />
-
-        {showOrders && (
-          <div className="bg-slate-50 px-3 py-3">
-            <OrderHistorySection
-              orders={orders}
-              loading={ordersLoading}
-              error={ordersError}
-              hasMobile={Boolean(activeMobile)}
-              onOrderOpen={setSelectedOrder}
-            />
-          </div>
-        )}
 
         <MenuItem label="Group Orders" onClick={() => setShowBulkModal(true)} />
 
