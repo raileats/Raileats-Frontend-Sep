@@ -2392,7 +2392,7 @@ textarea {
     margin-left: -20px;
     margin-right: -20px;
     width: calc(100% + 40px);
-    padding: 8px 20px !important;
+    padding: 6px 12px !important;
     border-radius: 16px;
     box-shadow: 0 12px 28px rgba(108, 67, 0, 0.10);
     max-width: none;
@@ -2431,7 +2431,8 @@ textarea {
   .mobile-search-shell .searchbox-controls {
     display: flex;
     gap: 10px;
-    align-items: stretch;
+    align-items: flex-start;
+    margin-top: 4px;
   }
 
   .mobile-search-shell .searchbox-controls .app-input,
@@ -2440,6 +2441,7 @@ textarea {
     min-height: 40px !important;
     display: flex;
     align-items: center;
+    margin-top: 0;
   }
 
   .mobile-search-shell .searchbox-controls .searchbox-submit {
@@ -2451,28 +2453,31 @@ textarea {
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    transform: translateY(8px);
   }
 
   /* Space out PNR / Train / Station tabs and tighten their inner padding */
   .mobile-search-shell .searchbox-tabs {
     display: flex;
-    gap: 20px;
-    justify-content: flex-start;
-    padding: 6px 4px;
+    gap: 8px;
+    justify-content: space-between;
+    padding: 4px 6px;
   }
 
   .mobile-search-shell .searchbox-tabs button {
-    padding: 8px 16px;
+    padding: 8px 6px;
     min-height: 36px;
     border-radius: 12px;
     font-weight: 900;
+    flex: 1 1 auto;
+    text-align: center;
   }
 
   /* Reduce inner spacing between nested tab/card and main card */
   .mobile-search-shell .searchbox-card .searchbox-tabs,
   .mobile-search-shell .searchbox-card .searchbox-controls {
-    padding-top: 6px;
-    padding-bottom: 6px;
+    padding-top: 4px;
+    padding-bottom: 4px;
   }
 }
 
