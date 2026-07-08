@@ -2392,11 +2392,8 @@ textarea {
     padding: 12px !important;
     border-radius: 18px;
     box-shadow: 0 12px 28px rgba(108, 67, 0, 0.10);
-    /* Make search card visually the same width as hero (edge gutters match) */
-    width: calc(100% - 24px);
     max-width: none;
-    margin-left: 12px;
-    margin-right: 12px;
+    box-sizing: border-box;
   }
 
   /* Slightly more compact inputs and button while keeping full width */
