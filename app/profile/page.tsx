@@ -224,6 +224,18 @@ export default function ProfilePage() {
           open={showOrders}
         />
 
+        {showOrders && (
+          <div className="bg-slate-50 px-3 py-3">
+            <OrderHistorySection
+              orders={orders}
+              loading={ordersLoading}
+              error={ordersError}
+              hasMobile={Boolean(activeMobile)}
+              onOrderOpen={setSelectedOrder}
+            />
+          </div>
+        )}
+
         <MenuItem label="Group Orders" onClick={() => setShowBulkModal(true)} />
 
         <MenuItem label="Contact Us" onClick={() => router.push("/contact")} />
@@ -257,16 +269,6 @@ export default function ProfilePage() {
           onClick={() => router.push("/cancellation-refund")}
         />
       </div>
-
-      {showOrders && (
-        <OrderHistorySection
-          orders={orders}
-          loading={ordersLoading}
-          error={ordersError}
-          hasMobile={Boolean(activeMobile)}
-          onOrderOpen={setSelectedOrder}
-        />
-      )}
 
       <button
         onClick={handleLogout}
