@@ -235,6 +235,7 @@ export default function MyOrdersPage() {
     </main>
   );
 }
+
 function OrderCard({
   order,
   onOpen,
