@@ -18,6 +18,7 @@ import "slick-carousel/slick/slick-theme.css";
 const inter = Inter({
   subsets: ["latin"],
   variable: "--font-inter",
+  display: "swap",
 });
 
 const siteUrl = "https://www.raileats.in";
@@ -26,12 +27,12 @@ export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
 
   title: {
-    default: "RailEats | Order Fresh Food Delivery in Train",
+    default: "RailEats | Order Food in Train Online",
     template: "%s | RailEats",
   },
 
   description:
-    "Order fresh, hygienic and affordable food delivery in train from trusted restaurants at railway stations across India.",
+    "Order food in train online with RailEats by PNR, train number or railway station from active restaurant partners across India.",
 
   applicationName: "RailEats",
   category: "Food & Drink",
@@ -40,15 +41,16 @@ export const metadata: Metadata = {
 
   keywords: [
     "food delivery in train",
-    "train food order",
-    "railway food delivery",
     "order food in train",
+    "train food order",
     "food on train",
+    "PNR food order",
+    "train food delivery",
+    "railway station food delivery",
+    "railway food delivery",
+    "restaurant food in train",
     "RailEats",
     "IRCTC food delivery",
-    "PNR food order",
-    "train meal delivery",
-    "railway station restaurant",
   ],
 
   alternates: {
@@ -59,9 +61,9 @@ export const metadata: Metadata = {
     type: "website",
     url: siteUrl,
     siteName: "RailEats",
-    title: "RailEats | Order Fresh Food Delivery in Train",
+    title: "RailEats | Order Food in Train Online",
     description:
-      "Book fresh meals from railway station restaurants and get food delivered directly to your train seat.",
+      "Search by PNR, train number or railway station and order fresh meals from available restaurant partners.",
     locale: "en_IN",
     images: [
       {
@@ -75,9 +77,9 @@ export const metadata: Metadata = {
 
   twitter: {
     card: "summary_large_image",
-    title: "RailEats | Order Fresh Food Delivery in Train",
+    title: "RailEats | Order Food in Train Online",
     description:
-      "Fresh food delivery in train from trusted railway station restaurants across India.",
+      "Order food in train by PNR, train number or station from RailEats restaurant partners.",
     images: ["/raileats-logo.png"],
   },
 
@@ -127,10 +129,14 @@ const organizationSchema = {
   url: siteUrl,
   logo: {
     "@type": "ImageObject",
+    "@id": `${siteUrl}/#logo`,
     url: `${siteUrl}/raileats-logo.png`,
+    contentUrl: `${siteUrl}/raileats-logo.png`,
     width: 512,
     height: 512,
+    caption: "RailEats train food delivery logo",
   },
+  sameAs: [siteUrl],
 };
 
 export default function RootLayout({
@@ -201,7 +207,7 @@ export default function RootLayout({
             </div>
           </div>
 
-          <div className="flex flex-col min-h-screen isolation-isolate">
+          <div className="flex min-h-screen flex-col isolation-isolate">
             <Navbar />
 
             <main className="customer-app-main" id="main-content">
