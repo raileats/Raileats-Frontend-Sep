@@ -20,15 +20,33 @@ type OrderRow = {
   TotalAmount?: number | string | null;
   PaymentMode?: string | null;
   Status?: string | null;
-  created_at?: string | null;
   CreatedAt?: string | null;
+  UpdatedAt?: string | null;
+  SubStatus?: string | null;
+  BookingSource?: string | null;
+};
+
+type OrderItemRow = {
+  OrderId?: string | null;
+  ItemName?: string | null;
+  Quantity?: number | string | null;
+  LineTotal?: number | string | null;
+};
+
+type OrderHistoryRow = {
+  OrderId?: string | null;
+  OldStatus?: string | null;
+  NewStatus?: string | null;
+  Note?: string | null;
+  ChangedBy?: string | null;
+  ChangedAt?: string | null;
+  Status?: string | null;
+  SubStatus?: string | null;
 };
 
 type RestroRow = {
   RestroCode?: number | string | null;
   RestroDisplayPhoto?: string | null;
-  DisplayImage?: string | null;
-  Image?: string | null;
 };
 
 function normalizeMobile(value: string | null) {
@@ -54,6 +72,36 @@ function getRestroFileName(restroCode: unknown) {
   return code ? `${code}.webp` : "";
 }
 
+function normalizeStatus(value: unknown) {
+  return String(value ?? "").trim().toLowerCase().replace(/\s+/g, "");
+}
+
+function getOrderSortTime(order: {
+  deliveryDate: string;
+  deliveryTime: string;
+  bookedAt: string;
+}) {
+  const deliveryTime = order.deliveryTime || "00:00:00";
+  const deliveryDateTime = new Date(`${order.deliveryDate || ""}T${deliveryTime}`).getTime();
+
+  if (Number.isFinite(deliveryDateTime)) return deliveryDateTime;
+
+  const bookedTime = new Date(order.bookedAt || "").getTime();
+  return Number.isFinite(bookedTime) ? bookedTime : 0;
+}
+
+function groupByOrderId<T extends { OrderId?: string | null }>(rows: T[]) {
+  const grouped = new Map<string, T[]>();
+
+  for (const row of rows) {
+    const orderId = String(row.OrderId || "");
+    if (!orderId) continue;
+    grouped.set(orderId, [...(grouped.get(orderId) || []), row]);
+  }
+
+  return grouped;
+}
+
 export async function GET(req: Request) {
   try {
     const url = new URL(req.url);
@@ -65,6 +113,8 @@ export async function GET(req: Request) {
         { status: 400 },
       );
     }
+
+    const mobileCandidates = [mobile, `91${mobile}`, `+91${mobile}`];
 
     const { data, error } = await serviceClient
       .from("Orders")
@@ -85,13 +135,15 @@ export async function GET(req: Request) {
           "TotalAmount",
           "PaymentMode",
           "Status",
-          "created_at",
           "CreatedAt",
+          "UpdatedAt",
+          "SubStatus",
+          "BookingSource",
         ].join(","),
       )
-      .or(`CustomerMobile.eq.${mobile},CustomerMobile.eq.+91${mobile}`)
+      .in("CustomerMobile", mobileCandidates)
       .order("DeliveryDate", { ascending: false })
-      .order("created_at", { ascending: false })
+      .order("CreatedAt", { ascending: false })
       .limit(100);
 
     if (error) {
@@ -102,7 +154,14 @@ export async function GET(req: Request) {
       );
     }
 
-    const rows = Array.isArray(data) ? (data as OrderRow[]) : [];
+    const rows = (Array.isArray(data) ? data : []).filter(
+      (order) => normalizeMobile(order.CustomerMobile || "") === mobile,
+    ) as OrderRow[];
+
+    const orderIds = rows
+      .map((order) => String(order.OrderId || ""))
+      .filter(Boolean);
+
     const restroCodes = Array.from(
       new Set(
         rows
@@ -112,11 +171,13 @@ export async function GET(req: Request) {
     );
 
     const imageByRestroCode = new Map<string, string>();
+    const itemsByOrderId = new Map<string, OrderItemRow[]>();
+    const historyByOrderId = new Map<string, OrderHistoryRow[]>();
 
     if (restroCodes.length > 0) {
       const { data: restros, error: restroError } = await serviceClient
         .from("RestroMaster")
-        .select("RestroCode,RestroDisplayPhoto,DisplayImage,Image")
+        .select("RestroCode,RestroDisplayPhoto")
         .in("RestroCode", restroCodes);
 
       if (restroError) {
@@ -125,44 +186,104 @@ export async function GET(req: Request) {
 
       for (const restro of ((restros || []) as RestroRow[])) {
         const code = String(restro.RestroCode ?? "");
-        const image =
-          restro.RestroDisplayPhoto || restro.DisplayImage || restro.Image;
-        if (code) imageByRestroCode.set(code, normalizeRestroImage(image));
+        if (code) {
+          imageByRestroCode.set(
+            code,
+            normalizeRestroImage(restro.RestroDisplayPhoto || getRestroFileName(code)),
+          );
+        }
       }
     }
 
-    const orders = rows
-      .filter((order) => normalizeMobile(order.CustomerMobile || "") === mobile)
-      .map((order) => {
-        const restroCode = String(order.RestroCode ?? "");
-        const fallbackFile = getRestroFileName(restroCode);
+    if (orderIds.length > 0) {
+      const { data: items, error: itemsError } = await serviceClient
+        .from("OrderItems")
+        .select("OrderId,ItemName,Quantity,LineTotal")
+        .in("OrderId", orderIds);
 
-        return {
-          orderId: order.OrderId || "",
-          restroCode,
-          restroName: order.RestroName || "RailEats Restaurant",
-          stationCode: order.StationCode || "",
-          stationName: order.StationName || "",
-          deliveryDate: order.DeliveryDate || "",
-          deliveryTime: order.DeliveryTime || "",
-          trainNumber: order.TrainNumber || "",
-          coach: order.Coach || "",
-          seat: order.Seat || "",
-          totalAmount: Number(order.TotalAmount || 0),
-          paymentMode: order.PaymentMode || "",
-          status: order.Status || "booked",
-          bookedAt: order.created_at || order.CreatedAt || "",
-          imageUrl:
-            imageByRestroCode.get(restroCode) ||
-            normalizeRestroImage(fallbackFile),
-        };
-      });
+      if (itemsError) {
+        console.error("PROFILE ORDER ITEMS FETCH ERROR:", itemsError);
+      } else {
+        for (const [orderId, groupedItems] of groupByOrderId(
+          (items || []) as OrderItemRow[],
+        )) {
+          itemsByOrderId.set(orderId, groupedItems);
+        }
+      }
 
-    orders.sort((a, b) => {
-      const aDate = new Date(`${a.deliveryDate || ""}T${a.deliveryTime || "00:00:00"}`).getTime();
-      const bDate = new Date(`${b.deliveryDate || ""}T${b.deliveryTime || "00:00:00"}`).getTime();
-      return (Number.isFinite(bDate) ? bDate : 0) - (Number.isFinite(aDate) ? aDate : 0);
+      const { data: history, error: historyError } = await serviceClient
+        .from("OrderStatusHistory")
+        .select("OrderId,OldStatus,NewStatus,Note,ChangedBy,ChangedAt,Status,SubStatus")
+        .in("OrderId", orderIds)
+        .order("ChangedAt", { ascending: true });
+
+      if (historyError) {
+        console.error("PROFILE ORDER HISTORY FETCH ERROR:", historyError);
+      } else {
+        for (const [orderId, groupedHistory] of groupByOrderId(
+          (history || []) as OrderHistoryRow[],
+        )) {
+          historyByOrderId.set(orderId, groupedHistory);
+        }
+      }
+    }
+
+    const orders = rows.map((order) => {
+      const orderId = order.OrderId || "";
+      const restroCode = String(order.RestroCode ?? "");
+      const fallbackFile = getRestroFileName(restroCode);
+      const history = historyByOrderId.get(orderId) || [];
+      const firstBooked =
+        history.find((entry) => normalizeStatus(entry.NewStatus || entry.Status) === "booked") ||
+        history[0];
+      const lastHistory = history[history.length - 1];
+      const currentStatus =
+        order.Status ||
+        lastHistory?.NewStatus ||
+        lastHistory?.Status ||
+        "booked";
+      const bookedAt = firstBooked?.ChangedAt || order.CreatedAt || "";
+      const currentStageAt = lastHistory?.ChangedAt || order.UpdatedAt || bookedAt;
+
+      return {
+        orderId,
+        restroCode,
+        restroName: order.RestroName || "RailEats Restaurant",
+        stationCode: order.StationCode || "",
+        stationName: order.StationName || "",
+        deliveryDate: order.DeliveryDate || "",
+        deliveryTime: order.DeliveryTime || "",
+        trainNumber: order.TrainNumber || "",
+        coach: order.Coach || "",
+        seat: order.Seat || "",
+        totalAmount: Number(order.TotalAmount || 0),
+        paymentMode: order.PaymentMode || "",
+        status: currentStatus,
+        subStatus: order.SubStatus || lastHistory?.SubStatus || "",
+        bookedAt,
+        updatedAt: order.UpdatedAt || "",
+        currentStageAt,
+        bookingSource: order.BookingSource || "",
+        imageUrl:
+          imageByRestroCode.get(restroCode) ||
+          normalizeRestroImage(fallbackFile),
+        items: (itemsByOrderId.get(orderId) || []).map((item) => ({
+          itemName: item.ItemName || "",
+          quantity: Number(item.Quantity || 0),
+          lineTotal: Number(item.LineTotal || 0),
+        })),
+        history: history.map((entry) => ({
+          oldStatus: entry.OldStatus || "",
+          newStatus: entry.NewStatus || entry.Status || "",
+          note: entry.Note || "",
+          changedBy: entry.ChangedBy || "",
+          changedAt: entry.ChangedAt || "",
+          subStatus: entry.SubStatus || "",
+        })),
+      };
     });
+
+    orders.sort((a, b) => getOrderSortTime(b) - getOrderSortTime(a));
 
     return NextResponse.json({
       ok: true,
