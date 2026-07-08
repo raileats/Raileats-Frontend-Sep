@@ -33,6 +33,169 @@
   }
 }
 
+/* ================= LAPTOP VIEW: USE SAME APP-LIKE CARDS AS MOBILE ================= */
+
+@media (min-width: 768px) {
+  .container-app:has(.mobile-offer-rail),
+  .container-app:has(.partner-cta-card),
+  .mobile-tools-strip {
+    max-width: var(--app-max) !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+  }
+
+  /* Offers for your journey: keep the same mobile-style horizontal offer cards */
+  .mobile-offer-rail {
+    display: grid !important;
+    grid-auto-flow: column !important;
+    grid-auto-columns: minmax(290px, 1fr) !important;
+    grid-template-columns: none !important;
+    gap: 14px !important;
+    overflow-x: auto !important;
+    scroll-snap-type: x mandatory !important;
+    padding: 4px 2px 10px !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  .mobile-offer-rail::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  .mobile-offer-card,
+  .offer-card {
+    min-height: 118px !important;
+    border-radius: 18px !important;
+    padding: 18px 20px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 16px !important;
+    scroll-snap-align: start !important;
+    border: 1px solid rgba(219, 228, 239, 0.95) !important;
+    box-shadow: 0 18px 36px rgba(15, 23, 42, 0.08) !important;
+  }
+
+  .mobile-offer-card strong,
+  .offer-card .offer-title {
+    font-size: clamp(19px, 2vw, 24px) !important;
+    line-height: 1.12 !important;
+    font-weight: 950 !important;
+  }
+
+  .mobile-offer-card p,
+  .offer-card .offer-sub {
+    font-size: clamp(13px, 1.25vw, 15px) !important;
+    line-height: 1.35 !important;
+  }
+
+  /* Useful Railway Tools: laptop par bhi compact app cards */
+  .mobile-tools-strip .grid {
+    display: grid !important;
+    grid-auto-flow: column !important;
+    grid-auto-columns: minmax(300px, 1fr) !important;
+    grid-template-columns: none !important;
+    gap: 16px !important;
+    overflow-x: auto !important;
+    scroll-snap-type: x mandatory !important;
+    padding: 4px 2px 12px !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  .mobile-tools-strip .grid::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  .mobile-tools-strip a,
+  .mobile-tools-strip .railway-tool-card {
+    min-height: 210px !important;
+    border-radius: 22px !important;
+    padding: 22px !important;
+    scroll-snap-align: start !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
+    gap: 14px !important;
+    box-shadow: 0 18px 42px rgba(15, 23, 42, 0.08) !important;
+  }
+
+  .mobile-tools-strip .railway-icon {
+    width: 72px !important;
+    height: 72px !important;
+    margin: 0 auto !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 34px !important;
+  }
+
+  .mobile-tools-strip h3,
+  .mobile-tools-strip .railway-body h3,
+  .mobile-tools-strip .railway-title {
+    font-size: clamp(20px, 2vw, 26px) !important;
+    line-height: 1.12 !important;
+    text-align: center !important;
+  }
+
+  .mobile-tools-strip p,
+  .mobile-tools-strip .railway-body p {
+    font-size: clamp(13px, 1.35vw, 16px) !important;
+    line-height: 1.45 !important;
+    text-align: center !important;
+  }
+
+  /* Become Restaurant Partner: same mobile CTA feeling on laptop */
+  .partner-cta-card {
+    border-radius: 24px !important;
+    padding: 24px !important;
+    display: grid !important;
+    grid-template-columns: 86px 1fr !important;
+    align-items: center !important;
+    gap: 20px !important;
+    border: 1px solid rgba(219, 228, 239, 0.95) !important;
+    box-shadow: 0 20px 44px rgba(15, 23, 42, 0.08) !important;
+  }
+
+  .partner-left {
+    width: 86px !important;
+    height: 86px !important;
+    border-radius: 22px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 36px !important;
+  }
+
+  .partner-body {
+    gap: 10px !important;
+  }
+
+  .partner-eyebrow {
+    font-size: 13px !important;
+    font-weight: 950 !important;
+  }
+
+  .partner-title {
+    font-size: clamp(24px, 2.6vw, 34px) !important;
+    line-height: 1.08 !important;
+  }
+
+  .partner-desc {
+    font-size: clamp(14px, 1.35vw, 17px) !important;
+    line-height: 1.5 !important;
+  }
+
+  .partner-open-button {
+    width: fit-content !important;
+    min-width: 260px !important;
+    border-radius: 18px !important;
+    padding: 15px 26px !important;
+    font-size: 17px !important;
+    font-weight: 950 !important;
+  }
+}
+
 /* ================= BASE RESET ================= */
 
 html,
