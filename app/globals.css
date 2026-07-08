@@ -1743,7 +1743,8 @@ textarea {
 
 @media (max-width: 767px) {
   html {
-    font-size: 110%;
+    /* slightly reduce overall scale on mobile to make front 5% smaller */
+    font-size: 105%;
   }
 
   body {
@@ -2370,7 +2371,7 @@ textarea {
   /* Reduce hero height ~5% from 218px so next section peeks in */
   .home-hero-slider-slot [class*="aspect-"] {
     /* further reduce so popular restaurants peek earlier */
-    min-height: 197px !important;
+    min-height: 190px !important;
   }
 
   /* Bring searchbox closer and make its width visually match the hero */
@@ -2392,7 +2393,7 @@ textarea {
     margin-left: -20px;
     margin-right: -20px;
     width: calc(100% + 40px);
-    padding: 6px 12px !important;
+    padding: 6px 10px !important;
     border-radius: 16px;
     box-shadow: 0 12px 28px rgba(108, 67, 0, 0.10);
     max-width: none;
@@ -2429,10 +2430,12 @@ textarea {
 
   /* Align search input and button on mobile: make button match input height and sit flush right */
   .mobile-search-shell .searchbox-controls {
+    /* stack input and button vertically so button sits below input */
     display: flex;
-    gap: 10px;
-    align-items: flex-start;
-    margin-top: 4px;
+    flex-direction: column;
+    gap: 8px;
+    align-items: stretch;
+    margin-top: 2px;
   }
 
   .mobile-search-shell .searchbox-controls .app-input,
@@ -2445,15 +2448,18 @@ textarea {
   }
 
   .mobile-search-shell .searchbox-controls .searchbox-submit {
-    flex: 0 0 88px;
-    min-height: 42px !important;
+    /* make button full width below the input */
+    width: 100%;
+    flex: 0 0 auto;
+    min-height: 44px !important;
     align-self: stretch;
-    padding: 0 12px;
-    border-radius: 12px;
+    padding: 12px 14px;
+    border-radius: 14px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    transform: translateY(8px);
+    transform: none;
+    margin-top: 4px;
   }
 
   /* Space out PNR / Train / Station tabs and tighten their inner padding */
@@ -2461,7 +2467,7 @@ textarea {
     display: flex;
     gap: 8px;
     justify-content: space-between;
-    padding: 4px 6px;
+    padding: 2px 6px 6px 6px;
   }
 
   .mobile-search-shell .searchbox-tabs button {
