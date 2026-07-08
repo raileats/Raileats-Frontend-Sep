@@ -3119,3 +3119,51 @@ textarea {
     transition: none !important;
   }
 }
+
+/* ================= MORE TRANSPARENT APP GLASS BARS ================= */
+
+.navbar {
+  background: rgba(255, 255, 255, 0.62) !important;
+  border-bottom-color: rgba(203, 213, 225, 0.46) !important;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06) !important;
+  -webkit-backdrop-filter: blur(22px) saturate(170%) !important;
+  backdrop-filter: blur(22px) saturate(170%) !important;
+}
+
+.navbar.navbar-scrolled {
+  background: rgba(255, 255, 255, 0.58) !important;
+  border-bottom-color: rgba(203, 213, 225, 0.38) !important;
+  box-shadow: 0 12px 34px rgba(15, 23, 42, 0.08) !important;
+}
+
+.bottom-nav {
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.52),
+      rgba(255, 255, 255, 0.72)
+    ) !important;
+  border-top-color: rgba(203, 213, 225, 0.42) !important;
+  box-shadow: 0 -14px 32px rgba(15, 23, 42, 0.08) !important;
+  -webkit-backdrop-filter: blur(22px) saturate(170%) !important;
+  backdrop-filter: blur(22px) saturate(170%) !important;
+}
+
+@media (max-width: 767px) {
+  .navbar {
+    background: rgba(255, 255, 255, 0.58) !important;
+  }
+
+  .navbar.navbar-scrolled {
+    background: rgba(255, 255, 255, 0.54) !important;
+  }
+
+  .bottom-nav {
+    background:
+      linear-gradient(
+        180deg,
+        rgba(255, 255, 255, 0.48),
+        rgba(255, 255, 255, 0.7)
+      ) !important;
+  }
+}
