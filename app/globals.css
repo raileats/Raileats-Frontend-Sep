@@ -2564,6 +2564,7 @@ textarea {
     display: block;
     width: 100%;
     flex: 0 0 auto;
+    overflow: visible;
   }
 
   .restro-image-wrapper img {
@@ -2584,7 +2585,7 @@ textarea {
     font-weight: 700;
     font-size: 13px;
     line-height: 1;
-    z-index: 10;
+    z-index: 40;
     box-shadow: 0 6px 14px rgba(15,23,42,0.18);
   }
 
@@ -2593,15 +2594,15 @@ textarea {
     position: absolute;
     left: 50%;
     transform: translate(-50%, 50%);
-    bottom: -12px;
+    bottom: -18px;
     background: #fff7ed;
     color: #ea580c;
     padding: 8px 16px;
     border-radius: 18px;
     font-weight: 900;
-    font-size: 20px;
+    font-size: 22px; /* increased 10% for mobile */
     box-shadow: 0 8px 18px rgba(249,115,22,0.12);
-    z-index: 9;
+    z-index: 30;
     white-space: nowrap;
   }
 
@@ -2662,7 +2663,8 @@ textarea {
   .mobile-restro-card {
     margin: 0 6px;
     position: relative;
-    padding-bottom: 28px; /* allow space for viewmenu overlay */
+    padding-bottom: 36px; /* allow space for viewmenu overlay */
+    overflow: visible;
   }
 
   /* Desktop: also position viewmenu inside image wrapper */
