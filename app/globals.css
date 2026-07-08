@@ -2369,7 +2369,8 @@ textarea {
 @media (max-width: 767px) {
   /* Reduce hero height ~5% from 218px so next section peeks in */
   .home-hero-slider-slot [class*="aspect-"] {
-    min-height: 207px !important;
+    /* further reduce so popular restaurants peek earlier */
+    min-height: 197px !important;
   }
 
   /* Bring searchbox closer and make its width visually match the hero */
@@ -2388,11 +2389,11 @@ textarea {
 
   .mobile-search-shell .searchbox-card {
     /* expand to visually match hero edges and use slightly larger horizontal bleed */
-    margin-left: -16px;
-    margin-right: -16px;
-    width: calc(100% + 32px);
-    padding: 10px 18px !important;
-    border-radius: 18px;
+    margin-left: -20px;
+    margin-right: -20px;
+    width: calc(100% + 40px);
+    padding: 8px 20px !important;
+    border-radius: 16px;
     box-shadow: 0 12px 28px rgba(108, 67, 0, 0.10);
     max-width: none;
     box-sizing: border-box;
@@ -2436,20 +2437,42 @@ textarea {
   .mobile-search-shell .searchbox-controls .app-input,
   .mobile-search-shell .searchbox-controls .searchbox-input {
     flex: 1 1 auto;
-    min-height: 42px !important;
+    min-height: 40px !important;
     display: flex;
     align-items: center;
   }
 
   .mobile-search-shell .searchbox-controls .searchbox-submit {
     flex: 0 0 88px;
-    min-height: 40px !important;
+    min-height: 42px !important;
     align-self: stretch;
     padding: 0 12px;
     border-radius: 12px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
+  }
+
+  /* Space out PNR / Train / Station tabs and tighten their inner padding */
+  .mobile-search-shell .searchbox-tabs {
+    display: flex;
+    gap: 20px;
+    justify-content: flex-start;
+    padding: 6px 4px;
+  }
+
+  .mobile-search-shell .searchbox-tabs button {
+    padding: 8px 16px;
+    min-height: 36px;
+    border-radius: 12px;
+    font-weight: 900;
+  }
+
+  /* Reduce inner spacing between nested tab/card and main card */
+  .mobile-search-shell .searchbox-card .searchbox-tabs,
+  .mobile-search-shell .searchbox-card .searchbox-controls {
+    padding-top: 6px;
+    padding-bottom: 6px;
   }
 }
 
