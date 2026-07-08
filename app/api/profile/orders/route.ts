@@ -277,7 +277,6 @@ export async function GET(req: Request) {
         seat: order.Seat || "",
         customerName: order.CustomerName || String(journeyPayload.name || ""),
         customerMobile: order.CustomerMobile || String(journeyPayload.mobile || ""),
-        pnr: String(journeyPayload.pnr || ""),
         pnr: String(order.PNR || journeyPayload.pnr || ""),
         subTotal: Number(order.SubTotal || 0),
         gstAmount: Number(order.GSTAmount || 0),
