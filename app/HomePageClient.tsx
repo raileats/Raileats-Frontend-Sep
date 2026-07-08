@@ -52,11 +52,13 @@ const RAILWAY_TOOL_LINKS = [
     href: "/pnr-status",
     title: "Check PNR Status",
     desc: "View train, journey, chart, coach and seat details.",
+    icon: "🎫",
   },
   {
     href: "/live-train-status",
     title: "Live Train Running Status",
     desc: "Spot your train and check current running status.",
+    icon: "🛤️",
   },
 ];
 
@@ -88,6 +90,8 @@ const FOOD_CATEGORIES = [
   { name: "Meals", image: "/categories/meals.png" },
   { name: "Dessert", image: "/categories/dessert.png" },
 ];
+
+const MOBILE_CATEGORY_ITEMS = [...FOOD_CATEGORIES, ...FOOD_CATEGORIES];
 
 function getSessionId() {
   if (typeof window === "undefined") return "";
@@ -540,35 +544,35 @@ export default function HomePageClient() {
           </div>
 
           <div className="mobile-category-row">
-  <div className="mobile-category-track">
-    {FOOD_CATEGORIES.map((category, index) => (
-              <button
-                key={`${category.name}-${index}`}
-                type="button"
-                className="mobile-category-pill active:scale-95"
-                onClick={() => {
-                  scrollToSearchBox();
-                  trackEvent("home_mobile_category_click", {
-                    section: "mobile_categories",
-                    ...getTrackingUser(),
-                    metadata: { category: category.name },
-                  });
-                }}
-              >
-                <img
-                  src={category.image}
-                  alt={`${category.name} food category on RailEats`}
-                  title={`${category.name} food on train`}
-                  width={64}
-                  height={64}
-                  loading="lazy"
-                  className="h-16 w-16 rounded-full object-cover shadow-sm"
-                />
-                <strong>{category.name}</strong>
-              </button>
-                        ))}
+            <div className="mobile-category-track">
+              {MOBILE_CATEGORY_ITEMS.map((category, index) => (
+                <button
+                  key={`${category.name}-${index}`}
+                  type="button"
+                  className="mobile-category-pill active:scale-95"
+                  onClick={() => {
+                    scrollToSearchBox();
+                    trackEvent("home_mobile_category_click", {
+                      section: "mobile_categories",
+                      ...getTrackingUser(),
+                      metadata: { category: category.name },
+                    });
+                  }}
+                >
+                  <img
+                    src={category.image}
+                    alt={`${category.name} food category on RailEats`}
+                    title={`${category.name} food on train`}
+                    width={64}
+                    height={64}
+                    loading="lazy"
+                    className="h-16 w-16 rounded-full object-cover shadow-sm"
+                  />
+                  <strong>{category.name}</strong>
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
         </section>
 
         <div className="mobile-offer-rail" aria-label="RailEats offers">
@@ -764,20 +768,25 @@ export default function HomePageClient() {
           </p>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-2 sm:grid-cols-2">
           {RAILWAY_TOOL_LINKS.map((item) => (
             <Link
               key={item.href}
               href={item.href}
               onClick={() => handleToolLinkClick(item.href, item.title)}
-              className="app-card-compact block p-4 no-underline transition hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md"
+              className="app-card-compact flex items-start gap-2.5 p-3 no-underline transition hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md"
             >
-              <h3 className="text-base font-black text-slate-950">
-                {item.title}
-              </h3>
-              <p className="mt-1 text-sm font-semibold leading-5 text-slate-600">
-                {item.desc}
-              </p>
+              <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-orange-50 text-base">
+                {item.icon}
+              </span>
+              <div>
+                <h3 className="text-sm font-black text-slate-950">
+                  {item.title}
+                </h3>
+                <p className="mt-1 text-xs font-semibold leading-5 text-slate-600">
+                  {item.desc}
+                </p>
+              </div>
             </Link>
           ))}
         </div>
