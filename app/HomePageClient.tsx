@@ -53,12 +53,14 @@ const RAILWAY_TOOL_LINKS = [
     title: "Check PNR Status",
     desc: "View train, journey, chart, coach and seat details.",
     icon: "🎫",
+    variant: "blue",
   },
   {
     href: "/live-train-status",
     title: "Live Train Running Status",
     desc: "Spot your train and check current running status.",
     icon: "🛤️",
+    variant: "purple",
   },
 ];
 
@@ -833,13 +835,14 @@ export default function HomePageClient() {
               key={item.href}
               href={item.href}
               onClick={() => handleToolLinkClick(item.href, item.title)}
-              className="railway-tool-card"
+              className={`railway-tool-card ${item.variant || ""}`}
             >
               <div className="railway-left">
                 <span className="railway-icon">{item.icon}</span>
               </div>
               <div className="railway-body">
-                <h3>{item.title}</h3>
+                <h3 className="railway-title">{item.title}</h3>
+                <div className="tool-underline" aria-hidden />
                 <p>{item.desc}</p>
               </div>
               <div className="railway-action">›</div>
