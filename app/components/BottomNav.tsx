@@ -10,19 +10,22 @@ type ItemProps = {
   children: React.ReactNode;
   onClick?: () => void;
   href?: string;
-  label: string;
 };
 
 export default function BottomNav() {
   const router = useRouter();
-  const pathname = usePathname();
+  const pathname = usePathname() || "/";
 
   const goTop = useCallback(() => {
     if (pathname !== "/") router.push("/");
     setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 60);
   }, [pathname, router]);
 
-  const Item = ({ active, children, onClick, href, label }: ItemProps) => {
+  if (pathname !== "/") {
+    return null;
+  }
+
+  const Item = ({ active, children, onClick, href }: ItemProps) => {
     const content = (
       <div className={`bottom-nav-item ${active ? "active" : ""}`}>
         {children}
@@ -30,11 +33,11 @@ export default function BottomNav() {
     );
 
     return href ? (
-      <Link href={href} className="bottom-nav-hit" aria-label={label}>
+      <Link href={href} className="bottom-nav-hit">
         {content}
       </Link>
     ) : (
-      <button type="button" onClick={onClick} className="bottom-nav-hit" aria-label={label}>
+      <button type="button" onClick={onClick} className="bottom-nav-hit">
         {content}
       </button>
     );
@@ -44,18 +47,14 @@ export default function BottomNav() {
     <nav className="bottom-nav" aria-label="Primary mobile navigation">
       <ul className="bottom-nav-grid">
         <li className="nav-home">
-          <Item active={pathname === "/"} onClick={goTop} label="Go to RailEats home">
+          <Item active={pathname === "/"} onClick={goTop}>
             <Home className="bottom-nav-icon" />
             <span>Home</span>
           </Item>
         </li>
 
         <li className="nav-pnr">
-          <Item
-            active={pathname.startsWith("/pnr-status")}
-            href="/pnr-status"
-            label="Check PNR status"
-          >
+          <Item active={pathname.startsWith("/pnr-status")} href="/pnr-status">
             <ClipboardList className="bottom-nav-icon" />
             <span>PNR Status</span>
           </Item>
@@ -65,7 +64,6 @@ export default function BottomNav() {
           <Item
             active={pathname.startsWith("/live-train-status")}
             href="/live-train-status"
-            label="Check live train running status"
           >
             <TrainFront className="bottom-nav-icon" />
             <span>Train Status</span>
@@ -76,7 +74,6 @@ export default function BottomNav() {
           <Item
             active={pathname.startsWith("/profile")}
             onClick={() => router.push("/profile")}
-            label="Open profile"
           >
             <User className="bottom-nav-icon" />
             <span>Profile</span>
