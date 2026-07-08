@@ -77,7 +77,8 @@ function isHolidayOn(value: any) {
 
 function safeRating(value: any) {
   if (value === null || value === undefined || value === "") return "New";
-  return value;
+  const rating = Number(value);
+  return Number.isFinite(rating) && rating > 0 ? rating.toFixed(1) : "New";
 }
 
 function restroImage(r: any) {
@@ -110,7 +111,7 @@ function restroImage(r: any) {
     "";
 
   const image = String(rawImage || "").trim();
-  const restroCode = String(r?.RestroCode || "");
+  const restroCode = String(r?.RestroCode || r?.restroCode || "").trim();
 
   const codeImage = restroCode
     ? encodeURI(`${SUPABASE_PUBLIC_STORAGE}/RestroDisplayPhoto/${restroCode}.webp`)
@@ -131,6 +132,7 @@ function restroImage(r: any) {
   }
 
   const cleanImage = image.replace(/^\/+/, "");
+  const fileName = cleanImage.split("/").pop() || cleanImage;
 
   if (cleanImage.startsWith("storage/v1/object/public/")) {
     return encodeURI(`https://ygisiztmuzwxpnvhwrmr.supabase.co/${cleanImage}`);
@@ -145,8 +147,12 @@ function restroImage(r: any) {
     return encodeURI(`${SUPABASE_PUBLIC_STORAGE}/${cleanImage}`);
   }
 
-  if (/^\d+\.(webp|png|jpg|jpeg)$/i.test(cleanImage)) {
-    return encodeURI(`${SUPABASE_PUBLIC_STORAGE}/RestroDisplayPhoto/${cleanImage}`);
+  if (cleanImage.startsWith("restro/") || cleanImage.startsWith("Restro/")) {
+    return encodeURI(`${SUPABASE_PUBLIC_STORAGE}/RestroDisplayPhoto/${fileName}`);
+  }
+
+  if (/\.(webp|png|jpg|jpeg)$/i.test(fileName)) {
+    return encodeURI(`${SUPABASE_PUBLIC_STORAGE}/RestroDisplayPhoto/${fileName}`);
   }
 
   return codeImage;
@@ -156,8 +162,14 @@ function minOrderValue(r: any) {
   const value = Number(
     r?.MinimumOrderValue ??
       r?.minimumOrderValue ??
+      r?.MinimumOrderAmount ??
+      r?.minimumOrderAmount ??
       r?.MinOrder ??
+      r?.minOrder ??
+      r?.MinOrderValue ??
+      r?.minOrderValue ??
       r?.MinimumOrder ??
+      r?.minimumOrder ??
       0
   );
 
@@ -1120,4 +1132,3 @@ export default async function Page({ params }: { params: { slug: string } }) {
     </>
   );
 }
-
