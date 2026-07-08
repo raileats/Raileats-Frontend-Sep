@@ -2151,3 +2151,40 @@ textarea {
     max-width: 1240px;
   }
 }
+
+/* ================= CATEGORY CONTINUOUS MARQUEE ================= */
+
+@media (max-width:767px){
+
+.mobile-category-row{
+    overflow:hidden !important;
+}
+
+.mobile-category-track{
+    display:flex;
+    gap:18px;
+    width:max-content;
+    animation:category-marquee 28s linear infinite;
+}
+
+.mobile-category-row:hover .mobile-category-track{
+    animation-play-state:paused;
+}
+
+.mobile-category-row:active .mobile-category-track{
+    animation-play-state:paused;
+}
+
+@keyframes category-marquee{
+
+    from{
+        transform:translateX(0);
+    }
+
+    to{
+        transform:translateX(-50%);
+    }
+
+}
+
+}
