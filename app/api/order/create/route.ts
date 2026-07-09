@@ -45,6 +45,10 @@ function toNumber(value: unknown, fallback = 0) {
   return Number.isFinite(numeric) ? numeric : fallback;
 }
 
+function getItemCode(item: any) {
+  return Number(item?.id || item?.item_code || item?.ItemCode || item?.itemCode || 0);
+}
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
@@ -63,6 +67,7 @@ export async function POST(req: Request) {
       CustomerName,
       CustomerMobile,
       SubTotal,
+      BasePrice,
       GSTAmount,
       PlatformCharge,
       TotalAmount,
@@ -106,6 +111,7 @@ export async function POST(req: Request) {
     }
 
     const validRestroCode = RestroCode ? Number(RestroCode) : null;
+
     if (!validRestroCode) {
       return NextResponse.json(
         {
@@ -115,6 +121,59 @@ export async function POST(req: Request) {
         },
         { status: 400 }
       );
+    }
+
+    /* ================= RESTRO PRICE CALCULATION ================= */
+    const itemCodes = finalItemsArray
+      .map((item: any) => getItemCode(item))
+      .filter((code: number) => Number.isFinite(code) && code > 0);
+
+    let restroPriceTotal = 0;
+    const restroPriceByItemCode: Record<string, number> = {};
+
+    if (itemCodes.length > 0) {
+      const { data: menuRows, error: menuError } = await serviceClient
+        .from("RestroMenuItems")
+        .select("item_code, restro_price")
+        .eq("restro_code", validRestroCode)
+        .in("item_code", itemCodes);
+
+      if (menuError) {
+        console.error("RESTRO PRICE FETCH ERROR =>", menuError.message);
+
+        return NextResponse.json(
+          {
+            ok: false,
+            error: menuError.code,
+            message: "Unable to fetch restaurant price for selected items.",
+          },
+          { status: 500 }
+        );
+      }
+
+      (menuRows || []).forEach((row: any) => {
+        restroPriceByItemCode[String(row.item_code)] = toNumber(row.restro_price, 0);
+      });
+
+      restroPriceTotal = finalItemsArray.reduce((sum: number, item: any) => {
+        const itemCode = String(getItemCode(item));
+        const qty = toNumber(item.qty || item.quantity, 1);
+
+        const fallbackPrice = toNumber(
+          item.RestroPrice ||
+            item.restro_price ||
+            item.base_price ||
+            item.BasePrice ||
+            item.price ||
+            item.selling_price ||
+            item.SellingPrice,
+          0
+        );
+
+        const restroPrice = restroPriceByItemCode[itemCode] ?? fallbackPrice;
+
+        return sum + restroPrice * qty;
+      }, 0);
     }
 
     const bookingSource = detectBookingSource(
@@ -131,6 +190,8 @@ export async function POST(req: Request) {
 
     const pnr = PNR || JourneyPayload?.pnr || body?.pnr || null;
 
+    const calculatedBasePrice = toNumber(BasePrice || SubTotal, 0);
+
     const mainOrderPayload: Record<string, any> = {
       RestroCode: validRestroCode,
       RestroName: RestroName || "Unknown Restaurant",
@@ -143,12 +204,12 @@ export async function POST(req: Request) {
       Seat: Seat || null,
       CustomerName: CustomerName || "Guest",
       CustomerMobile,
-      RestroPrice: Number(SubTotal || 0),
-      SubTotal: Number(SubTotal || 0),
-      BasePrice: Number(SubTotal || 0),
-      GSTAmount: Number(GSTAmount || 0),
-      PlatformCharge: Number(PlatformCharge || 0),
-      TotalAmount: Number(TotalAmount || 0),
+      SubTotal: toNumber(SubTotal || BasePrice, 0),
+      BasePrice: calculatedBasePrice,
+      RestroPrice: toNumber(restroPriceTotal, 0),
+      GSTAmount: toNumber(GSTAmount, 0),
+      PlatformCharge: toNumber(PlatformCharge, 0),
+      TotalAmount: toNumber(TotalAmount, 0),
       PaymentMode: PaymentMode || "COD",
       Status: Status || "Booked",
       PNR: pnr,
@@ -160,6 +221,7 @@ export async function POST(req: Request) {
         BookingSource: bookingSource,
         BookedBy: bookedBy,
         IsAgentOrder: !!(IsAgentOrder || JourneyPayload?.isAgentOrder),
+        RestroPrice: toNumber(restroPriceTotal, 0),
       },
     };
 
@@ -203,35 +265,42 @@ export async function POST(req: Request) {
     const targetOrderId = orderData.OrderId;
 
     const orderItemsPayload = finalItemsArray.map((item: any) => {
+      const parsedItemCode = getItemCode(item);
+
       const singleItemPrice = toNumber(
-        item.price || item.base_price || item.BasePrice || item.selling_price || item.SellingPrice,
+        item.price ||
+          item.base_price ||
+          item.BasePrice ||
+          item.selling_price ||
+          item.SellingPrice,
         0
       );
 
-      const restroPrice = toNumber(
-        item.RestroPrice ||
-          item.restro_price ||
-          item.selling_price ||
-          item.SellingPrice ||
-          singleItemPrice,
-        singleItemPrice
-      );
-
       const itemQty = toNumber(item.qty || item.quantity, 1);
-      const parsedItemCode = item.id ? parseInt(item.id.toString(), 10) : 0;
+
+      const menuRestroPrice =
+        restroPriceByItemCode[String(parsedItemCode)] ??
+        toNumber(
+          item.RestroPrice ||
+            item.restro_price ||
+            item.base_price ||
+            item.BasePrice ||
+            singleItemPrice,
+          singleItemPrice
+        );
 
       return {
         OrderId: targetOrderId,
         RestroCode: validRestroCode,
-        ItemCode: isNaN(parsedItemCode) ? 0 : parsedItemCode,
+        ItemCode: Number.isFinite(parsedItemCode) ? parsedItemCode : 0,
         ItemName: item.name || "Unknown Item",
         ItemDescription: item.description || null,
         ItemCategory: item.category || null,
         Cuisine: item.cuisine || null,
         MenuType: item.menu_type || null,
         BasePrice: singleItemPrice,
-        RestroPrice: restroPrice,
-        GSTPercent: Number(item.gst_percent || 5.0),
+        RestroPrice: menuRestroPrice,
+        GSTPercent: toNumber(item.gst_percent, 5.0),
         SellingPrice: singleItemPrice,
         Quantity: itemQty,
         LineTotal: singleItemPrice * itemQty,
@@ -264,6 +333,7 @@ export async function POST(req: Request) {
       ok: true,
       orderId: targetOrderId,
       totalAmount: orderData.TotalAmount,
+      restroPrice: orderData.RestroPrice,
     });
   } catch (e: any) {
     console.error("CRITICAL EXCEPTION IN API ROUTE =>", e.message);
@@ -277,43 +347,4 @@ export async function POST(req: Request) {
       { status: 500 }
     );
   }
-}
-
-const itemCodes = finalItemsArray
-  .map((item: any) => Number(item.id || item.item_code || item.ItemCode || 0))
-  .filter((code: number) => Number.isFinite(code) && code > 0);
-
-let restroPriceTotal = 0;
-const restroPriceByItemCode: Record<string, number> = {};
-
-if (itemCodes.length > 0) {
-  const { data: menuRows, error: menuError } = await serviceClient
-    .from("RestroMenuItems")
-    .select("item_code, restro_price")
-    .eq("restro_code", validRestroCode)
-    .in("item_code", itemCodes);
-
-  if (menuError) {
-    console.error("RESTRO PRICE FETCH ERROR =>", menuError.message);
-    return NextResponse.json(
-      {
-        ok: false,
-        error: menuError.code,
-        message: "Unable to fetch restaurant price for selected items.",
-      },
-      { status: 500 }
-    );
-  }
-
-  (menuRows || []).forEach((row: any) => {
-    restroPriceByItemCode[String(row.item_code)] = Number(row.restro_price || 0);
-  });
-
-  restroPriceTotal = finalItemsArray.reduce((sum: number, item: any) => {
-    const itemCode = String(item.id || item.item_code || item.ItemCode || 0);
-    const qty = Number(item.qty || item.quantity || 1);
-    const restroPrice = Number(restroPriceByItemCode[itemCode] || 0);
-
-    return sum + restroPrice * qty;
-  }, 0);
 }
