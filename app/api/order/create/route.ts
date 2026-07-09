@@ -34,19 +34,31 @@ function detectBookingSource(req: Request, clientSource?: unknown) {
   return isMobile ? "Mobile Web" : "Desktop";
 }
 
+function toNumber(value: unknown, fallback = 0) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function getItemCode(item: any) {
+  return Number(
+    item?.id ||
+      item?.item_code ||
+      item?.ItemCode ||
+      item?.itemCode ||
+      0
+  );
+}
+
 function cleanOptionalOrderFields(row: Record<string, any>) {
   const next = { ...row };
   delete next.IsAgentOrder;
   return next;
 }
 
-function toNumber(value: unknown, fallback = 0) {
-  const numeric = Number(value);
-  return Number.isFinite(numeric) ? numeric : fallback;
-}
-
-function getItemCode(item: any) {
-  return Number(item?.id || item?.item_code || item?.ItemCode || item?.itemCode || 0);
+function cleanOptionalOrderItemFields(row: Record<string, any>) {
+  const next = { ...row };
+  delete next.RestroPrice;
+  return next;
 }
 
 export async function POST(req: Request) {
@@ -123,7 +135,6 @@ export async function POST(req: Request) {
       );
     }
 
-    /* ================= RESTRO PRICE CALCULATION ================= */
     const itemCodes = finalItemsArray
       .map((item: any) => getItemCode(item))
       .filter((code: number) => Number.isFinite(code) && code > 0);
@@ -139,20 +150,25 @@ export async function POST(req: Request) {
         .in("item_code", itemCodes);
 
       if (menuError) {
-        console.error("RESTRO PRICE FETCH ERROR =>", menuError.message);
+        console.error("RESTRO PRICE FETCH ERROR =>", menuError);
 
         return NextResponse.json(
           {
             ok: false,
             error: menuError.code,
-            message: "Unable to fetch restaurant price for selected items.",
+            message: menuError.message,
+            details: menuError.details,
+            hint: menuError.hint,
           },
           { status: 500 }
         );
       }
 
       (menuRows || []).forEach((row: any) => {
-        restroPriceByItemCode[String(row.item_code)] = toNumber(row.restro_price, 0);
+        restroPriceByItemCode[String(row.item_code)] = toNumber(
+          row.restro_price,
+          0
+        );
       });
 
       restroPriceTotal = finalItemsArray.reduce((sum: number, item: any) => {
@@ -190,8 +206,6 @@ export async function POST(req: Request) {
 
     const pnr = PNR || JourneyPayload?.pnr || body?.pnr || null;
 
-    const calculatedBasePrice = toNumber(BasePrice || SubTotal, 0);
-
     const mainOrderPayload: Record<string, any> = {
       RestroCode: validRestroCode,
       RestroName: RestroName || "Unknown Restaurant",
@@ -205,7 +219,7 @@ export async function POST(req: Request) {
       CustomerName: CustomerName || "Guest",
       CustomerMobile,
       SubTotal: toNumber(SubTotal || BasePrice, 0),
-      BasePrice: calculatedBasePrice,
+      BasePrice: toNumber(BasePrice || SubTotal, 0),
       RestroPrice: toNumber(restroPriceTotal, 0),
       GSTAmount: toNumber(GSTAmount, 0),
       PlatformCharge: toNumber(PlatformCharge, 0),
@@ -246,16 +260,15 @@ export async function POST(req: Request) {
     }
 
     if (insertResult.error) {
-      console.error(
-        "SUPABASE MAIN ORDER INSERT ERROR =>",
-        insertResult.error.message
-      );
+      console.error("SUPABASE MAIN ORDER INSERT ERROR =>", insertResult.error);
 
       return NextResponse.json(
         {
           ok: false,
           error: insertResult.error.code,
           message: insertResult.error.message,
+          details: insertResult.error.details,
+          hint: insertResult.error.hint,
         },
         { status: 500 }
       );
@@ -307,14 +320,26 @@ export async function POST(req: Request) {
       };
     });
 
-    const { error: itemsError } = await serviceClient
+    let itemsInsertResult = await serviceClient
       .from("OrderItems")
       .insert(orderItemsPayload);
 
-    if (itemsError) {
+    if (itemsInsertResult.error) {
+      const message = itemsInsertResult.error.message || "";
+      const shouldRetryWithoutRestroPrice =
+        /RestroPrice|column|schema cache/i.test(message);
+
+      if (shouldRetryWithoutRestroPrice) {
+        itemsInsertResult = await serviceClient
+          .from("OrderItems")
+          .insert(orderItemsPayload.map(cleanOptionalOrderItemFields));
+      }
+    }
+
+    if (itemsInsertResult.error) {
       console.error(
         "SUPABASE ORDER ITEMS BULK INSERT ERROR =>",
-        itemsError.message
+        itemsInsertResult.error
       );
 
       await serviceClient.from("Orders").delete().eq("OrderId", targetOrderId);
@@ -322,29 +347,10 @@ export async function POST(req: Request) {
       return NextResponse.json(
         {
           ok: false,
-          error: itemsError.code,
-          if (itemsError) {
-  console.error(
-    "SUPABASE ORDER ITEMS BULK INSERT ERROR =>",
-    itemsError
-  );
-
-  await serviceClient
-    .from("Orders")
-    .delete()
-    .eq("OrderId", targetOrderId);
-
-  return NextResponse.json(
-    {
-      ok: false,
-      error: itemsError.code,
-      message: itemsError.message,
-      details: itemsError.details,
-      hint: itemsError.hint,
-    },
-    { status: 500 }
-  );
-}
+          error: itemsInsertResult.error.code,
+          message: itemsInsertResult.error.message,
+          details: itemsInsertResult.error.details,
+          hint: itemsInsertResult.error.hint,
         },
         { status: 500 }
       );
@@ -357,13 +363,13 @@ export async function POST(req: Request) {
       restroPrice: orderData.RestroPrice,
     });
   } catch (e: any) {
-    console.error("CRITICAL EXCEPTION IN API ROUTE =>", e.message);
+    console.error("CRITICAL EXCEPTION IN API ROUTE =>", e);
 
     return NextResponse.json(
       {
         ok: false,
         error: "server_crash",
-        message: e.message,
+        message: e?.message || "Server error",
       },
       { status: 500 }
     );
