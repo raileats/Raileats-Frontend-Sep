@@ -323,7 +323,28 @@ export async function POST(req: Request) {
         {
           ok: false,
           error: itemsError.code,
-          message: "Transaction failed at items insertion block.",
+          if (itemsError) {
+  console.error(
+    "SUPABASE ORDER ITEMS BULK INSERT ERROR =>",
+    itemsError
+  );
+
+  await serviceClient
+    .from("Orders")
+    .delete()
+    .eq("OrderId", targetOrderId);
+
+  return NextResponse.json(
+    {
+      ok: false,
+      error: itemsError.code,
+      message: itemsError.message,
+      details: itemsError.details,
+      hint: itemsError.hint,
+    },
+    { status: 500 }
+  );
+}
         },
         { status: 500 }
       );
