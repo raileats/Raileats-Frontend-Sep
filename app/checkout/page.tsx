@@ -616,6 +616,19 @@ export default function CheckoutPage() {
           name: i.name,
           qty: i.qty,
           price: i.price,
+          BasePrice: i.BasePrice || i.base_price || i.price,
+          RestroPrice:
+            i.RestroPrice ||
+            i.restro_price ||
+            i.selling_price ||
+            i.SellingPrice ||
+            i.price,
+          selling_price:
+            i.selling_price ||
+            i.SellingPrice ||
+            i.RestroPrice ||
+            i.restro_price ||
+            i.price,
           description: i.description || i.ItemDescription || null,
           category: i.category || i.ItemCategory || null,
           cuisine: i.cuisine || i.Cuisine || null,
