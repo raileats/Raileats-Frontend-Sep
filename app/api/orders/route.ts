@@ -95,7 +95,7 @@ function detectBookingSource(req: Request, clientSource?: unknown) {
   const isAndroidApp =
     /raileats/i.test(appHeader) ||
     /RailEatsApp|RailEats-Android/i.test(ua) ||
-    (isAndroid && (/; wv\)/i.test(ua) || /Version\/4\.0/i.test(ua)));
+    (isAndroid && (/; wv/i.test(ua) || /Version\/4\.0/i.test(ua)));
 
   if (isAndroidApp) return "App";
   if (isAndroid) return "Mobile Web";
@@ -108,10 +108,7 @@ function detectBookingSource(req: Request, clientSource?: unknown) {
 
 function cleanOptionalOrderFields(row: Record<string, any>) {
   const next = { ...row };
-  delete next.BookingSource;
-  delete next.BookedBy;
   delete next.IsAgentOrder;
-  delete next.PNR;
   return next;
 }
 
@@ -499,7 +496,7 @@ export async function POST(req: Request) {
     if (orderInsert.error) {
       const message = orderInsert.error.message || "";
       const shouldRetryWithoutOptionalColumns =
-        /BookingSource|BookedBy|IsAgentOrder|PNR|column|schema cache/i.test(message);
+        /IsAgentOrder|column|schema cache/i.test(message);
 
       if (shouldRetryWithoutOptionalColumns) {
         orderInsert = await supa
