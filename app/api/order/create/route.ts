@@ -3,6 +3,46 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { serviceClient } from "@/lib/supabaseServer";
 
+function detectBookingSource(req: Request, clientSource?: unknown) {
+  const explicit = String(clientSource || "").trim();
+  const allowed = ["Desktop", "Mac", "Mobile Web", "IOS", "App"];
+
+  if (allowed.includes(explicit)) return explicit;
+
+  const ua = req.headers.get("user-agent") || "";
+  const appHeader =
+    req.headers.get("x-raileats-app") ||
+    req.headers.get("x-requested-with") ||
+    "";
+
+  const isAndroid = /Android/i.test(ua);
+  const isIos = /iPhone|iPad|iPod/i.test(ua);
+  const isMac = /Macintosh|Mac OS X/i.test(ua);
+  const isWindows = /Windows/i.test(ua);
+  const isMobile = /Mobile|Android|iPhone|iPad|iPod/i.test(ua);
+  const isAndroidApp =
+    /raileats/i.test(appHeader) ||
+    /RailEatsApp|RailEats-Android/i.test(ua) ||
+    (isAndroid && (/; wv\)/i.test(ua) || /Version\/4\.0/i.test(ua)));
+
+  if (isAndroidApp) return "App";
+  if (isAndroid) return "Mobile Web";
+  if (isIos) return "IOS";
+  if (isMac && !isMobile) return "Mac";
+  if (isWindows) return "Desktop";
+
+  return isMobile ? "Mobile Web" : "Desktop";
+}
+
+function cleanOptionalOrderFields(row: Record<string, any>) {
+  const next = { ...row };
+  delete next.BookingSource;
+  delete next.BookedBy;
+  delete next.IsAgentOrder;
+  delete next.PNR;
+  return next;
+}
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
@@ -28,6 +68,10 @@ export async function POST(req: Request) {
       Status,
       Items,
       items,
+      PNR,
+      BookingSource,
+      BookedBy,
+      IsAgentOrder,
       JourneyPayload, // Extracting nested payload
     } = body;
 
@@ -59,10 +103,24 @@ export async function POST(req: Request) {
       );
     }
 
+    const bookingSource = detectBookingSource(
+      req,
+      BookingSource || JourneyPayload?.bookingSource
+    );
+    const bookedBy =
+      BookedBy ||
+      JourneyPayload?.bookedBy ||
+      (IsAgentOrder || JourneyPayload?.isAgentOrder
+        ? `${CustomerName || "Customer"} Agent`
+        : CustomerName || "Customer");
+    const pnr =
+      PNR ||
+      JourneyPayload?.pnr ||
+      body?.pnr ||
+      null;
+
     // 2. Insert Main Order into "Orders" Table
-    const { data: orderData, error: orderError } = await serviceClient
-      .from("Orders")
-      .insert({
+    const mainOrderPayload: Record<string, any> = {
         RestroCode: validRestroCode,
         RestroName: RestroName || "Unknown Restaurant",
         StationCode: StationCode || "N/A",
@@ -80,18 +138,47 @@ export async function POST(req: Request) {
         TotalAmount: Number(TotalAmount || 0),
         PaymentMode: PaymentMode || "COD",
         Status: Status || "Booked",
-        JourneyPayload: body, 
-      })
+        PNR: pnr,
+        BookingSource: bookingSource,
+        BookedBy: bookedBy,
+        IsAgentOrder: !!(IsAgentOrder || JourneyPayload?.isAgentOrder),
+        JourneyPayload: {
+          ...body,
+          BookingSource: bookingSource,
+          BookedBy: bookedBy,
+          IsAgentOrder: !!(IsAgentOrder || JourneyPayload?.isAgentOrder),
+        },
+      };
+
+    let insertResult = await serviceClient
+      .from("Orders")
+      .insert(mainOrderPayload)
       .select()
       .single();
 
-    if (orderError) {
-      console.error("SUPABASE MAIN ORDER INSERT ERROR =>", orderError.message);
+    if (insertResult.error) {
+      const message = insertResult.error.message || "";
+      const shouldRetryWithoutOptionalColumns =
+        /BookingSource|BookedBy|IsAgentOrder|PNR|column|schema cache/i.test(message);
+
+      if (shouldRetryWithoutOptionalColumns) {
+        insertResult = await serviceClient
+          .from("Orders")
+          .insert(cleanOptionalOrderFields(mainOrderPayload))
+          .select()
+          .single();
+      }
+    }
+
+    if (insertResult.error) {
+      console.error("SUPABASE MAIN ORDER INSERT ERROR =>", insertResult.error.message);
       return NextResponse.json(
-        { ok: false, error: orderError.code, message: orderError.message },
+        { ok: false, error: insertResult.error.code, message: insertResult.error.message },
         { status: 500 }
       );
     }
+
+    const orderData = insertResult.data;
 
     // 3. Extract the Auto-generated OrderId
     const targetOrderId = orderData.OrderId;
