@@ -583,6 +583,7 @@ export default function CheckoutPage() {
   const bookedByName = isAgentActive
     ? `${agentInfo.name || user?.name || user?.mobile || mobile || "Agent"} Agent`
     : name || user?.name || "Customer";
+  const hasPnrForCheckout = isAgentActive || !!String(pnr || "").trim();
 
   const isOrderReady =
     !!name &&
@@ -592,7 +593,7 @@ export default function CheckoutPage() {
     deliveryDate !== "N/A" &&
     !!deliveryTime &&
     deliveryTime !== "N/A" &&
-    !!String(pnr || "").trim() &&
+    hasPnrForCheckout &&
     !!coach &&
     !!seat &&
     (isAgentActive || isPnrVerified) &&
