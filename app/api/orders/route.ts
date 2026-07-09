@@ -13,7 +13,12 @@ type IncomingItem = {
   title?: string;
   price?: number | string;
   base_price?: number | string;
+  BasePrice?: number | string;
   unitPrice?: number | string;
+  restro_price?: number | string;
+  RestroPrice?: number | string;
+  selling_price?: number | string;
+  SellingPrice?: number | string;
   qty?: number | string;
   quantity?: number | string;
 };
@@ -124,7 +129,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // review page se aa raha payload
     const draft: any = body.draft || {};
     const pricing: any = body.pricing || {};
 
@@ -153,17 +157,26 @@ export async function POST(req: Request) {
     const normItems = rawItems
       .map((it, idx) => {
         const qty = toNumber(it.qty ?? it.quantity, 0);
+
         const price = toNumber(
-          it.price ?? it.base_price ?? it.unitPrice,
+          it.price ?? it.base_price ?? it.BasePrice ?? it.unitPrice,
           0,
         );
+
+        const restroPrice = toNumber(
+          it.RestroPrice ??
+            it.restro_price ??
+            it.selling_price ??
+            it.SellingPrice ??
+            price,
+          price,
+        );
+
         if (qty <= 0 || !Number.isFinite(price) || price <= 0) return null;
 
-        const code =
-          it.id ?? it.itemId ?? it.item_code ?? (idx + 1);
+        const code = it.id ?? it.itemId ?? it.item_code ?? idx + 1;
 
-        const name =
-          it.name ?? it.itemName ?? it.title ?? `Item ${idx + 1}`;
+        const name = it.name ?? it.itemName ?? it.title ?? `Item ${idx + 1}`;
 
         const lineTotal = qty * price;
 
@@ -171,6 +184,7 @@ export async function POST(req: Request) {
           ItemCode: toNumber(code, idx + 1),
           ItemName: String(name).slice(0, 200),
           BasePrice: price,
+          RestroPrice: restroPrice,
           GSTPercent: null as number | null,
           SellingPrice: null as number | null,
           Quantity: qty,
@@ -181,6 +195,7 @@ export async function POST(req: Request) {
       ItemCode: number;
       ItemName: string;
       BasePrice: number;
+      RestroPrice: number;
       GSTPercent: number | null;
       SellingPrice: number | null;
       Quantity: number;
@@ -219,11 +234,7 @@ export async function POST(req: Request) {
     /* ---- 2) OUTLET + JOURNEY ---- */
 
     const outlet: IncomingOutlet =
-      draft.outlet ||
-      draft.outletMeta ||
-      body.outlet ||
-      body.outletMeta ||
-      {};
+      draft.outlet || draft.outletMeta || body.outlet || body.outletMeta || {};
 
     const restroCode = toNumber(
       outlet.restroCode ??
@@ -234,6 +245,7 @@ export async function POST(req: Request) {
         body.RestroCode,
       NaN,
     );
+
     const stationCodeRaw =
       outlet.stationCode ??
       outlet.StationCode ??
@@ -275,8 +287,7 @@ export async function POST(req: Request) {
       body.stationName ??
       "";
 
-    const stationName =
-      String(stationNameRaw || "").trim() || stationCode;
+    const stationName = String(stationNameRaw || "").trim() || stationCode;
 
     const journey: IncomingJourney =
       draft.journey ||
@@ -294,19 +305,11 @@ export async function POST(req: Request) {
       };
 
     const trainNumber = String(
-      journey.trainNo ??
-        draft.trainNo ??
-        body.trainNo ??
-        body.TrainNumber ??
-        "",
+      journey.trainNo ?? draft.trainNo ?? body.trainNo ?? body.TrainNumber ?? "",
     ).trim();
 
     const customerMobile = String(
-      journey.mobile ??
-        draft.mobile ??
-        body.mobile ??
-        body.CustomerMobile ??
-        "",
+      journey.mobile ?? draft.mobile ?? body.mobile ?? body.CustomerMobile ?? "",
     ).trim();
 
     if (!trainNumber || !customerMobile) {
@@ -335,9 +338,7 @@ export async function POST(req: Request) {
     ).slice(0, 10);
 
     const DeliveryTime = normTimeHHMMSS(
-      journey.deliveryTime ??
-        draft.deliveryTime ??
-        body.deliveryTime,
+      journey.deliveryTime ?? draft.deliveryTime ?? body.deliveryTime,
     );
 
     const CustomerName =
@@ -348,21 +349,13 @@ export async function POST(req: Request) {
         "") || null;
 
     const Coach =
-      (journey.coach ??
-        draft.coach ??
-        body.coach ??
-        body.Coach ??
-        "") || null;
+      (journey.coach ?? draft.coach ?? body.coach ?? body.Coach ?? "") || null;
+
     const Seat =
-      (journey.seat ??
-        draft.seat ??
-        body.seat ??
-        body.Seat ??
-        "") || null;
+      (journey.seat ?? draft.seat ?? body.seat ?? body.Seat ?? "") || null;
 
     const rawPm = body.paymentMode ?? draft.paymentMode;
-    const PaymentMode: "COD" | "ONLINE" =
-      rawPm === "ONLINE" ? "ONLINE" : "COD";
+    const PaymentMode: "COD" | "ONLINE" = rawPm === "ONLINE" ? "ONLINE" : "COD";
 
     const bookingSource = detectBookingSource(
       req,
@@ -373,6 +366,7 @@ export async function POST(req: Request) {
         (journey as any).BookingSource ||
         (journey as any).bookingSource,
     );
+
     const isAgentOrder = !!(
       body.IsAgentOrder ||
       body.isAgentOrder ||
@@ -381,6 +375,7 @@ export async function POST(req: Request) {
       (journey as any).IsAgentOrder ||
       (journey as any).isAgentOrder
     );
+
     const bookedBy =
       body.BookedBy ||
       body.bookedBy ||
@@ -398,6 +393,7 @@ export async function POST(req: Request) {
     const wantedCodes = normItems.map((it) => it.ItemCode);
 
     const menuMap = new Map<number, RestroMenuItemRow>();
+
     if (wantedCodes.length) {
       const { data: menuData, error: menuErr } = await supa
         .from("RestroMenuItems")
@@ -422,9 +418,8 @@ export async function POST(req: Request) {
       .toISOString()
       .replace(/[-:TZ.]/g, "")
       .slice(0, 14);
-    const OrderId = `RE-${stamp}-${Math.floor(
-      Math.random() * 900 + 100,
-    )}`;
+
+    const OrderId = `RE-${stamp}-${Math.floor(Math.random() * 900 + 100)}`;
 
     const orderRow: Record<string, any> = {
       OrderId,
@@ -437,12 +432,7 @@ export async function POST(req: Request) {
       TrainNumber: trainNumber,
       Coach,
       Seat,
-      PNR:
-        journey.pnr ??
-        draft.pnr ??
-        body.pnr ??
-        body.PNR ??
-        null,
+      PNR: journey.pnr ?? draft.pnr ?? body.pnr ?? body.PNR ?? null,
       CustomerName,
       CustomerMobile: customerMobile,
       SubTotal,
@@ -464,6 +454,11 @@ export async function POST(req: Request) {
 
     const itemRows = normItems.map((it) => {
       const meta = menuMap.get(it.ItemCode);
+      const finalRestroPrice = toNumber(
+        meta?.selling_price ?? it.RestroPrice ?? it.BasePrice,
+        it.BasePrice,
+      );
+
       return {
         OrderId,
         RestroCode: restroCode,
@@ -474,6 +469,7 @@ export async function POST(req: Request) {
         Cuisine: meta?.item_cuisine ?? null,
         MenuType: meta?.menu_type ?? null,
         BasePrice: it.BasePrice,
+        RestroPrice: finalRestroPrice,
         GSTPercent: meta?.gst_percent ?? it.GSTPercent,
         SellingPrice: meta?.selling_price ?? it.SellingPrice,
         Quantity: it.Quantity,
@@ -513,9 +509,8 @@ export async function POST(req: Request) {
       );
     }
 
-    const { error: itemsErr } = await supa
-      .from("OrderItems")
-      .insert(itemRows);
+    const { error: itemsErr } = await supa.from("OrderItems").insert(itemRows);
+
     if (itemsErr) {
       console.error("OrderItems insert error", itemsErr);
     }
@@ -523,6 +518,7 @@ export async function POST(req: Request) {
     const { error: histErr } = await supa
       .from("OrderStatusHistory")
       .insert(historyRow);
+
     if (histErr) {
       console.error("OrderStatusHistory insert error", histErr);
     }
