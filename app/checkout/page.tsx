@@ -824,17 +824,27 @@ export default function CheckoutPage() {
           <div className="space-y-3 text-[14px]">
             <div className="flex items-center gap-2.5">
               <input
-                className="border border-slate-200 rounded-lg px-3 py-2.5 text-[14px] focus:outline-none bg-slate-100/70 text-slate-500 font-medium cursor-not-allowed flex-1 min-w-0"
+                className={`border border-slate-200 rounded-lg px-3 py-2.5 text-[14px] font-medium flex-1 min-w-0 ${
+                  isAgentActive
+                    ? "bg-white text-slate-800 focus:outline-none focus:border-amber-500"
+                    : "bg-slate-100/70 text-slate-500 cursor-not-allowed focus:outline-none"
+                }`}
                 placeholder="Passenger Name"
                 value={name}
-                readOnly
+                readOnly={!isAgentActive}
+                onChange={(e) => setName(e.target.value)}
               />
               <input
-                className="border border-slate-200 rounded-lg px-2 py-2.5 text-[14px] focus:outline-none bg-slate-100/70 text-slate-500 font-medium cursor-not-allowed w-[110px] shrink-0 text-center"
+                className={`border border-slate-200 rounded-lg px-2 py-2.5 text-[14px] font-medium w-[110px] shrink-0 text-center ${
+                  isAgentActive
+                    ? "bg-white text-slate-800 focus:outline-none focus:border-amber-500"
+                    : "bg-slate-100/70 text-slate-500 cursor-not-allowed focus:outline-none"
+                }`}
                 placeholder="Mobile"
                 value={mobile}
                 maxLength={10}
-                readOnly
+                readOnly={!isAgentActive}
+                onChange={(e) => setMobile(normalizeMobile(e.target.value))}
               />
             </div>
 
