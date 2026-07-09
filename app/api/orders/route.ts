@@ -75,6 +75,46 @@ function normTimeHHMMSS(t?: string | null) {
   return `${hh.padStart(2, "0")}:${mm.padStart(2, "0")}:00`;
 }
 
+function detectBookingSource(req: Request, clientSource?: unknown) {
+  const explicit = String(clientSource || "").trim();
+  const allowed = ["Desktop", "Mac", "Mobile Web", "IOS", "App"];
+
+  if (allowed.includes(explicit)) return explicit;
+
+  const ua = req.headers.get("user-agent") || "";
+  const appHeader =
+    req.headers.get("x-raileats-app") ||
+    req.headers.get("x-requested-with") ||
+    "";
+
+  const isAndroid = /Android/i.test(ua);
+  const isIos = /iPhone|iPad|iPod/i.test(ua);
+  const isMac = /Macintosh|Mac OS X/i.test(ua);
+  const isWindows = /Windows/i.test(ua);
+  const isMobile = /Mobile|Android|iPhone|iPad|iPod/i.test(ua);
+  const isAndroidApp =
+    /raileats/i.test(appHeader) ||
+    /RailEatsApp|RailEats-Android/i.test(ua) ||
+    (isAndroid && (/; wv\)/i.test(ua) || /Version\/4\.0/i.test(ua)));
+
+  if (isAndroidApp) return "App";
+  if (isAndroid) return "Mobile Web";
+  if (isIos) return "IOS";
+  if (isMac && !isMobile) return "Mac";
+  if (isWindows) return "Desktop";
+
+  return isMobile ? "Mobile Web" : "Desktop";
+}
+
+function cleanOptionalOrderFields(row: Record<string, any>) {
+  const next = { ...row };
+  delete next.BookingSource;
+  delete next.BookedBy;
+  delete next.IsAgentOrder;
+  delete next.PNR;
+  return next;
+}
+
 /** ---------- POST /api/orders ---------- */
 export async function POST(req: Request) {
   try {
@@ -327,6 +367,34 @@ export async function POST(req: Request) {
     const PaymentMode: "COD" | "ONLINE" =
       rawPm === "ONLINE" ? "ONLINE" : "COD";
 
+    const bookingSource = detectBookingSource(
+      req,
+      body.BookingSource ||
+        body.bookingSource ||
+        draft.BookingSource ||
+        draft.bookingSource ||
+        (journey as any).BookingSource ||
+        (journey as any).bookingSource,
+    );
+    const isAgentOrder = !!(
+      body.IsAgentOrder ||
+      body.isAgentOrder ||
+      draft.IsAgentOrder ||
+      draft.isAgentOrder ||
+      (journey as any).IsAgentOrder ||
+      (journey as any).isAgentOrder
+    );
+    const bookedBy =
+      body.BookedBy ||
+      body.bookedBy ||
+      draft.BookedBy ||
+      draft.bookedBy ||
+      (journey as any).BookedBy ||
+      (journey as any).bookedBy ||
+      (isAgentOrder
+        ? `${CustomerName || customerMobile || "Customer"} Agent`
+        : CustomerName || "Customer");
+
     /* ---- 3) Fetch RestroMenuItems meta ---- */
 
     const supa = serviceClient;
@@ -361,7 +429,7 @@ export async function POST(req: Request) {
       Math.random() * 900 + 100,
     )}`;
 
-    const orderRow = {
+    const orderRow: Record<string, any> = {
       OrderId,
       RestroCode: restroCode,
       RestroName: restroName,
@@ -372,6 +440,12 @@ export async function POST(req: Request) {
       TrainNumber: trainNumber,
       Coach,
       Seat,
+      PNR:
+        journey.pnr ??
+        draft.pnr ??
+        body.pnr ??
+        body.PNR ??
+        null,
       CustomerName,
       CustomerMobile: customerMobile,
       SubTotal,
@@ -380,7 +454,15 @@ export async function POST(req: Request) {
       TotalAmount,
       PaymentMode,
       Status: "booked" as const,
-      JourneyPayload: journey,
+      BookingSource: bookingSource,
+      BookedBy: bookedBy,
+      IsAgentOrder: isAgentOrder,
+      JourneyPayload: {
+        ...journey,
+        BookingSource: bookingSource,
+        BookedBy: bookedBy,
+        IsAgentOrder: isAgentOrder,
+      },
     };
 
     const itemRows = normItems.map((it) => {
@@ -412,9 +494,22 @@ export async function POST(req: Request) {
 
     /* ---- 5) Insert into Supabase ---- */
 
-    const { error: orderErr } = await supa.from("Orders").insert(orderRow);
-    if (orderErr) {
-      console.error("Orders insert error", orderErr);
+    let orderInsert = await supa.from("Orders").insert(orderRow);
+
+    if (orderInsert.error) {
+      const message = orderInsert.error.message || "";
+      const shouldRetryWithoutOptionalColumns =
+        /BookingSource|BookedBy|IsAgentOrder|PNR|column|schema cache/i.test(message);
+
+      if (shouldRetryWithoutOptionalColumns) {
+        orderInsert = await supa
+          .from("Orders")
+          .insert(cleanOptionalOrderFields(orderRow));
+      }
+    }
+
+    if (orderInsert.error) {
+      console.error("Orders insert error", orderInsert.error);
       return NextResponse.json(
         { ok: false, error: "db_orders_error" },
         { status: 500 },
