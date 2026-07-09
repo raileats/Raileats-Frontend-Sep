@@ -277,3 +277,42 @@ export async function POST(req: Request) {
     );
   }
 }
+
+const itemCodes = finalItemsArray
+  .map((item: any) => Number(item.id || item.item_code || item.ItemCode || 0))
+  .filter((code: number) => Number.isFinite(code) && code > 0);
+
+let restroPriceTotal = 0;
+const restroPriceByItemCode: Record<string, number> = {};
+
+if (itemCodes.length > 0) {
+  const { data: menuRows, error: menuError } = await serviceClient
+    .from("RestroMenuItems")
+    .select("item_code, restro_price")
+    .eq("restro_code", validRestroCode)
+    .in("item_code", itemCodes);
+
+  if (menuError) {
+    console.error("RESTRO PRICE FETCH ERROR =>", menuError.message);
+    return NextResponse.json(
+      {
+        ok: false,
+        error: menuError.code,
+        message: "Unable to fetch restaurant price for selected items.",
+      },
+      { status: 500 }
+    );
+  }
+
+  (menuRows || []).forEach((row: any) => {
+    restroPriceByItemCode[String(row.item_code)] = Number(row.restro_price || 0);
+  });
+
+  restroPriceTotal = finalItemsArray.reduce((sum: number, item: any) => {
+    const itemCode = String(item.id || item.item_code || item.ItemCode || 0);
+    const qty = Number(item.qty || item.quantity || 1);
+    const restroPrice = Number(restroPriceByItemCode[itemCode] || 0);
+
+    return sum + restroPrice * qty;
+  }, 0);
+}
