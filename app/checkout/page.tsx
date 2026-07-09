@@ -23,9 +23,11 @@ function detectClientBookingSource() {
   const isMobile = /Mobile|Android|iPhone|iPad|iPod/i.test(ua);
   const isAndroidWebView =
     isAndroid &&
-    (/; wv\)/i.test(ua) ||
+    (
+      /; wv/i.test(ua) ||
       /Version\/4\.0/i.test(ua) ||
-      /RailEatsApp|RailEats-Android/i.test(ua));
+      /RailEatsApp|RailEats-Android/i.test(ua)
+    );
 
   if (isAndroidWebView) return "App";
   if (isAndroid) return "Mobile Web";
@@ -277,16 +279,16 @@ useEffect(() => {
   }
 
   async function fetchPnrDetails() {
-    if (isAgentActive) {
+    if (!pnr || (!isAgentActive && pnr.length !== 10)) {
       setPnrError("");
-      setIsPnrLocked(false);
-      setIsPnrVerified(!!String(pnr || "").trim());
+      setIsPnrVerified(false);
       return;
     }
 
-    if (!pnr || pnr.length !== 10) {
+    if (isAgentActive && pnr.length !== 10) {
       setPnrError("");
-      setIsPnrVerified(false);
+      setIsPnrLocked(false);
+      setIsPnrVerified(!!String(pnr || "").trim());
       return;
     }
 
@@ -298,6 +300,13 @@ useEffect(() => {
       const data = await res.json();
 
       if (!data?.ok) {
+        if (isAgentActive) {
+          setPnrError("");
+          setIsPnrLocked(false);
+          setIsPnrVerified(!!String(pnr || "").trim());
+          return;
+        }
+
         setPnrError("Invalid PNR");
         setCoach("");
         setSeat("");
@@ -319,9 +328,22 @@ useEffect(() => {
         data.dateOfJourney || data.raw?.dateOfJourney || ""
       );
 
+      if (
+        isAgentActive &&
+        pnrJourneyDate &&
+        (!manualDeliveryDate || manualDeliveryDate === "N/A")
+      ) {
+        setManualDeliveryDate(pnrJourneyDate);
+      }
+
       const currentTrainNo = String(trainNumber || "");
 
-      if (currentTrainNo && pnrTrainNo && pnrTrainNo !== currentTrainNo) {
+      if (
+        !isAgentActive &&
+        currentTrainNo &&
+        pnrTrainNo &&
+        pnrTrainNo !== currentTrainNo
+      ) {
         setPnrError("PNR not belongs to booking train");
         setCoach("");
         setSeat("");
@@ -331,6 +353,13 @@ useEffect(() => {
       }
 
       if (!pnrTrainNo || !pnrJourneyDate || !pnrBoarding) {
+        if (isAgentActive) {
+          setPnrError("");
+          setIsPnrLocked(false);
+          setIsPnrVerified(!!String(pnr || "").trim());
+          return;
+        }
+
         setPnrError("PNR data incomplete");
         setCoach("");
         setSeat("");
@@ -357,16 +386,34 @@ useEffect(() => {
         );
       });
 
-      if (!matchedStation) {
-        setPnrError("PNR route does not match delivery station");
-        setCoach("");
-        setSeat("");
-        setIsPnrVerified(false);
-        setIsPnrLocked(false);
-        return;
+      if (
+        isAgentActive &&
+        matchedStation?.date &&
+        (!manualDeliveryDate || manualDeliveryDate === "N/A")
+      ) {
+        setManualDeliveryDate(formatDateForTrainPage(matchedStation.date));
       }
 
-      if (normalizeDate(matchedStation.date) !== normalizeDate(deliveryDate)) {
+      if (!matchedStation) {
+        if (isAgentActive) {
+          setPnrError("");
+          setIsPnrLocked(false);
+          setIsPnrVerified(!!String(pnr || "").trim());
+        } else {
+          setPnrError("PNR route does not match delivery station");
+          setCoach("");
+          setSeat("");
+          setIsPnrVerified(false);
+          setIsPnrLocked(false);
+          return;
+        }
+      }
+
+      if (
+        matchedStation &&
+        !isAgentActive &&
+        normalizeDate(matchedStation.date) !== normalizeDate(deliveryDate)
+      ) {
         setPnrError("Date mismatch");
         setCoach("");
         setSeat("");
@@ -395,9 +442,13 @@ useEffect(() => {
         "";
 
       setPnrError("");
-      setCoach(String(fetchedCoach || ""));
-      setSeat(String(fetchedSeat || ""));
-      setIsPnrLocked(true);
+      if (fetchedCoach && (!isAgentActive || !coach)) {
+        setCoach(String(fetchedCoach || ""));
+      }
+      if (fetchedSeat && (!isAgentActive || !seat)) {
+        setSeat(String(fetchedSeat || ""));
+      }
+      setIsPnrLocked(!isAgentActive);
       setIsPnrVerified(true);
 
       localStorage.setItem(
@@ -420,6 +471,14 @@ useEffect(() => {
         })
       );
     } catch (e) {
+      if (isAgentActive) {
+        setPnrError("");
+        setIsPnrLocked(false);
+        setIsPnrVerified(!!String(pnr || "").trim());
+        console.error("Agent PNR soft fetch failed", e);
+        return;
+      }
+
       setPnrError("PNR fetch failed");
       setCoach("");
       setSeat("");
@@ -430,7 +489,7 @@ useEffect(() => {
   }
 
   fetchPnrDetails();
-}, [pnr, trainNumber, stationCode, deliveryDate, isAgentActive]);
+}, [pnr, trainNumber, stationCode, deliveryDate, isAgentActive, manualDeliveryDate, coach, seat]);
   /* ================= CALCULATIONS ================= */
   const subtotal = cartItems.reduce(
     (sum, i) => sum + Number(i.price) * Number(i.qty),
