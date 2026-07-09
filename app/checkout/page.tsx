@@ -5,6 +5,43 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useCart } from "@/lib/useCart";
 import { useAuth } from "@/lib/useAuth";
 
+type AgentInfo = {
+  active: boolean;
+  name?: string;
+  mobile?: string;
+};
+
+function detectClientBookingSource() {
+  if (typeof navigator === "undefined") return "Desktop";
+
+  const ua = navigator.userAgent || "";
+  const platform = navigator.platform || "";
+  const isAndroid = /Android/i.test(ua);
+  const isIos = /iPhone|iPad|iPod/i.test(ua);
+  const isMac = /Mac/i.test(platform) || /Macintosh|Mac OS X/i.test(ua);
+  const isWindows = /Windows/i.test(ua);
+  const isMobile = /Mobile|Android|iPhone|iPad|iPod/i.test(ua);
+  const isAndroidWebView =
+    isAndroid &&
+    (/; wv\)/i.test(ua) ||
+      /Version\/4\.0/i.test(ua) ||
+      /RailEatsApp|RailEats-Android/i.test(ua));
+
+  if (isAndroidWebView) return "App";
+  if (isAndroid) return "Mobile Web";
+  if (isIos) return "IOS";
+  if (isMac && !isMobile) return "Mac";
+  if (isWindows) return "Desktop";
+
+  return isMobile ? "Mobile Web" : "Desktop";
+}
+
+function normalizeMobile(value: string) {
+  const digits = String(value || "").replace(/\D/g, "");
+  if (digits.length > 10 && digits.startsWith("91")) return digits.slice(-10);
+  return digits.slice(-10);
+}
+
 export default function CheckoutPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -26,6 +63,9 @@ export default function CheckoutPage() {
   const [isPnrLocked, setIsPnrLocked] = useState(false);
   const [isPnrVerified, setIsPnrVerified] = useState(false);
   const [promo, setPromo] = useState("");
+  const [agentInfo, setAgentInfo] = useState<AgentInfo>({ active: false });
+  const [manualDeliveryDate, setManualDeliveryDate] = useState("");
+  const [manualDeliveryTime, setManualDeliveryTime] = useState("");
 
   const [paymentMode, setPaymentMode] = useState("COD");
   const [showPaymentPopup, setShowPaymentPopup] = useState(false);
@@ -76,12 +116,12 @@ const stationCode =
   firstCartItem?.stationCode ||
   "";
 
-const deliveryDate =
+const baseDeliveryDate =
   journey?.deliveryDate ||
   firstCartItem?.deliveryDate ||
   "N/A";
 
-const deliveryTime =
+const baseDeliveryTime =
   journey?.deliveryTime ||
   firstCartItem?.deliveryTime ||
   "N/A";
@@ -91,6 +131,67 @@ const vendorName =
   firstCartItem?.vendorName ||
   firstCartItem?.restro_name ||
   "N/A";
+
+const isAgentActive = !!agentInfo.active;
+
+const deliveryDate =
+  isAgentActive && manualDeliveryDate
+    ? manualDeliveryDate
+    : baseDeliveryDate;
+
+const deliveryTime =
+  isAgentActive && manualDeliveryTime
+    ? manualDeliveryTime
+    : baseDeliveryTime;
+
+useEffect(() => {
+  if (baseDeliveryDate && baseDeliveryDate !== "N/A") {
+    setManualDeliveryDate(baseDeliveryDate);
+  }
+}, [baseDeliveryDate]);
+
+useEffect(() => {
+  if (baseDeliveryTime && baseDeliveryTime !== "N/A") {
+    setManualDeliveryTime(String(baseDeliveryTime).slice(0, 5));
+  }
+}, [baseDeliveryTime]);
+
+useEffect(() => {
+  const cleanMobile = normalizeMobile(mobile);
+
+  if (!cleanMobile) {
+    setAgentInfo({ active: false });
+    return;
+  }
+
+  let ignore = false;
+
+  async function loadAgentStatus() {
+    try {
+      const res = await fetch(
+        `/api/customer/agent-status?mobile=${encodeURIComponent(cleanMobile)}`,
+        { cache: "no-store" }
+      );
+      const data = await res.json().catch(() => null);
+
+      if (ignore) return;
+
+      setAgentInfo({
+        active: !!data?.active,
+        name: data?.name || name || user?.name || "",
+        mobile: cleanMobile,
+      });
+    } catch {
+      if (!ignore) setAgentInfo({ active: false });
+    }
+  }
+
+  loadAgentStatus();
+
+  return () => {
+    ignore = true;
+  };
+}, [mobile, name, user?.name]);
 
   /* ================= PNR AUTO LOAD ================= */
 useEffect(() => {
@@ -176,6 +277,13 @@ useEffect(() => {
   }
 
   async function fetchPnrDetails() {
+    if (isAgentActive) {
+      setPnrError("");
+      setIsPnrLocked(false);
+      setIsPnrVerified(!!String(pnr || "").trim());
+      return;
+    }
+
     if (!pnr || pnr.length !== 10) {
       setPnrError("");
       setIsPnrVerified(false);
@@ -322,7 +430,7 @@ useEffect(() => {
   }
 
   fetchPnrDetails();
-}, [pnr, trainNumber, stationCode, deliveryDate]);
+}, [pnr, trainNumber, stationCode, deliveryDate, isAgentActive]);
   /* ================= CALCULATIONS ================= */
   const subtotal = cartItems.reduce(
     (sum, i) => sum + Number(i.price) * Number(i.qty),
@@ -340,10 +448,10 @@ useEffect(() => {
   deliveryDate !== "N/A" &&
   !!deliveryTime &&
   deliveryTime !== "N/A" &&
-  !!pnr &&
+  !!String(pnr || "").trim() &&
   !!coach &&
   !!seat &&
-  isPnrVerified &&
+  (isAgentActive || isPnrVerified) &&
   !pnrError &&
   cartItems.length > 0;
 
@@ -413,6 +521,11 @@ const finalStationName =
           Seat: seat || null,
           CustomerName: name || "Guest",
           CustomerMobile: mobile,
+          BookingSource: detectClientBookingSource(),
+          BookedBy: isAgentActive
+            ? `${name || user?.name || mobile || "Customer"} Agent`
+            : name || user?.name || "Customer",
+          IsAgentOrder: isAgentActive,
           SubTotal: subtotal,
           GSTAmount: gst,
           PlatformCharge: delivery,
@@ -425,6 +538,11 @@ const finalStationName =
             promoCode: promo || null,
             trainName: trainName,
             customerEmail: email || null,
+            bookingSource: detectClientBookingSource(),
+            bookedBy: isAgentActive
+              ? `${name || user?.name || mobile || "Customer"} Agent`
+              : name || user?.name || "Customer",
+            isAgentOrder: isAgentActive,
             items: formattedItems,
           },
         }),
@@ -527,17 +645,47 @@ const finalStationName =
 
             {/* RIGHT DATETIME & RESTAURANT */}
             <div className="text-right text-xs font-semibold text-slate-600 shrink-0 bg-slate-50/80 p-2.5 rounded-lg space-y-1 min-w-[105px]">
-              <div className="flex items-center justify-end gap-1">
-                <span>📅</span>
-                <span>{deliveryDate}</span>
-              </div>
-              <div className="flex items-center justify-end gap-1">
-                <span>⏰</span>
-                <span>{deliveryTime}</span>
-              </div>
+              {isAgentActive ? (
+                <>
+                  <label className="block text-left text-[10px] font-black text-slate-500">
+                    Delivery Date
+                    <input
+                      type="date"
+                      value={manualDeliveryDate}
+                      onChange={(e) => setManualDeliveryDate(e.target.value)}
+                      className="mt-1 w-full rounded-md border border-amber-200 bg-white px-2 py-1 text-[11px] font-bold text-slate-800"
+                    />
+                  </label>
+                  <label className="block text-left text-[10px] font-black text-slate-500">
+                    Delivery Time
+                    <input
+                      type="time"
+                      value={manualDeliveryTime}
+                      onChange={(e) => setManualDeliveryTime(e.target.value)}
+                      className="mt-1 w-full rounded-md border border-amber-200 bg-white px-2 py-1 text-[11px] font-bold text-slate-800"
+                    />
+                  </label>
+                </>
+              ) : (
+                <>
+                  <div className="flex items-center justify-end gap-1">
+                    <span>📅</span>
+                    <span>{deliveryDate}</span>
+                  </div>
+                  <div className="flex items-center justify-end gap-1">
+                    <span>⏰</span>
+                    <span>{deliveryTime}</span>
+                  </div>
+                </>
+              )}
               <div className="text-xs font-bold text-amber-600 truncate max-w-[125px] mt-1 pt-1 border-t border-slate-200">
                 🎪 {vendorName}
               </div>
+              {isAgentActive ? (
+                <div className="rounded-full bg-green-50 px-2 py-1 text-center text-[10px] font-black text-green-700">
+                  Agent Active
+                </div>
+              ) : null}
             </div>
           </div>
 
@@ -577,8 +725,8 @@ const finalStationName =
     }`}
     placeholder="10-Digit PNR"
     value={pnr}
-    maxLength={10}
-    readOnly={isPnrLocked}
+    maxLength={isAgentActive ? 20 : 10}
+    readOnly={!isAgentActive && isPnrLocked}
     onChange={(e) => setPnr(e.target.value)}
   />
 </div>
@@ -598,7 +746,7 @@ const finalStationName =
   }`}
   placeholder="Coach"
   value={coach}
-  readOnly={!!coach}
+  readOnly={!isAgentActive && !!coach}
   onChange={(e) => setCoach(e.target.value)}
 />
               <input
@@ -609,7 +757,7 @@ const finalStationName =
   }`}
   placeholder="Seat"
   value={seat}
-  readOnly={!!seat}
+  readOnly={!isAgentActive && !!seat}
   onChange={(e) => setSeat(e.target.value)}
 />
               <div className="flex items-center border border-slate-200 rounded-lg bg-slate-50/50 flex-1 min-w-0 focus-within:border-amber-500 overflow-hidden">
