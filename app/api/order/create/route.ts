@@ -143,6 +143,7 @@ export async function POST(req: Request) {
       Seat: Seat || null,
       CustomerName: CustomerName || "Guest",
       CustomerMobile,
+      RestroPrice: Number(SubTotal || 0),
       SubTotal: Number(SubTotal || 0),
       BasePrice: Number(SubTotal || 0),
       GSTAmount: Number(GSTAmount || 0),
