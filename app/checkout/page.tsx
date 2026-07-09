@@ -42,6 +42,31 @@ function normalizeMobile(value: string) {
   return digits.slice(-10);
 }
 
+function formatDateForInput(value: unknown) {
+  const raw = String(value || "").trim();
+  if (!raw || raw === "N/A") return "";
+
+  const yyyyMmDd = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (yyyyMmDd) return `${yyyyMmDd[1]}-${yyyyMmDd[2]}-${yyyyMmDd[3]}`;
+
+  const ddMmYyyy = raw.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/);
+  if (ddMmYyyy) {
+    return `${ddMmYyyy[3]}-${String(ddMmYyyy[2]).padStart(2, "0")}-${String(
+      ddMmYyyy[1]
+    ).padStart(2, "0")}`;
+  }
+
+  const date = new Date(raw);
+  if (!Number.isNaN(date.getTime())) {
+    const yyyy = date.getFullYear();
+    const mm = String(date.getMonth() + 1).padStart(2, "0");
+    const dd = String(date.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+  }
+
+  return raw;
+}
+
 function getCouponDiscount(code: string, subtotal: number, totalQty: number) {
   const c = String(code || "").trim().toUpperCase();
 
@@ -142,29 +167,40 @@ export default function CheckoutPage() {
   }, [user]);
 
   const firstCartItem = cartItems[0] as any;
+  const journeyData = (journey || {}) as any;
 
-  const trainName = journey?.trainName || firstCartItem?.trainName || "N/A";
-  const trainNumber = journey?.trainNumber || firstCartItem?.trainNumber || "";
+  const trainName = journeyData?.trainName || firstCartItem?.trainName || "N/A";
+  const trainNumber = journeyData?.trainNumber || firstCartItem?.trainNumber || "";
   const stationName =
-    journey?.stationName ||
+    journeyData?.stationName ||
     firstCartItem?.station_name ||
     firstCartItem?.stationName ||
     "N/A";
 
   const stationCode =
-    journey?.stationCode ||
+    journeyData?.stationCode ||
     firstCartItem?.station_code ||
     firstCartItem?.stationCode ||
     "";
 
   const baseDeliveryDate =
-    journey?.deliveryDate || firstCartItem?.deliveryDate || "N/A";
+    journeyData?.deliveryDate ||
+    journeyData?.delivery_date ||
+    journeyData?.arrivalDate ||
+    journeyData?.arrival_date ||
+    journeyData?.date ||
+    firstCartItem?.deliveryDate ||
+    firstCartItem?.delivery_date ||
+    firstCartItem?.arrivalDate ||
+    firstCartItem?.arrival_date ||
+    firstCartItem?.date ||
+    "N/A";
 
   const baseDeliveryTime =
-    journey?.deliveryTime || firstCartItem?.deliveryTime || "N/A";
+    journeyData?.deliveryTime || firstCartItem?.deliveryTime || "N/A";
 
   const vendorName =
-    journey?.vendorName ||
+    journeyData?.vendorName ||
     firstCartItem?.vendorName ||
     firstCartItem?.restro_name ||
     "N/A";
@@ -172,14 +208,16 @@ export default function CheckoutPage() {
   const isAgentActive = !!agentInfo.active;
 
   const deliveryDate =
-    isAgentActive && manualDeliveryDate ? manualDeliveryDate : baseDeliveryDate;
+    isAgentActive && manualDeliveryDate
+      ? manualDeliveryDate
+      : formatDateForInput(baseDeliveryDate) || baseDeliveryDate;
 
   const deliveryTime =
     isAgentActive && manualDeliveryTime ? manualDeliveryTime : baseDeliveryTime;
 
   useEffect(() => {
     if (baseDeliveryDate && baseDeliveryDate !== "N/A") {
-      setManualDeliveryDate(baseDeliveryDate);
+      setManualDeliveryDate(formatDateForInput(baseDeliveryDate));
     }
   }, [baseDeliveryDate]);
 
@@ -190,7 +228,7 @@ export default function CheckoutPage() {
   }, [baseDeliveryTime]);
 
   useEffect(() => {
-    const cleanMobile = normalizeMobile(mobile);
+    const cleanMobile = normalizeMobile(user?.mobile || "");
 
     if (!cleanMobile) {
       setAgentInfo({ active: false });
@@ -211,7 +249,7 @@ export default function CheckoutPage() {
 
         setAgentInfo({
           active: !!data?.active,
-          name: data?.name || name || user?.name || "",
+          name: data?.name || user?.name || "",
           mobile: cleanMobile,
         });
       } catch {
@@ -224,7 +262,7 @@ export default function CheckoutPage() {
     return () => {
       ignore = true;
     };
-  }, [mobile, name, user?.name]);
+  }, [user?.mobile, user?.name]);
 
   useEffect(() => {
     try {
@@ -240,6 +278,7 @@ export default function CheckoutPage() {
       let savedCoach = "";
       let savedSeat = "";
       let savedTrainNo = "";
+      let savedJourneyDate = "";
 
       if (saved) {
         const parsed = JSON.parse(saved);
@@ -247,6 +286,7 @@ export default function CheckoutPage() {
         savedCoach = String(parsed?.coach || "");
         savedSeat = String(parsed?.berth || "");
         savedTrainNo = String(parsed?.trainNo || parsed?.trainNumber || "");
+        savedJourneyDate = String(parsed?.journeyDate || parsed?.deliveryDate || "");
       }
 
       const finalPnr =
@@ -270,6 +310,9 @@ export default function CheckoutPage() {
       if (savedPnr === finalPnr) {
         setCoach(savedCoach);
         setSeat(savedSeat);
+        if (savedJourneyDate) {
+          setManualDeliveryDate(formatDateForInput(savedJourneyDate));
+        }
         setIsPnrLocked(true);
         setIsPnrVerified(!!savedCoach && !!savedSeat);
         setPnrError("");
@@ -537,6 +580,9 @@ export default function CheckoutPage() {
   const gst = Math.round(taxableAmount * 0.05);
   const delivery = subtotal > 0 ? 20 : 0;
   const total = taxableAmount + gst + delivery;
+  const bookedByName = isAgentActive
+    ? `${agentInfo.name || user?.name || user?.mobile || mobile || "Agent"} Agent`
+    : name || user?.name || "Customer";
 
   const isOrderReady =
     !!name &&
@@ -550,7 +596,7 @@ export default function CheckoutPage() {
     !!coach &&
     !!seat &&
     (isAgentActive || isPnrVerified) &&
-    !pnrError &&
+    (!pnrError || isAgentActive) &&
     cartItems.length > 0;
 
   const applyPromo = () => {
@@ -657,9 +703,7 @@ export default function CheckoutPage() {
           CustomerName: name || "Guest",
           CustomerMobile: mobile,
           BookingSource: detectClientBookingSource(),
-          BookedBy: isAgentActive
-            ? `${name || user?.name || mobile || "Customer"} Agent`
-            : name || user?.name || "Customer",
+          BookedBy: bookedByName,
           IsAgentOrder: isAgentActive,
           SubTotal: subtotal,
           CouponCode: appliedCoupon || null,
@@ -678,9 +722,7 @@ export default function CheckoutPage() {
             trainName: trainName,
             customerEmail: email || null,
             bookingSource: detectClientBookingSource(),
-            bookedBy: isAgentActive
-              ? `${name || user?.name || mobile || "Customer"} Agent`
-              : name || user?.name || "Customer",
+            bookedBy: bookedByName,
             isAgentOrder: isAgentActive,
             items: formattedItems,
           },
@@ -879,9 +921,9 @@ export default function CheckoutPage() {
             <div className="flex items-center gap-2 w-full">
               <input
                 className={`border border-slate-200 rounded-lg py-2.5 text-[14px] text-center w-[62px] shrink-0 font-semibold ${
-                  coach
+                  !isAgentActive && coach
                     ? "bg-slate-100 text-slate-700 cursor-not-allowed"
-                    : "bg-slate-50/50 focus:outline-none focus:border-amber-500"
+                    : "bg-white text-slate-800 focus:outline-none focus:border-amber-500"
                 }`}
                 placeholder="Coach"
                 value={coach}
@@ -890,9 +932,9 @@ export default function CheckoutPage() {
               />
               <input
                 className={`border border-slate-200 rounded-lg py-2.5 text-[14px] text-center w-[55px] shrink-0 font-semibold ${
-                  seat
+                  !isAgentActive && seat
                     ? "bg-slate-100 text-slate-700 cursor-not-allowed"
-                    : "bg-slate-50/50 focus:outline-none focus:border-amber-500"
+                    : "bg-white text-slate-800 focus:outline-none focus:border-amber-500"
                 }`}
                 placeholder="Seat"
                 value={seat}
