@@ -39,6 +39,16 @@ function toNumber(value: unknown, fallback = 0) {
   return Number.isFinite(n) ? n : fallback;
 }
 
+function normalizeCouponCode(value: unknown) {
+  const code = String(value || "").trim().toUpperCase();
+  return code || null;
+}
+
+function normalizeCouponDiscount(value: unknown) {
+  const amount = toNumber(value, 0);
+  return amount > 0 ? amount : 0;
+}
+
 function getItemCode(item: any) {
   return Number(
     item?.id ||
@@ -79,6 +89,8 @@ export async function POST(req: Request) {
       CustomerName,
       CustomerMobile,
       SubTotal,
+      CouponCode,
+      CouponDiscount,
       BasePrice,
       GSTAmount,
       PlatformCharge,
@@ -205,6 +217,20 @@ export async function POST(req: Request) {
         : CustomerName || "Customer");
 
     const pnr = PNR || JourneyPayload?.pnr || body?.pnr || null;
+    const couponCode = normalizeCouponCode(
+      CouponCode ||
+        JourneyPayload?.CouponCode ||
+        JourneyPayload?.couponCode ||
+        JourneyPayload?.promoCode ||
+        body?.couponCode ||
+        body?.promoCode
+    );
+    const couponDiscount = normalizeCouponDiscount(
+      CouponDiscount ||
+        JourneyPayload?.CouponDiscount ||
+        JourneyPayload?.couponDiscount ||
+        body?.couponDiscount
+    );
 
     const mainOrderPayload: Record<string, any> = {
       RestroCode: validRestroCode,
@@ -219,6 +245,8 @@ export async function POST(req: Request) {
       CustomerName: CustomerName || "Guest",
       CustomerMobile,
       SubTotal: toNumber(SubTotal || BasePrice, 0),
+      CouponCode: couponCode,
+      CouponDiscount: couponDiscount,
       BasePrice: toNumber(BasePrice || SubTotal, 0),
       RestroPrice: toNumber(restroPriceTotal, 0),
       GSTAmount: toNumber(GSTAmount, 0),
@@ -235,6 +263,10 @@ export async function POST(req: Request) {
         BookingSource: bookingSource,
         BookedBy: bookedBy,
         IsAgentOrder: !!(IsAgentOrder || JourneyPayload?.isAgentOrder),
+        CouponCode: couponCode,
+        CouponDiscount: couponDiscount,
+        couponCode,
+        couponDiscount,
         RestroPrice: toNumber(restroPriceTotal, 0),
       },
     };
