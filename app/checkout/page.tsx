@@ -11,6 +11,24 @@ type AgentInfo = {
   mobile?: string;
 };
 
+type CouponOption = {
+  CouponId?: number | string;
+  CouponName?: string;
+  CouponCode: string;
+  CouponType?: string;
+  DiscountValue?: number;
+  Description?: string;
+  eligible: boolean;
+  lockedReason?: string;
+  amountToAdd?: number;
+  calculatedDiscount: number;
+  displayDiscount?: string;
+  minimumOrderValue?: number;
+  maximumOrderValue?: number | null;
+  minimumQuantity?: number;
+  maximumDiscountAmount?: number | null;
+};
+
 function detectClientBookingSource() {
   if (typeof navigator === "undefined") return "Desktop";
 
@@ -67,55 +85,6 @@ function formatDateForInput(value: unknown) {
   return raw;
 }
 
-function getCouponDiscount(code: string, subtotal: number, totalQty: number) {
-  const c = String(code || "").trim().toUpperCase();
-
-  if (!c) return { ok: false, code: "", discount: 0, message: "" };
-
-  if (c === "REFOOD30") {
-    if (subtotal >= 200 && subtotal < 300) {
-      return { ok: true, code: c, discount: 30, message: "ReFood30 applied ₹30 discount" };
-    }
-    return { ok: false, code: c, discount: 0, message: "ReFood30 only valid for ₹200 to ₹300 order" };
-  }
-
-  if (c === "REFOOD50") {
-    if (subtotal >= 300 && subtotal < 600) {
-      return { ok: true, code: c, discount: 50, message: "ReFood50 applied ₹50 discount" };
-    }
-    return { ok: false, code: c, discount: 0, message: "ReFood50 only valid for ₹300 to ₹600 order" };
-  }
-
-  if (c === "REFOOD100") {
-    if (subtotal >= 600 && subtotal < 1000) {
-      return { ok: true, code: c, discount: 100, message: "ReFood100 applied ₹100 discount" };
-    }
-    return { ok: false, code: c, discount: 0, message: "ReFood100 only valid for ₹600 to ₹1000 order" };
-  }
-
-  if (c === "REFOOD200") {
-    if (subtotal >= 1000) {
-      return { ok: true, code: c, discount: 200, message: "ReFood200 applied ₹200 discount" };
-    }
-    return { ok: false, code: c, discount: 0, message: "ReFood200 only valid for ₹1000+ order" };
-  }
-
-  if (c === "FLAT20") {
-    if (totalQty >= 20 && subtotal >= 4000) {
-      const discount = Math.round(subtotal * 0.2);
-      return { ok: true, code: c, discount, message: "FLAT20 applied 20% discount" };
-    }
-    return {
-      ok: false,
-      code: c,
-      discount: 0,
-      message: "FLAT20 needs minimum 20 quantity and ₹4000 order value",
-    };
-  }
-
-  return { ok: false, code: c, discount: 0, message: "Invalid coupon code" };
-}
-
 export default function CheckoutPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -139,6 +108,11 @@ export default function CheckoutPage() {
   const [couponDiscount, setCouponDiscount] = useState(0);
   const [couponMessage, setCouponMessage] = useState("");
   const [couponOk, setCouponOk] = useState(false);
+  const [selectedCouponId, setSelectedCouponId] = useState<number | string | null>(null);
+  const [availableCoupons, setAvailableCoupons] = useState<CouponOption[]>([]);
+  const [nearestLockedCoupon, setNearestLockedCoupon] = useState<CouponOption | null>(null);
+  const [couponLoading, setCouponLoading] = useState(false);
+  const [showCouponModal, setShowCouponModal] = useState(false);
 
   const [agentInfo, setAgentInfo] = useState<AgentInfo>({ active: false });
   const [manualDeliveryDate, setManualDeliveryDate] = useState("");
@@ -575,6 +549,13 @@ export default function CheckoutPage() {
   );
 
   const totalQty = cartItems.reduce((sum, i) => sum + Number(i.qty || 0), 0);
+  const couponCartItem = (cartItems[0] || {}) as any;
+  const couponRestroCode = String(
+    couponCartItem.restro_code ||
+      couponCartItem.RestroCode ||
+      couponCartItem.restroCode ||
+      ""
+  ).trim();
   const safeCouponDiscount = Math.min(Number(couponDiscount || 0), subtotal);
   const taxableAmount = Math.max(0, subtotal - safeCouponDiscount);
   const gst = Math.round(taxableAmount * 0.05);
@@ -600,18 +581,119 @@ export default function CheckoutPage() {
     (!pnrError || isAgentActive) &&
     cartItems.length > 0;
 
-  const applyPromo = () => {
-    const result = getCouponDiscount(promo, subtotal, totalQty);
-    setCouponMessage(result.message);
-    setCouponOk(result.ok);
+  useEffect(() => {
+    let ignore = false;
 
-    if (result.ok) {
-      setAppliedCoupon(result.code);
-      setCouponDiscount(result.discount);
-      setPromo(result.code);
-    } else {
+    async function loadCoupons() {
+      if (!subtotal || !totalQty) {
+        setAvailableCoupons([]);
+        setNearestLockedCoupon(null);
+        return;
+      }
+
+      setCouponLoading(true);
+
+      try {
+        const params = new URLSearchParams({
+          subtotal: String(subtotal),
+          quantity: String(totalQty),
+        });
+
+        if (couponRestroCode) params.set("restroCode", couponRestroCode);
+        if (mobile) params.set("mobile", mobile);
+
+        const response = await fetch(`/api/coupons?${params.toString()}`, {
+          cache: "no-store",
+        });
+        const result = await response.json();
+
+        if (ignore) return;
+
+        const coupons = Array.isArray(result?.coupons)
+          ? result.coupons
+          : Array.isArray(result?.data)
+            ? result.data
+            : [];
+
+        setAvailableCoupons(coupons);
+        setNearestLockedCoupon(result?.nearestLockedCoupon || null);
+      } catch {
+        if (!ignore) {
+          setAvailableCoupons([]);
+          setNearestLockedCoupon(null);
+        }
+      } finally {
+        if (!ignore) setCouponLoading(false);
+      }
+    }
+
+    loadCoupons();
+
+    return () => {
+      ignore = true;
+    };
+  }, [subtotal, totalQty, couponRestroCode, mobile]);
+
+  const applyPromo = async (codeFromList?: string) => {
+    const code = String(codeFromList || promo || "").trim().toUpperCase();
+
+    if (!code) {
+      setCouponMessage("Enter a coupon code.");
+      setCouponOk(false);
       setAppliedCoupon("");
       setCouponDiscount(0);
+      setSelectedCouponId(null);
+      return;
+    }
+
+    setCouponLoading(true);
+    setCouponMessage("Checking coupon...");
+    setCouponOk(false);
+
+    try {
+      const response = await fetch("/api/coupons/validate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          couponCode: code,
+          subtotal,
+          quantity: totalQty,
+          restroCode: couponRestroCode,
+          customerMobile: mobile,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result?.ok) {
+        setAppliedCoupon("");
+        setCouponDiscount(0);
+        setSelectedCouponId(null);
+        setCouponMessage(result?.message || "Coupon is not applicable.");
+        setCouponOk(false);
+        return;
+      }
+
+      const validCode = String(result?.coupon?.CouponCode || code).toUpperCase();
+      const discount = Math.min(Number(result?.discountAmount || 0), subtotal);
+
+      setPromo(validCode);
+      setAppliedCoupon(validCode);
+      setCouponDiscount(discount);
+      setSelectedCouponId(result?.coupon?.CouponId || null);
+      setCouponMessage(result?.message || `Coupon applied. You saved ₹${discount}.`);
+      setCouponOk(true);
+      setShowCouponModal(false);
+    } catch {
+      setAppliedCoupon("");
+      setCouponDiscount(0);
+      setSelectedCouponId(null);
+      setCouponMessage("Unable to validate coupon right now.");
+      setCouponOk(false);
+    } finally {
+      setCouponLoading(false);
     }
   };
 
@@ -621,6 +703,7 @@ export default function CheckoutPage() {
     setCouponDiscount(0);
     setCouponMessage("");
     setCouponOk(false);
+    setSelectedCouponId(null);
   };
 
   const placeOrder = async () => {
@@ -707,6 +790,7 @@ export default function CheckoutPage() {
           BookedBy: bookedByName,
           IsAgentOrder: isAgentActive,
           SubTotal: subtotal,
+          CouponId: selectedCouponId || null,
           CouponCode: appliedCoupon || null,
           CouponDiscount: safeCouponDiscount,
           GSTAmount: gst,
@@ -717,6 +801,7 @@ export default function CheckoutPage() {
           Items: formattedItems,
           JourneyPayload: {
             pnr: pnr || null,
+            couponId: selectedCouponId || null,
             promoCode: appliedCoupon || promo || null,
             couponCode: appliedCoupon || null,
             couponDiscount: safeCouponDiscount,
@@ -952,6 +1037,7 @@ export default function CheckoutPage() {
                     setPromo(e.target.value.toUpperCase());
                     setCouponMessage("");
                     setCouponOk(false);
+                    setSelectedCouponId(null);
                   }}
                 />
                 {appliedCoupon ? (
@@ -965,10 +1051,11 @@ export default function CheckoutPage() {
                 ) : (
                   <button
                     type="button"
-                    onClick={applyPromo}
+                    onClick={() => applyPromo()}
+                    disabled={couponLoading}
                     className="bg-slate-900 text-xs font-bold text-white px-3 py-3 h-full transition hover:bg-slate-800 active:scale-95 shrink-0 border-l border-slate-200 uppercase"
                   >
-                    Apply
+                    {couponLoading ? "..." : "Apply"}
                   </button>
                 )}
               </div>
@@ -981,6 +1068,35 @@ export default function CheckoutPage() {
                 }`}
               >
                 {couponMessage}
+              </div>
+            ) : null}
+
+            {couponLoading && !couponMessage ? (
+              <div className="text-[11px] font-bold pl-1 text-slate-500">
+                Checking available coupons...
+              </div>
+            ) : null}
+
+            {!couponLoading &&
+            availableCoupons.some((coupon) => coupon.eligible) &&
+            !appliedCoupon ? (
+              <button
+                type="button"
+                onClick={() => setShowCouponModal(true)}
+                className="text-[11px] font-extrabold text-orange-600 pl-1 underline underline-offset-2 w-fit"
+              >
+                View All Coupons
+              </button>
+            ) : null}
+
+            {!couponLoading &&
+            !availableCoupons.some((coupon) => coupon.eligible) &&
+            nearestLockedCoupon &&
+            !appliedCoupon ? (
+              <div className="text-[11px] font-bold text-amber-700 pl-1">
+                Add food worth ₹{Number(nearestLockedCoupon.amountToAdd || 0)} more to unlock{" "}
+                {nearestLockedCoupon.displayDiscount ||
+                  `₹${Number(nearestLockedCoupon.calculatedDiscount || 0)} OFF`}
               </div>
             ) : null}
           </div>
@@ -1081,6 +1197,83 @@ export default function CheckoutPage() {
           </button>
         </div>
       </div>
+
+      {showCouponModal ? (
+        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-end sm:items-center justify-center px-3">
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-[520px] max-h-[80vh] overflow-hidden shadow-2xl">
+            <div className="p-4 border-b border-slate-100 flex items-center justify-between">
+              <div>
+                <h3 className="text-[17px] font-extrabold text-slate-900">
+                  Available Coupons
+                </h3>
+                <p className="text-xs text-slate-500 font-semibold mt-0.5">
+                  Select a coupon for this order
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowCouponModal(false)}
+                className="h-9 w-9 rounded-full bg-slate-100 text-slate-700 font-black"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="p-4 space-y-3 overflow-y-auto max-h-[60vh]">
+              {availableCoupons.length > 0 ? (
+                availableCoupons.map((coupon) => (
+                  <div
+                    key={`${coupon.CouponId || coupon.CouponCode}`}
+                    className={`rounded-xl border p-3 ${
+                      coupon.eligible
+                        ? "border-orange-200 bg-orange-50/40"
+                        : "border-slate-200 bg-slate-50 opacity-80"
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="text-sm font-extrabold text-slate-900">
+                          {coupon.CouponName || coupon.CouponCode}
+                        </div>
+                        <div className="mt-1 inline-flex rounded-full bg-white px-2.5 py-1 text-xs font-black text-orange-600 border border-orange-100">
+                          {coupon.CouponCode}
+                        </div>
+                        <div className="text-xs font-semibold text-slate-500 mt-2">
+                          {coupon.eligible
+                            ? `Save ₹${Number(coupon.calculatedDiscount || 0)} on this order`
+                            : coupon.lockedReason || "Not eligible for this order"}
+                        </div>
+                        {coupon.Description ? (
+                          <div className="text-[11px] text-slate-400 mt-1">
+                            {coupon.Description}
+                          </div>
+                        ) : null}
+                      </div>
+
+                      <button
+                        type="button"
+                        disabled={!coupon.eligible}
+                        onClick={() => applyPromo(coupon.CouponCode)}
+                        className={`shrink-0 rounded-lg px-3 py-2 text-xs font-extrabold ${
+                          coupon.eligible
+                            ? "bg-orange-600 text-white active:scale-95"
+                            : "bg-slate-200 text-slate-400 cursor-not-allowed"
+                        }`}
+                      >
+                        Apply
+                      </button>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-sm text-slate-500 font-semibold text-center py-8">
+                  No coupons available for this order.
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
