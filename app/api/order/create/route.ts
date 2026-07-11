@@ -49,6 +49,238 @@ function normalizeCouponDiscount(value: unknown) {
   return amount > 0 ? amount : 0;
 }
 
+function normalizeMobile(value: unknown) {
+  return String(value || "").replace(/\D/g, "").slice(-10);
+}
+
+function normalizeCode(value: unknown) {
+  return String(value || "").trim().toUpperCase();
+}
+
+function isCouponActive(coupon: Record<string, any>) {
+  const value = coupon?.IsActive;
+  return value === true || value === 1 || String(value).toLowerCase() === "true";
+}
+
+function isCouponVisible(coupon: Record<string, any>) {
+  const value = coupon?.ShowToCustomer;
+  return value === true || value === 1 || String(value).toLowerCase() === "true";
+}
+
+function calculateCouponDiscount(coupon: Record<string, any>, subtotal: number) {
+  const type = normalizeCode(coupon.CouponType || "FLAT");
+  const value = toNumber(coupon.DiscountValue, 0);
+  const maxDiscount = toNumber(coupon.MaximumDiscountAmount, 0);
+  let discount = type === "PERCENT" ? (subtotal * value) / 100 : value;
+
+  if (maxDiscount > 0) discount = Math.min(discount, maxDiscount);
+  discount = Math.min(discount, subtotal);
+
+  return Math.max(0, Math.round(discount * 100) / 100);
+}
+
+function isCouponInValidity(coupon: Record<string, any>, now: Date) {
+  const validFrom = coupon.ValidFrom ? new Date(coupon.ValidFrom) : null;
+  const validTill = coupon.ValidTill ? new Date(coupon.ValidTill) : null;
+
+  if (validFrom && !Number.isNaN(validFrom.getTime()) && validFrom > now) {
+    return false;
+  }
+
+  if (validTill && !Number.isNaN(validTill.getTime()) && validTill < now) {
+    return false;
+  }
+
+  return true;
+}
+
+function usageCreatedAtColumn(row: Record<string, any>) {
+  return (
+    row.CreatedAt ||
+    row.created_at ||
+    row.UsedAt ||
+    row.used_at ||
+    row.createdAt ||
+    ""
+  );
+}
+
+function isUsageInFrequencyWindow(createdAt: string, frequency: string) {
+  if (!createdAt) return true;
+  if (frequency === "UNLIMITED" || !frequency) return true;
+
+  const usedAt = new Date(createdAt);
+  if (Number.isNaN(usedAt.getTime())) return true;
+
+  const now = new Date();
+  const diffMs = now.getTime() - usedAt.getTime();
+  const dayMs = 24 * 60 * 60 * 1000;
+
+  if (frequency === "DAILY") return diffMs < dayMs;
+  if (frequency === "WEEKLY") return diffMs < 7 * dayMs;
+  if (frequency === "MONTHLY") return diffMs < 31 * dayMs;
+  if (frequency === "ONCE") return true;
+
+  return true;
+}
+
+async function getCouponUsageCount(
+  couponId: unknown,
+  customerMobile: string,
+  frequency: string
+) {
+  if (!couponId || !customerMobile) return 0;
+
+  const { data, error } = await serviceClient
+    .from("CouponUsage")
+    .select("*")
+    .eq("CouponId", couponId)
+    .eq("CustomerMobile", customerMobile);
+
+  if (error || !Array.isArray(data)) return 0;
+
+  return data.filter((row) =>
+    isUsageInFrequencyWindow(usageCreatedAtColumn(row), frequency)
+  ).length;
+}
+
+async function validateCouponForOrder({
+  couponCode,
+  subtotal,
+  quantity,
+  restroCode,
+  customerMobile,
+}: {
+  couponCode: string;
+  subtotal: number;
+  quantity: number;
+  restroCode: string;
+  customerMobile: string;
+}) {
+  const code = normalizeCode(couponCode);
+
+  const { data: coupon, error } = await serviceClient
+    .from("Coupons")
+    .select("*")
+    .ilike("CouponCode", code)
+    .maybeSingle();
+
+  if (error || !coupon) {
+    return { ok: false, message: "Invalid coupon code." };
+  }
+
+  if (!isCouponActive(coupon) || !isCouponVisible(coupon)) {
+    return { ok: false, message: "Coupon is not active." };
+  }
+
+  if (!isCouponInValidity(coupon, new Date())) {
+    return { ok: false, message: "Coupon has expired or is not active yet." };
+  }
+
+  const provider = normalizeCode(coupon.CouponProvider || "RAILEATS");
+  const couponRestroCode = String(coupon.RestroCode || "").trim();
+
+  if (
+    provider === "RESTRO" &&
+    couponRestroCode &&
+    couponRestroCode !== String(restroCode || "").trim()
+  ) {
+    return { ok: false, message: "Coupon is not valid for this restaurant." };
+  }
+
+  const minimumOrderValue = toNumber(coupon.MinimumOrderValue, 0);
+  const maximumOrderValue = toNumber(coupon.MaximumOrderValue, 0);
+  const minimumQuantity = toNumber(coupon.MinimumQuantity, 0);
+  const maximumQuantity = toNumber(coupon.MaximumQuantity, 0);
+  const usageLimitTotal = toNumber(coupon.UsageLimitTotal, 0);
+  const usageLimitPerUser = toNumber(coupon.UsageLimitPerUser, 0);
+  const usedCount = toNumber(coupon.UsedCount, 0);
+
+  if (minimumOrderValue > 0 && subtotal < minimumOrderValue) {
+    return {
+      ok: false,
+      message: `Add food worth Rs ${Math.ceil(
+        minimumOrderValue - subtotal
+      )} more to use this coupon.`,
+    };
+  }
+
+  if (maximumOrderValue > 0 && subtotal > maximumOrderValue) {
+    return { ok: false, message: "Coupon is not valid for this order value." };
+  }
+
+  if (minimumQuantity > 0 && quantity < minimumQuantity) {
+    return { ok: false, message: `Add at least ${minimumQuantity} items to use this coupon.` };
+  }
+
+  if (maximumQuantity > 0 && quantity > maximumQuantity) {
+    return { ok: false, message: "Coupon is not valid for this item quantity." };
+  }
+
+  if (usageLimitTotal > 0 && usedCount >= usageLimitTotal) {
+    return { ok: false, message: "Coupon usage limit is reached." };
+  }
+
+  const customerUsageCount = await getCouponUsageCount(
+    coupon.CouponId,
+    normalizeMobile(customerMobile),
+    normalizeCode(coupon.CouponFrequency || "UNLIMITED")
+  );
+
+  if (usageLimitPerUser > 0 && customerUsageCount >= usageLimitPerUser) {
+    return { ok: false, message: "You have already used this coupon." };
+  }
+
+  const discountAmount = calculateCouponDiscount(coupon, subtotal);
+
+  if (discountAmount <= 0) {
+    return { ok: false, message: "Coupon discount is not applicable." };
+  }
+
+  return {
+    ok: true,
+    coupon,
+    discountAmount,
+    message: `Coupon applied. You saved Rs ${discountAmount}.`,
+  };
+}
+
+async function recordCouponUsageSafely({
+  coupon,
+  couponCode,
+  customerMobile,
+  orderId,
+  discountAmount,
+}: {
+  coupon: Record<string, any> | null;
+  couponCode: string | null;
+  customerMobile: string;
+  orderId: unknown;
+  discountAmount: number;
+}) {
+  if (!couponCode || !coupon?.CouponId || discountAmount <= 0) return;
+
+  const payload = {
+    CouponId: coupon.CouponId,
+    CouponCode: couponCode,
+    CustomerMobile: normalizeMobile(customerMobile),
+    OrderId: orderId,
+    DiscountAmount: discountAmount,
+    CreatedAt: new Date().toISOString(),
+  };
+
+  const { error } = await serviceClient.from("CouponUsage").insert(payload);
+
+  if (error) {
+    console.error("COUPON USAGE INSERT ERROR =>", error);
+  } else {
+    await serviceClient
+      .from("Coupons")
+      .update({ UsedCount: toNumber(coupon.UsedCount, 0) + 1 })
+      .eq("CouponId", coupon.CouponId);
+  }
+}
+
 function getItemCode(item: any) {
   return Number(
     item?.id ||
@@ -225,12 +457,40 @@ export async function POST(req: Request) {
         body?.couponCode ||
         body?.promoCode
     );
-    const couponDiscount = normalizeCouponDiscount(
+    let couponDiscount = normalizeCouponDiscount(
       CouponDiscount ||
         JourneyPayload?.CouponDiscount ||
         JourneyPayload?.couponDiscount ||
         body?.couponDiscount
     );
+    let validatedCoupon: Record<string, any> | null = null;
+
+    if (couponCode) {
+      const couponValidation: any = await validateCouponForOrder({
+        couponCode,
+        subtotal: toNumber(SubTotal || BasePrice, 0),
+        quantity: finalItemsArray.reduce(
+          (sum: number, item: any) => sum + toNumber(item?.qty || item?.Quantity, 0),
+          0
+        ),
+        restroCode: String(validRestroCode),
+        customerMobile: CustomerMobile,
+      });
+
+      if (!couponValidation.ok) {
+        return NextResponse.json(
+          {
+            ok: false,
+            error: "coupon_validation_failed",
+            message: couponValidation.message,
+          },
+          { status: 400 }
+        );
+      }
+
+      validatedCoupon = couponValidation.coupon || null;
+      couponDiscount = normalizeCouponDiscount(couponValidation.discountAmount);
+    }
 
     const mainOrderPayload: Record<string, any> = {
       RestroCode: validRestroCode,
@@ -263,6 +523,12 @@ export async function POST(req: Request) {
         BookingSource: bookingSource,
         BookedBy: bookedBy,
         IsAgentOrder: !!(IsAgentOrder || JourneyPayload?.isAgentOrder),
+        CouponId:
+          validatedCoupon?.CouponId ||
+          body?.CouponId ||
+          JourneyPayload?.CouponId ||
+          JourneyPayload?.couponId ||
+          null,
         CouponCode: couponCode,
         CouponDiscount: couponDiscount,
         couponCode,
@@ -387,6 +653,14 @@ export async function POST(req: Request) {
         { status: 500 }
       );
     }
+
+    await recordCouponUsageSafely({
+      coupon: validatedCoupon,
+      couponCode,
+      customerMobile: CustomerMobile,
+      orderId: targetOrderId,
+      discountAmount: couponDiscount,
+    });
 
     return NextResponse.json({
       ok: true,
