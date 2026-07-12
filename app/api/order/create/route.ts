@@ -20,6 +20,7 @@ function detectBookingSource(req: Request, clientSource?: unknown) {
   const isMac = /Macintosh|Mac OS X/i.test(ua);
   const isWindows = /Windows/i.test(ua);
   const isMobile = /Mobile|Android|iPhone|iPad|iPod/i.test(ua);
+
   const isAndroidApp =
     /raileats/i.test(appHeader) ||
     /RailEatsApp|RailEats-Android/i.test(ua) ||
@@ -50,7 +51,9 @@ function normalizeCouponDiscount(value: unknown) {
 }
 
 function normalizeMobile(value: unknown) {
-  return String(value || "").replace(/\D/g, "").slice(-10);
+  return String(value || "")
+    .replace(/\D/g, "")
+    .slice(-10);
 }
 
 function normalizeCode(value: unknown) {
@@ -59,35 +62,66 @@ function normalizeCode(value: unknown) {
 
 function isCouponActive(coupon: Record<string, any>) {
   const value = coupon?.IsActive;
-  return value === true || value === 1 || String(value).toLowerCase() === "true";
+
+  return (
+    value === true ||
+    value === 1 ||
+    String(value).toLowerCase() === "true"
+  );
 }
 
 function isCouponVisible(coupon: Record<string, any>) {
   const value = coupon?.ShowToCustomer;
-  return value === true || value === 1 || String(value).toLowerCase() === "true";
+
+  return (
+    value === true ||
+    value === 1 ||
+    String(value).toLowerCase() === "true"
+  );
 }
 
-function calculateCouponDiscount(coupon: Record<string, any>, subtotal: number) {
+function calculateCouponDiscount(
+  coupon: Record<string, any>,
+  basePrice: number
+) {
   const type = normalizeCode(coupon.CouponType || "FLAT");
   const value = toNumber(coupon.DiscountValue, 0);
   const maxDiscount = toNumber(coupon.MaximumDiscountAmount, 0);
-  let discount = type === "PERCENT" ? (subtotal * value) / 100 : value;
 
-  if (maxDiscount > 0) discount = Math.min(discount, maxDiscount);
-  discount = Math.min(discount, subtotal);
+  let discount =
+    type === "PERCENT" ? (basePrice * value) / 100 : value;
+
+  if (maxDiscount > 0) {
+    discount = Math.min(discount, maxDiscount);
+  }
+
+  discount = Math.min(discount, basePrice);
 
   return Math.max(0, Math.round(discount * 100) / 100);
 }
 
 function isCouponInValidity(coupon: Record<string, any>, now: Date) {
-  const validFrom = coupon.ValidFrom ? new Date(coupon.ValidFrom) : null;
-  const validTill = coupon.ValidTill ? new Date(coupon.ValidTill) : null;
+  const validFrom = coupon.ValidFrom
+    ? new Date(coupon.ValidFrom)
+    : null;
 
-  if (validFrom && !Number.isNaN(validFrom.getTime()) && validFrom > now) {
+  const validTill = coupon.ValidTill
+    ? new Date(coupon.ValidTill)
+    : null;
+
+  if (
+    validFrom &&
+    !Number.isNaN(validFrom.getTime()) &&
+    validFrom > now
+  ) {
     return false;
   }
 
-  if (validTill && !Number.isNaN(validTill.getTime()) && validTill < now) {
+  if (
+    validTill &&
+    !Number.isNaN(validTill.getTime()) &&
+    validTill < now
+  ) {
     return false;
   }
 
@@ -105,11 +139,15 @@ function usageCreatedAtColumn(row: Record<string, any>) {
   );
 }
 
-function isUsageInFrequencyWindow(createdAt: string, frequency: string) {
+function isUsageInFrequencyWindow(
+  createdAt: string,
+  frequency: string
+) {
   if (!createdAt) return true;
   if (frequency === "UNLIMITED" || !frequency) return true;
 
   const usedAt = new Date(createdAt);
+
   if (Number.isNaN(usedAt.getTime())) return true;
 
   const now = new Date();
@@ -140,19 +178,22 @@ async function getCouponUsageCount(
   if (error || !Array.isArray(data)) return 0;
 
   return data.filter((row) =>
-    isUsageInFrequencyWindow(usageCreatedAtColumn(row), frequency)
+    isUsageInFrequencyWindow(
+      usageCreatedAtColumn(row),
+      frequency
+    )
   ).length;
 }
 
 async function validateCouponForOrder({
   couponCode,
-  subtotal,
+  basePrice,
   quantity,
   restroCode,
   customerMobile,
 }: {
   couponCode: string;
-  subtotal: number;
+  basePrice: number;
   quantity: number;
   restroCode: string;
   customerMobile: string;
@@ -166,59 +207,127 @@ async function validateCouponForOrder({
     .maybeSingle();
 
   if (error || !coupon) {
-    return { ok: false, message: "Invalid coupon code." };
+    return {
+      ok: false,
+      message: "Invalid coupon code.",
+    };
   }
 
   if (!isCouponActive(coupon) || !isCouponVisible(coupon)) {
-    return { ok: false, message: "Coupon is not active." };
+    return {
+      ok: false,
+      message: "Coupon is not active.",
+    };
   }
 
   if (!isCouponInValidity(coupon, new Date())) {
-    return { ok: false, message: "Coupon has expired or is not active yet." };
+    return {
+      ok: false,
+      message: "Coupon has expired or is not active yet.",
+    };
   }
 
-  const provider = normalizeCode(coupon.CouponProvider || "RAILEATS");
-  const couponRestroCode = String(coupon.RestroCode || "").trim();
+  const provider = normalizeCode(
+    coupon.CouponProvider || "RAILEATS"
+  );
+
+  const couponRestroCode = String(
+    coupon.RestroCode || ""
+  ).trim();
 
   if (
     provider === "RESTRO" &&
     couponRestroCode &&
     couponRestroCode !== String(restroCode || "").trim()
   ) {
-    return { ok: false, message: "Coupon is not valid for this restaurant." };
+    return {
+      ok: false,
+      message: "Coupon is not valid for this restaurant.",
+    };
   }
 
-  const minimumOrderValue = toNumber(coupon.MinimumOrderValue, 0);
-  const maximumOrderValue = toNumber(coupon.MaximumOrderValue, 0);
-  const minimumQuantity = toNumber(coupon.MinimumQuantity, 0);
-  const maximumQuantity = toNumber(coupon.MaximumQuantity, 0);
-  const usageLimitTotal = toNumber(coupon.UsageLimitTotal, 0);
-  const usageLimitPerUser = toNumber(coupon.UsageLimitPerUser, 0);
+  const minimumOrderValue = toNumber(
+    coupon.MinimumOrderValue,
+    0
+  );
+
+  const maximumOrderValue = toNumber(
+    coupon.MaximumOrderValue,
+    0
+  );
+
+  const minimumQuantity = toNumber(
+    coupon.MinimumQuantity,
+    0
+  );
+
+  const maximumQuantity = toNumber(
+    coupon.MaximumQuantity,
+    0
+  );
+
+  const usageLimitTotal = toNumber(
+    coupon.UsageLimitTotal,
+    0
+  );
+
+  const usageLimitPerUser = toNumber(
+    coupon.UsageLimitPerUser,
+    0
+  );
+
   const usedCount = toNumber(coupon.UsedCount, 0);
 
-  if (minimumOrderValue > 0 && subtotal < minimumOrderValue) {
+  if (
+    minimumOrderValue > 0 &&
+    basePrice < minimumOrderValue
+  ) {
     return {
       ok: false,
       message: `Add food worth Rs ${Math.ceil(
-        minimumOrderValue - subtotal
+        minimumOrderValue - basePrice
       )} more to use this coupon.`,
     };
   }
 
-  if (maximumOrderValue > 0 && subtotal > maximumOrderValue) {
-    return { ok: false, message: "Coupon is not valid for this order value." };
+  if (
+    maximumOrderValue > 0 &&
+    basePrice > maximumOrderValue
+  ) {
+    return {
+      ok: false,
+      message: "Coupon is not valid for this order value.",
+    };
   }
 
-  if (minimumQuantity > 0 && quantity < minimumQuantity) {
-    return { ok: false, message: `Add at least ${minimumQuantity} items to use this coupon.` };
+  if (
+    minimumQuantity > 0 &&
+    quantity < minimumQuantity
+  ) {
+    return {
+      ok: false,
+      message: `Add at least ${minimumQuantity} items to use this coupon.`,
+    };
   }
 
-  if (maximumQuantity > 0 && quantity > maximumQuantity) {
-    return { ok: false, message: "Coupon is not valid for this item quantity." };
+  if (
+    maximumQuantity > 0 &&
+    quantity > maximumQuantity
+  ) {
+    return {
+      ok: false,
+      message: "Coupon is not valid for this item quantity.",
+    };
   }
 
-  if (usageLimitTotal > 0 && usedCount >= usageLimitTotal) {
-    return { ok: false, message: "Coupon usage limit is reached." };
+  if (
+    usageLimitTotal > 0 &&
+    usedCount >= usageLimitTotal
+  ) {
+    return {
+      ok: false,
+      message: "Coupon usage limit is reached.",
+    };
   }
 
   const customerUsageCount = await getCouponUsageCount(
@@ -227,14 +336,26 @@ async function validateCouponForOrder({
     normalizeCode(coupon.CouponFrequency || "UNLIMITED")
   );
 
-  if (usageLimitPerUser > 0 && customerUsageCount >= usageLimitPerUser) {
-    return { ok: false, message: "You have already used this coupon." };
+  if (
+    usageLimitPerUser > 0 &&
+    customerUsageCount >= usageLimitPerUser
+  ) {
+    return {
+      ok: false,
+      message: "You have already used this coupon.",
+    };
   }
 
-  const discountAmount = calculateCouponDiscount(coupon, subtotal);
+  const discountAmount = calculateCouponDiscount(
+    coupon,
+    basePrice
+  );
 
   if (discountAmount <= 0) {
-    return { ok: false, message: "Coupon discount is not applicable." };
+    return {
+      ok: false,
+      message: "Coupon discount is not applicable.",
+    };
   }
 
   return {
@@ -258,7 +379,13 @@ async function recordCouponUsageSafely({
   orderId: unknown;
   discountAmount: number;
 }) {
-  if (!couponCode || !coupon?.CouponId || discountAmount <= 0) return;
+  if (
+    !couponCode ||
+    !coupon?.CouponId ||
+    discountAmount <= 0
+  ) {
+    return;
+  }
 
   const payload = {
     CouponId: coupon.CouponId,
@@ -269,16 +396,21 @@ async function recordCouponUsageSafely({
     CreatedAt: new Date().toISOString(),
   };
 
-  const { error } = await serviceClient.from("CouponUsage").insert(payload);
+  const { error } = await serviceClient
+    .from("CouponUsage")
+    .insert(payload);
 
   if (error) {
     console.error("COUPON USAGE INSERT ERROR =>", error);
-  } else {
-    await serviceClient
-      .from("Coupons")
-      .update({ UsedCount: toNumber(coupon.UsedCount, 0) + 1 })
-      .eq("CouponId", coupon.CouponId);
+    return;
   }
+
+  await serviceClient
+    .from("Coupons")
+    .update({
+      UsedCount: toNumber(coupon.UsedCount, 0) + 1,
+    })
+    .eq("CouponId", coupon.CouponId);
 }
 
 function getItemCode(item: any) {
@@ -291,13 +423,17 @@ function getItemCode(item: any) {
   );
 }
 
-function cleanOptionalOrderFields(row: Record<string, any>) {
+function cleanOptionalOrderFields(
+  row: Record<string, any>
+) {
   const next = { ...row };
   delete next.IsAgentOrder;
   return next;
 }
 
-function cleanOptionalOrderItemFields(row: Record<string, any>) {
+function cleanOptionalOrderItemFields(
+  row: Record<string, any>
+) {
   const next = { ...row };
   delete next.RestroPrice;
   return next;
@@ -306,6 +442,7 @@ function cleanOptionalOrderItemFields(row: Record<string, any>) {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
+
     console.log("RECEIVING FRONTEND BODY =>", body);
 
     const {
@@ -321,9 +458,9 @@ export async function POST(req: Request) {
       CustomerName,
       CustomerMobile,
       SubTotal,
+      BasePrice,
       CouponCode,
       CouponDiscount,
-      BasePrice,
       GSTAmount,
       PlatformCharge,
       TotalAmount,
@@ -338,7 +475,10 @@ export async function POST(req: Request) {
       JourneyPayload,
     } = body;
 
-    const finalItemsArray = Items || items || JourneyPayload?.items;
+    const finalItemsArray =
+      Items ||
+      items ||
+      JourneyPayload?.items;
 
     if (!CustomerMobile) {
       return NextResponse.json(
@@ -352,7 +492,6 @@ export async function POST(req: Request) {
     }
 
     if (
-      !finalItemsArray ||
       !Array.isArray(finalItemsArray) ||
       finalItemsArray.length === 0
     ) {
@@ -360,15 +499,21 @@ export async function POST(req: Request) {
         {
           ok: false,
           error: "cart_empty",
-          message: "No items found in cart. Transaction stopped!",
+          message:
+            "No items found in cart. Transaction stopped!",
         },
         { status: 400 }
       );
     }
 
-    const validRestroCode = RestroCode ? Number(RestroCode) : null;
+    const validRestroCode = RestroCode
+      ? Number(RestroCode)
+      : null;
 
-    if (!validRestroCode) {
+    if (
+      !validRestroCode ||
+      !Number.isFinite(validRestroCode)
+    ) {
       return NextResponse.json(
         {
           ok: false,
@@ -379,22 +524,49 @@ export async function POST(req: Request) {
       );
     }
 
-    const itemCodes = finalItemsArray
-      .map((item: any) => getItemCode(item))
-      .filter((code: number) => Number.isFinite(code) && code > 0);
+    /*
+     * Compatibility:
+     * Frontend abhi SubTotal bhej raha ho to BasePrice me wahi use hoga.
+     * Frontend BasePrice bhejne lage to BasePrice priority lega.
+     */
+    const finalBasePrice = toNumber(
+      BasePrice ?? SubTotal,
+      0
+    );
+
+    const itemCodes = Array.from(
+      new Set(
+        finalItemsArray
+          .map((item: any) => getItemCode(item))
+          .filter(
+            (code: number) =>
+              Number.isFinite(code) && code > 0
+          )
+      )
+    );
 
     let restroPriceTotal = 0;
-    const restroPriceByItemCode: Record<string, number> = {};
+
+    const restroPriceByItemCode: Record<
+      string,
+      number
+    > = {};
 
     if (itemCodes.length > 0) {
-      const { data: menuRows, error: menuError } = await serviceClient
+      const {
+        data: menuRows,
+        error: menuError,
+      } = await serviceClient
         .from("RestroMenuItems")
         .select("item_code, restro_price")
         .eq("restro_code", validRestroCode)
         .in("item_code", itemCodes);
 
       if (menuError) {
-        console.error("RESTRO PRICE FETCH ERROR =>", menuError);
+        console.error(
+          "RESTRO PRICE FETCH ERROR =>",
+          menuError
+        );
 
         return NextResponse.json(
           {
@@ -409,46 +581,79 @@ export async function POST(req: Request) {
       }
 
       (menuRows || []).forEach((row: any) => {
-        restroPriceByItemCode[String(row.item_code)] = toNumber(
-          row.restro_price,
-          0
-        );
+        restroPriceByItemCode[
+          String(row.item_code)
+        ] = toNumber(row.restro_price, 0);
       });
+    }
 
-      restroPriceTotal = finalItemsArray.reduce((sum: number, item: any) => {
+    restroPriceTotal = finalItemsArray.reduce(
+      (sum: number, item: any) => {
         const itemCode = String(getItemCode(item));
-        const qty = toNumber(item.qty || item.quantity, 1);
 
-        const fallbackPrice = toNumber(
-          item.RestroPrice ||
-            item.restro_price ||
-            item.base_price ||
-            item.BasePrice ||
-            item.price ||
-            item.selling_price ||
-            item.SellingPrice,
+        const quantity = Math.max(
+          1,
+          toNumber(
+            item?.qty ??
+              item?.quantity ??
+              item?.Quantity,
+            1
+          )
+        );
+
+        const fallbackRestroPrice = toNumber(
+          item?.RestroPrice ??
+            item?.restro_price ??
+            item?.base_price ??
+            item?.BasePrice ??
+            item?.price ??
+            item?.selling_price ??
+            item?.SellingPrice,
           0
         );
 
-        const restroPrice = restroPriceByItemCode[itemCode] ?? fallbackPrice;
+        const unitRestroPrice =
+          restroPriceByItemCode[itemCode] ??
+          fallbackRestroPrice;
 
-        return sum + restroPrice * qty;
-      }, 0);
-    }
+        return sum + unitRestroPrice * quantity;
+      },
+      0
+    );
+
+    const finalRestroPrice = Math.max(
+      0,
+      Math.round(restroPriceTotal * 100) / 100
+    );
+
+    const finalCommission = Math.round(
+      (finalBasePrice - finalRestroPrice) * 100
+    ) / 100;
 
     const bookingSource = detectBookingSource(
       req,
-      BookingSource || JourneyPayload?.bookingSource
+      BookingSource ||
+        JourneyPayload?.bookingSource
+    );
+
+    const isAgentOrder = !!(
+      IsAgentOrder ||
+      JourneyPayload?.isAgentOrder
     );
 
     const bookedBy =
       BookedBy ||
       JourneyPayload?.bookedBy ||
-      (IsAgentOrder || JourneyPayload?.isAgentOrder
+      (isAgentOrder
         ? `${CustomerName || "Customer"} Agent`
         : CustomerName || "Customer");
 
-    const pnr = PNR || JourneyPayload?.pnr || body?.pnr || null;
+    const pnr =
+      PNR ||
+      JourneyPayload?.pnr ||
+      body?.pnr ||
+      null;
+
     const couponCode = normalizeCouponCode(
       CouponCode ||
         JourneyPayload?.CouponCode ||
@@ -457,25 +662,38 @@ export async function POST(req: Request) {
         body?.couponCode ||
         body?.promoCode
     );
+
     let couponDiscount = normalizeCouponDiscount(
       CouponDiscount ||
         JourneyPayload?.CouponDiscount ||
         JourneyPayload?.couponDiscount ||
         body?.couponDiscount
     );
-    let validatedCoupon: Record<string, any> | null = null;
+
+    let validatedCoupon: Record<string, any> | null =
+      null;
 
     if (couponCode) {
-      const couponValidation: any = await validateCouponForOrder({
-        couponCode,
-        subtotal: toNumber(SubTotal || BasePrice, 0),
-        quantity: finalItemsArray.reduce(
-          (sum: number, item: any) => sum + toNumber(item?.qty || item?.Quantity, 0),
-          0
-        ),
-        restroCode: String(validRestroCode),
-        customerMobile: CustomerMobile,
-      });
+      const totalQuantity = finalItemsArray.reduce(
+        (sum: number, item: any) =>
+          sum +
+          toNumber(
+            item?.qty ??
+              item?.quantity ??
+              item?.Quantity,
+            0
+          ),
+        0
+      );
+
+      const couponValidation: any =
+        await validateCouponForOrder({
+          couponCode,
+          basePrice: finalBasePrice,
+          quantity: totalQuantity,
+          restroCode: String(validRestroCode),
+          customerMobile: CustomerMobile,
+        });
 
       if (!couponValidation.ok) {
         return NextResponse.json(
@@ -488,13 +706,18 @@ export async function POST(req: Request) {
         );
       }
 
-      validatedCoupon = couponValidation.coupon || null;
-      couponDiscount = normalizeCouponDiscount(couponValidation.discountAmount);
+      validatedCoupon =
+        couponValidation.coupon || null;
+
+      couponDiscount = normalizeCouponDiscount(
+        couponValidation.discountAmount
+      );
     }
 
     const mainOrderPayload: Record<string, any> = {
       RestroCode: validRestroCode,
-      RestroName: RestroName || "Unknown Restaurant",
+      RestroName:
+        RestroName || "Unknown Restaurant",
       StationCode: StationCode || "N/A",
       StationName: StationName || "N/A",
       DeliveryDate,
@@ -504,39 +727,53 @@ export async function POST(req: Request) {
       Seat: Seat || null,
       CustomerName: CustomerName || "Guest",
       CustomerMobile,
-      SubTotal: toNumber(SubTotal || BasePrice, 0),
+
+      /*
+       * SubTotal compatibility ke liye abhi rakha hai.
+       * Frontend aur reports migrate hone ke baad hi DB se drop karna.
+       */
+      SubTotal: finalBasePrice,
+
+      BasePrice: finalBasePrice,
+      RestroPrice: finalRestroPrice,
+      Commission: finalCommission,
+
       CouponCode: couponCode,
       CouponDiscount: couponDiscount,
-      const finalBasePrice = toNumber(BasePrice || SubTotal, 0);
-
-BasePrice: finalBasePrice,
-RestroPrice: toNumber(restroPriceTotal, 0),
-Commission: finalBasePrice - toNumber(restroPriceTotal, 0),
-GSTAmount: toNumber(GSTAmount, 0),
-      PlatformCharge: toNumber(PlatformCharge, 0),
+      GSTAmount: toNumber(GSTAmount, 0),
+      PlatformCharge: toNumber(
+        PlatformCharge,
+        0
+      ),
       TotalAmount: toNumber(TotalAmount, 0),
       PaymentMode: PaymentMode || "COD",
       Status: Status || "Booked",
       PNR: pnr,
       BookingSource: bookingSource,
       BookedBy: bookedBy,
-      IsAgentOrder: !!(IsAgentOrder || JourneyPayload?.isAgentOrder),
+      IsAgentOrder: isAgentOrder,
+
       JourneyPayload: {
         ...body,
         BookingSource: bookingSource,
         BookedBy: bookedBy,
-        IsAgentOrder: !!(IsAgentOrder || JourneyPayload?.isAgentOrder),
+        IsAgentOrder: isAgentOrder,
+
         CouponId:
           validatedCoupon?.CouponId ||
           body?.CouponId ||
           JourneyPayload?.CouponId ||
           JourneyPayload?.couponId ||
           null,
+
         CouponCode: couponCode,
         CouponDiscount: couponDiscount,
         couponCode,
         couponDiscount,
-        RestroPrice: toNumber(restroPriceTotal, 0),
+
+        BasePrice: finalBasePrice,
+        RestroPrice: finalRestroPrice,
+        Commission: finalCommission,
       },
     };
 
@@ -547,21 +784,32 @@ GSTAmount: toNumber(GSTAmount, 0),
       .single();
 
     if (insertResult.error) {
-      const message = insertResult.error.message || "";
+      const message =
+        insertResult.error.message || "";
+
       const shouldRetryWithoutOptionalColumns =
-        /IsAgentOrder|column|schema cache/i.test(message);
+        /IsAgentOrder|column|schema cache/i.test(
+          message
+        );
 
       if (shouldRetryWithoutOptionalColumns) {
         insertResult = await serviceClient
           .from("Orders")
-          .insert(cleanOptionalOrderFields(mainOrderPayload))
+          .insert(
+            cleanOptionalOrderFields(
+              mainOrderPayload
+            )
+          )
           .select()
           .single();
       }
     }
 
     if (insertResult.error) {
-      console.error("SUPABASE MAIN ORDER INSERT ERROR =>", insertResult.error);
+      console.error(
+        "SUPABASE MAIN ORDER INSERT ERROR =>",
+        insertResult.error
+      );
 
       return NextResponse.json(
         {
@@ -578,62 +826,130 @@ GSTAmount: toNumber(GSTAmount, 0),
     const orderData = insertResult.data;
     const targetOrderId = orderData.OrderId;
 
-    const orderItemsPayload = finalItemsArray.map((item: any) => {
-      const parsedItemCode = getItemCode(item);
-
-      const singleItemPrice = toNumber(
-        item.price ||
-          item.base_price ||
-          item.BasePrice ||
-          item.selling_price ||
-          item.SellingPrice,
-        0
+    if (!targetOrderId) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "order_id_missing",
+          message:
+            "Order created but OrderId was not returned.",
+        },
+        { status: 500 }
       );
+    }
 
-      const itemQty = toNumber(item.qty || item.quantity, 1);
+    const orderItemsPayload =
+      finalItemsArray.map((item: any) => {
+        const parsedItemCode =
+          getItemCode(item);
 
-      const menuRestroPrice =
-        restroPriceByItemCode[String(parsedItemCode)] ??
-        toNumber(
-          item.RestroPrice ||
-            item.restro_price ||
-            item.base_price ||
-            item.BasePrice ||
-            singleItemPrice,
-          singleItemPrice
+        const singleItemBasePrice = toNumber(
+          item?.price ??
+            item?.base_price ??
+            item?.BasePrice ??
+            item?.selling_price ??
+            item?.SellingPrice,
+          0
         );
 
-      return {
-        OrderId: targetOrderId,
-        RestroCode: validRestroCode,
-        ItemCode: Number.isFinite(parsedItemCode) ? parsedItemCode : 0,
-        ItemName: item.name || "Unknown Item",
-        ItemDescription: item.description || null,
-        ItemCategory: item.category || null,
-        Cuisine: item.cuisine || null,
-        MenuType: item.menu_type || null,
-        BasePrice: singleItemPrice,
-        RestroPrice: menuRestroPrice,
-        GSTPercent: toNumber(item.gst_percent, 5.0),
-        SellingPrice: singleItemPrice,
-        Quantity: itemQty,
-        LineTotal: singleItemPrice * itemQty,
-      };
-    });
+        const itemQuantity = Math.max(
+          1,
+          toNumber(
+            item?.qty ??
+              item?.quantity ??
+              item?.Quantity,
+            1
+          )
+        );
+
+        const menuRestroPrice =
+          restroPriceByItemCode[
+            String(parsedItemCode)
+          ] ??
+          toNumber(
+            item?.RestroPrice ??
+              item?.restro_price ??
+              item?.base_price ??
+              item?.BasePrice ??
+              singleItemBasePrice,
+            singleItemBasePrice
+          );
+
+        return {
+          OrderId: targetOrderId,
+          RestroCode: validRestroCode,
+
+          ItemCode: Number.isFinite(
+            parsedItemCode
+          )
+            ? parsedItemCode
+            : 0,
+
+          ItemName:
+            item?.name ||
+            item?.ItemName ||
+            "Unknown Item",
+
+          ItemDescription:
+            item?.description ||
+            item?.ItemDescription ||
+            null,
+
+          ItemCategory:
+            item?.category ||
+            item?.ItemCategory ||
+            null,
+
+          Cuisine:
+            item?.cuisine ||
+            item?.Cuisine ||
+            null,
+
+          MenuType:
+            item?.menu_type ||
+            item?.menuType ||
+            item?.MenuType ||
+            null,
+
+          BasePrice: singleItemBasePrice,
+          RestroPrice: menuRestroPrice,
+
+          GSTPercent: toNumber(
+            item?.gst_percent ??
+              item?.GSTPercent,
+            5
+          ),
+
+          SellingPrice: singleItemBasePrice,
+          Quantity: itemQuantity,
+
+          LineTotal:
+            singleItemBasePrice *
+            itemQuantity,
+        };
+      });
 
     let itemsInsertResult = await serviceClient
       .from("OrderItems")
       .insert(orderItemsPayload);
 
     if (itemsInsertResult.error) {
-      const message = itemsInsertResult.error.message || "";
+      const message =
+        itemsInsertResult.error.message || "";
+
       const shouldRetryWithoutRestroPrice =
-        /RestroPrice|column|schema cache/i.test(message);
+        /RestroPrice|column|schema cache/i.test(
+          message
+        );
 
       if (shouldRetryWithoutRestroPrice) {
         itemsInsertResult = await serviceClient
           .from("OrderItems")
-          .insert(orderItemsPayload.map(cleanOptionalOrderItemFields));
+          .insert(
+            orderItemsPayload.map(
+              cleanOptionalOrderItemFields
+            )
+          );
       }
     }
 
@@ -643,14 +959,18 @@ GSTAmount: toNumber(GSTAmount, 0),
         itemsInsertResult.error
       );
 
-      await serviceClient.from("Orders").delete().eq("OrderId", targetOrderId);
+      await serviceClient
+        .from("Orders")
+        .delete()
+        .eq("OrderId", targetOrderId);
 
       return NextResponse.json(
         {
           ok: false,
           error: itemsInsertResult.error.code,
           message: itemsInsertResult.error.message,
-          details: itemsInsertResult.error.details,
+          details:
+            itemsInsertResult.error.details,
           hint: itemsInsertResult.error.hint,
         },
         { status: 500 }
@@ -669,16 +989,22 @@ GSTAmount: toNumber(GSTAmount, 0),
       ok: true,
       orderId: targetOrderId,
       totalAmount: orderData.TotalAmount,
+      basePrice: orderData.BasePrice,
       restroPrice: orderData.RestroPrice,
+      commission: orderData.Commission,
     });
-  } catch (e: any) {
-    console.error("CRITICAL EXCEPTION IN API ROUTE =>", e);
+  } catch (error: any) {
+    console.error(
+      "CRITICAL EXCEPTION IN API ROUTE =>",
+      error
+    );
 
     return NextResponse.json(
       {
         ok: false,
         error: "server_crash",
-        message: e?.message || "Server error",
+        message:
+          error?.message || "Server error",
       },
       { status: 500 }
     );
