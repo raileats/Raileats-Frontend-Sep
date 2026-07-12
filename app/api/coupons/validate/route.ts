@@ -161,12 +161,7 @@ export async function POST(req: Request) {
       }
     }
 
-    if (
-      provider === "RESTRO" &&
-      (!restroCode || String(coupon.RestroCode ?? "").trim() !== restroCode)
-    ) {
-      return fail("Coupon is not valid for this restaurant.");
-    }
+    
 
     const minimumOrderValue = toNumber(coupon.MinimumOrderValue, 0);
     const maximumOrderValue = toNumber(coupon.MaximumOrderValue, 0);
