@@ -37,19 +37,19 @@ function isWithinValidity(coupon: CouponRow, now: Date) {
   return true;
 }
 
-function isProviderValid(coupon: CouponRow, restroCode: string) {
-  const provider = normalizeCode(coupon.CouponProvider || "RAILEATS");
+function isProviderValid(
+  coupon: CouponRow,
+  _restroCode: string
+) {
+  const provider = normalizeCode(
+    coupon.CouponProvider || "RAILEATS"
+  );
 
-  if (provider === "RAILEATS") return true;
-
-  if (provider === "RESTRO") {
-    return (
-      !!restroCode &&
-      String(coupon.RestroCode ?? "").trim() === String(restroCode).trim()
-    );
-  }
-
-  return false;
+  return (
+    provider === "RAILEATS" ||
+    provider === "RESTRO" ||
+    provider === "BOTH"
+  );
 }
 
 function calculateDiscount(coupon: CouponRow, subtotal: number) {
