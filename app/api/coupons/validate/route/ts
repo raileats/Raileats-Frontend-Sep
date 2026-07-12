@@ -70,31 +70,39 @@ function usageCreatedAt(row: Record<string, any>) {
 async function getCustomerUsageCount(couponId: unknown, customerMobile: string, frequency: string) {
   if (!couponId || !customerMobile) return 0;
 
-  const { data, error } = await serviceClient
-    .from("CouponUsage")
-    .select("*")
-    .eq("CouponId", couponId)
-    .eq("CustomerMobile", customerMobile);
+  try {
+    const { data, error } = await serviceClient
+      .from("CouponUsage")
+      .select("*")
+      .eq("CouponId", couponId)
+      .eq("CustomerMobile", customerMobile);
 
-  if (error || !Array.isArray(data)) return 0;
+    if (error || !Array.isArray(data)) {
+      if (error) console.error("COUPON USAGE FETCH ERROR =>", error);
+      return 0;
+    }
 
-  const now = new Date();
-  let from: Date | null = null;
+    const now = new Date();
+    let from: Date | null = null;
 
-  if (frequency === "DAILY") from = startOfDay(now);
-  if (frequency === "WEEKLY") from = startOfWeek(now);
-  if (frequency === "MONTHLY") from = startOfMonth(now);
+    if (frequency === "DAILY") from = startOfDay(now);
+    if (frequency === "WEEKLY") from = startOfWeek(now);
+    if (frequency === "MONTHLY") from = startOfMonth(now);
 
-  if (!from || frequency === "ONCE" || frequency === "UNLIMITED") {
-    return data.length;
+    if (!from || frequency === "ONCE" || frequency === "UNLIMITED") {
+      return data.length;
+    }
+
+    return data.filter((row) => {
+      const createdAt = usageCreatedAt(row);
+      if (!createdAt) return false;
+      const date = new Date(createdAt);
+      return !Number.isNaN(date.getTime()) && date >= from;
+    }).length;
+  } catch (error) {
+    console.error("COUPON USAGE FETCH EXCEPTION =>", error);
+    return 0;
   }
-
-  return data.filter((row) => {
-    const createdAt = usageCreatedAt(row);
-    if (!createdAt) return false;
-    const date = new Date(createdAt);
-    return !Number.isNaN(date.getTime()) && date >= from;
-  }).length;
 }
 
 export async function POST(req: Request) {
@@ -109,12 +117,24 @@ export async function POST(req: Request) {
     if (!couponCode) return fail("Please enter a coupon code.");
     if (subtotal <= 0) return fail("Cart subtotal is required.");
 
-    const { data, error } = await serviceClient
+    const exactMatch = await serviceClient
       .from("Coupons")
       .select("*")
-      .ilike("CouponCode", couponCode)
+      .eq("CouponCode", couponCode)
       .limit(1)
       .maybeSingle();
+
+    const fallbackMatch =
+      exactMatch.error || !exactMatch.data
+        ? await serviceClient
+            .from("Coupons")
+            .select("*")
+            .ilike("CouponCode", couponCode)
+            .limit(1)
+            .maybeSingle()
+        : exactMatch;
+
+    const { data, error } = fallbackMatch;
 
     if (error) return fail(error.message, 500);
     if (!data) return fail("Invalid coupon code.");
