@@ -40,6 +40,10 @@ function toNumber(value: unknown, fallback = 0) {
   return Number.isFinite(n) ? n : fallback;
 }
 
+function roundMoney(value: number) {
+  return Math.round(value * 100) / 100;
+}
+
 function normalizeCouponCode(value: unknown) {
   const code = String(value || "").trim().toUpperCase();
   return code || null;
@@ -47,7 +51,7 @@ function normalizeCouponCode(value: unknown) {
 
 function normalizeCouponDiscount(value: unknown) {
   const amount = toNumber(value, 0);
-  return amount > 0 ? amount : 0;
+  return amount > 0 ? roundMoney(amount) : 0;
 }
 
 function normalizeMobile(value: unknown) {
@@ -97,7 +101,7 @@ function calculateCouponDiscount(coupon: Record<string, any>, basePrice: number)
 
   discount = Math.min(discount, basePrice);
 
-  return Math.max(0, Math.round(discount * 100) / 100);
+  return Math.max(0, roundMoney(discount));
 }
 
 function isCouponInValidity(coupon: Record<string, any>, now: Date) {
@@ -451,8 +455,8 @@ export async function POST(req: Request) {
       return sum + unitRestroPrice * quantity;
     }, 0);
 
-    const finalRestroPrice = Math.max(0, Math.round(restroPriceTotal * 100) / 100);
-    const finalCommission = Math.round((finalBasePrice - finalRestroPrice) * 100) / 100;
+    const finalRestroPrice = Math.max(0, roundMoney(restroPriceTotal));
+    const finalCommission = roundMoney(finalBasePrice - finalRestroPrice);
 
     const bookingSource = detectBookingSource(req, BookingSource || JourneyPayload?.bookingSource);
 
@@ -517,6 +521,35 @@ export async function POST(req: Request) {
       JourneyPayload?.couponId ||
       null;
 
+    const couponProvider = normalizeCode(
+      validatedCoupon?.CouponProvider ||
+        body?.CouponProvider ||
+        body?.couponProvider ||
+        JourneyPayload?.CouponProvider ||
+        JourneyPayload?.couponProvider ||
+        "RAILEATS"
+    );
+
+    let restroDiscount = 0;
+    let reDiscount = 0;
+
+    if (couponDiscount > 0) {
+      if (couponProvider === "RESTRO") {
+        restroDiscount = couponDiscount;
+        reDiscount = 0;
+      } else if (couponProvider === "BOTH") {
+        const half = roundMoney(couponDiscount / 2);
+        restroDiscount = half;
+        reDiscount = roundMoney(couponDiscount - half);
+      } else {
+        restroDiscount = 0;
+        reDiscount = couponDiscount;
+      }
+    }
+
+    restroDiscount = roundMoney(restroDiscount);
+    reDiscount = roundMoney(reDiscount);
+
     const mainOrderPayload: Record<string, any> = {
       RestroCode: validRestroCode,
       RestroName: RestroName || "Unknown Restaurant",
@@ -538,6 +571,8 @@ export async function POST(req: Request) {
       CouponId: couponId,
       CouponCode: couponCode,
       CouponDiscount: couponDiscount,
+      RestroDiscount: restroDiscount,
+      REDiscount: reDiscount,
 
       GSTAmount: toNumber(GSTAmount, 0),
       PlatformCharge: toNumber(PlatformCharge, 0),
@@ -556,11 +591,18 @@ export async function POST(req: Request) {
         IsAgentOrder: isAgentOrder,
 
         CouponId: couponId,
+        CouponProvider: couponProvider,
         CouponCode: couponCode,
         CouponDiscount: couponDiscount,
+        RestroDiscount: restroDiscount,
+        REDiscount: reDiscount,
+
         couponId,
+        couponProvider,
         couponCode,
         couponDiscount,
+        restroDiscount,
+        reDiscount,
 
         BasePrice: finalBasePrice,
         RestroPrice: finalRestroPrice,
@@ -705,8 +747,11 @@ export async function POST(req: Request) {
       restroPrice: orderData.RestroPrice,
       commission: orderData.Commission,
       couponId,
+      couponProvider,
       couponCode,
       couponDiscount,
+      restroDiscount,
+      reDiscount,
     });
   } catch (error: any) {
     console.error("CRITICAL EXCEPTION IN API ROUTE =>", error);
