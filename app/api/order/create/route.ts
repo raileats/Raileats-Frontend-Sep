@@ -507,9 +507,12 @@ export async function POST(req: Request) {
       SubTotal: toNumber(SubTotal || BasePrice, 0),
       CouponCode: couponCode,
       CouponDiscount: couponDiscount,
-      BasePrice: toNumber(BasePrice || SubTotal, 0),
-      RestroPrice: toNumber(restroPriceTotal, 0),
-      GSTAmount: toNumber(GSTAmount, 0),
+      const finalBasePrice = toNumber(BasePrice || SubTotal, 0);
+
+BasePrice: finalBasePrice,
+RestroPrice: toNumber(restroPriceTotal, 0),
+Commission: finalBasePrice - toNumber(restroPriceTotal, 0),
+GSTAmount: toNumber(GSTAmount, 0),
       PlatformCharge: toNumber(PlatformCharge, 0),
       TotalAmount: toNumber(TotalAmount, 0),
       PaymentMode: PaymentMode || "COD",
