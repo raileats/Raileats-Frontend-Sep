@@ -548,6 +548,52 @@ export async function POST(req: Request) {
     }
 
     restroDiscount = roundMoney(restroDiscount);
+        /*
+     * PAYMENT AMOUNT BREAKUP
+     *
+     * COD:
+     * CODAmount = TotalAmount
+     * PPDAmount = 0
+     *
+     * PPD / ONLINE / PREPAID:
+     * CODAmount = 0
+     * PPDAmount = TotalAmount
+     */
+    const finalTotalAmount = Math.max(
+      0,
+      roundMoney(
+        toNumber(
+          TotalAmount,
+          0
+        )
+      )
+    );
+
+    const normalizedPaymentMode =
+      normalizeCode(
+        PaymentMode || "COD"
+      );
+
+    const isPrepaidOrder = [
+      "PPD",
+      "PREPAID",
+      "PREPIAD",
+      "ONLINE",
+      "PAIDONLINE",
+      "RAZORPAY",
+    ].includes(
+      normalizedPaymentMode
+    );
+
+    const codAmount =
+      isPrepaidOrder
+        ? 0
+        : finalTotalAmount;
+
+    const ppdAmount =
+      isPrepaidOrder
+        ? finalTotalAmount
+        : 0;
     reDiscount = roundMoney(reDiscount);
 
     const mainOrderPayload: Record<string, any> = {
@@ -574,10 +620,27 @@ export async function POST(req: Request) {
       RestroDiscount: restroDiscount,
       REDiscount: reDiscount,
 
-      GSTAmount: toNumber(GSTAmount, 0),
-      PlatformCharge: toNumber(PlatformCharge, 0),
-      TotalAmount: toNumber(TotalAmount, 0),
-      PaymentMode: PaymentMode || "COD",
+            GSTAmount: toNumber(
+        GSTAmount,
+        0
+      ),
+
+      PlatformCharge: toNumber(
+        PlatformCharge,
+        0
+      ),
+
+      TotalAmount:
+        finalTotalAmount,
+
+      PaymentMode:
+        PaymentMode || "COD",
+
+      CODAmount:
+        codAmount,
+
+      PPDAmount:
+        ppdAmount,
       Status: Status || "Booked",
       PNR: pnr,
       BookingSource: bookingSource,
@@ -604,9 +667,26 @@ export async function POST(req: Request) {
         restroDiscount,
         reDiscount,
 
-        BasePrice: finalBasePrice,
-        RestroPrice: finalRestroPrice,
-        Commission: finalCommission,
+                BasePrice:
+          finalBasePrice,
+
+        RestroPrice:
+          finalRestroPrice,
+
+        Commission:
+          finalCommission,
+
+        TotalAmount:
+          finalTotalAmount,
+
+        PaymentMode:
+          PaymentMode || "COD",
+
+        CODAmount:
+          codAmount,
+
+        PPDAmount:
+          ppdAmount,
       },
     };
 
@@ -752,6 +832,11 @@ export async function POST(req: Request) {
       couponDiscount,
       restroDiscount,
       reDiscount,
+            paymentMode:
+        PaymentMode || "COD",
+
+      codAmount,
+      ppdAmount,
     });
   } catch (error: any) {
     console.error("CRITICAL EXCEPTION IN API ROUTE =>", error);
