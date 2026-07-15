@@ -836,7 +836,12 @@ RestroPrice:
       orderId: targetOrderId,
       totalAmount: orderData.TotalAmount,
       basePrice: orderData.BasePrice,
-      restroPrice: orderData.RestroPrice,
+
+discountedBasePrice:
+  orderData.DiscountedBasePrice ??
+  finalDiscountedBasePrice,
+
+restroPrice: orderData.RestroPrice,
       commission: orderData.Commission,
       couponId,
       couponProvider,
