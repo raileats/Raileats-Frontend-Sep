@@ -548,6 +548,14 @@ export async function POST(req: Request) {
     }
 
     restroDiscount = roundMoney(restroDiscount);
+    reDiscount = roundMoney(reDiscount);
+
+const finalDiscountedBasePrice = Math.max(
+  0,
+  roundMoney(
+    finalBasePrice - couponDiscount
+  )
+);
         /*
      * PAYMENT AMOUNT BREAKUP
      *
@@ -594,7 +602,7 @@ export async function POST(req: Request) {
       isPrepaidOrder
         ? finalTotalAmount
         : 0;
-    reDiscount = roundMoney(reDiscount);
+
 
     const mainOrderPayload: Record<string, any> = {
       RestroCode: validRestroCode,
