@@ -619,6 +619,7 @@ const finalDiscountedBasePrice = Math.max(
 
       SubTotal: finalBasePrice,
       BasePrice: finalBasePrice,
+      DiscountedBasePrice: finalDiscountedBasePrice,
       RestroPrice: finalRestroPrice,
       Commission: finalCommission,
 
@@ -676,10 +677,13 @@ const finalDiscountedBasePrice = Math.max(
         reDiscount,
 
                 BasePrice:
-          finalBasePrice,
+  finalBasePrice,
 
-        RestroPrice:
-          finalRestroPrice,
+DiscountedBasePrice:
+  finalDiscountedBasePrice,
+
+RestroPrice:
+  finalRestroPrice,
 
         Commission:
           finalCommission,
