@@ -46,7 +46,7 @@ const contactSchema = {
     email: "railrats@gmail.com",
     contactPoint: {
       "@type": "ContactPoint",
-      telephone: "+91-8008009335",
+      telephone: "+91-800-800-9335",
       contactType: "customer support",
       areaServed: "IN",
       availableLanguage: ["English", "Hindi"],
@@ -132,10 +132,10 @@ export default function ContactPage() {
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <p className="text-sm font-semibold text-slate-500">Call Center</p>
             <a
-              href="tel:8008009335"
+              href="tel:800-800-9335"
               className="mt-2 block text-xl font-extrabold text-orange-700"
             >
-              8008009335
+              800-800-9335
             </a>
             <p className="mt-2 text-sm leading-6 text-slate-600">
               Call RailEats support for food delivery in train assistance and
@@ -146,7 +146,7 @@ export default function ContactPage() {
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <p className="text-sm font-semibold text-slate-500">WhatsApp</p>
             <a
-              href="https://wa.me/980080093351"
+              href="https://wa.me/9800-800-93351"
               target="_blank"
               rel="noopener noreferrer"
               className="mt-2 inline-block rounded-xl bg-green-600 px-5 py-3 text-sm font-bold text-white"
