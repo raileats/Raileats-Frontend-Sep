@@ -133,8 +133,8 @@ export default function FooterLinks() {
         </p>
         <p>
           Call Center:{" "}
-          <a href="tel:1111111111" className="text-yellow-700">
-            1111111111
+          <a href="tel:800-800-9335" className="text-yellow-700">
+            800-800-9335
           </a>
         </p>
       </div>
