@@ -383,6 +383,70 @@ function buildKeywords(stationName: string, code: string, seoTerms: string[]) {
   ]).slice(0, 30);
 }
 
+type StationApiResponse = {
+  station?: {
+    StationCode?: string | null;
+    StationName?: string | null;
+    State?: string | null;
+    District?: string | null;
+    image_url?: string | null;
+  } | null;
+  restaurants?: any[];
+  error?: string;
+};
+
+async function fetchStationRestaurants(code: string): Promise<StationApiResponse> {
+  const stationCode = String(code || "").trim().toUpperCase();
+
+  if (!stationCode) {
+    return {
+      station: null,
+      restaurants: [],
+      error: "Missing station code",
+    };
+  }
+
+  try {
+    const response = await fetch(
+      `https://admin.raileats.in/api/stations/${encodeURIComponent(stationCode)}`,
+      {
+        method: "GET",
+        cache: "no-store",
+        headers: {
+          Accept: "application/json",
+        },
+      }
+    );
+
+    const json = await response.json().catch(() => null);
+
+    if (!response.ok) {
+      return {
+        station: json?.station ?? null,
+        restaurants: [],
+        error:
+          json?.error ||
+          `Unable to load restaurants. HTTP ${response.status}`,
+      };
+    }
+
+    return {
+      station: json?.station ?? null,
+      restaurants: Array.isArray(json?.restaurants)
+        ? json.restaurants
+        : [],
+    };
+  } catch (error: any) {
+    return {
+      station: null,
+      restaurants: [],
+      error:
+        error?.message ||
+        "Unable to connect to restaurant service",
+    };
+  }
+}
+
 async function getStationNameByCode(code: string, fallback: string) {
   const { data } = await serviceClient
     .from("RestroMaster")
@@ -481,20 +545,20 @@ export async function generateMetadata({
   params: { slug: string };
 }): Promise<Metadata> {
   const stationBase = parseStationFromSlug(params.slug);
+  const stationApi = await fetchStationRestaurants(stationBase.code);
+
   const stationName =
-    stationBase.isCodeOnly && stationBase.code
+    stationApi.station?.StationName ||
+    (stationBase.isCodeOnly && stationBase.code
       ? await getStationNameByCode(stationBase.code, stationBase.name)
-      : stationBase.name;
+      : stationBase.name);
 
-  const { data } = await serviceClient
-    .from("RestroMaster")
-    .select("*")
-    .eq("StationCode", stationBase.code)
-    .order("RestroRating", { ascending: false });
-
-  const activeRestros = sortRestaurants((data || []).filter(
-    (r: any) => isActive(r.RaileatsStatus) && !isHolidayOn(r.HolidayStatus)
-  ));
+  /*
+    IMPORTANT:
+    Restaurant list Admin API se aa rahi hai.
+    Admin API expired/inactive FSSAI restaurants ko pehle hi remove karti hai.
+  */
+  const activeRestros = sortRestaurants(stationApi.restaurants || []);
   const seoTerms = extractSeoTerms(activeRestros);
   const title = buildStationTitle(stationName, stationBase.code);
   const description = buildMetaDescription(
@@ -555,15 +619,24 @@ export default async function Page({ params }: { params: { slug: string } }) {
   const stationBase = parseStationFromSlug(params.slug);
   const nowIso = new Date().toISOString();
 
-  const { data: restrosRaw, error: restroError } = await serviceClient
-    .from("RestroMaster")
-    .select("*")
-    .eq("StationCode", stationBase.code)
-    .order("RestroRating", { ascending: false });
+  /*
+    Direct RestroMaster query hata di gayi hai.
+    Ab list Admin API se aayegi, jahan:
+    - RaileatsStatus active check hota hai
+    - FSSAI active check hota hai
+    - FSSAI expiry date check hoti hai
+  */
+  const stationApi = await fetchStationRestaurants(stationBase.code);
 
-  const restros = restrosRaw || [];
+  const restros = stationApi.restaurants || [];
+  const restroError = stationApi.error
+    ? { message: stationApi.error }
+    : null;
+
   const stationName =
-    restros?.[0]?.StationName || stationBase.name || stationBase.code;
+    stationApi.station?.StationName ||
+    stationBase.name ||
+    stationBase.code;
 
   const restroCodes = restros
     .map((r: any) => Number(r.RestroCode))
@@ -583,13 +656,19 @@ export default async function Page({ params }: { params: { slug: string } }) {
     (holidaysRaw || []).map((h: any) => Number(h.RestroCode))
   );
 
-  const activeRestros = sortRestaurants(restros.filter((r: any) => {
-    const active = isActive(r.RaileatsStatus);
-    const holidayFromHolidayTable = holidaySet.has(Number(r.RestroCode));
-    const holidayFromMaster = isHolidayOn(r.HolidayStatus);
+  const activeRestros = sortRestaurants(
+    restros.filter((r: any) => {
+      /*
+        Admin API already active + valid FSSAI restaurants hi bhejti hai.
+        Yahan sirf active holiday table ka check bacha hai.
+      */
+      const holidayFromHolidayTable = holidaySet.has(
+        Number(r.RestroCode)
+      );
 
-    return active && !holidayFromHolidayTable && !holidayFromMaster;
-  }));
+      return !holidayFromHolidayTable;
+    })
+  );
 
   const seoTerms = extractSeoTerms(activeRestros);
   const relatedStations = await getRelatedStations(stationBase.code);
