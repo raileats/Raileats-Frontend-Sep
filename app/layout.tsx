@@ -1,5 +1,6 @@
 import "./globals.css";
 import Image from "next/image";
+import Script from "next/script";
 import { Inter } from "next/font/google";
 import type { Metadata, Viewport } from "next";
 
@@ -22,6 +23,7 @@ const inter = Inter({
 });
 
 const siteUrl = "https://www.raileats.in";
+const GA_MEASUREMENT_ID = "G-WJ26XJK8JX";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -147,6 +149,23 @@ export default function RootLayout({
   return (
     <html lang="en-IN" className={`${inter.variable} h-full scroll-smooth`}>
       <body className="min-h-screen bg-white text-slate-900 font-sans antialiased selection:bg-amber-500 selection:text-white touch-pan-y">
+        <Script
+          id="google-analytics-library"
+          src={`https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`}
+          strategy="afterInteractive"
+        />
+
+        <Script id="google-analytics" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){window.dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', '${GA_MEASUREMENT_ID}', {
+              send_page_view: true
+            });
+          `}
+        </Script>
+
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
