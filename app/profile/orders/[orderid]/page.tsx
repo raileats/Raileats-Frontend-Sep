@@ -170,6 +170,9 @@ type OrdersResponse = {
 type ActionResponse = {
   ok: boolean;
   error?: string;
+  databaseMessage?: string;
+  table?: string;
+  column?: string;
   order?: {
     status: string;
     subStatus: string;
@@ -378,7 +381,19 @@ export default function OrderDetailsPage() {
       });
       const json = (await response.json().catch(() => ({}))) as ActionResponse;
       if (!response.ok || !json.ok) {
-        setModalError(actionErrorMessage(json.error));
+        const knownMessage = actionErrorMessage(json.error);
+        setModalError(
+          knownMessage !== "Unable to submit your request."
+            ? knownMessage
+            : [
+                String(json.error || "request_failed"),
+                json.table ? `table: ${json.table}` : "",
+                json.column ? `column: ${json.column}` : "",
+                json.databaseMessage || "",
+              ]
+                .filter(Boolean)
+                .join(" — "),
+        );
         return;
       }
 
