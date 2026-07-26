@@ -1,6 +1,7 @@
 // app/api/profile/orders/action/route.ts
 import { NextResponse } from "next/server";
 import { serviceClient } from "@/lib/supabaseServer";
+import { updateOrderJourneySafe } from "@/lib/orderJourney";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -230,7 +231,26 @@ export async function POST(request: Request) {
       }
       return errorResponse("status_not_eligible", 409);
     }
-
+await updateOrderJourneySafe({
+  supabase: serviceClient,
+  orderId,
+  stage: "Cancellation Request",
+  status: "Cancellation Request",
+  subStatus: reason,
+  remarks: remarks || reason,
+  userType: "Customer",
+  userName: cleanText(order.CustomerName) || mobile,
+  source: "Customer Profile",
+  actionAt: updatedAt,
+  order: {
+    restroCode: order.RestroCode,
+    restroName: order.RestroName,
+    stationCode: order.StationCode,
+    stationName: order.StationName,
+    deliveryDate: order.DeliveryDate,
+    deliveryTime: order.DeliveryTime,
+  },
+});
 
     return NextResponse.json({
       ok: true,
