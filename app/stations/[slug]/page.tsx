@@ -709,21 +709,33 @@ export default async function Page({ params }: { params: { slug: string } }) {
           addressLocality: stationName,
           addressCountry: "IN",
         },
-        aggregateRating: r.RestroRating
-          ? {
-              "@type": "AggregateRating",
-              ratingValue: String(r.RestroRating),
-              bestRating: "5",
-              worstRating: "1",
-              ...(numericValue(r.ReviewCount || r.review_count || r.RatingCount)
-                ? {
-                    reviewCount: String(
-                      numericValue(r.ReviewCount || r.review_count || r.RatingCount)
-                    ),
-                  }
-                : {}),
-            }
-          : undefined,
+        aggregateRating:
+  numericValue(r.RestroRating) > 0 &&
+  numericValue(
+    r.ReviewCount ||
+      r.review_count ||
+      r.ReviewsCount ||
+      r.reviews_count ||
+      r.RatingCount ||
+      r.rating_count
+  ) > 0
+    ? {
+        "@type": "AggregateRating",
+        ratingValue: String(numericValue(r.RestroRating)),
+        bestRating: "5",
+        worstRating: "1",
+        reviewCount: String(
+          numericValue(
+            r.ReviewCount ||
+              r.review_count ||
+              r.ReviewsCount ||
+              r.reviews_count ||
+              r.RatingCount ||
+              r.rating_count
+          )
+        ),
+      }
+    : undefined,
       },
     };
   });
