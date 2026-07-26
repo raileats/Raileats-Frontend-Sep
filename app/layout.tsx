@@ -30,7 +30,7 @@ export const metadata: Metadata = {
 
   title: {
     default: "RailEats | Order Food in Train Online",
-    template: "%s | RailEats",
+    template: "%s",
   },
 
   description:
