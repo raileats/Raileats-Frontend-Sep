@@ -154,7 +154,7 @@ function canSubmitCustomerDeliveryResponse(
 ) {
   if (
     order.customerResponse ||
-    ["cancelled", "cancellationrequest", "notdelivered"].includes(
+    ["delivered", "cancelled", "cancellationrequest", "notdelivered"].includes(
       normalizeOrderStatus(order.status),
     )
   ) {
@@ -164,7 +164,11 @@ function canSubmitCustomerDeliveryResponse(
     order.deliveryDate,
     order.deliveryTime,
   );
-  return Boolean(delivery && nowMs >= delivery.getTime() + 30 * 60_000);
+  return Boolean(
+    delivery &&
+      nowMs >= delivery.getTime() + 30 * 60_000 &&
+      nowMs < delivery.getTime() + 72 * 60 * 60_000,
+  );
 }
 
 type DatabaseError = {
@@ -301,6 +305,67 @@ async function assertNoCustomerResponse(orderId: string) {
   return null;
 }
 
+function indiaActionParts(now: Date) {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(now);
+  const value = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((part) => part.type === type)?.value || "";
+
+  return {
+    date: `${value("year")}-${value("month")}-${value("day")}`,
+    time: `${value("hour")}:${value("minute")}:${value("second")}`,
+  };
+}
+
+async function updateCustomerOrderJourney(input: {
+  order: OrderRow;
+  status: string;
+  subStatus: string | null;
+  remarks: string;
+  stagePrefix: "CancellationRequest" | "Delivered" | "Complaints";
+  now: Date;
+}) {
+  const actorName = text(input.order.CustomerName) ||
+    normalizeMobile(input.order.CustomerMobile) ||
+    "Customer";
+  const actionAt = indiaActionParts(input.now);
+  const prefix = input.stagePrefix;
+
+  const { error } = await serviceClient.from("OrderJourney").upsert(
+    {
+      OrderId: input.order.OrderId,
+      RestroCode: input.order.RestroCode,
+      RestroName: input.order.RestroName,
+      StationCode: input.order.StationCode,
+      StationName: input.order.StationName,
+      DeliveryDate: input.order.DeliveryDate,
+      DeliveryTime: input.order.DeliveryTime,
+      Status: input.status,
+      SubStatus: input.subStatus,
+      Remarks: input.remarks,
+      [`${prefix}Update`]: input.status,
+      [`${prefix}Remarks`]: input.remarks,
+      [`${prefix}UserType`]: "Customer",
+      [`${prefix}UserName`]: actorName,
+      [`${prefix}Source`]: "Customer Profile",
+      [`${prefix}ActionAtDate`]: actionAt.date,
+      [`${prefix}ActionAtTime`]: actionAt.time,
+      UpdatedAt: input.now.toISOString(),
+    },
+    { onConflict: "OrderId" },
+  );
+
+  return error;
+}
+
 export async function POST(request: Request) {
   try {
     const body = (await request.json().catch(() => null)) as RequestBody | null;
@@ -412,6 +477,22 @@ export async function POST(request: Request) {
             return jsonError("cancellation_already_requested", 409);
           }
           return jsonError("status_not_eligible", 409);
+        }
+
+        const journeyError = await updateCustomerOrderJourney({
+          order,
+          status: "Cancellation Request",
+          subStatus: reason,
+          remarks: remarks || reason,
+          stagePrefix: "CancellationRequest",
+          now,
+        });
+        if (journeyError) {
+          return databaseErrorResponse(
+            "customer_cancellation_journey_update",
+            journeyError,
+            "order_journey_update_failed",
+          );
         }
 
         return NextResponse.json({
@@ -581,6 +662,57 @@ export async function POST(request: Request) {
           }
         }
 
+        const nextStatus =
+          action === "customer_delivered" ? "Delivered" : "Complaints";
+        const nextSubStatus =
+          action === "customer_delivered" ? "Delivered" : issueType;
+        const actionRemarks =
+          remarks ||
+          (action === "customer_delivered"
+            ? "Customer confirmed delivery"
+            : issueType);
+
+        const { data: updatedOrders, error: orderUpdateError } =
+          await serviceClient
+            .from("Orders")
+            .update({
+              Status: nextStatus,
+              SubStatus: nextSubStatus,
+              UpdatedAt: timestamp,
+            })
+            .eq("OrderId", orderId)
+            .eq("Status", order.Status)
+            .eq("CustomerMobile", order.CustomerMobile)
+            .select("OrderId");
+
+        if (orderUpdateError) {
+          return databaseErrorResponse(
+            "customer_action_order_update",
+            orderUpdateError,
+            "supabase_update_failed",
+          );
+        }
+        if (!Array.isArray(updatedOrders) || updatedOrders.length !== 1) {
+          return jsonError("order_status_changed", 409);
+        }
+
+        const journeyError = await updateCustomerOrderJourney({
+          order,
+          status: nextStatus,
+          subStatus: nextSubStatus,
+          remarks: actionRemarks,
+          stagePrefix:
+            action === "customer_delivered" ? "Delivered" : "Complaints",
+          now,
+        });
+        if (journeyError) {
+          return databaseErrorResponse(
+            "customer_action_journey_update",
+            journeyError,
+            "order_journey_update_failed",
+          );
+        }
+
         const saved = customerResponse as unknown as {
           CustomerAction?: string | null;
           IssueType?: string | null;
@@ -600,6 +732,12 @@ export async function POST(request: Request) {
             rating: saved.Rating ?? null,
             remarks: saved.Remarks || "",
             createdAt: saved.CreatedAt || timestamp,
+          },
+          order: {
+            orderId,
+            status: nextStatus,
+            subStatus: nextSubStatus,
+            updatedAt: timestamp,
           },
         });
       }
