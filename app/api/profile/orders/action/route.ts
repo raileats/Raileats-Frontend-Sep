@@ -1,7 +1,7 @@
 // app/api/profile/orders/action/route.ts
 import { NextResponse } from "next/server";
 import { serviceClient } from "@/lib/supabaseServer";
-import { updateOrderJourneySafe } from "@/lib/orderJourney";
+import { updateOrderJourneySafe } from "../../../../../lib/orderJourney";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
