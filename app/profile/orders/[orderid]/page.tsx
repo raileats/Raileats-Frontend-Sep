@@ -4,13 +4,125 @@ import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { useParams, useRouter } from "next/navigation";
-import {
-  canCustomerCancel,
-  canSubmitCustomerDeliveryResponse,
-  normalizeOrderStatus,
-  parseIndiaDeliveryDateTime,
-  type CustomerResponse,
-} from "@/lib/customerOrderActions";
+
+type CustomerResponse = {
+  action: "Delivered" | "Issue";
+  issueType: string;
+  rating: number | null;
+  remarks: string;
+  createdAt: string;
+};
+
+type CustomerActionOrder = {
+  deliveryDate: string;
+  deliveryTime: string;
+  status: string;
+  customerResponse?: CustomerResponse | null;
+};
+
+function normalizeOrderStatus(value: unknown) {
+  return String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_-]+/g, "");
+}
+
+function parseIndiaDeliveryDateTime(
+  deliveryDate: unknown,
+  deliveryTime: unknown,
+) {
+  const rawDate = String(deliveryDate ?? "").trim();
+  const isoDate = rawDate.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  const localDate = rawDate.match(/^(\d{2})[-/](\d{2})[-/](\d{4})/);
+  const date = isoDate
+    ? {
+        year: Number(isoDate[1]),
+        month: Number(isoDate[2]),
+        day: Number(isoDate[3]),
+      }
+    : localDate
+      ? {
+          year: Number(localDate[3]),
+          month: Number(localDate[2]),
+          day: Number(localDate[1]),
+        }
+      : null;
+  const timeMatch = String(deliveryTime ?? "00:00")
+    .trim()
+    .toUpperCase()
+    .match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?/);
+  if (!date || !timeMatch) return null;
+
+  let hour = Number(timeMatch[1]);
+  const minute = Number(timeMatch[2]);
+  const second = Number(timeMatch[3] || 0);
+  const meridiem = timeMatch[4] || "";
+  if (meridiem) {
+    if (hour < 1 || hour > 12) return null;
+    if (hour === 12) hour = 0;
+    if (meridiem === "PM") hour += 12;
+  }
+  if (
+    date.month < 1 ||
+    date.month > 12 ||
+    date.day < 1 ||
+    date.day > 31 ||
+    hour < 0 ||
+    hour > 23 ||
+    minute < 0 ||
+    minute > 59 ||
+    second < 0 ||
+    second > 59
+  ) {
+    return null;
+  }
+
+  const validation = new Date(
+    Date.UTC(date.year, date.month - 1, date.day, hour, minute, second),
+  );
+  if (
+    validation.getUTCFullYear() !== date.year ||
+    validation.getUTCMonth() !== date.month - 1 ||
+    validation.getUTCDate() !== date.day
+  ) {
+    return null;
+  }
+  return new Date(validation.getTime() - 330 * 60_000);
+}
+
+function canCustomerCancel(order: CustomerActionOrder, nowMs = Date.now()) {
+  if (
+    !["booked", "verification", "inverification", "neworder"].includes(
+      normalizeOrderStatus(order.status),
+    )
+  ) {
+    return false;
+  }
+  const delivery = parseIndiaDeliveryDateTime(
+    order.deliveryDate,
+    order.deliveryTime,
+  );
+  return Boolean(delivery && nowMs <= delivery.getTime() - 90 * 60_000);
+}
+
+function canSubmitCustomerDeliveryResponse(
+  order: CustomerActionOrder,
+  nowMs = Date.now(),
+) {
+  if (
+    order.customerResponse ||
+    ["cancelled", "cancellationrequest", "notdelivered"].includes(
+      normalizeOrderStatus(order.status),
+    )
+  ) {
+    return false;
+  }
+  const delivery = parseIndiaDeliveryDateTime(
+    order.deliveryDate,
+    order.deliveryTime,
+  );
+  return Boolean(delivery && nowMs >= delivery.getTime() + 30 * 60_000);
+}
 
 type OrderItem = { itemName: string; quantity: number; lineTotal: number };
 type OrderHistory = {
