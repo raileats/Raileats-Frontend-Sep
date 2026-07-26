@@ -110,7 +110,7 @@ function canSubmitCustomerDeliveryResponse(
 ) {
   if (
     order.customerResponse ||
-    ["cancelled", "cancellationrequest", "notdelivered"].includes(
+    ["delivered", "cancelled", "cancellationrequest", "notdelivered"].includes(
       normalizeOrderStatus(order.status),
     )
   ) {
@@ -120,7 +120,11 @@ function canSubmitCustomerDeliveryResponse(
     order.deliveryDate,
     order.deliveryTime,
   );
-  return Boolean(delivery && nowMs >= delivery.getTime() + 30 * 60_000);
+  return Boolean(
+    delivery &&
+      nowMs >= delivery.getTime() + 30 * 60_000 &&
+      nowMs < delivery.getTime() + 72 * 60 * 60_000,
+  );
 }
 
 type OrderItem = {
