@@ -559,6 +559,7 @@ export async function generateMetadata({
     Admin API expired/inactive FSSAI restaurants ko pehle hi remove karti hai.
   */
   const activeRestros = sortRestaurants(stationApi.restaurants || []);
+  const shouldIndex = !stationApi.error && activeRestros.length > 0;
   const seoTerms = extractSeoTerms(activeRestros);
   const title = buildStationTitle(stationName, stationBase.code);
   const description = buildMetaDescription(
@@ -578,10 +579,10 @@ export async function generateMetadata({
     },
     keywords: buildKeywords(stationName, stationBase.code, seoTerms),
     robots: {
-      index: true,
+      index: shouldIndex,
       follow: true,
       googleBot: {
-        index: true,
+        index: shouldIndex,
         follow: true,
         "max-snippet": -1,
         "max-image-preview": "large",
