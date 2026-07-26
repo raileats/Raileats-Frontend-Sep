@@ -1,7 +1,7 @@
 // lib/orderJourney.ts
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { serviceClient } from "../app/lib/supabaseServer";
+import { serviceClient } from "@/lib/supabaseServer";
 /* =========================================================
    ORDER JOURNEY STAGES
 ========================================================= */
