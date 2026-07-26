@@ -61,15 +61,10 @@ function normalizeMobile(value: string | null) {
 
 function normalizeRestroImage(value: unknown) {
   const image = String(value ?? "").trim();
-
   if (!image) return "/raileats-logo.png";
-
-  if (image.startsWith("http://") || image.startsWith("https://")) {
-    return image;
-  }
+  if (image.startsWith("http://") || image.startsWith("https://")) return image;
 
   const clean = image.replace(/^\/+/, "");
-
   return `https://ygisiztmuzwxpnvhwrmr.supabase.co/storage/v1/object/public/RestroDisplayPhoto/${clean}`;
 }
 
@@ -84,7 +79,6 @@ function normalizeStatus(value: unknown) {
 
 function parseJourneyPayload(value: unknown) {
   if (!value) return {};
-
   try {
     const parsed = typeof value === "string" ? JSON.parse(value) : value;
     return parsed && typeof parsed === "object"
@@ -104,7 +98,6 @@ function getOrderSortTime(order: {
   const deliveryDateTime = new Date(
     `${order.deliveryDate || ""}T${deliveryTime}`,
   ).getTime();
-
   if (Number.isFinite(deliveryDateTime)) return deliveryDateTime;
 
   const bookedTime = new Date(order.bookedAt || "").getTime();
@@ -124,7 +117,6 @@ export async function GET(req: Request) {
     }
 
     const mobileCandidates = [mobile, `91${mobile}`, `+91${mobile}`];
-
     const { data, error } = await serviceClient
       .from("Orders")
       .select(
@@ -172,11 +164,9 @@ export async function GET(req: Request) {
     const rows = fetchedOrders.filter(
       (order) => normalizeMobile(order.CustomerMobile || "") === mobile,
     );
-
     const orderIds = rows
       .map((order) => String(order.OrderId || ""))
       .filter(Boolean);
-
     const restroCodes = Array.from(
       new Set(
         rows
@@ -202,7 +192,6 @@ export async function GET(req: Request) {
       ((restros || []) as RestroRow[]).forEach((restro) => {
         const code = String(restro.RestroCode ?? "");
         if (!code) return;
-
         imageByRestroCode[code] = normalizeRestroImage(
           restro.RestroDisplayPhoto || getRestroFileName(code),
         );
@@ -221,7 +210,6 @@ export async function GET(req: Request) {
         ((items || []) as OrderItemRow[]).forEach((item) => {
           const orderId = String(item.OrderId || "");
           if (!orderId) return;
-
           if (!itemsByOrderId[orderId]) itemsByOrderId[orderId] = [];
           itemsByOrderId[orderId].push(item);
         });
@@ -229,7 +217,9 @@ export async function GET(req: Request) {
 
       const { data: history, error: historyError } = await serviceClient
         .from("OrderStatusHistory")
-        .select("OrderId,OldStatus,NewStatus,Note,ChangedBy,ChangedAt,Status,SubStatus")
+        .select(
+          "OrderId,OldStatus,NewStatus,Note,ChangedBy,ChangedAt,Status,SubStatus",
+        )
         .in("OrderId", orderIds)
         .order("ChangedAt", { ascending: true });
 
@@ -239,7 +229,6 @@ export async function GET(req: Request) {
         ((history || []) as OrderHistoryRow[]).forEach((entry) => {
           const orderId = String(entry.OrderId || "");
           if (!orderId) return;
-
           if (!historyByOrderId[orderId]) historyByOrderId[orderId] = [];
           historyByOrderId[orderId].push(entry);
         });
@@ -254,7 +243,8 @@ export async function GET(req: Request) {
       const history = historyByOrderId[orderId] || [];
       const firstBooked =
         history.find(
-          (entry) => normalizeStatus(entry.NewStatus || entry.Status) === "booked",
+          (entry) =>
+            normalizeStatus(entry.NewStatus || entry.Status) === "booked",
         ) || history[0];
       const lastHistory = history[history.length - 1];
       const currentStatus =
@@ -263,7 +253,8 @@ export async function GET(req: Request) {
         lastHistory?.Status ||
         "booked";
       const bookedAt = firstBooked?.ChangedAt || order.CreatedAt || "";
-      const currentStageAt = lastHistory?.ChangedAt || order.UpdatedAt || bookedAt;
+      const currentStageAt =
+        lastHistory?.ChangedAt || order.UpdatedAt || bookedAt;
 
       return {
         orderId,
@@ -277,7 +268,8 @@ export async function GET(req: Request) {
         coach: order.Coach || "",
         seat: order.Seat || "",
         customerName: order.CustomerName || String(journeyPayload.name || ""),
-        customerMobile: order.CustomerMobile || String(journeyPayload.mobile || ""),
+        customerMobile:
+          order.CustomerMobile || String(journeyPayload.mobile || ""),
         pnr: String(order.PNR || journeyPayload.pnr || ""),
         subTotal: Number(order.SubTotal || 0),
         gstAmount: Number(order.GSTAmount || 0),
