@@ -3596,3 +3596,44 @@ body:has(.inner-navbar) .bottom-nav {
     font-size: clamp(15px, 4.3vw, 18px) !important;
   }
 }
+
+/* ================= PERFORMANCE + ACCESSIBILITY ================= */
+
+@keyframes hero-fade {
+  from {
+    opacity: 0.72;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+.brand-text {
+  color: #a16207;
+}
+
+.app-btn-primary,
+.btn-primary,
+.mobile-restro-viewmenu {
+  background: #c2410c !important;
+  color: #ffffff !important;
+  box-shadow: 0 8px 18px rgba(154, 52, 18, 0.22);
+}
+
+.app-btn-primary:hover,
+.btn-primary:hover {
+  background: #9a3412 !important;
+}
+
+.app-btn-success,
+.restro-rating-badge {
+  background: #15803d !important;
+  color: #ffffff !important;
+}
+
+.mobile-section-head span,
+.mobile-section-head a,
+.customer-app-main .text-orange-600 {
+  color: #c2410c !important;
+}
