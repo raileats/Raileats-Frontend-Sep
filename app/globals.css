@@ -2766,7 +2766,8 @@ textarea {
     display: flex;
     gap: 20px;
     width: max-content;
-    animation: category-marquee 24s linear infinite;
+    animation: none !important;
+    transform: none !important;
   }
 
   .mobile-category-pill {
@@ -3644,4 +3645,16 @@ body:has(.inner-navbar) .bottom-nav {
 .mobile-section-head a,
 .customer-app-main .text-orange-600 {
   color: #c2410c !important;
+}
+
+/* Keep below-the-fold SEO and supporting sections in the document for users
+   and crawlers, but skip their initial paint/layout cost on mobile. */
+@supports (content-visibility: auto) {
+  #offers,
+  .mobile-hide-app-junk,
+  .mobile-tools-strip,
+  .desktop-seo-rich {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 420px;
+  }
 }

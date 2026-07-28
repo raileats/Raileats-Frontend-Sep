@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "./lib/useAuth";
 
 import HeroSlider, { type HeroSlide } from "./components/HeroSlider";
@@ -516,92 +516,6 @@ export default function HomePageClient({
   };
 
   const restaurantsToShow = popularRestaurants;
-  const restroListRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    const container = restroListRef.current;
-
-    if (!container || restaurantsToShow.length <= 2) return;
-    if (typeof window === "undefined") return;
-
-    let autoSlideId: number | null = null;
-    let resumeId: number | null = null;
-    let currentGroup = 0;
-
-    const isMobile = () => window.innerWidth < 768;
-    const getGroupCount = () =>
-      Math.max(1, Math.ceil(restaurantsToShow.length / 2));
-
-    const stopAutoSlide = () => {
-      if (autoSlideId !== null) {
-        window.clearInterval(autoSlideId);
-        autoSlideId = null;
-      }
-    };
-
-    const syncCurrentGroup = () => {
-      if (!isMobile() || container.clientWidth <= 0) return;
-
-      const group = Math.round(container.scrollLeft / container.clientWidth);
-      currentGroup = Math.max(0, Math.min(group, getGroupCount() - 1));
-    };
-
-    const startAutoSlide = () => {
-      stopAutoSlide();
-
-      if (!isMobile() || restaurantsToShow.length <= 2) return;
-
-      autoSlideId = window.setInterval(() => {
-        const maxScrollLeft = container.scrollWidth - container.clientWidth;
-
-        if (maxScrollLeft <= 0) return;
-
-        currentGroup = (currentGroup + 1) % getGroupCount();
-
-        container.scrollTo({
-          left:
-            currentGroup === 0
-              ? 0
-              : Math.min(maxScrollLeft, currentGroup * container.clientWidth),
-          behavior: "smooth",
-        });
-      }, 3200);
-    };
-
-    const pauseThenResume = () => {
-      stopAutoSlide();
-      syncCurrentGroup();
-
-      if (resumeId !== null) window.clearTimeout(resumeId);
-      resumeId = window.setTimeout(startAutoSlide, 2600);
-    };
-
-    const handleScroll = () => {
-      if (resumeId !== null) window.clearTimeout(resumeId);
-      resumeId = window.setTimeout(syncCurrentGroup, 140);
-    };
-
-    const handleResize = () => {
-      syncCurrentGroup();
-      startAutoSlide();
-    };
-
-    container.addEventListener("touchstart", pauseThenResume);
-    container.addEventListener("pointerdown", pauseThenResume);
-    container.addEventListener("scroll", handleScroll);
-    window.addEventListener("resize", handleResize);
-
-    startAutoSlide();
-
-    return () => {
-      stopAutoSlide();
-      if (resumeId !== null) window.clearTimeout(resumeId);
-      container.removeEventListener("touchstart", pauseThenResume);
-      container.removeEventListener("pointerdown", pauseThenResume);
-      container.removeEventListener("scroll", handleScroll);
-      window.removeEventListener("resize", handleResize);
-    };
-  }, [restaurantsToShow.length]);
 
   return (
     <main className="customer-app-main home-app-shell">
@@ -674,7 +588,7 @@ export default function HomePageClient({
             <Link href="/popular-restaurants-train-journey">Live menus</Link>
           </div>
 
-          <div ref={restroListRef} className="mobile-restro-list">
+          <div className="mobile-restro-list">
             {restaurantsToShow.length === 0 ? (
               <div className="mobile-restro-card">
                 <Image
