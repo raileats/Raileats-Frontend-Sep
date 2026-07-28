@@ -1,9 +1,46 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Suspense } from "react";
 import HomePageClient from "./HomePageClient";
+import type { HeroSlide } from "./components/HeroSlider";
 
 const siteUrl = "https://www.raileats.in";
+const heroSliderApi = "https://admin.raileats.in/api/hero-slider";
+
+export const revalidate = 300;
+
+async function getHeroSlides(): Promise<HeroSlide[]> {
+  try {
+    const response = await fetch(heroSliderApi, {
+      next: { revalidate: 300 },
+    });
+
+    if (!response.ok) return [];
+
+    const result = await response.json();
+    const rows = Array.isArray(result?.data) ? result.data : [];
+
+    return rows
+      .filter((slide: any) => {
+        const imageUrl = String(slide?.image_url || "").trim();
+
+        return (
+          imageUrl.startsWith("/") ||
+          imageUrl.startsWith(
+            "https://ygisiztmuzwxpnvhwrmr.supabase.co/storage/v1/object/public/"
+          )
+        );
+      })
+      .slice(0, 8)
+      .map((slide: any) => ({
+        id: slide.id,
+        title: slide.title || null,
+        image_url: String(slide.image_url).trim(),
+        sort_order: Number(slide.sort_order ?? 999),
+      }));
+  } catch {
+    return [];
+  }
+}
 
 const pageTitle =
   "Order Food in Train Online | Food Delivery in Train by PNR, Train or Station | RailEats";
@@ -230,7 +267,9 @@ const schemas = [
   },
 ];
 
-export default function Page() {
+export default async function Page() {
+  const heroSlides = await getHeroSlides();
+
   return (
     <>
       {schemas.map((schema) => (
@@ -241,11 +280,7 @@ export default function Page() {
         />
       ))}
 
-      <Suspense
-        fallback={<div className="p-6 text-center">Loading RailEats...</div>}
-      >
-        <HomePageClient />
-      </Suspense>
+      <HomePageClient initialHeroSlides={heroSlides} />
 
       <h1 id="homepage-seo-title" className="sr-only">
         Order Food in Train Online with RailEats
