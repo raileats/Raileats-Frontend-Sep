@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
 export type HeroSlide = {
   id: number | string;
@@ -35,7 +35,6 @@ const fallbackSlides: HeroSlide[] = [
   },
 ];
 
-const AUTOPLAY_MS = 4500;
 const EMPTY_SLIDES: HeroSlide[] = [];
 
 export default function HeroSlider({
@@ -55,22 +54,6 @@ export default function HeroSlider({
   }, [initialSlides]);
 
   const [currentIndex, setCurrentIndex] = useState(0);
-
-  useEffect(() => {
-    if (slides.length <= 1) return;
-
-    const reduceMotion = window.matchMedia(
-      "(prefers-reduced-motion: reduce)"
-    ).matches;
-
-    if (reduceMotion) return;
-
-    const intervalId = window.setInterval(() => {
-      setCurrentIndex((index) => (index + 1) % slides.length);
-    }, AUTOPLAY_MS);
-
-    return () => window.clearInterval(intervalId);
-  }, [slides.length]);
 
   const activeSlide = slides[currentIndex] || slides[0];
   const activeText =

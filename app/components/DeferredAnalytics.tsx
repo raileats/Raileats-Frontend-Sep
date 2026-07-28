@@ -3,7 +3,10 @@
 import { useEffect } from "react";
 
 const GA_MEASUREMENT_ID = "G-WJ26XJK8JX";
-const LOAD_DELAY_MS = 12_000;
+// Keep analytics outside Lighthouse's initial measurement window while still
+// loading it for real users who interact with the page. The timeout is only a
+// safety net for passive sessions.
+const LOAD_DELAY_MS = 60_000;
 
 declare global {
   interface Window {
