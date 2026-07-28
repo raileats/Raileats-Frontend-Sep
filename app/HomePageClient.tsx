@@ -1,18 +1,27 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useEffect, useState, useRef } from "react";
-import { useSearchParams } from "next/navigation";
 import { useAuth } from "./lib/useAuth";
-import { supabase } from "./lib/supabaseClient";
 
-import HeroSlider from "./components/HeroSlider";
+import HeroSlider, { type HeroSlide } from "./components/HeroSlider";
 import SearchBox from "./components/SearchBox";
 import Offers from "./components/Offers";
 import Steps from "./components/Steps";
 import ExploreRailInfo from "./components/ExploreRailInfo";
 import FooterLinks from "./components/FooterLinks";
-import PartnerForm from "./components/PartnerForm";
+
+const PartnerForm = dynamic(() => import("./components/PartnerForm"), {
+  ssr: false,
+});
+
+type HomePageClientProps = {
+  initialHeroSlides?: HeroSlide[];
+};
+
+const EMPTY_HERO_SLIDES: HeroSlide[] = [];
 
 const TRAIN_FOOD_LINKS = [
   {
@@ -68,12 +77,12 @@ const APP_OFFER_BANNERS = [
   {
     title: "Fresh train meals",
     desc: "Order before your station arrives",
-    accent: "from-orange-500 to-amber-400",
+    accent: "from-orange-700 to-amber-700",
   },
   {
     title: "Seat delivery",
     desc: "Food delivered at available stations",
-    accent: "from-emerald-500 to-lime-400",
+    accent: "from-emerald-700 to-lime-800",
   },
   {
     title: "Route restaurants",
@@ -201,7 +210,17 @@ function getRestaurantImage(restro: any) {
 
   if (!image) return codeImage;
 
-  if (image.startsWith("http://") || image.startsWith("https://")) return image;
+  if (
+    image.startsWith(
+      "https://ygisiztmuzwxpnvhwrmr.supabase.co/storage/v1/object/public/"
+    )
+  ) {
+    return image;
+  }
+
+  if (image.startsWith("http://") || image.startsWith("https://")) {
+    return codeImage;
+  }
   if (image.startsWith("/") && !image.includes("/storage/v1/object/public/")) return image;
 
   const cleanImage = image.replace(/^\/+/, "");
@@ -287,8 +306,9 @@ function getRestaurantHref(restro: any) {
   return "/popular-restaurants-train-journey";
 }
 
-export default function HomePageClient() {
-  const searchParams = useSearchParams();
+export default function HomePageClient({
+  initialHeroSlides = EMPTY_HERO_SLIDES,
+}: HomePageClientProps) {
   const { user } = useAuth();
 
   const [bulkOpen, setBulkOpen] = useState(false);
@@ -341,48 +361,14 @@ export default function HomePageClient() {
       return [];
     }
 
-    async function loadPopularRestaurantsFromSupabase() {
-      const { data, error } = await supabase
-        .from("RestroMaster")
-        .select(
-          [
-            "RestroCode",
-            "RestroName",
-            "StationCode",
-            "StationName",
-            "RestroDisplayPhoto",
-            "RaileatsStatus",
-            "RestroRating",
-            "MinimumOrderValue",
-          ].join(",")
-        )
-        .eq("RaileatsStatus", 1)
-        .limit(10);
-
-      if (error) {
-        console.error("Popular restaurants Supabase fallback failed:", error);
-        return [];
-      }
-
-      return Array.isArray(data) ? data : [];
-    }
-
     async function loadPopularRestaurants() {
       try {
         const apiRestaurants = await loadPopularRestaurantsFromApi();
 
         if (ignore) return;
 
-        if (apiRestaurants.length > 0) {
-          setPopularRestaurants(apiRestaurants);
-          return;
-        }
-
-        const supabaseRestaurants = await loadPopularRestaurantsFromSupabase();
-
-        if (!ignore) setPopularRestaurants(supabaseRestaurants);
-      } catch (err) {
-        console.error("Popular restaurants fetch failed:", err);
+        setPopularRestaurants(apiRestaurants);
+      } catch {
         if (!ignore) setPopularRestaurants([]);
       }
     }
@@ -395,7 +381,7 @@ export default function HomePageClient() {
   }, []);
 
   useEffect(() => {
-    const goto = searchParams.get("goto");
+    const goto = new URLSearchParams(window.location.search).get("goto");
 
     if (goto === "offers") {
       setTimeout(() => {
@@ -419,7 +405,7 @@ export default function HomePageClient() {
         ...getTrackingUser(),
       });
     }
-  }, [searchParams]);
+  }, []);
 
   useEffect(() => {
     const afterLoginAction = localStorage.getItem("raileats_after_login_action");
@@ -462,17 +448,22 @@ export default function HomePageClient() {
         },
       });
 
-      const { error } = await supabase.from("BulkOrderRequests").insert({
-        Name: bulkName.trim(),
-        Mobile: mobile,
-        TrainNumber: bulkTrain.trim() || null,
-        Message: bulkMessage.trim() || null,
-        Status: "New",
-        Source: "Customer Website",
-        CreatedAt: new Date().toISOString(),
+      const response = await fetch("/api/home/bulk-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: bulkName.trim(),
+          mobile,
+          trainNumber: bulkTrain.trim() || null,
+          message: bulkMessage.trim() || null,
+        }),
       });
 
-      if (error) throw error;
+      const result = await response.json();
+
+      if (!response.ok || !result?.ok) {
+        throw new Error(result?.message || "Bulk order request failed");
+      }
 
       trackEvent("home_bulk_order_submit_success", {
         section: "home_bulk_order",
@@ -616,8 +607,8 @@ export default function HomePageClient() {
     <main className="customer-app-main home-app-shell">
       <section className="mobile-native-home app-first-home" aria-label="RailEats home">
         <div className="mobile-home-hero">
-          <div className="home-hero-slider-slot" aria-label="RailEats offers and highlights">
-            <HeroSlider />
+          <div className="home-hero-slider-slot">
+            <HeroSlider initialSlides={initialHeroSlides} />
           </div>
 
           <div className="mobile-search-shell">
@@ -647,13 +638,14 @@ export default function HomePageClient() {
                     });
                   }}
                 >
-                  <img
+                  <Image
                     src={category.image}
                     alt={`${category.name} food category on RailEats`}
                     title={`${category.name} food on train`}
                     width={64}
                     height={64}
-                    loading="lazy"
+                    quality={65}
+                    sizes="64px"
                     className="h-16 w-16 rounded-full object-cover shadow-sm"
                   />
                   <strong>{category.name}</strong>
@@ -685,13 +677,14 @@ export default function HomePageClient() {
           <div ref={restroListRef} className="mobile-restro-list">
             {restaurantsToShow.length === 0 ? (
               <div className="mobile-restro-card">
-                <img
+                <Image
                   src="/raileats-logo.png"
                   alt="RailEats active restaurants"
                   title="RailEats active restaurants"
                   width={112}
                   height={96}
-                  loading="lazy"
+                  quality={70}
+                  sizes="112px"
                 />
                 <div className="mobile-restro-copy">
                   <div className="mobile-restro-title-row">
@@ -726,13 +719,14 @@ export default function HomePageClient() {
                   }}
                 >
                   <div className="restro-image-wrapper">
-                    <img
+                    <Image
                       src={getRestaurantImage(restro)}
                       alt={`${restro.RestroName} food on RailEats`}
                       title={`${restro.RestroName} food delivery in train`}
                       width={112}
                       height={96}
-                      loading="lazy"
+                      quality={65}
+                      sizes="(max-width: 767px) 86px, 92px"
                       onError={(event) => {
                         event.currentTarget.src = "/raileats-logo.png";
                       }}
@@ -767,11 +761,6 @@ export default function HomePageClient() {
           </div>
         </section>
       </section>
-
-      <div className="hidden">
-        <HeroSlider />
-        <SearchBox />
-      </div>
 
       <div className="mobile-hide-app-junk">
         <ExploreRailInfo />
