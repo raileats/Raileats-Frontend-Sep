@@ -3599,13 +3599,21 @@ body:has(.inner-navbar) .bottom-nav {
 
 /* ================= PERFORMANCE + ACCESSIBILITY ================= */
 
-@keyframes hero-fade {
-  from {
-    opacity: 0.72;
+@media (max-width: 767px) {
+  .mobile-category-row {
+    overflow-x: auto !important;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
   }
 
-  to {
-    opacity: 1;
+  .mobile-category-row::-webkit-scrollbar {
+    display: none;
+  }
+
+  .mobile-category-track {
+    animation: none !important;
+    transform: none !important;
+    padding-right: 12px;
   }
 }
 
