@@ -93,8 +93,11 @@ export default function HeroSlider({
             title={activeText}
             fill
             priority={currentIndex === 0}
-            quality={68}
-            className="object-cover motion-safe:animate-[hero-fade_300ms_ease-out]"
+            fetchPriority={currentIndex === 0 ? "high" : "auto"}
+            loading={currentIndex === 0 ? "eager" : "lazy"}
+            decoding="async"
+            quality={55}
+            className="object-cover"
             sizes="(max-width: 767px) calc(100vw - 24px), (max-width: 1279px) calc(100vw - 48px), 1120px"
           />
 
