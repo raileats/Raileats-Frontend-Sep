@@ -414,8 +414,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         }
       }
 
-      for (const trainNumber of eligibleTrainNumbers) {
-        const trainUrl =
+for (const trainNumber of Array.from(eligibleTrainNumbers)) {
+  const trainUrl =
           `${baseUrl}/trains/${trainNumber}-train-food-delivery-in-train`;
 
         routeMap.set(trainUrl, {
