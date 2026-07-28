@@ -21,6 +21,11 @@ type FssaiRow = {
   created_at?: string | null;
 };
 
+type TrainRouteRow = {
+  trainNumber?: string | number | null;
+  StationCode?: string | null;
+};
+
 function slugify(value: unknown) {
   return String(value ?? "")
     .trim()
@@ -39,6 +44,15 @@ function normalizeRestroCode(value: unknown) {
   return Number.isFinite(numericValue)
     ? String(numericValue)
     : raw.toUpperCase();
+}
+
+function normalizeStationCode(value: unknown) {
+  return String(value ?? "").trim().toUpperCase();
+}
+
+function normalizeTrainNumber(value: unknown) {
+  const raw = String(value ?? "").trim();
+  return /^\d{5}$/.test(raw) ? raw : "";
 }
 
 function isActive(value: unknown) {
@@ -195,6 +209,30 @@ async function fetchAllFssaiRows() {
   return rows;
 }
 
+async function fetchAllTrainRouteRows() {
+  const rows: TrainRouteRow[] = [];
+
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await serviceClient
+      .from("TrainRoute")
+      .select("trainNumber, StationCode")
+      .order("trainNumber", { ascending: true })
+      .order("StationCode", { ascending: true })
+      .range(from, from + pageSize - 1);
+
+    if (error) {
+      throw new Error(`TrainRoute fetch failed: ${error.message}`);
+    }
+
+    const page = (data || []) as TrainRouteRow[];
+    rows.push(...page);
+
+    if (page.length < pageSize) break;
+  }
+
+  return rows;
+}
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
 
@@ -293,6 +331,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
     const indiaTodayKey = getIndiaTodayKey();
     const validFssaiCodes = new Set<string>();
+    const eligibleStationCodes = new Set<string>();
 
     for (const row of fssaiRows) {
       const restroCode = normalizeRestroCode(row.RestroCode);
@@ -321,11 +360,19 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
       const stationName = slugify(restro.StationName);
       const stationCode = slugify(restro.StationCode);
+      const normalizedStationCode = normalizeStationCode(restro.StationCode);
       const restroName = slugify(restro.RestroName);
 
-      if (!stationName || !stationCode || !restroName) {
+      if (
+        !stationName ||
+        !stationCode ||
+        !normalizedStationCode ||
+        !restroName
+      ) {
         continue;
       }
+
+      eligibleStationCodes.add(normalizedStationCode);
 
       const stationSlug =
         `${stationName}-${stationCode}-food-delivery-in-train`;
@@ -348,6 +395,38 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         changeFrequency: "daily",
         priority: 0.8,
       });
+    }
+
+    try {
+      const trainRouteRows = await fetchAllTrainRouteRows();
+      const eligibleTrainNumbers = new Set<string>();
+
+      for (const row of trainRouteRows) {
+        const trainNumber = normalizeTrainNumber(row.trainNumber);
+        const stationCode = normalizeStationCode(row.StationCode);
+
+        if (
+          trainNumber &&
+          stationCode &&
+          eligibleStationCodes.has(stationCode)
+        ) {
+          eligibleTrainNumbers.add(trainNumber);
+        }
+      }
+
+      for (const trainNumber of eligibleTrainNumbers) {
+        const trainUrl =
+          `${baseUrl}/trains/${trainNumber}-train-food-delivery-in-train`;
+
+        routeMap.set(trainUrl, {
+          url: trainUrl,
+          lastModified: now,
+          changeFrequency: "daily",
+          priority: 0.85,
+        });
+      }
+    } catch (error) {
+      console.error("Sitemap train routes fetch failed:", error);
     }
   } catch (error) {
     console.error("Sitemap dynamic routes fetch failed:", error);
