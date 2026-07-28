@@ -2,22 +2,17 @@
 
 import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
-import Slider from "react-slick";
 
-type HeroSlide = {
+export type HeroSlide = {
   id: number | string;
   title: string | null;
   image_url: string;
   sort_order?: number | null;
 };
 
-type HeroSliderApiResponse = {
-  success: boolean;
-  data?: HeroSlide[];
-  error?: string;
+type HeroSliderProps = {
+  initialSlides?: HeroSlide[];
 };
-
-const HERO_SLIDER_API = "https://admin.raileats.in/api/hero-slider";
 
 const fallbackSlides: HeroSlide[] = [
   {
@@ -38,133 +33,102 @@ const fallbackSlides: HeroSlide[] = [
     image_url: "/slides/offer20.png",
     sort_order: 3,
   },
-  {
-    id: "fallback-offer-combo",
-    title: "Combo meals for every journey",
-    image_url: "/slides/offer-combo.png",
-    sort_order: 4,
-  },
-  {
-    id: "fallback-hot-fresh",
-    title: "Hot and fresh delivery",
-    image_url: "/slides/hot-fresh.png",
-    sort_order: 5,
-  },
 ];
 
-const settings = {
-  dots: true,
-  infinite: true,
-  autoplay: true,
-  autoplaySpeed: 3500,
-  speed: 600,
-  slidesToShow: 1,
-  slidesToScroll: 1,
-  arrows: false,
-  centerMode: false,
-  variableWidth: false,
-  adaptiveHeight: false,
-  pauseOnHover: true,
-  cssEase: "ease-out",
-} as const;
+const AUTOPLAY_MS = 4500;
+const EMPTY_SLIDES: HeroSlide[] = [];
 
-export default function HeroSlider() {
-  const [slides, setSlides] = useState<HeroSlide[]>([]);
-  const [hasLoaded, setHasLoaded] = useState(false);
-
-  useEffect(() => {
-    let ignore = false;
-
-    async function loadSlidesFromAdminCms() {
-      try {
-        const response = await fetch(HERO_SLIDER_API, {
-          method: "GET",
-          cache: "no-store",
-          mode: "cors",
-        });
-
-        const result = (await response.json()) as HeroSliderApiResponse;
-
-        if (ignore) return;
-
-        if (
-          response.ok &&
-          result?.success &&
-          Array.isArray(result.data) &&
-          result.data.length > 0
-        ) {
-          setSlides(result.data);
-        } else {
-          setSlides(fallbackSlides);
-        }
-      } catch {
-        if (!ignore) {
-          setSlides(fallbackSlides);
-        }
-      } finally {
-        if (!ignore) setHasLoaded(true);
-      }
-    }
-
-    loadSlidesFromAdminCms();
-
-    return () => {
-      ignore = true;
-    };
-  }, []);
-
-  const normalizedSlides = useMemo(() => {
-    const sourceSlides = slides.length > 0 ? slides : fallbackSlides;
-    const validSlides = sourceSlides
-      .filter((slide) => slide.image_url)
+export default function HeroSlider({
+  initialSlides = EMPTY_SLIDES,
+}: HeroSliderProps) {
+  const slides = useMemo(() => {
+    const source = initialSlides.length > 0 ? initialSlides : fallbackSlides;
+    const validSlides = source
+      .filter((slide) => Boolean(slide?.image_url))
+      .slice()
       .sort(
         (a, b) =>
           Number(a.sort_order ?? 999) - Number(b.sort_order ?? 999)
       );
 
     return validSlides.length > 0 ? validSlides : fallbackSlides;
-  }, [slides]);
+  }, [initialSlides]);
+
+  const [currentIndex, setCurrentIndex] = useState(0);
+
+  useEffect(() => {
+    if (slides.length <= 1) return;
+
+    const reduceMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)"
+    ).matches;
+
+    if (reduceMotion) return;
+
+    const intervalId = window.setInterval(() => {
+      setCurrentIndex((index) => (index + 1) % slides.length);
+    }, AUTOPLAY_MS);
+
+    return () => window.clearInterval(intervalId);
+  }, [slides.length]);
+
+  const activeSlide = slides[currentIndex] || slides[0];
+  const activeText =
+    activeSlide?.title || "RailEats train food delivery";
 
   return (
     <section
       className="container-app !pt-3 pb-0"
-      aria-label="RailEats hero offers from Admin CMS"
+      aria-label="RailEats offers and highlights"
     >
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-black shadow-lg">
-        <Slider {...settings}>
-          {normalizedSlides.map((slide, idx) => {
-            const text = slide.title || "RailEats train food delivery";
+        <div
+          className="relative aspect-[16/8] w-full overflow-hidden bg-black sm:aspect-[16/7] lg:aspect-[16/6.8]"
+          aria-live="off"
+        >
+          <Image
+            key={activeSlide.id || activeSlide.image_url}
+            src={activeSlide.image_url}
+            alt={activeText}
+            title={activeText}
+            fill
+            priority={currentIndex === 0}
+            quality={68}
+            className="object-cover motion-safe:animate-[hero-fade_300ms_ease-out]"
+            sizes="(max-width: 767px) calc(100vw - 24px), (max-width: 1279px) calc(100vw - 48px), 1120px"
+          />
 
-            return (
-              <div key={slide.id || `${slide.image_url}-${idx}`} className="!w-full">
-                <div className="relative aspect-[16/8] w-full overflow-hidden bg-black sm:aspect-[16/7] lg:aspect-[16/6.8]">
-                  <Image
-                    src={slide.image_url}
-                    alt={text}
-                    title={text}
-                    fill
-                    priority={idx === 0}
-                    loading={idx === 0 ? "eager" : "lazy"}
-                    className="object-cover"
-                    sizes="(max-width: 768px) 100vw, 760px"
-                    unoptimized={slide.image_url.startsWith("http")}
-                  />
+          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 to-transparent p-4">
+            <span className="inline-flex rounded-full bg-white/95 px-3 py-1 text-xs font-black text-slate-950 shadow">
+              {activeText}
+            </span>
+          </div>
+        </div>
 
-                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-4">
-                    <span className="inline-flex rounded-full bg-white/95 px-3 py-1 text-xs font-black text-slate-950 shadow">
-                      {text}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </Slider>
+        {slides.length > 1 && (
+          <div
+            className="flex items-center justify-center gap-2 bg-black/90 px-3 py-2"
+            aria-label="Select a RailEats offer"
+          >
+            {slides.map((slide, index) => (
+              <button
+                key={slide.id || `${slide.image_url}-${index}`}
+                type="button"
+                onClick={() => setCurrentIndex(index)}
+                aria-label={`Show offer ${index + 1}: ${
+                  slide.title || "RailEats offer"
+                }`}
+                aria-current={index === currentIndex ? "true" : undefined}
+                className={`h-2.5 rounded-full transition-[width,background-color] ${
+                  index === currentIndex
+                    ? "w-7 bg-white"
+                    : "w-2.5 bg-white/50 hover:bg-white/80"
+                }`}
+              />
+            ))}
+          </div>
+        )}
       </div>
-
-      {!hasLoaded && (
-        <span className="sr-only">Loading RailEats hero slider from Admin CMS...</span>
-      )}
     </section>
   );
 }
