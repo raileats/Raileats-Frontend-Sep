@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import StationSearchBox from "./StationSearchBox";
 import TrainAutocomplete from "./TrainAutocomplete";
 
@@ -77,7 +77,12 @@ function makeStationSlug(stationNameRaw: string, stationCodeRaw: string) {
 }
 
 function todayIso() {
-  return new Date().toISOString().slice(0, 10);
+  const now = new Date();
+  const localTime = new Date(
+    now.getTime() - now.getTimezoneOffset() * 60 * 1000
+  );
+
+  return localTime.toISOString().slice(0, 10);
 }
 
 export default function SearchBox() {
@@ -87,12 +92,16 @@ export default function SearchBox() {
   const [selectedStationData, setSelectedStationData] = useState<any>(null);
   const [stations, setStations] = useState<any[]>([]);
   const [boarding, setBoarding] = useState("");
-  const [date, setDate] = useState(todayIso());
+  const [date, setDate] = useState("");
   const [showStationList, setShowStationList] = useState(false);
   const [loadingStations, setLoadingStations] = useState(false);
 
   const searchBtnRef = useRef<HTMLButtonElement | null>(null);
   const boardingBoxRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    setDate(todayIso());
+  }, []);
 
   const scrollSearchButtonIntoView = () => {
     setTimeout(() => {
@@ -262,8 +271,8 @@ export default function SearchBox() {
                 className={[
                   "min-h-[36px] rounded-xl text-sm font-black transition active:scale-95 sm:min-h-[40px]",
                   active
-                    ? "bg-white text-orange-600 shadow-sm searchbox-tab-active"
-                    : "text-slate-500",
+                    ? "bg-white text-orange-700 shadow-sm searchbox-tab-active"
+                    : "text-slate-600",
                 ].join(" ")}
               >
                 {item.label}
