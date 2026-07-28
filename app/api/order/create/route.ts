@@ -294,13 +294,22 @@ async function recordCouponUsageSafely({
     CustomerMobile: normalizeMobile(customerMobile),
     OrderId: orderId,
     DiscountAmount: discountAmount,
-    CreatedAt: new Date().toISOString(),
   };
 
-  const { error } = await serviceClient.from("CouponUsage").insert(payload);
+  let insertResult = await serviceClient.from("CouponUsage").insert({
+    ...payload,
+    created_at: new Date().toISOString(),
+  });
 
-  if (error) {
-    console.error("COUPON USAGE INSERT ERROR =>", error);
+  if (
+    insertResult.error?.code === "PGRST204" &&
+    /created_at/i.test(insertResult.error.message || "")
+  ) {
+    insertResult = await serviceClient.from("CouponUsage").insert(payload);
+  }
+
+  if (insertResult.error) {
+    console.error("COUPON USAGE INSERT ERROR =>", insertResult.error);
     return;
   }
 
