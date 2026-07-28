@@ -140,7 +140,8 @@ export default function Navbar() {
             width={34}
             height={34}
             priority
-            unoptimized
+            quality={70}
+            sizes="34px"
           />
         </Link>
       </header>
@@ -165,7 +166,8 @@ export default function Navbar() {
             width={42}
             height={42}
             priority
-            unoptimized
+            quality={70}
+            sizes="42px"
           />
         </span>
         <span className="brand-text">
