@@ -7,9 +7,20 @@ import { useAuth } from "../lib/useAuth";
 export default function Providers({ children }: { children: React.ReactNode }) {
   const { loadUser } = useAuth();
 
-  // 🔥 VERY IMPORTANT: load user from localStorage on app start
   useEffect(() => {
     loadUser();
+
+    const handleAuthChange = () => {
+      loadUser();
+    };
+
+    window.addEventListener("storage", handleAuthChange);
+    window.addEventListener("raileats:logout", handleAuthChange);
+
+    return () => {
+      window.removeEventListener("storage", handleAuthChange);
+      window.removeEventListener("raileats:logout", handleAuthChange);
+    };
   }, []);
 
   return <CartProvider>{children}</CartProvider>;
