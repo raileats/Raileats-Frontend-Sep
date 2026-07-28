@@ -9,6 +9,13 @@ const nextConfig = {
   images: {
     formats: ["image/avif", "image/webp"],
     minimumCacheTTL: 31536000,
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "ygisiztmuzwxpnvhwrmr.supabase.co",
+        pathname: "/storage/v1/object/public/**",
+      },
+    ],
   },
 
   async redirects() {
