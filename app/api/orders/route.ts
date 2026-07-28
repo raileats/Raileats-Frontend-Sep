@@ -414,15 +414,7 @@ export async function POST(req: Request) {
 
     /* ---- 4) Build rows ---- */
 
-    const stamp = new Date()
-      .toISOString()
-      .replace(/[-:TZ.]/g, "")
-      .slice(0, 14);
-
-    const OrderId = `RE-${stamp}-${Math.floor(Math.random() * 900 + 100)}`;
-
     const orderRow: Record<string, any> = {
-      OrderId,
       RestroCode: restroCode,
       RestroName: restroName,
       StationCode: stationCode,
@@ -451,6 +443,45 @@ export async function POST(req: Request) {
         IsAgentOrder: isAgentOrder,
       },
     };
+
+    /* ---- 5) Insert into Supabase ---- */
+
+    let orderInsert = await supa
+      .from("Orders")
+      .insert(orderRow)
+      .select("OrderId")
+      .single();
+
+    if (orderInsert.error) {
+      const message = orderInsert.error.message || "";
+      const shouldRetryWithoutOptionalColumns =
+        /IsAgentOrder|column|schema cache/i.test(message);
+
+      if (shouldRetryWithoutOptionalColumns) {
+        orderInsert = await supa
+          .from("Orders")
+          .insert(cleanOptionalOrderFields(orderRow))
+          .select("OrderId")
+          .single();
+      }
+    }
+
+    if (orderInsert.error) {
+      console.error("Orders insert error", orderInsert.error);
+      return NextResponse.json(
+        { ok: false, error: "db_orders_error" },
+        { status: 500 },
+      );
+    }
+
+    const OrderId = String(orderInsert.data?.OrderId || "").trim();
+
+    if (!OrderId) {
+      return NextResponse.json(
+        { ok: false, error: "order_id_missing" },
+        { status: 500 },
+      );
+    }
 
     const itemRows = normItems.map((it) => {
       const meta = menuMap.get(it.ItemCode);
@@ -484,30 +515,6 @@ export async function POST(req: Request) {
       Note: "Order created from website",
       ChangedBy: "system",
     };
-
-    /* ---- 5) Insert into Supabase ---- */
-
-    let orderInsert = await supa.from("Orders").insert(orderRow);
-
-    if (orderInsert.error) {
-      const message = orderInsert.error.message || "";
-      const shouldRetryWithoutOptionalColumns =
-        /IsAgentOrder|column|schema cache/i.test(message);
-
-      if (shouldRetryWithoutOptionalColumns) {
-        orderInsert = await supa
-          .from("Orders")
-          .insert(cleanOptionalOrderFields(orderRow));
-      }
-    }
-
-    if (orderInsert.error) {
-      console.error("Orders insert error", orderInsert.error);
-      return NextResponse.json(
-        { ok: false, error: "db_orders_error" },
-        { status: 500 },
-      );
-    }
 
     const { error: itemsErr } = await supa.from("OrderItems").insert(itemRows);
 
