@@ -135,12 +135,11 @@ export default function Navbar() {
 
         <Link href="/" className="inner-home-logo active:scale-95" aria-label="RailEats home">
           <Image
-            src="/logo.png"
+            src="/raileats-header.webp"
             alt="RailEats"
             width={34}
             height={34}
-            priority
-            quality={70}
+            unoptimized
             sizes="34px"
           />
         </Link>
@@ -161,12 +160,11 @@ export default function Navbar() {
       >
         <span className="brand-logo">
           <Image
-            src="/logo.png"
+            src="/raileats-header.webp"
             alt="RailEats"
             width={42}
             height={42}
-            priority
-            quality={70}
+            unoptimized
             sizes="42px"
           />
         </span>
