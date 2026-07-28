@@ -1,6 +1,5 @@
 import "./globals.css";
 import Image from "next/image";
-import Script from "next/script";
 import { Inter } from "next/font/google";
 import type { Metadata, Viewport } from "next";
 
@@ -9,6 +8,7 @@ import BottomNav from "./components/BottomNav";
 import ForceReloadOnBack from "./components/ForceReloadOnBack";
 import Providers from "./components/Providers";
 import LazyOverlays from "./components/LazyOverlays";
+import DeferredAnalytics from "./components/DeferredAnalytics";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -17,8 +17,6 @@ const inter = Inter({
 });
 
 const siteUrl = "https://www.raileats.in";
-const GA_MEASUREMENT_ID = "G-WJ26XJK8JX";
-
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
 
@@ -143,22 +141,7 @@ export default function RootLayout({
   return (
     <html lang="en-IN" className={`${inter.variable} h-full scroll-smooth`}>
       <body className="min-h-screen bg-white text-slate-900 font-sans antialiased selection:bg-amber-500 selection:text-white touch-pan-y">
-        <Script
-          id="google-analytics-library"
-          src={`https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`}
-          strategy="lazyOnload"
-        />
-
-        <Script id="google-analytics" strategy="lazyOnload">
-          {`
-            window.dataLayer = window.dataLayer || [];
-            function gtag(){window.dataLayer.push(arguments);}
-            gtag('js', new Date());
-            gtag('config', '${GA_MEASUREMENT_ID}', {
-              send_page_view: true
-            });
-          `}
-        </Script>
+        <DeferredAnalytics />
 
         <script
           type="application/ld+json"
@@ -209,9 +192,10 @@ export default function RootLayout({
                 <Image
                   src="/raileats-logo.png"
                   alt="RailEats"
-                  width={96}
-                  height={96}
-                  unoptimized
+                  width={36}
+                  height={36}
+                  quality={55}
+                  sizes="36px"
                   className="h-full w-full object-contain"
                 />
               </div>
