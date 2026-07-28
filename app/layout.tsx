@@ -8,13 +8,7 @@ import Navbar from "./components/Navbar";
 import BottomNav from "./components/BottomNav";
 import ForceReloadOnBack from "./components/ForceReloadOnBack";
 import Providers from "./components/Providers";
-import CartPopup from "./components/CartPopup";
-import LoginModal from "./components/LoginModal";
-import FeedbackModal from "./components/FeedbackModal";
-import AuthLoader from "./components/AuthLoader";
-
-import "slick-carousel/slick/slick.css";
-import "slick-carousel/slick/slick-theme.css";
+import LazyOverlays from "./components/LazyOverlays";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -152,10 +146,10 @@ export default function RootLayout({
         <Script
           id="google-analytics-library"
           src={`https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`}
-          strategy="afterInteractive"
+          strategy="lazyOnload"
         />
 
-        <Script id="google-analytics" strategy="afterInteractive">
+        <Script id="google-analytics" strategy="lazyOnload">
           {`
             window.dataLayer = window.dataLayer || [];
             function gtag(){window.dataLayer.push(arguments);}
@@ -203,7 +197,6 @@ export default function RootLayout({
         />
 
         <Providers>
-          <AuthLoader />
           <ForceReloadOnBack />
 
           <div
@@ -218,7 +211,6 @@ export default function RootLayout({
                   alt="RailEats"
                   width={96}
                   height={96}
-                  priority
                   unoptimized
                   className="h-full w-full object-contain"
                 />
@@ -242,9 +234,7 @@ export default function RootLayout({
             </main>
           </div>
 
-          <CartPopup />
-          <LoginModal />
-          <FeedbackModal />
+          <LazyOverlays />
           <BottomNav />
         </Providers>
       </body>
