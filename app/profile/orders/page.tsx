@@ -111,7 +111,13 @@ function canSubmitCustomerDeliveryResponse(
 ) {
   if (
     order.customerResponse ||
-    ["delivered", "cancelled", "cancellationrequest", "notdelivered"].includes(
+    [
+      "delivered",
+      "cancelled",
+      "cancellationrequest",
+      "notdelivered",
+      "complaints",
+    ].includes(
       normalizeOrderStatus(order.status),
     )
   ) {
