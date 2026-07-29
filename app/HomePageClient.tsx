@@ -252,16 +252,6 @@ function getRestaurantImage(restro: any) {
   return codeImage;
 }
 
-function getRestaurantThumbnail(restro: any) {
-  const image = getRestaurantImage(restro);
-
-  if (!image.startsWith("http://") && !image.startsWith("https://")) {
-    return image;
-  }
-
-  return `/api/home/restaurant-image?src=${encodeURIComponent(image)}`;
-}
-
 function getStationLabel(restro: any) {
   const stationCode = restro?.StationCode || "";
   const stationName = restro?.StationName || "";
@@ -644,13 +634,12 @@ export default function HomePageClient({
                 >
                   <div className="restro-image-wrapper">
                     <Image
-                      src={getRestaurantThumbnail(restro)}
+                      src={getRestaurantImage(restro)}
                       alt={`${restro.RestroName} food on RailEats`}
                       title={`${restro.RestroName} food delivery in train`}
                       width={112}
                       height={96}
                       sizes="(max-width: 767px) 86px, 92px"
-                      unoptimized
                       onError={(event) => {
                         event.currentTarget.src = "/raileats-header.webp";
                       }}
