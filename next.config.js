@@ -1,3 +1,5 @@
+// next.config.js
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: false,
@@ -9,10 +11,15 @@ const nextConfig = {
   images: {
     formats: ["image/avif", "image/webp"],
     minimumCacheTTL: 31536000,
+
+    // Next.js 14.0.0 ke image optimizer ke liye explicit hostname
+    domains: ["ygisiztmuzwxpnvhwrmr.supabase.co"],
+
     remotePatterns: [
       {
         protocol: "https",
         hostname: "ygisiztmuzwxpnvhwrmr.supabase.co",
+        port: "",
         pathname: "/storage/v1/object/public/**",
       },
     ],
