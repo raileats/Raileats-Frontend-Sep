@@ -169,13 +169,13 @@ export default function TrainPage() {
         setLoading(true);
 
         const res = await fetch(
-  `/api/train-restros?train=${encodeURIComponent(
-    trainNumber
-  )}&date=${encodeURIComponent(urlDate)}&boarding=${encodeURIComponent(
-    boarding
-  )}&preview=${isSeoPreview ? "1" : "0"}`,
-  { cache: "no-store" }
-);
+          `/api/train-restros?train=${encodeURIComponent(
+            trainNumber
+          )}&date=${encodeURIComponent(urlDate)}&boarding=${encodeURIComponent(
+            boarding
+          )}&full=1`,
+          { cache: "no-store" }
+        );
 
         const json = await res.json();
         const nextStations = json?.stations || [];
