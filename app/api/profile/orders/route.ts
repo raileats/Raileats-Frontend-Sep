@@ -140,7 +140,10 @@ function combineJourneyDateTime(dateValue: unknown, timeValue: unknown) {
 
 function journeyRowToHistory(row: OrderJourneyRow): OrderHistoryRow[] {
   const currentStatus = normalizeStatus(row.Status);
-  const events = ORDER_JOURNEY_STAGES.flatMap((stage, sequence) => {
+  const events: Array<{
+    sequence: number;
+    entry: OrderHistoryRow;
+  }> = ORDER_JOURNEY_STAGES.flatMap((stage, sequence) => {
     const update = cleanText(row[`${stage.prefix}Update`]);
     const remarks = cleanText(row[`${stage.prefix}Remarks`]);
     const userType = cleanText(row[`${stage.prefix}UserType`]);
