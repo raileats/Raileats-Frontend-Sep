@@ -641,6 +641,7 @@ export default function HomePageClient({
                       height={96}
                       quality={65}
                       sizes="(max-width: 767px) 86px, 92px"
+                      unoptimized={getRestaurantImage(restro).startsWith("http")}
                       onError={(event) => {
                         event.currentTarget.src = "/raileats-logo.png";
                       }}

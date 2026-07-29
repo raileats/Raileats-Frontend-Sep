@@ -2194,7 +2194,7 @@ textarea {
     padding: 8px 12px;
     border-radius: 12px;
     font-weight: 900;
-    color: #ea580c;
+    color: #c2410c;
     box-shadow: 0 6px 18px rgba(249,115,22,0.08);
   }
 
@@ -2247,12 +2247,12 @@ textarea {
   }
   .partner-left{ width:60px; height:60px; border-radius:16px; display:inline-flex; align-items:center; justify-content:center; background:linear-gradient(90deg,#fff7ed,#fff4f1); font-size:26px }
   .partner-body{ display:flex; flex-direction:column; gap:12px; }
-  .partner-eyebrow{ display:block; font-size:12px; font-weight:900; color:#f97316; letter-spacing:0.02em; }
+  .partner-eyebrow{ display:block; font-size:12px; font-weight:900; color:#c2410c; letter-spacing:0.02em; }
   .partner-title{ font-size:18px; font-weight:900; color:#0f172a; line-height:1.05; }
   .partner-desc{ margin-top:0; color:#475569; font-size:14px; line-height:1.6; }
   .partner-open-button{
     width:100%;
-    background:#f97316;
+    background:#c2410c;
     color:#fff;
     padding:14px 16px;
     border-radius:12px;
@@ -2263,7 +2263,7 @@ textarea {
   }
 
   .partner-open-button{
-    background:#f97316; color:#fff; padding:10px 16px; border-radius:10px; font-weight:800; border:0; cursor:pointer; box-shadow:0 10px 28px rgba(249,115,22,0.14);
+    background:#c2410c; color:#fff; padding:10px 16px; border-radius:10px; font-weight:800; border:0; cursor:pointer; box-shadow:0 10px 28px rgba(194,65,12,0.18);
   }
 
   .mobile-restro-card {
