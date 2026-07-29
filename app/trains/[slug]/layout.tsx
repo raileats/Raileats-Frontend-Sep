@@ -2,7 +2,7 @@
 
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import { serviceClient } from "../../../lib/supabaseServer";
+import { serviceClient } from "../../lib/supabaseServer";
 
 const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL || "https://www.raileats.in";
