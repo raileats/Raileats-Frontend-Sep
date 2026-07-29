@@ -47,6 +47,7 @@ export async function GET(req: Request) {
   const trainParam = searchParams.get("train")?.trim() || "";
   const startDateParam = searchParams.get("date")?.trim() || "";
   const boarding = searchParams.get("boarding")?.trim() || "";
+  const previewMode = searchParams.get("preview") === "1";
 
   try {
     const now = new Date();
@@ -143,19 +144,32 @@ export async function GET(req: Request) {
 
         /* ===== DATE CALC ===== */
 
-        const sDate = new Date(startDateParam + "T00:00:00");
         const currentDay = Number(s.Day || 1);
         const dayDiff = currentDay - baseDay;
-
-        sDate.setDate(sDate.getDate() + dayDiff);
-
         const arrival = formatTime(s.Arrives || "00:00");
-        const arrivalDateTime = new Date(sDate);
-        const [h, m] = arrival.split(":").map(Number);
+        let deliveryDate = "";
 
-        arrivalDateTime.setHours(h, m, 0);
+        if (!previewMode) {
+          if (!startDateParam) return null;
 
-        if (arrivalDateTime <= istNow) return null;
+          const sDate = new Date(startDateParam + "T00:00:00");
+          if (Number.isNaN(sDate.getTime())) return null;
+
+          sDate.setDate(sDate.getDate() + dayDiff);
+
+          const arrivalDateTime = new Date(sDate);
+          const [h, m] = arrival.split(":").map(Number);
+
+          arrivalDateTime.setHours(h, m, 0);
+
+          if (arrivalDateTime <= istNow) return null;
+
+          deliveryDate = sDate.toLocaleDateString("en-GB", {
+            day: "2-digit",
+            month: "short",
+            year: "numeric",
+          });
+        }
 
         const validVendors = vendorsRaw
           .map((v: any) => {
@@ -186,11 +200,8 @@ export async function GET(req: Request) {
           Arrives: arrival,
           Departs: s.Departs,
           HaltTime: formatHaltTime(s.Stoptime || s.StopTime),
-          date: sDate.toLocaleDateString("en-GB", {
-            day: "2-digit",
-            month: "short",
-            year: "numeric",
-          }),
+          date: deliveryDate,
+          preview: previewMode,
           vendors: validVendors,
         };
       })
