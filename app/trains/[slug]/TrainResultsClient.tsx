@@ -59,7 +59,9 @@ function parseDateParts(date: string) {
 }
 
 function parseTimeParts(t: string) {
-  const p = String(t || "").split(":").map(Number);
+  const p = String(t || "")
+    .split(":")
+    .map(Number);
 
   return {
     h: p[0] ?? 0,
@@ -90,7 +92,11 @@ function getRemaining(
 }
 
 function toMin(t: string) {
-  const [h, m] = String(t || "").slice(0, 5).split(":").map(Number);
+  const [h, m] = String(t || "")
+    .slice(0, 5)
+    .split(":")
+    .map(Number);
+
   return (h || 0) * 60 + (m || 0);
 }
 
@@ -134,7 +140,9 @@ function formatCountdown(ms: number) {
 }
 
 function isPureVeg(value: any) {
-  const normalized = String(value ?? "").toLowerCase().trim();
+  const normalized = String(value ?? "")
+    .toLowerCase()
+    .trim();
 
   return (
     value === true ||
@@ -172,6 +180,7 @@ function buildRestroHref({
   trainNumber,
   trainName,
   boarding,
+  isSeoPreview,
 }: {
   stationCode: string;
   stationName: string;
@@ -181,22 +190,29 @@ function buildRestroHref({
   trainNumber: string;
   trainName: string;
   boarding: string;
+  isSeoPreview: boolean;
 }) {
   const stationSlug = `${stationCode}-${toSlug(stationName)}`;
   const restroSlug = `${restro.RestroCode}-${toSlug(restro.RestroName)}`;
-  const cleanArrival = arrival && arrival.includes(":") ? arrival.slice(0, 5) : "";
+  const cleanArrival =
+    arrival && arrival.includes(":") ? arrival.slice(0, 5) : "";
 
   const query = new URLSearchParams({
-    deliveryDate,
     train: trainNumber,
     trainName: trainName || "Train",
-    boarding,
     minOrder: String(restro.MinimumOrderValue || 0),
   });
 
-  if (cleanArrival) {
-    query.set("deliveryTime", cleanArrival);
-    query.set("arrival", cleanArrival);
+  if (isSeoPreview) {
+    query.set("mode", "station");
+  } else {
+    query.set("deliveryDate", deliveryDate);
+    query.set("boarding", boarding);
+
+    if (cleanArrival) {
+      query.set("deliveryTime", cleanArrival);
+      query.set("arrival", cleanArrival);
+    }
   }
 
   return `/Stations/${stationSlug}/${restroSlug}?${query.toString()}`;
@@ -210,6 +226,7 @@ export default function TrainResultsClient({
 }: Props) {
   const { setTrain, setJourney } = useBooking();
   const now = useNow();
+  const isSeoPreview = !urlDate || !boarding;
 
   const [stations, setStations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -222,8 +239,18 @@ export default function TrainResultsClient({
       name: trainName,
     });
 
-    setJourney(urlDate, boarding);
-  }, [trainNumber, trainName, urlDate, boarding, setTrain, setJourney]);
+    if (!isSeoPreview) {
+      setJourney(urlDate, boarding);
+    }
+  }, [
+    trainNumber,
+    trainName,
+    urlDate,
+    boarding,
+    isSeoPreview,
+    setTrain,
+    setJourney,
+  ]);
 
   useEffect(() => {
     async function fetchData() {
@@ -235,7 +262,7 @@ export default function TrainResultsClient({
             trainNumber
           )}&date=${encodeURIComponent(urlDate)}&boarding=${encodeURIComponent(
             boarding
-          )}&full=1`,
+          )}&preview=${isSeoPreview ? "1" : "0"}`,
           { cache: "no-store" }
         );
 
@@ -250,7 +277,7 @@ export default function TrainResultsClient({
     }
 
     if (trainNumber) fetchData();
-  }, [trainNumber, urlDate, boarding]);
+  }, [trainNumber, urlDate, boarding, isSeoPreview]);
 
   if (loading) {
     return (
@@ -272,16 +299,25 @@ export default function TrainResultsClient({
       const deliveryDate = st.date || urlDate;
       const arrives = st.Arrives || st.arrives || "";
 
-      const validVendors = vendors.filter((restro: any) => {
-        const cutoff =
-          parseInt(String(restro.CutOffTime ?? restro.cutoff_time ?? "0"), 10) ||
-          0;
+      const validVendors = isSeoPreview
+        ? vendors
+        : vendors.filter((restro: any) => {
+            const cutoff =
+              parseInt(
+                String(restro.CutOffTime ?? restro.cutoff_time ?? "0"),
+                10
+              ) || 0;
 
-        const remaining = getRemaining(arrives, deliveryDate, cutoff, now);
-        const timeValid = isRestaurantOpenForArrival(restro, arrives);
+            const remaining = getRemaining(
+              arrives,
+              deliveryDate,
+              cutoff,
+              now
+            );
+            const timeValid = isRestaurantOpenForArrival(restro, arrives);
 
-        return remaining > 0 && timeValid;
-      });
+            return remaining > 0 && timeValid;
+          });
 
       return { ...st, deliveryDate, arrives, validVendors };
     })
@@ -312,159 +348,177 @@ export default function TrainResultsClient({
 
       {visibleStations.length === 0 ? (
         <section className="app-card p-5 text-center">
-          <h2 className="font-bold text-lg">No restaurants available right now</h2>
+          <h2 className="font-bold text-lg">
+            No restaurants available right now
+          </h2>
           <p className="text-sm text-slate-500 mt-2">
-            Availability depends on train arrival time, restaurant service hours,
-            weekly off, holiday status and order cutoff time.
+            Availability depends on train arrival time, restaurant service
+            hours, weekly off, holiday status and order cutoff time.
           </p>
           <a href="/" className="app-btn-primary inline-flex mt-4">
             Search another train
           </a>
         </section>
       ) : (
-        visibleStations.map((st: any, index: number) => {
-          const stationCode = st.StationCode || st.stationCode || "";
-          const stationName = st.StationName || st.stationName || "";
-          const state = st.State || "";
-          const halt = st.HaltTime || st.halt || "-";
-          const deliveryDate = st.deliveryDate;
-          const arrives = st.arrives;
+        <section className="space-y-3">
+          <h2 className="text-xl font-extrabold text-slate-900">
+            Stations with Active Restaurants
+          </h2>
 
-          return (
-            <section key={`${stationCode}-${index}`} className="app-card overflow-hidden">
-              <div className="p-4 border-b border-slate-100 bg-white">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <h2 className="text-lg font-extrabold text-slate-900">
-                      {stationName} ({stationCode})
-                    </h2>
-                    {state && (
-                      <p className="text-sm text-slate-600 font-semibold mt-1">
-                        {state}
-                      </p>
-                    )}
-                    <p className="text-xs text-slate-500 mt-1">
-                      Delivery date: {deliveryDate}
-                    </p>
-                  </div>
+          {visibleStations.map((st: any, index: number) => {
+            const stationCode = st.StationCode || st.stationCode || "";
+            const stationName = st.StationName || st.stationName || "";
+            const state = st.State || "";
+            const halt = st.HaltTime || st.halt || "-";
+            const deliveryDate = st.deliveryDate;
+            const arrives = st.arrives;
 
-                  <div className="text-right shrink-0">
-                    <div className="text-blue-600 font-extrabold">
-                      {arrives ? `Arrival ${arrives.slice(0, 5)}` : "Arrival N/A"}
+            return (
+              <section
+                key={`${stationCode}-${index}`}
+                className="app-card overflow-hidden"
+              >
+                <div className="p-4 border-b border-slate-100 bg-white">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <h3 className="text-lg font-extrabold text-slate-900">
+                        {stationName} ({stationCode})
+                      </h3>
+                      {state && (
+                        <p className="text-sm text-slate-600 font-semibold mt-1">
+                          {state}
+                        </p>
+                      )}
+                      {!isSeoPreview && (
+                        <p className="text-xs text-slate-500 mt-1">
+                          Delivery date: {deliveryDate}
+                        </p>
+                      )}
                     </div>
-                    <div className="text-xs text-slate-500">Halt: {halt}</div>
+
+                    <div className="text-right shrink-0">
+                      <div className="text-blue-600 font-extrabold">
+                        {arrives
+                          ? `Arrival ${arrives.slice(0, 5)}`
+                          : "Arrival N/A"}
+                      </div>
+                      <div className="text-xs text-slate-500">Halt: {halt}</div>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="p-3 space-y-3">
-                {st.validVendors.map((restro: any) => {
-                  const cutoff =
-                    parseInt(
-                      String(restro.CutOffTime ?? restro.cutoff_time ?? "0"),
-                      10
-                    ) || 0;
+                <div className="p-3 space-y-3">
+                  {st.validVendors.map((restro: any) => {
+                    const cutoff =
+                      parseInt(
+                        String(
+                          restro.CutOffTime ?? restro.cutoff_time ?? "0"
+                        ),
+                        10
+                      ) || 0;
 
-                  const remaining = getRemaining(
-                    arrives,
-                    deliveryDate,
-                    cutoff,
-                    now
-                  );
+                    const remaining = isSeoPreview
+                      ? 0
+                      : getRemaining(arrives, deliveryDate, cutoff, now);
 
-                  const isClosingSoon = remaining <= 10 * 60 * 1000;
-                  const img = getRestroImage(restro);
-                  const pureVeg = isPureVeg(restro.IsPureVeg);
-                  const href = buildRestroHref({
-                    stationCode,
-                    stationName,
-                    restro,
-                    deliveryDate,
-                    arrival: arrives,
-                    trainNumber,
-                    trainName,
-                    boarding,
-                  });
+                    const isClosingSoon =
+                      !isSeoPreview && remaining <= 10 * 60 * 1000;
+                    const img = getRestroImage(restro);
+                    const pureVeg = isPureVeg(restro.IsPureVeg);
+                    const href = buildRestroHref({
+                      stationCode,
+                      stationName,
+                      restro,
+                      deliveryDate,
+                      arrival: arrives,
+                      trainNumber,
+                      trainName,
+                      boarding,
+                      isSeoPreview,
+                    });
 
-                  return (
-                    <article
-                      key={restro.RestroCode}
-                      className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm"
-                    >
-                      <div className="flex gap-3">
-                        <div className="w-24 h-24 rounded-xl bg-slate-100 overflow-hidden shrink-0 border border-slate-100">
-                          {img ? (
-                            <img
-                              src={img}
-                              alt={`${restro.RestroName} food delivery in train`}
-                              className="w-full h-full object-cover"
-                              loading="lazy"
-                              onError={(e) => {
-                                (e.currentTarget as HTMLImageElement).src =
-                                  "/raileats-logo.png";
-                              }}
-                            />
-                          ) : (
-                            <img
-                              src="/raileats-logo.png"
-                              alt="RailEats"
-                              className="w-full h-full object-contain p-4"
-                              loading="lazy"
-                            />
-                          )}
-                        </div>
-
-                        <div className="min-w-0 flex-1">
-                          <h3 className="font-extrabold text-slate-900 leading-tight">
-                            {restro.RestroName}
-                          </h3>
-
-                          <p className="text-sm text-slate-500 mt-1">
-                            Min. Order: ₹{restro.MinimumOrderValue || 0}
-                          </p>
-
-                          <div className="mt-2 flex flex-wrap gap-2 text-xs font-bold">
-                            {pureVeg ? (
-                              <span className="text-green-700 bg-green-50 border border-green-100 rounded-full px-2 py-1">
-                                Pure Veg
-                              </span>
+                    return (
+                      <article
+                        key={restro.RestroCode}
+                        className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm"
+                      >
+                        <div className="flex gap-3">
+                          <div className="w-24 h-24 rounded-xl bg-slate-100 overflow-hidden shrink-0 border border-slate-100">
+                            {img ? (
+                              <img
+                                src={img}
+                                alt={`${restro.RestroName} food delivery in train`}
+                                className="w-full h-full object-cover"
+                                loading="lazy"
+                                onError={(e) => {
+                                  (e.currentTarget as HTMLImageElement).src =
+                                    "/raileats-logo.png";
+                                }}
+                              />
                             ) : (
-                              <span className="text-slate-600 bg-slate-50 border border-slate-100 rounded-full px-2 py-1">
-                                Veg & Non-Veg
-                              </span>
+                              <img
+                                src="/raileats-logo.png"
+                                alt="RailEats"
+                                className="w-full h-full object-contain p-4"
+                                loading="lazy"
+                              />
                             )}
+                          </div>
 
-                            <span
-                              className={`rounded-full px-2 py-1 border ${
-                                isClosingSoon
-                                  ? "text-red-700 bg-red-50 border-red-100"
-                                  : "text-blue-700 bg-blue-50 border-blue-100"
-                              }`}
-                            >
-                              Order before {formatCountdown(remaining)}
-                            </span>
+                          <div className="min-w-0 flex-1">
+                            <h4 className="font-extrabold text-slate-900 leading-tight">
+                              {restro.RestroName}
+                            </h4>
+
+                            <p className="text-sm text-slate-500 mt-1">
+                              Min. Order: ₹{restro.MinimumOrderValue || 0}
+                            </p>
+
+                            <div className="mt-2 flex flex-wrap gap-2 text-xs font-bold">
+                              {pureVeg ? (
+                                <span className="text-green-700 bg-green-50 border border-green-100 rounded-full px-2 py-1">
+                                  Pure Veg
+                                </span>
+                              ) : (
+                                <span className="text-slate-600 bg-slate-50 border border-slate-100 rounded-full px-2 py-1">
+                                  Veg & Non-Veg
+                                </span>
+                              )}
+
+                              {!isSeoPreview && (
+                                <span
+                                  className={`rounded-full px-2 py-1 border ${
+                                    isClosingSoon
+                                      ? "text-red-700 bg-red-50 border-red-100"
+                                      : "text-blue-700 bg-blue-50 border-blue-100"
+                                  }`}
+                                >
+                                  Order before {formatCountdown(remaining)}
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
 
-                      <div className="mt-3 flex items-center justify-between gap-3">
-                        <p className="text-xs text-slate-500">
-                          Fresh food delivery at {stationName}.
-                        </p>
-                        <a
-                          href={href}
-                          className="rounded-xl bg-orange-500 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-orange-600"
-                        >
-                          Order Now
-                        </a>
-                      </div>
-                    </article>
-                  );
-                })}
-              </div>
-            </section>
-          );
-        })
+                        <div className="mt-3 flex items-center justify-between gap-3">
+                          <p className="text-xs text-slate-500">
+                            Fresh food delivery at {stationName}.
+                          </p>
+                          <a
+                            href={href}
+                            className="rounded-xl bg-orange-500 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-orange-600"
+                          >
+                            {isSeoPreview ? "View Menu" : "Order Now"}
+                          </a>
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+              </section>
+            );
+          })}
+        </section>
       )}
 
       <section className="app-card p-4">
