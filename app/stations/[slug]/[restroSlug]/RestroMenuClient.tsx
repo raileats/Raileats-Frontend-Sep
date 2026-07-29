@@ -1,3 +1,4 @@
+// app/stations/[slug]/[restroSlug]/RestroMenuClient.tsx
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -5,6 +6,7 @@ import { useAuth } from "../../../lib/useAuth";
 import { useCart } from "../../../lib/useCart";
 import CartPillMobile from "../../../components/CartPillMobile";
 import BookingFlowShell from "../../../components/BookingFlowShell";
+import PnrSearchBox from "../../../components/PnrSearchBox";
 
 const SUPABASE_PUBLIC_STORAGE =
   "https://ygisiztmuzwxpnvhwrmr.supabase.co/storage/v1/object/public";
@@ -520,6 +522,7 @@ useEffect(() => {
     </div>
   </div>
 </section>
+        {isStationOnlyView ? <PnrSearchBox compact /> : null}
         <section
           style={{
             display: "grid",
