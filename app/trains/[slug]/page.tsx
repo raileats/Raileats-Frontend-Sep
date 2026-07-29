@@ -130,6 +130,7 @@ export default function TrainPage() {
   const urlDate = searchParams.get("date") || "";
   const boarding = (searchParams.get("boarding") || "").toUpperCase();
   const urlTrainName = cleanTrainName(searchParams.get("trainName"));
+  const previewMode = !urlDate || !boarding;
 
   const [stations, setStations] = useState<any[]>([]);
   const [resolvedTrainName, setResolvedTrainName] = useState(urlTrainName);
@@ -141,12 +142,14 @@ export default function TrainPage() {
     return cleanTrainName(resolvedTrainName || urlTrainName);
   }, [resolvedTrainName, urlTrainName]);
 
-  const orderData = {
-    train_number: trainNumber,
-    train_name: displayTrainName,
-    date: urlDate,
-    station_code: boarding,
-  };
+  const orderData = previewMode
+    ? null
+    : {
+        train_number: trainNumber,
+        train_name: displayTrainName,
+        date: urlDate,
+        station_code: boarding,
+      };
 
   useEffect(() => {
     if (!trainNumber) return;
@@ -156,8 +159,18 @@ export default function TrainPage() {
       name: displayTrainName,
     });
 
-    setJourney(urlDate, boarding);
-  }, [trainNumber, displayTrainName, urlDate, boarding, setTrain, setJourney]);
+    if (!previewMode) {
+      setJourney(urlDate, boarding);
+    }
+  }, [
+    trainNumber,
+    displayTrainName,
+    urlDate,
+    boarding,
+    previewMode,
+    setTrain,
+    setJourney,
+  ]);
 
   useEffect(() => {
     async function fetchData() {
@@ -169,7 +182,7 @@ export default function TrainPage() {
             trainNumber
           )}&date=${encodeURIComponent(urlDate)}&boarding=${encodeURIComponent(
             boarding
-          )}&full=1`,
+          )}&preview=${previewMode ? "1" : "0"}`,
           { cache: "no-store" }
         );
 
@@ -193,7 +206,7 @@ export default function TrainPage() {
     }
 
     if (trainNumber) fetchData();
-  }, [trainNumber, urlDate, boarding]);
+  }, [trainNumber, urlDate, boarding, previewMode]);
 
   if (loading) {
     return (
@@ -253,7 +266,7 @@ export default function TrainPage() {
         gap: 12,
       }}
     >
-      <SaveOrderData data={orderData} />
+      {orderData ? <SaveOrderData data={orderData} /> : null}
 
       <section
   style={{
@@ -411,7 +424,7 @@ export default function TrainPage() {
             }
           }
 
-          return remaining > 0 && timeValid;
+          return (previewMode || remaining > 0) && timeValid;
         });
 
         if (!validVendors.length) return null;
@@ -508,7 +521,9 @@ export default function TrainPage() {
                     10
                   ) || 0;
 
-                const remaining = getRemaining(arrives, deliveryDate, cutoff);
+                const remaining = previewMode
+                  ? 0
+                  : getRemaining(arrives, deliveryDate, cutoff);
 
                 const totalSec = Math.max(0, Math.floor(remaining / 1000));
 
@@ -523,7 +538,8 @@ export default function TrainPage() {
                   `${String(mins).padStart(2, "0")}:` +
                   `${String(secs).padStart(2, "0")}`;
 
-                const isClosingSoon = remaining <= 10 * 60 * 1000;
+                const isClosingSoon =
+                  !previewMode && remaining <= 10 * 60 * 1000;
                 const img = getRestroImage(r.RestroDisplayPhoto);
 
                 const stationSlug = `${stationCode}-${toSlug(stationName)}`;
@@ -576,6 +592,8 @@ export default function TrainPage() {
         <span>{r.RestroName || "Restaurant"}</span>
       </h3>
 
+      {!previewMode ? (
+      <>
       <div
         style={{
           marginTop: 8,
@@ -629,6 +647,20 @@ export default function TrainPage() {
         <Clock size={13} strokeWidth={2.2} style={{ flexShrink: 0, marginTop: 1 }} />
         <span>Order before: {timeText}</span>
       </div>
+      </>
+      ) : (
+        <div
+          style={{
+            marginTop: 7,
+            color: "#2563eb",
+            fontSize: 11,
+            fontWeight: 800,
+            lineHeight: 1.3,
+          }}
+        >
+          Available on this train route
+        </div>
+      )}
     </div>
 
     {/* RIGHT PHOTO + BUTTON */}
@@ -675,7 +707,12 @@ export default function TrainPage() {
       </div>
 
       <a
-        href={`/Stations/${stationSlug}/${restroSlug}?deliveryDate=${encodeURIComponent(
+        href={
+          previewMode
+            ? `/stations/${stationSlug}/${restroSlug}?mode=station&minOrder=${encodeURIComponent(
+                r.MinimumOrderValue || 0
+              )}`
+            : `/Stations/${stationSlug}/${restroSlug}?deliveryDate=${encodeURIComponent(
           deliveryDate
         )}${
           cleanArrival
@@ -687,7 +724,8 @@ export default function TrainPage() {
           finalTrainName
         )}&boarding=${encodeURIComponent(boarding)}&minOrder=${encodeURIComponent(
           r.MinimumOrderValue || 0
-        )}`}
+        )}`
+        }
         style={{
           width: "100%",
           textAlign: "center",
@@ -702,7 +740,7 @@ export default function TrainPage() {
           boxShadow: "0 4px 12px rgba(249,115,22,0.16)",
         }}
       >
-        Order Now
+        {previewMode ? "View Menu" : "Order Now"}
       </a>
     </div>
   </div>
