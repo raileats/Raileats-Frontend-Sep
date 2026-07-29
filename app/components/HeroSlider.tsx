@@ -93,7 +93,7 @@ export default function HeroSlider({
 
         {slides.length > 1 && (
           <div
-            className="flex items-center justify-center gap-2 bg-black/90 px-3 py-2"
+            className="flex items-center justify-center bg-black/90 px-3"
             aria-label="Select a RailEats offer"
           >
             {slides.map((slide, index) => (
@@ -105,12 +105,17 @@ export default function HeroSlider({
                   slide.title || "RailEats offer"
                 }`}
                 aria-current={index === currentIndex ? "true" : undefined}
-                className={`h-2.5 rounded-full transition-[width,background-color] ${
-                  index === currentIndex
-                    ? "w-7 bg-white"
-                    : "w-2.5 bg-white/50 hover:bg-white/80"
-                }`}
-              />
+                className="group inline-flex h-11 w-11 items-center justify-center rounded-full"
+              >
+                <span
+                  aria-hidden="true"
+                  className={`h-2.5 rounded-full transition-[width,background-color] ${
+                    index === currentIndex
+                      ? "w-7 bg-white"
+                      : "w-2.5 bg-white/50 group-hover:bg-white/80"
+                  }`}
+                />
+              </button>
             ))}
           </div>
         )}
