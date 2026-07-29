@@ -50,13 +50,58 @@ type OrderHistoryRow = {
   SubStatus?: string | null;
 };
 
+type OrderJourneyRow = {
+  OrderId?: string | null;
+  Status?: string | null;
+  SubStatus?: string | null;
+  Remarks?: string | null;
+  CreatedAt?: string | null;
+  UpdatedAt?: string | null;
+  [key: string]: unknown;
+};
+
+type CustomerResponseRow = {
+  OrderId?: string | null;
+  CustomerAction?: "Delivered" | "Issue" | null;
+  IssueType?: string | null;
+  Rating?: number | string | null;
+  Remarks?: string | null;
+  CreatedAt?: string | null;
+};
+
 type RestroRow = {
   RestroCode?: number | string | null;
   RestroDisplayPhoto?: string | null;
 };
 
+const ORDER_JOURNEY_STAGES = [
+  { status: "Booked", prefix: "Booked" },
+  { status: "In Verification", prefix: "InVerification" },
+  { status: "Cancellation Request", prefix: "CancellationRequest" },
+  { status: "New Order", prefix: "NewOrder" },
+  { status: "In Kitchen", prefix: "InKitchen" },
+  { status: "Out for Delivery", prefix: "OutForDelivery" },
+  { status: "Restro Marked Delivered", prefix: "RestroMarkedDelivered" },
+  { status: "Complaints", prefix: "Complaints" },
+  { status: "Delivered", prefix: "Delivered" },
+  { status: "Cancelled", prefix: "Cancelled" },
+  { status: "Not Delivered", prefix: "NotDelivered" },
+  { status: "Bad Delivery", prefix: "BadDelivery" },
+  { status: "Partial Delivery", prefix: "PartialDelivery" },
+  { status: "Refund", prefix: "Refund" },
+  { status: "Refund Requested", prefix: "RefundRequested" },
+  { status: "Refund Under Review", prefix: "RefundUnderReview" },
+  { status: "Refund Approved", prefix: "RefundApproved" },
+  { status: "Refund Processing", prefix: "RefundProcessing" },
+  { status: "Refund Completed", prefix: "RefundCompleted" },
+] as const;
+
 function normalizeMobile(value: string | null) {
   return String(value || "").replace(/\D/g, "").slice(-10);
+}
+
+function cleanText(value: unknown) {
+  return String(value ?? "").trim();
 }
 
 function normalizeRestroImage(value: unknown) {
@@ -75,6 +120,102 @@ function getRestroFileName(restroCode: unknown) {
 
 function normalizeStatus(value: unknown) {
   return String(value ?? "").trim().toLowerCase().replace(/\s+/g, "");
+}
+
+function combineJourneyDateTime(dateValue: unknown, timeValue: unknown) {
+  const date = cleanText(dateValue);
+  const time = cleanText(timeValue);
+  if (!date) return "";
+
+  const dateMatch = date.match(/^(\d{4}-\d{2}-\d{2})/);
+  if (!dateMatch) return "";
+
+  const timeMatch = time.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+  const hour = timeMatch ? timeMatch[1].padStart(2, "0") : "00";
+  const minute = timeMatch?.[2] || "00";
+  const second = timeMatch?.[3] || "00";
+
+  return `${dateMatch[1]}T${hour}:${minute}:${second}+05:30`;
+}
+
+function journeyRowToHistory(row: OrderJourneyRow): OrderHistoryRow[] {
+  const currentStatus = normalizeStatus(row.Status);
+  const events = ORDER_JOURNEY_STAGES.flatMap((stage, sequence) => {
+    const update = cleanText(row[`${stage.prefix}Update`]);
+    const remarks = cleanText(row[`${stage.prefix}Remarks`]);
+    const userType = cleanText(row[`${stage.prefix}UserType`]);
+    const userName = cleanText(row[`${stage.prefix}UserName`]);
+    const source = cleanText(row[`${stage.prefix}Source`]);
+    const actionDate = cleanText(row[`${stage.prefix}ActionAtDate`]);
+    const actionTime = cleanText(row[`${stage.prefix}ActionAtTime`]);
+
+    if (
+      !update &&
+      !remarks &&
+      !userType &&
+      !userName &&
+      !source &&
+      !actionDate &&
+      !actionTime
+    ) {
+      return [];
+    }
+
+    const changedAt = combineJourneyDateTime(actionDate, actionTime);
+    const subStatus =
+      normalizeStatus(stage.status) === currentStatus
+        ? cleanText(row.SubStatus)
+        : "";
+
+    return [
+      {
+        sequence,
+        entry: {
+          OrderId: cleanText(row.OrderId),
+          OldStatus: "",
+          NewStatus: stage.status,
+          Note: remarks,
+          ChangedBy: userName || userType || source,
+          ChangedAt: changedAt,
+          Status: stage.status,
+          SubStatus: subStatus,
+        } satisfies OrderHistoryRow,
+      },
+    ];
+  });
+
+  if (events.length === 0 && cleanText(row.Status)) {
+    events.push({
+      sequence: ORDER_JOURNEY_STAGES.length,
+      entry: {
+        OrderId: cleanText(row.OrderId),
+        OldStatus: "",
+        NewStatus: cleanText(row.Status),
+        Note: cleanText(row.Remarks),
+        ChangedBy: "",
+        ChangedAt: cleanText(row.UpdatedAt || row.CreatedAt),
+        Status: cleanText(row.Status),
+        SubStatus: cleanText(row.SubStatus),
+      },
+    });
+  }
+
+  events.sort((left, right) => {
+    const leftTime = Date.parse(left.entry.ChangedAt || "");
+    const rightTime = Date.parse(right.entry.ChangedAt || "");
+
+    if (Number.isFinite(leftTime) && Number.isFinite(rightTime)) {
+      return leftTime - rightTime || left.sequence - right.sequence;
+    }
+    if (Number.isFinite(leftTime)) return -1;
+    if (Number.isFinite(rightTime)) return 1;
+    return left.sequence - right.sequence;
+  });
+
+  return events.map(({ entry }, index) => ({
+    ...entry,
+    OldStatus: index > 0 ? events[index - 1].entry.NewStatus || "" : "",
+  }));
 }
 
 function parseJourneyPayload(value: unknown) {
@@ -178,6 +319,7 @@ export async function GET(req: Request) {
     const imageByRestroCode: Record<string, string> = {};
     const itemsByOrderId: Record<string, OrderItemRow[]> = {};
     const historyByOrderId: Record<string, OrderHistoryRow[]> = {};
+    const customerResponseByOrderId: Record<string, CustomerResponseRow> = {};
 
     if (restroCodes.length > 0) {
       const { data: restros, error: restroError } = await serviceClient
@@ -215,24 +357,48 @@ export async function GET(req: Request) {
         });
       }
 
-      const { data: history, error: historyError } = await serviceClient
-        .from("OrderStatusHistory")
-        .select(
-          "OrderId,OldStatus,NewStatus,Note,ChangedBy,ChangedAt,Status,SubStatus",
-        )
-        .in("OrderId", orderIds)
-        .order("ChangedAt", { ascending: true });
+      const { data: journeys, error: journeyError } = await serviceClient
+        .from("OrderJourney")
+        .select("*")
+        .in("OrderId", orderIds);
 
-      if (historyError) {
-        console.error("PROFILE ORDER HISTORY FETCH ERROR:", historyError);
-      } else {
-        ((history || []) as OrderHistoryRow[]).forEach((entry) => {
-          const orderId = String(entry.OrderId || "");
-          if (!orderId) return;
-          if (!historyByOrderId[orderId]) historyByOrderId[orderId] = [];
-          historyByOrderId[orderId].push(entry);
-        });
+      if (journeyError) {
+        console.error("PROFILE ORDER JOURNEY FETCH ERROR:", journeyError);
+        return NextResponse.json(
+          { ok: false, error: "order_journey_fetch_failed", orders: [] },
+          { status: 500 },
+        );
       }
+
+      ((journeys || []) as OrderJourneyRow[]).forEach((journey) => {
+        const orderId = cleanText(journey.OrderId);
+        if (!orderId) return;
+        historyByOrderId[orderId] = journeyRowToHistory(journey);
+      });
+
+      const { data: responses, error: responsesError } = await serviceClient
+        .from("OrderCustomerResponse")
+        .select("OrderId,CustomerAction,IssueType,Rating,Remarks,CreatedAt")
+        .in("OrderId", orderIds)
+        .order("CreatedAt", { ascending: false });
+
+      if (responsesError) {
+        console.error(
+          "PROFILE CUSTOMER RESPONSE FETCH ERROR:",
+          responsesError,
+        );
+        return NextResponse.json(
+          { ok: false, error: "customer_response_fetch_failed", orders: [] },
+          { status: 500 },
+        );
+      }
+
+      ((responses || []) as CustomerResponseRow[]).forEach((response) => {
+        const orderId = cleanText(response.OrderId);
+        if (orderId && !customerResponseByOrderId[orderId]) {
+          customerResponseByOrderId[orderId] = response;
+        }
+      });
     }
 
     const orders = rows.map((order) => {
@@ -240,7 +406,24 @@ export async function GET(req: Request) {
       const restroCode = String(order.RestroCode ?? "");
       const fallbackFile = getRestroFileName(restroCode);
       const journeyPayload = parseJourneyPayload(order.JourneyPayload);
-      const history = historyByOrderId[orderId] || [];
+      const journeyHistory = historyByOrderId[orderId] || [];
+      const history = journeyHistory.some(
+        (entry) => normalizeStatus(entry.NewStatus) === "booked",
+      )
+        ? journeyHistory
+        : [
+            {
+              OrderId: orderId,
+              OldStatus: "",
+              NewStatus: "Booked",
+              Note: "Order created",
+              ChangedBy: "",
+              ChangedAt: order.CreatedAt || "",
+              Status: "Booked",
+              SubStatus: "",
+            },
+            ...journeyHistory,
+          ];
       const firstBooked =
         history.find(
           (entry) =>
@@ -253,8 +436,19 @@ export async function GET(req: Request) {
         lastHistory?.Status ||
         "booked";
       const bookedAt = firstBooked?.ChangedAt || order.CreatedAt || "";
+      const currentStatusHistory = [...history]
+        .reverse()
+        .find(
+          (entry) =>
+            normalizeStatus(entry.NewStatus || entry.Status) ===
+            normalizeStatus(currentStatus),
+        );
       const currentStageAt =
-        lastHistory?.ChangedAt || order.UpdatedAt || bookedAt;
+        currentStatusHistory?.ChangedAt ||
+        order.UpdatedAt ||
+        lastHistory?.ChangedAt ||
+        bookedAt;
+      const customerResponse = customerResponseByOrderId[orderId];
 
       return {
         orderId,
@@ -282,6 +476,19 @@ export async function GET(req: Request) {
         updatedAt: order.UpdatedAt || "",
         currentStageAt,
         bookingSource: order.BookingSource || "",
+        customerResponse: customerResponse
+          ? {
+              action: customerResponse.CustomerAction,
+              issueType: customerResponse.IssueType || "",
+              rating:
+                customerResponse.Rating === null ||
+                customerResponse.Rating === undefined
+                  ? null
+                  : Number(customerResponse.Rating),
+              remarks: customerResponse.Remarks || "",
+              createdAt: customerResponse.CreatedAt || "",
+            }
+          : null,
         imageUrl:
           imageByRestroCode[restroCode] || normalizeRestroImage(fallbackFile),
         items: (itemsByOrderId[orderId] || []).map((item) => ({
