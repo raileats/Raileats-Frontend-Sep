@@ -173,7 +173,7 @@ export default function TrainPage() {
             trainNumber
           )}&date=${encodeURIComponent(urlDate)}&boarding=${encodeURIComponent(
             boarding
-          )}&full=1`,
+          )}&preview=${previewMode ? "1" : "0"}
           { cache: "no-store" }
         );
 
