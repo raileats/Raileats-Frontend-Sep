@@ -1,3 +1,4 @@
+// app/components/TrainAutocomplete.jsx
 "use client";
 
 import { useEffect, useRef, useState } from "react";
@@ -5,29 +6,55 @@ import { useEffect, useRef, useState } from "react";
 export default function TrainAutocomplete({ value, onChange, onSelect }) {
   const [list, setList] = useState([]);
   const [open, setOpen] = useState(false);
+
   const ref = useRef(null);
+  const selectedValueRef = useRef("");
+  const requestIdRef = useRef(0);
 
   useEffect(() => {
-    if (!value) {
+    const currentValue = String(value || "").trim();
+
+    if (!currentValue || currentValue === selectedValueRef.current) {
+      requestIdRef.current += 1;
       setList([]);
       setOpen(false);
       return;
     }
 
+    const requestId = ++requestIdRef.current;
+    const controller = new AbortController();
+
     const timer = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/trains?search=${encodeURIComponent(value)}`);
+        const res = await fetch(
+          `/api/trains?search=${encodeURIComponent(currentValue)}`,
+          { signal: controller.signal }
+        );
+
+        if (!res.ok) {
+          throw new Error("Unable to fetch trains");
+        }
+
         const data = await res.json();
 
-        setList(data || []);
-        setOpen((data || []).length > 0);
-      } catch {
+        if (requestId !== requestIdRef.current) return;
+
+        const nextList = Array.isArray(data) ? data : [];
+        setList(nextList);
+        setOpen(nextList.length > 0);
+      } catch (error) {
+        if (error?.name === "AbortError") return;
+        if (requestId !== requestIdRef.current) return;
+
         setList([]);
         setOpen(false);
       }
     }, 250);
 
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
   }, [value]);
 
   useEffect(() => {
@@ -41,22 +68,33 @@ export default function TrainAutocomplete({ value, onChange, onSelect }) {
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
+  function handleInputChange(e) {
+    selectedValueRef.current = "";
+    setOpen(false);
+    onChange(e.target.value);
+  }
+
   function handleSelect(item) {
     const trainNo = item.train_no || item.trainNumber || "";
     const trainName = item.train_name || item.trainName || "Train";
     const display = `${trainNo} - ${trainName}`;
 
+    requestIdRef.current += 1;
+    selectedValueRef.current = display;
+    setList([]);
+    setOpen(false);
+
     onChange(display);
     if (onSelect) onSelect(item);
-    setOpen(false);
   }
 
   return (
     <div ref={ref} className="relative w-full">
       <input
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={handleInputChange}
         placeholder="Enter train number or train name"
+        autoComplete="off"
         className="app-input"
       />
 
