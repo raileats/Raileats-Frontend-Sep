@@ -2,74 +2,78 @@
 
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import { serviceClient } from "../../../lib/supabaseServer";
 
-const SITE_URL = "https://www.raileats.in";
+const SITE_URL =
+  process.env.NEXT_PUBLIC_SITE_URL || "https://www.raileats.in";
 
-type TrainLayoutProps = {
-  children: ReactNode;
-  params: {
-    slug: string;
-  };
-};
+function cleanTrainName(value: any) {
+  const name = String(value ?? "").trim();
 
-function getTrainNumber(slug: string) {
-  return String(slug || "").match(/^(\d{5})/)?.[1] || "";
+  if (
+    !name ||
+    name.toLowerCase() === "train" ||
+    name.toLowerCase() === "undefined"
+  ) {
+    return "";
+  }
+
+  return name;
+}
+
+async function getTrainName(trainNumber: string) {
+  if (!trainNumber) return "";
+
+  const numericTrain = Number(trainNumber) || 0;
+  const { data } = await serviceClient
+    .from("TrainRoute")
+    .select("*")
+    .or(`trainNumber.eq.${trainNumber},trainNumber.eq.${numericTrain}`)
+    .order("StnNumber", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  return (
+    cleanTrainName(data?.trainName) ||
+    cleanTrainName(data?.TrainName) ||
+    cleanTrainName(data?.train_name)
+  );
 }
 
 export async function generateMetadata({
   params,
-}: TrainLayoutProps): Promise<Metadata> {
-  const trainNumber = getTrainNumber(params.slug);
+}: {
+  params: { slug: string };
+}): Promise<Metadata> {
+  const slug = String(params?.slug || "");
+  const trainNumber = slug.match(/^(\d+)/)?.[1] || "";
 
   if (!trainNumber) {
     return {
-      title: "Train Food Delivery - RailEats",
-      description:
-        "Order fresh food online for delivery during your train journey with RailEats.",
-      robots: {
-        index: false,
-        follow: true,
-      },
+      title: "Train Food Delivery | RailEats",
+      robots: { index: false, follow: true },
     };
   }
 
-  const canonicalUrl =
-    `${SITE_URL}/trains/${trainNumber}-train-food-delivery-in-train`;
-
-  const title = `Order Food in Train ${trainNumber} - RailEats`;
-
-  const description =
-    `Order fresh food online in train ${trainNumber}. ` +
-    `Choose available restaurants and get food delivered at your railway station with RailEats.`;
+  const trainName = await getTrainName(trainNumber);
+  const fullTrain = trainName
+    ? `${trainNumber} - ${trainName}`
+    : trainNumber;
+  const canonical = `${SITE_URL}/trains/${trainNumber}-train-food-delivery-in-train`;
+  const title = `Order Food in Train ${fullTrain} | RailEats`;
+  const description = `Order fresh food in train ${fullTrain}. View active restaurants on the route and enter your PNR for delivery at your seat.`;
 
   return {
-    title,
+    title: { absolute: title },
     description,
-
-    alternates: {
-      canonical: canonicalUrl,
-    },
-
-    robots: {
-      index: true,
-      follow: true,
-      googleBot: {
-        index: true,
-        follow: true,
-        "max-image-preview": "large",
-        "max-snippet": -1,
-        "max-video-preview": -1,
-      },
-    },
-
+    alternates: { canonical },
     openGraph: {
-      type: "website",
-      url: canonicalUrl,
       title,
       description,
+      url: canonical,
       siteName: "RailEats",
+      type: "website",
     },
-
     twitter: {
       card: "summary_large_image",
       title,
@@ -80,6 +84,8 @@ export async function generateMetadata({
 
 export default function TrainLayout({
   children,
-}: TrainLayoutProps) {
+}: {
+  children: ReactNode;
+}) {
   return children;
 }
