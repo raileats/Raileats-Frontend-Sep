@@ -1,3 +1,4 @@
+// app/components/SearchBox.tsx
 "use client";
 
 import { useEffect, useRef, useState } from "react";
@@ -285,10 +286,19 @@ export default function SearchBox() {
           {searchType === "train" ? (
             <div className="searchbox-field-wrap">
               <TrainAutocomplete
-  value={inputValue}
-  onChange={setInputValue}
-  onSelect={handleTrainSelect}
-/>
+                value={inputValue}
+                onChange={(nextValue: string) => {
+                  setInputValue(nextValue);
+
+                  if (selectedTrain) {
+                    setSelectedTrain(null);
+                    setStations([]);
+                    setBoarding("");
+                    setShowStationList(false);
+                  }
+                }}
+                onSelect={handleTrainSelect}
+              />
             </div>
           ) : searchType === "station" ? (
             <div className="searchbox-field-wrap [&_input]:w-full [&_button]:font-semibold">
