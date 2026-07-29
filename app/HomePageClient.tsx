@@ -1,3 +1,4 @@
+// app/HomePageClient.tsx
 "use client";
 
 import Image from "next/image";
@@ -640,6 +641,7 @@ export default function HomePageClient({
                       width={112}
                       height={96}
                       sizes="(max-width: 767px) 86px, 92px"
+                      unoptimized
                       onError={(event) => {
                         event.currentTarget.src = "/raileats-header.webp";
                       }}
