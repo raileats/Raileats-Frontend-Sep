@@ -190,13 +190,13 @@ export default function RootLayout({
             <div className="outer-ring" aria-hidden>
               <div className="inner-logo" aria-hidden>
                 <Image
-                  src="/raileats-logo.png"
+                  src="/raileats-header.webp"
                   alt="RailEats"
                   width={36}
                   height={36}
-                  quality={55}
                   sizes="36px"
                   className="h-full w-full object-contain"
+                  unoptimized
                 />
               </div>
             </div>

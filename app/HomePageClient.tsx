@@ -252,6 +252,16 @@ function getRestaurantImage(restro: any) {
   return codeImage;
 }
 
+function getRestaurantThumbnail(restro: any) {
+  const image = getRestaurantImage(restro);
+
+  if (!image.startsWith("http://") && !image.startsWith("https://")) {
+    return image;
+  }
+
+  return `/api/home/restaurant-image?src=${encodeURIComponent(image)}`;
+}
+
 function getStationLabel(restro: any) {
   const stationCode = restro?.StationCode || "";
   const stationName = restro?.StationName || "";
@@ -592,13 +602,13 @@ export default function HomePageClient({
             {restaurantsToShow.length === 0 ? (
               <div className="mobile-restro-card">
                 <Image
-                  src="/raileats-logo.png"
+                  src="/raileats-header.webp"
                   alt="RailEats active restaurants"
                   title="RailEats active restaurants"
                   width={112}
                   height={96}
-                  quality={70}
                   sizes="112px"
+                  unoptimized
                 />
                 <div className="mobile-restro-copy">
                   <div className="mobile-restro-title-row">
@@ -634,16 +644,15 @@ export default function HomePageClient({
                 >
                   <div className="restro-image-wrapper">
                     <Image
-                      src={getRestaurantImage(restro)}
+                      src={getRestaurantThumbnail(restro)}
                       alt={`${restro.RestroName} food on RailEats`}
                       title={`${restro.RestroName} food delivery in train`}
                       width={112}
                       height={96}
-                      quality={65}
                       sizes="(max-width: 767px) 86px, 92px"
-                      unoptimized={getRestaurantImage(restro).startsWith("http")}
+                      unoptimized
                       onError={(event) => {
-                        event.currentTarget.src = "/raileats-logo.png";
+                        event.currentTarget.src = "/raileats-header.webp";
                       }}
                     />
 
