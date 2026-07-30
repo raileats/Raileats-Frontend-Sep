@@ -1,8 +1,77 @@
-"use client";
-
-import React, { useEffect, useState } from "react";
-import { MapPin, Star, Store, Utensils } from "lucide-react";
+import type { Metadata } from "next";
+import Link from "next/link";
+import {
+  CheckCircle2,
+  MapPin,
+  Search,
+  Star,
+  Store,
+  Train,
+  Utensils,
+} from "lucide-react";
 import PnrSearchBox from "@/components/PnrSearchBox";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
+const SITE_URL = "https://www.raileats.in";
+const PAGE_PATH = "/popular-restaurants-train-journey";
+const PAGE_URL = `${SITE_URL}${PAGE_PATH}`;
+
+export const metadata: Metadata = {
+  title: "Popular Restaurants for Train Food Delivery | RailEats",
+  description:
+    "Explore popular restaurants for train food delivery across railway stations in India. Enter your PNR and order fresh food online during your train journey with RailEats.",
+  keywords: [
+    "popular restaurants in train",
+    "train food delivery",
+    "food delivery in train",
+    "order food in train",
+    "railway food delivery",
+    "online food order in train",
+    "restaurant food in train",
+    "PNR food delivery",
+    "RailEats",
+  ],
+  alternates: {
+    canonical: PAGE_URL,
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+      "max-video-preview": -1,
+    },
+  },
+  openGraph: {
+    type: "website",
+    url: PAGE_URL,
+    siteName: "RailEats",
+    title: "Popular Restaurants for Train Food Delivery | RailEats",
+    description:
+      "Discover popular railway station restaurants and order fresh food for delivery directly to your train seat.",
+    images: [
+      {
+        url: `${SITE_URL}/raileats-logo.png`,
+        width: 1200,
+        height: 630,
+        alt: "RailEats train food delivery",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Popular Restaurants for Train Food Delivery | RailEats",
+    description:
+      "Explore restaurants at railway stations and order food online during your train journey.",
+    images: [`${SITE_URL}/raileats-logo.png`],
+  },
+};
 
 type Restaurant = {
   RestroCode: string | number;
@@ -15,11 +84,78 @@ type Restaurant = {
   MinimumOrderValue?: number | null;
 };
 
+type RestaurantsResponse = {
+  success?: boolean;
+  count?: number;
+  data?: Restaurant[];
+  error?: string;
+};
+
+const popularStations = [
+  {
+    name: "Food Delivery at Lalitpur Junction",
+    href: "/Stations/LAR-lalitpur-jn",
+  },
+  {
+    name: "Food Delivery at Jabalpur Junction",
+    href: "/Stations/JBP-jabalpur",
+  },
+  {
+    name: "Food Delivery at Khandwa Junction",
+    href: "/Stations/KNW-khandwa",
+  },
+  {
+    name: "Food Delivery at Ratlam Junction",
+    href: "/Stations/RTM-ratlam",
+  },
+  {
+    name: "Food Delivery at Ahmedabad Junction",
+    href: "/Stations/ADI-ahmedabad-jn",
+  },
+  {
+    name: "Food Delivery at Vijayawada Junction",
+    href: "/Stations/BZA-vijayawada-jn",
+  },
+];
+
+const faqs = [
+  {
+    question: "How can I order food from a restaurant in train?",
+    answer:
+      "Enter your valid 10-digit PNR on RailEats. The system checks your train route, journey date, arrival time and available railway stations. You can then select an eligible restaurant, add food to your cart and complete the order.",
+  },
+  {
+    question: "Can food be delivered directly to my train seat?",
+    answer:
+      "Yes. Enter the correct PNR, coach and seat details while placing the order. The selected restaurant prepares the food and delivers it at your chosen railway station, subject to route and restaurant availability.",
+  },
+  {
+    question: "Which railway stations have RailEats restaurants?",
+    answer:
+      "RailEats works with restaurants at multiple railway stations across India. The available stations and restaurants depend on your train route, journey date, delivery time and the restaurant's current operating status.",
+  },
+  {
+    question: "Can I view a restaurant menu before ordering?",
+    answer:
+      "Yes. Select View Menu on any restaurant card to explore available food items, prices and the minimum order value for that outlet.",
+  },
+  {
+    question: "Why is a restaurant not available for my train?",
+    answer:
+      "Availability may depend on whether the station falls on your train route, restaurant opening hours, delivery cut-off time, journey date and the restaurant's active status.",
+  },
+  {
+    question: "Do I need a PNR to order food in train?",
+    answer:
+      "A valid PNR is recommended because it helps RailEats identify your train, journey date and eligible delivery stations. Always enter accurate journey details for successful delivery.",
+  },
+];
+
 function cleanText(value: unknown) {
   return String(value ?? "").trim();
 }
 
-function toSlug(value: unknown) {
+function createSlug(value: unknown) {
   return cleanText(value)
     .toLowerCase()
     .normalize("NFD")
@@ -32,16 +168,13 @@ function toSlug(value: unknown) {
 function createMenuUrl(restaurant: Restaurant) {
   const restroCode = cleanText(restaurant.RestroCode);
   const restroName = cleanText(restaurant.RestroName);
-  const stationCode = cleanText(restaurant.StationCode).toUpperCase();
+  const stationCode = cleanText(
+    restaurant.StationCode
+  ).toUpperCase();
   const stationName = cleanText(restaurant.StationName);
 
-  /*
-   * Same slug order as the working train page:
-   * StationCode-StationName
-   * RestroCode-RestroName
-   */
-  const stationSlug = `${stationCode}-${toSlug(stationName)}`;
-  const restroSlug = `${restroCode}-${toSlug(restroName)}`;
+  const stationSlug = `${stationCode}-${createSlug(stationName)}`;
+  const restaurantSlug = `${restroCode}-${createSlug(restroName)}`;
 
   const query = new URLSearchParams({
     mode: "station",
@@ -52,7 +185,49 @@ function createMenuUrl(restaurant: Restaurant) {
 
   return `/Stations/${encodeURIComponent(
     stationSlug
-  )}/${encodeURIComponent(restroSlug)}?${query.toString()}`;
+  )}/${encodeURIComponent(restaurantSlug)}?${query.toString()}`;
+}
+
+async function getRestaurants(): Promise<Restaurant[]> {
+  try {
+    const response = await fetch(
+      `${SITE_URL}/api/home/popular-restaurants`,
+      {
+        method: "GET",
+        cache: "no-store",
+        headers: {
+          Accept: "application/json",
+        },
+      }
+    );
+
+    if (!response.ok) {
+      console.error(
+        "Popular restaurants API failed:",
+        response.status
+      );
+      return [];
+    }
+
+    const result =
+      (await response.json()) as RestaurantsResponse;
+
+    if (result?.success !== true || !Array.isArray(result?.data)) {
+      return [];
+    }
+
+    return result.data.filter((restaurant) => {
+      return (
+        Number(restaurant?.RaileatsStatus) === 1 &&
+        cleanText(restaurant?.RestroCode) !== "" &&
+        cleanText(restaurant?.RestroName) !== "" &&
+        cleanText(restaurant?.StationCode) !== ""
+      );
+    });
+  } catch (error) {
+    console.error("Popular restaurants loading error:", error);
+    return [];
+  }
 }
 
 function RestaurantCard({
@@ -62,548 +237,875 @@ function RestaurantCard({
 }) {
   const menuUrl = createMenuUrl(restaurant);
 
-  const rating =
+  const ratingValue =
     restaurant.RestroRating !== null &&
     restaurant.RestroRating !== undefined
       ? Number(restaurant.RestroRating)
       : null;
 
-  const minimumOrder = Number(
+  const validRating =
+    ratingValue !== null && Number.isFinite(ratingValue)
+      ? ratingValue
+      : null;
+
+  const minimumOrderValue = Number(
     restaurant.MinimumOrderValue ?? 0
   );
 
+  const minimumOrder = Number.isFinite(minimumOrderValue)
+    ? minimumOrderValue
+    : 0;
+
   return (
-    <article
-      style={{
-        background: "#ffffff",
-        border: "1px solid #e2e8f0",
-        borderRadius: 18,
-        padding: 11,
-        boxShadow: "0 2px 10px rgba(15,23,42,0.05)",
-      }}
-    >
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "minmax(0, 1fr) 110px",
-          gap: 12,
-          alignItems: "stretch",
-        }}
-      >
-        <div style={{ minWidth: 0 }}>
-          <h2
-            style={{
-              margin: 0,
-              display: "flex",
-              alignItems: "flex-start",
-              gap: 7,
-              color: "#1e293b",
-              fontSize: 16,
-              lineHeight: 1.25,
-              fontWeight: 800,
-              overflowWrap: "anywhere",
-            }}
-          >
+    <article className="restaurant-card">
+      <div className="restaurant-card-grid">
+        <div className="restaurant-information">
+          <h3 className="restaurant-name">
             <Utensils
               size={16}
               strokeWidth={2.3}
-              style={{
-                color: "#f97316",
-                flexShrink: 0,
-                marginTop: 2,
-              }}
+              aria-hidden="true"
             />
 
             <span>{restaurant.RestroName}</span>
-          </h2>
+          </h3>
 
-          <div
-            style={{
-              marginTop: 9,
-              display: "flex",
-              alignItems: "flex-start",
-              gap: 6,
-              color: "#64748b",
-              fontSize: 12,
-              lineHeight: 1.4,
-              fontWeight: 700,
-            }}
-          >
+          <div className="restaurant-location">
             <MapPin
               size={14}
               strokeWidth={2.2}
-              style={{
-                flexShrink: 0,
-                marginTop: 1,
-                color: "#2563eb",
-              }}
+              aria-hidden="true"
             />
 
             <span>
               {restaurant.StationName || "Railway Station"}
+
               {restaurant.StationCode
-                ? ` (${restaurant.StationCode})`
+                ? ` (${cleanText(
+                    restaurant.StationCode
+                  ).toUpperCase()})`
                 : ""}
             </span>
           </div>
 
-          <div
-            style={{
-              marginTop: 10,
-              display: "flex",
-              alignItems: "center",
-              gap: 7,
-              flexWrap: "wrap",
-            }}
-          >
-            {rating !== null && Number.isFinite(rating) ? (
-              <span
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 4,
-                  borderRadius: 999,
-                  padding: "5px 8px",
-                  background: "#ecfdf5",
-                  border: "1px solid #bbf7d0",
-                  color: "#15803d",
-                  fontSize: 11,
-                  lineHeight: 1,
-                  fontWeight: 800,
-                }}
-              >
+          <div className="restaurant-details">
+            {validRating !== null ? (
+              <span className="rating-badge">
                 <Star
                   size={12}
                   fill="currentColor"
                   strokeWidth={2}
+                  aria-hidden="true"
                 />
-                {rating.toFixed(1)}
+                {validRating.toFixed(1)}
               </span>
             ) : null}
 
-            <span
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                borderRadius: 999,
-                padding: "5px 8px",
-                background: "#f8fafc",
-                border: "1px solid #e2e8f0",
-                color: "#475569",
-                fontSize: 11,
-                lineHeight: 1,
-                fontWeight: 800,
-              }}
-            >
+            <span className="minimum-order">
               Min Order: ₹{minimumOrder}
             </span>
           </div>
         </div>
 
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: 8,
-          }}
-        >
-          <div
-            style={{
-              width: "100%",
-              height: 88,
-              overflow: "hidden",
-              borderRadius: 14,
-              border: "1px solid #e2e8f0",
-              background: "#f1f5f9",
-            }}
-          >
+        <div className="restaurant-action">
+          <div className="restaurant-image-wrapper">
             {restaurant.RestroDisplayPhoto ? (
               <img
                 src={restaurant.RestroDisplayPhoto}
-                alt={`${restaurant.RestroName} at ${restaurant.StationName}`}
+                alt={`${restaurant.RestroName} restaurant at ${
+                  restaurant.StationName || restaurant.StationCode
+                } railway station`}
+                width={220}
+                height={176}
                 loading="lazy"
-                onError={(event) => {
-                  event.currentTarget.onerror = null;
-                  event.currentTarget.src = "/raileats-logo.png";
-                }}
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  display: "block",
-                  objectFit: "cover",
-                }}
+                decoding="async"
+                className="restaurant-image"
               />
             ) : (
-              <div
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  display: "grid",
-                  placeItems: "center",
-                  color: "#94a3b8",
-                }}
-              >
-                <Store size={28} strokeWidth={2} />
+              <div className="restaurant-placeholder">
+                <Store
+                  size={28}
+                  strokeWidth={2}
+                  aria-hidden="true"
+                />
               </div>
             )}
           </div>
 
-          <a
+          <Link
             href={menuUrl}
-            style={{
-              width: "100%",
-              boxSizing: "border-box",
-              textAlign: "center",
-              textDecoration: "none",
-              whiteSpace: "nowrap",
-              background: "#f97316",
-              color: "#ffffff",
-              borderRadius: 12,
-              padding: "10px 8px",
-              fontSize: 12,
-              lineHeight: 1,
-              fontWeight: 800,
-              boxShadow: "0 4px 12px rgba(249,115,22,0.18)",
-            }}
+            className="view-menu-button"
+            aria-label={`View menu of ${restaurant.RestroName}`}
           >
             View Menu
-          </a>
+          </Link>
         </div>
       </div>
     </article>
   );
 }
 
-export default function PopularRestaurantsPage() {
-  const [restaurants, setRestaurants] = useState<
-    Restaurant[]
-  >([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+export default async function PopularRestaurantsPage() {
+  const restaurants = await getRestaurants();
 
-  useEffect(() => {
-    let mounted = true;
+  const restaurantSchema = {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    name: "Popular Restaurants for Train Food Delivery",
+    url: PAGE_URL,
+    numberOfItems: restaurants.length,
+    itemListElement: restaurants.map((restaurant, index) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      url: `${SITE_URL}${createMenuUrl(restaurant)}`,
+      item: {
+        "@type": "Restaurant",
+        name: restaurant.RestroName,
+        image: restaurant.RestroDisplayPhoto || undefined,
+        address: {
+          "@type": "PostalAddress",
+          addressLocality:
+            restaurant.StationName || restaurant.StationCode,
+          addressCountry: "IN",
+        },
+        aggregateRating:
+          restaurant.RestroRating !== null &&
+          restaurant.RestroRating !== undefined &&
+          Number.isFinite(Number(restaurant.RestroRating))
+            ? {
+                "@type": "AggregateRating",
+                ratingValue: Number(restaurant.RestroRating),
+                bestRating: 5,
+                worstRating: 1,
+                ratingCount: 1,
+              }
+            : undefined,
+      },
+    })),
+  };
 
-    async function loadRestaurants() {
-      try {
-        setLoading(true);
-        setError("");
+  const breadcrumbSchema = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: "Home",
+        item: SITE_URL,
+      },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: "Popular Restaurants for Train Journey",
+        item: PAGE_URL,
+      },
+    ],
+  };
 
-        const response = await fetch(
-          "/api/home/popular-restaurants",
-          {
-            method: "GET",
-            cache: "no-store",
-          }
-        );
-
-        const result = await response.json();
-
-        if (!response.ok || result?.success !== true) {
-          throw new Error(
-            result?.error || "Restaurants could not be loaded"
-          );
-        }
-
-        const rows = Array.isArray(result?.data)
-          ? result.data
-          : [];
-
-        const activeRows = rows.filter(
-          (restaurant: Restaurant) =>
-            Number(restaurant?.RaileatsStatus) === 1 &&
-            cleanText(restaurant?.RestroCode) &&
-            cleanText(restaurant?.RestroName) &&
-            cleanText(restaurant?.StationCode)
-        );
-
-        if (mounted) {
-          setRestaurants(activeRows);
-        }
-      } catch (loadError) {
-        console.error(
-          "Popular restaurants API error:",
-          loadError
-        );
-
-        if (mounted) {
-          setRestaurants([]);
-          setError(
-            loadError instanceof Error
-              ? loadError.message
-              : "Restaurants could not be loaded"
-          );
-        }
-      } finally {
-        if (mounted) {
-          setLoading(false);
-        }
-      }
-    }
-
-    loadRestaurants();
-
-    return () => {
-      mounted = false;
-    };
-  }, []);
+  const faqSchema = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: faqs.map((faq) => ({
+      "@type": "Question",
+      name: faq.question,
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: faq.answer,
+      },
+    })),
+  };
 
   return (
-    <main
-      style={{
-        width: "100%",
-        maxWidth: 720,
-        minHeight: "70vh",
-        margin: "0 auto",
-        padding: "8px 10px 92px",
-        boxSizing: "border-box",
-        display: "flex",
-        flexDirection: "column",
-        gap: 12,
-      }}
-    >
-      <section
-        style={{
-          background: "#ffffff",
-          border: "1px solid #e2e8f0",
-          borderRadius: 18,
-          padding: 14,
-          boxShadow: "0 2px 10px rgba(15,23,42,0.04)",
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(breadcrumbSchema).replace(
+            /</g,
+            "\\u003c"
+          ),
         }}
-      >
-        <div
-          style={{
-            color: "#64748b",
-            fontSize: 10,
-            fontWeight: 800,
-            letterSpacing: 0.5,
-            textTransform: "uppercase",
-          }}
-        >
-          RailEats Restaurant Partners
-        </div>
+      />
 
-        <h1
-          style={{
-            margin: "7px 0 0",
-            color: "#1e293b",
-            fontSize: "clamp(19px, 5vw, 27px)",
-            lineHeight: 1.2,
-            fontWeight: 800,
-            letterSpacing: "-0.3px",
-          }}
-        >
-          Popular Restaurants for Your Train Journey
-        </h1>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(restaurantSchema).replace(
+            /</g,
+            "\\u003c"
+          ),
+        }}
+      />
 
-        <p
-          style={{
-            margin: "8px 0 0",
-            color: "#64748b",
-            fontSize: 13,
-            lineHeight: 1.55,
-          }}
-        >
-          Explore active RailEats restaurants available at
-          railway stations. Enter your PNR to check restaurants
-          available for your actual train journey.
-        </p>
-      </section>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(faqSchema).replace(
+            /</g,
+            "\\u003c"
+          ),
+        }}
+      />
 
-      {/* Same PNR search box used on the train page */}
-      <PnrSearchBox />
+      <main className="popular-restaurants-page">
+        <nav className="breadcrumbs" aria-label="Breadcrumb">
+          <Link href="/">Home</Link>
+          <span aria-hidden="true">›</span>
+          <span>Popular Restaurants</span>
+        </nav>
 
-      {!loading && !error && restaurants.length > 0 ? (
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 10,
-            padding: "2px 2px 0",
-          }}
-        >
-          <h2
-            style={{
-              margin: 0,
-              color: "#1e293b",
-              fontSize: 18,
-              lineHeight: 1.3,
-              fontWeight: 800,
-            }}
-          >
-            Active Restaurants
-          </h2>
+        <section className="hero-section">
+          <div className="eyebrow">
+            RailEats Restaurant Partners
+          </div>
 
-          <span
-            style={{
-              flexShrink: 0,
-              borderRadius: 999,
-              padding: "5px 9px",
-              background: "#fff7ed",
-              border: "1px solid #fed7aa",
-              color: "#ea580c",
-              fontSize: 11,
-              fontWeight: 800,
-            }}
-          >
-            {restaurants.length} Restaurants
-          </span>
-        </div>
-      ) : null}
+          <h1>
+            Popular Restaurants for Your Train Journey
+          </h1>
 
-      {loading ? (
-        <section
-          style={{
-            minHeight: 220,
-            display: "grid",
-            placeItems: "center",
-            borderRadius: 18,
-            border: "1px solid #e2e8f0",
-            background: "#ffffff",
-          }}
-        >
-          <div style={{ textAlign: "center" }}>
-            <div
-              style={{
-                width: 34,
-                height: 34,
-                margin: "0 auto 10px",
-                border: "3px solid #fed7aa",
-                borderTopColor: "#f97316",
-                borderRadius: 999,
-                animation: "popularRestaurantSpin 0.8s linear infinite",
-              }}
+          <p>
+            Explore active RailEats restaurants available at
+            railway stations across India. Enter your PNR to find
+            restaurants that can deliver fresh food during your
+            actual train journey.
+          </p>
+        </section>
+
+        <PnrSearchBox />
+
+        {restaurants.length > 0 ? (
+          <>
+            <section
+              className="restaurant-heading"
+              aria-labelledby="active-restaurants-heading"
+            >
+              <div>
+                <h2 id="active-restaurants-heading">
+                  Active Train Food Restaurants
+                </h2>
+
+                <p>
+                  Browse restaurant partners currently available on
+                  RailEats.
+                </p>
+              </div>
+
+              <span>
+                {restaurants.length}{" "}
+                {restaurants.length === 1
+                  ? "Restaurant"
+                  : "Restaurants"}
+              </span>
+            </section>
+
+            <section
+              className="restaurant-list"
+              aria-label="Active RailEats restaurants"
+            >
+              {restaurants.map((restaurant) => (
+                <RestaurantCard
+                  key={String(restaurant.RestroCode)}
+                  restaurant={restaurant}
+                />
+              ))}
+            </section>
+          </>
+        ) : (
+          <section className="empty-state">
+            <Store
+              size={34}
+              strokeWidth={2}
+              aria-hidden="true"
             />
 
-            <div
-              style={{
-                color: "#475569",
-                fontSize: 13,
-                fontWeight: 800,
-              }}
-            >
-              Loading active restaurants...
+            <h2>Restaurants are being updated</h2>
+
+            <p>
+              Enter your PNR above to check restaurants available for
+              your train route.
+            </p>
+          </section>
+        )}
+
+        <section className="content-section">
+          <h2>Order Food from Popular Restaurants in Train</h2>
+
+          <p>
+            RailEats helps railway passengers order food online from
+            restaurants located near railway stations. Instead of
+            depending only on food available inside the train, you
+            can explore restaurant menus, select your preferred meal
+            and place an order for delivery at an eligible station on
+            your route.
+          </p>
+
+          <p>
+            Enter your valid 10-digit PNR to check your train route,
+            journey date and available delivery stations. Restaurant
+            availability can vary according to the train arrival
+            time, restaurant operating hours, delivery cut-off and
+            current outlet status.
+          </p>
+        </section>
+
+        <section className="content-section">
+          <h2>How to Order Food Online in Train</h2>
+
+          <div className="steps-grid">
+            <div className="step-card">
+              <span>1</span>
+              <Search size={22} aria-hidden="true" />
+              <h3>Enter Your PNR</h3>
+              <p>
+                Enter a valid 10-digit PNR to identify your train and
+                journey details.
+              </p>
+            </div>
+
+            <div className="step-card">
+              <span>2</span>
+              <Store size={22} aria-hidden="true" />
+              <h3>Select a Restaurant</h3>
+              <p>
+                Explore eligible restaurants and menus available on
+                your train route.
+              </p>
+            </div>
+
+            <div className="step-card">
+              <span>3</span>
+              <Utensils size={22} aria-hidden="true" />
+              <h3>Choose Your Food</h3>
+              <p>
+                Add your preferred meals and food items to the cart.
+              </p>
+            </div>
+
+            <div className="step-card">
+              <span>4</span>
+              <Train size={22} aria-hidden="true" />
+              <h3>Get Train Delivery</h3>
+              <p>
+                Receive the prepared order at your selected railway
+                station.
+              </p>
             </div>
           </div>
         </section>
-      ) : null}
 
-      {!loading && error ? (
-        <section
-          style={{
-            padding: 20,
-            textAlign: "center",
-            borderRadius: 18,
-            border: "1px solid #fecaca",
-            background: "#fff7f7",
-          }}
-        >
-          <div
-            style={{
-              color: "#b91c1c",
-              fontSize: 14,
-              fontWeight: 800,
-            }}
-          >
-            Restaurants could not be loaded
-          </div>
+        <section className="content-section">
+          <h2>Why Order Train Food with RailEats?</h2>
 
-          <div
-            style={{
-              marginTop: 6,
-              color: "#64748b",
-              fontSize: 12,
-              lineHeight: 1.5,
-            }}
-          >
-            {error}
+          <div className="benefits-grid">
+            <div>
+              <CheckCircle2 size={20} aria-hidden="true" />
+              <span>Restaurants at railway stations</span>
+            </div>
+
+            <div>
+              <CheckCircle2 size={20} aria-hidden="true" />
+              <span>PNR-based restaurant availability</span>
+            </div>
+
+            <div>
+              <CheckCircle2 size={20} aria-hidden="true" />
+              <span>Food delivered during your journey</span>
+            </div>
+
+            <div>
+              <CheckCircle2 size={20} aria-hidden="true" />
+              <span>Restaurant menus and prices online</span>
+            </div>
           </div>
         </section>
-      ) : null}
 
-      {!loading && !error && restaurants.length === 0 ? (
-        <section
-          style={{
-            padding: 22,
-            textAlign: "center",
-            borderRadius: 18,
-            border: "1px solid #e2e8f0",
-            background: "#ffffff",
-          }}
-        >
-          <Store
-            size={30}
-            strokeWidth={2}
-            style={{ color: "#94a3b8" }}
-          />
+        <section className="content-section">
+          <h2>Popular Railway Stations for Food Delivery</h2>
 
-          <div
-            style={{
-              marginTop: 8,
-              color: "#475569",
-              fontSize: 14,
-              fontWeight: 800,
-            }}
-          >
-            No active restaurants found
+          <p>
+            Explore train food delivery options at popular railway
+            stations served by RailEats restaurant partners.
+          </p>
+
+          <div className="station-links">
+            {popularStations.map((station) => (
+              <Link key={station.href} href={station.href}>
+                <MapPin size={15} aria-hidden="true" />
+                {station.name}
+              </Link>
+            ))}
           </div>
         </section>
-      ) : null}
 
-      {!loading && !error
-        ? restaurants.map((restaurant) => (
-            <RestaurantCard
-              key={String(restaurant.RestroCode)}
-              restaurant={restaurant}
-            />
-          ))
-        : null}
+        <section className="content-section">
+          <h2>Frequently Asked Questions</h2>
 
-      <section
-        style={{
-          marginTop: 4,
-          padding: "18px 15px",
-          borderRadius: 18,
-          border: "1px solid #e2e8f0",
-          background: "#ffffff",
-          boxShadow: "0 2px 10px rgba(15,23,42,0.04)",
+          <div className="faq-list">
+            {faqs.map((faq) => (
+              <details key={faq.question}>
+                <summary>{faq.question}</summary>
+                <p>{faq.answer}</p>
+              </details>
+            ))}
+          </div>
+        </section>
+
+        <section className="final-cta">
+          <Train size={30} aria-hidden="true" />
+
+          <h2>Find Food Available on Your Train Route</h2>
+
+          <p>
+            Enter your PNR above and explore restaurants available
+            for your journey.
+          </p>
+
+          <Link href="/">Order Food in Train</Link>
+        </section>
+      </main>
+
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
+            .popular-restaurants-page {
+              width: 100%;
+              max-width: 760px;
+              min-height: 70vh;
+              margin: 0 auto;
+              padding: 8px 10px 92px;
+              box-sizing: border-box;
+              display: flex;
+              flex-direction: column;
+              gap: 12px;
+            }
+
+            .breadcrumbs {
+              display: flex;
+              align-items: center;
+              gap: 7px;
+              padding: 2px 3px;
+              color: #64748b;
+              font-size: 12px;
+            }
+
+            .breadcrumbs a {
+              color: #2563eb;
+              font-weight: 700;
+              text-decoration: none;
+            }
+
+            .hero-section,
+            .content-section,
+            .empty-state,
+            .final-cta {
+              background: #ffffff;
+              border: 1px solid #e2e8f0;
+              border-radius: 18px;
+              padding: 18px 16px;
+              box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04);
+            }
+
+            .eyebrow {
+              color: #64748b;
+              font-size: 10px;
+              font-weight: 800;
+              letter-spacing: 0.5px;
+              text-transform: uppercase;
+            }
+
+            .hero-section h1 {
+              margin: 7px 0 0;
+              color: #1e293b;
+              font-size: clamp(21px, 5vw, 30px);
+              line-height: 1.2;
+              font-weight: 800;
+              letter-spacing: -0.3px;
+            }
+
+            .hero-section p,
+            .content-section p,
+            .final-cta p {
+              margin: 9px 0 0;
+              color: #475569;
+              font-size: 13px;
+              line-height: 1.7;
+            }
+
+            .restaurant-heading {
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+              gap: 10px;
+              padding: 3px 2px 0;
+            }
+
+            .restaurant-heading h2 {
+              margin: 0;
+              color: #1e293b;
+              font-size: 18px;
+              line-height: 1.3;
+            }
+
+            .restaurant-heading p {
+              margin: 3px 0 0;
+              color: #64748b;
+              font-size: 11px;
+            }
+
+            .restaurant-heading > span {
+              flex-shrink: 0;
+              border: 1px solid #fed7aa;
+              border-radius: 999px;
+              padding: 5px 9px;
+              background: #fff7ed;
+              color: #ea580c;
+              font-size: 11px;
+              font-weight: 800;
+            }
+
+            .restaurant-list {
+              display: flex;
+              flex-direction: column;
+              gap: 12px;
+            }
+
+            .restaurant-card {
+              padding: 11px;
+              background: #ffffff;
+              border: 1px solid #e2e8f0;
+              border-radius: 18px;
+              box-shadow: 0 2px 10px rgba(15, 23, 42, 0.05);
+            }
+
+            .restaurant-card-grid {
+              display: grid;
+              grid-template-columns: minmax(0, 1fr) 110px;
+              gap: 12px;
+              align-items: stretch;
+            }
+
+            .restaurant-information {
+              min-width: 0;
+            }
+
+            .restaurant-name {
+              margin: 0;
+              display: flex;
+              align-items: flex-start;
+              gap: 7px;
+              color: #1e293b;
+              font-size: 16px;
+              line-height: 1.25;
+              font-weight: 800;
+              overflow-wrap: anywhere;
+            }
+
+            .restaurant-name svg {
+              flex-shrink: 0;
+              margin-top: 2px;
+              color: #f97316;
+            }
+
+            .restaurant-location {
+              margin-top: 9px;
+              display: flex;
+              align-items: flex-start;
+              gap: 6px;
+              color: #64748b;
+              font-size: 12px;
+              line-height: 1.4;
+              font-weight: 700;
+            }
+
+            .restaurant-location svg {
+              flex-shrink: 0;
+              margin-top: 1px;
+              color: #2563eb;
+            }
+
+            .restaurant-details {
+              margin-top: 10px;
+              display: flex;
+              align-items: center;
+              gap: 7px;
+              flex-wrap: wrap;
+            }
+
+            .rating-badge,
+            .minimum-order {
+              display: inline-flex;
+              align-items: center;
+              gap: 4px;
+              border-radius: 999px;
+              padding: 5px 8px;
+              font-size: 11px;
+              line-height: 1;
+              font-weight: 800;
+            }
+
+            .rating-badge {
+              border: 1px solid #bbf7d0;
+              background: #ecfdf5;
+              color: #15803d;
+            }
+
+            .minimum-order {
+              border: 1px solid #e2e8f0;
+              background: #f8fafc;
+              color: #475569;
+            }
+
+            .restaurant-action {
+              display: flex;
+              flex-direction: column;
+              gap: 8px;
+            }
+
+            .restaurant-image-wrapper {
+              width: 100%;
+              height: 88px;
+              overflow: hidden;
+              border: 1px solid #e2e8f0;
+              border-radius: 14px;
+              background: #f1f5f9;
+            }
+
+            .restaurant-image,
+            .restaurant-placeholder {
+              width: 100%;
+              height: 100%;
+            }
+
+            .restaurant-image {
+              display: block;
+              object-fit: cover;
+            }
+
+            .restaurant-placeholder {
+              display: grid;
+              place-items: center;
+              color: #94a3b8;
+            }
+
+            .view-menu-button {
+              width: 100%;
+              box-sizing: border-box;
+              padding: 10px 8px;
+              border-radius: 12px;
+              background: #f97316;
+              color: #ffffff;
+              box-shadow: 0 4px 12px rgba(249, 115, 22, 0.18);
+              text-align: center;
+              text-decoration: none;
+              white-space: nowrap;
+              font-size: 12px;
+              line-height: 1;
+              font-weight: 800;
+            }
+
+            .content-section h2,
+            .empty-state h2,
+            .final-cta h2 {
+              margin: 0;
+              color: #1e293b;
+              font-size: 19px;
+              line-height: 1.35;
+              font-weight: 800;
+            }
+
+            .steps-grid {
+              margin-top: 15px;
+              display: grid;
+              grid-template-columns: repeat(2, minmax(0, 1fr));
+              gap: 10px;
+            }
+
+            .step-card {
+              position: relative;
+              padding: 14px;
+              border: 1px solid #e2e8f0;
+              border-radius: 14px;
+              background: #f8fafc;
+            }
+
+            .step-card > span {
+              position: absolute;
+              top: 10px;
+              right: 10px;
+              display: grid;
+              place-items: center;
+              width: 22px;
+              height: 22px;
+              border-radius: 999px;
+              background: #fff7ed;
+              color: #ea580c;
+              font-size: 11px;
+              font-weight: 800;
+            }
+
+            .step-card svg {
+              color: #f97316;
+            }
+
+            .step-card h3 {
+              margin: 8px 0 0;
+              color: #1e293b;
+              font-size: 14px;
+            }
+
+            .step-card p {
+              margin-top: 5px;
+              font-size: 12px;
+              line-height: 1.55;
+            }
+
+            .benefits-grid {
+              margin-top: 14px;
+              display: grid;
+              grid-template-columns: repeat(2, minmax(0, 1fr));
+              gap: 10px;
+            }
+
+            .benefits-grid > div {
+              display: flex;
+              align-items: flex-start;
+              gap: 8px;
+              padding: 11px;
+              border-radius: 13px;
+              background: #f8fafc;
+              color: #334155;
+              font-size: 12px;
+              line-height: 1.5;
+              font-weight: 700;
+            }
+
+            .benefits-grid svg {
+              flex-shrink: 0;
+              color: #16a34a;
+            }
+
+            .station-links {
+              margin-top: 14px;
+              display: grid;
+              grid-template-columns: repeat(2, minmax(0, 1fr));
+              gap: 9px;
+            }
+
+            .station-links a {
+              display: flex;
+              align-items: flex-start;
+              gap: 6px;
+              padding: 11px;
+              border: 1px solid #dbeafe;
+              border-radius: 12px;
+              background: #eff6ff;
+              color: #1d4ed8;
+              font-size: 12px;
+              line-height: 1.45;
+              font-weight: 700;
+              text-decoration: none;
+            }
+
+            .station-links svg {
+              flex-shrink: 0;
+              margin-top: 1px;
+            }
+
+            .faq-list {
+              margin-top: 13px;
+              display: flex;
+              flex-direction: column;
+              gap: 8px;
+            }
+
+            .faq-list details {
+              border: 1px solid #e2e8f0;
+              border-radius: 13px;
+              background: #f8fafc;
+              overflow: hidden;
+            }
+
+            .faq-list summary {
+              padding: 13px 14px;
+              color: #1e293b;
+              cursor: pointer;
+              font-size: 13px;
+              line-height: 1.45;
+              font-weight: 800;
+            }
+
+            .faq-list details p {
+              margin: 0;
+              padding: 0 14px 14px;
+              color: #475569;
+              font-size: 12px;
+              line-height: 1.65;
+            }
+
+            .empty-state,
+            .final-cta {
+              text-align: center;
+            }
+
+            .empty-state svg {
+              color: #94a3b8;
+              margin-bottom: 8px;
+            }
+
+            .final-cta {
+              border-color: #fed7aa;
+              background: #fff7ed;
+            }
+
+            .final-cta > svg {
+              color: #f97316;
+              margin-bottom: 8px;
+            }
+
+            .final-cta a {
+              display: inline-flex;
+              margin-top: 14px;
+              padding: 11px 18px;
+              border-radius: 12px;
+              background: #f97316;
+              color: #ffffff;
+              font-size: 13px;
+              font-weight: 800;
+              text-decoration: none;
+            }
+
+            .view-menu-button:hover,
+            .final-cta a:hover {
+              background: #ea580c;
+            }
+
+            .station-links a:hover {
+              border-color: #93c5fd;
+              background: #dbeafe;
+            }
+
+            @media (max-width: 560px) {
+              .popular-restaurants-page {
+                padding-left: 9px;
+                padding-right: 9px;
+              }
+
+              .steps-grid,
+              .benefits-grid,
+              .station-links {
+                grid-template-columns: 1fr;
+              }
+
+              .hero-section,
+              .content-section,
+              .final-cta {
+                padding: 16px 14px;
+              }
+            }
+          `,
         }}
-      >
-        <h2
-          style={{
-            margin: 0,
-            color: "#1e293b",
-            fontSize: 18,
-            lineHeight: 1.35,
-            fontWeight: 800,
-          }}
-        >
-          Order Food from Popular Restaurants in Train
-        </h2>
-
-        <p
-          style={{
-            margin: "9px 0 0",
-            color: "#475569",
-            fontSize: 13,
-            lineHeight: 1.65,
-          }}
-        >
-          Enter your valid 10-digit PNR to find eligible
-          delivery stations and restaurants for your journey.
-          Restaurant availability depends on the train route,
-          journey date, arrival time and order cut-off.
-        </p>
-      </section>
-
-      <style jsx>{`
-        @keyframes popularRestaurantSpin {
-          to {
-            transform: rotate(360deg);
-          }
-        }
-      `}</style>
-    </main>
+      />
+    </>
   );
 }
