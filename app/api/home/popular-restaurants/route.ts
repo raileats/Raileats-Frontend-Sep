@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
+export const revalidate = 0;
 
 const RESTRO_DISPLAY_BUCKET = "RestroDisplayPhoto";
 const FALLBACK_IMAGE = "/raileats-logo.png";
@@ -11,16 +12,72 @@ const getEnv = () => ({
     process.env.SUPABASE_URL ??
     process.env.NEXT_PUBLIC_SUPABASE_URL ??
     process.env.SUPABASE_PROJECT_URL,
+
   SERVICE_KEY:
     process.env.SUPABASE_SERVICE_ROLE ??
     process.env.SUPABASE_SERVICE_ROLE_KEY ??
     process.env.SUPABASE_SERVICE_KEY,
 });
 
-function normalizeImageUrl(value: unknown, restroCode: unknown, projectUrl: string) {
+function cleanText(value: unknown) {
+  return String(value ?? "").trim();
+}
+
+function toNumber(value: unknown) {
+  if (value === null || value === undefined || value === "") {
+    return null;
+  }
+
+  const numberValue = Number(value);
+  return Number.isFinite(numberValue) ? numberValue : null;
+}
+
+function createSlug(value: unknown) {
+  return cleanText(value)
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/&/g, " and ")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function createStationSlug(
+  stationName: unknown,
+  stationCode: unknown
+) {
+  const nameSlug = createSlug(stationName);
+  const codeSlug = createSlug(stationCode);
+
+  if (nameSlug && codeSlug) {
+    return `${nameSlug}-${codeSlug}`;
+  }
+
+  return codeSlug || nameSlug;
+}
+
+function createRestaurantSlug(
+  restroName: unknown,
+  restroCode: unknown
+) {
+  const nameSlug = createSlug(restroName);
+  const codeSlug = createSlug(restroCode);
+
+  if (nameSlug && codeSlug) {
+    return `${nameSlug}-${codeSlug}`;
+  }
+
+  return codeSlug || nameSlug;
+}
+
+function normalizeImageUrl(
+  value: unknown,
+  restroCode: unknown,
+  projectUrl: string
+) {
   const baseUrl = projectUrl.replace(/\/$/, "");
-  const image = String(value ?? "").trim();
-  const code = String(restroCode ?? "").trim();
+  const image = cleanText(value);
+  const code = cleanText(restroCode);
 
   const codeImage = code
     ? `${baseUrl}/storage/v1/object/public/${RESTRO_DISPLAY_BUCKET}/${encodeURIComponent(
@@ -28,13 +85,21 @@ function normalizeImageUrl(value: unknown, restroCode: unknown, projectUrl: stri
       )}.webp`
     : FALLBACK_IMAGE;
 
-  if (!image) return codeImage;
+  if (!image) {
+    return codeImage;
+  }
 
-  if (image.startsWith("http://") || image.startsWith("https://")) {
+  if (
+    image.startsWith("http://") ||
+    image.startsWith("https://")
+  ) {
     return image;
   }
 
-  if (image.startsWith("/") && !image.includes("/storage/v1/object/public/")) {
+  if (
+    image.startsWith("/") &&
+    !image.includes("/storage/v1/object/public/")
+  ) {
     return image;
   }
 
@@ -46,7 +111,10 @@ function normalizeImageUrl(value: unknown, restroCode: unknown, projectUrl: stri
   }
 
   if (cleanImage.includes("/storage/v1/object/public/")) {
-    const storagePath = cleanImage.split("/storage/v1/object/public/").pop();
+    const storagePath = cleanImage
+      .split("/storage/v1/object/public/")
+      .pop();
+
     return storagePath
       ? `${baseUrl}/storage/v1/object/public/${storagePath}`
       : codeImage;
@@ -56,7 +124,10 @@ function normalizeImageUrl(value: unknown, restroCode: unknown, projectUrl: stri
     return `${baseUrl}/storage/v1/object/public/${cleanImage}`;
   }
 
-  if (cleanImage.startsWith("restro/") || cleanImage.startsWith("Restro/")) {
+  if (
+    cleanImage.startsWith("restro/") ||
+    cleanImage.startsWith("Restro/")
+  ) {
     return `${baseUrl}/storage/v1/object/public/${RESTRO_DISPLAY_BUCKET}/${fileName}`;
   }
 
@@ -65,11 +136,6 @@ function normalizeImageUrl(value: unknown, restroCode: unknown, projectUrl: stri
   }
 
   return codeImage;
-}
-
-function toNumber(value: unknown) {
-  const numberValue = Number(value);
-  return Number.isFinite(numberValue) ? numberValue : null;
 }
 
 export async function GET() {
@@ -81,11 +147,19 @@ export async function GET() {
         {
           success: false,
           error: "Supabase configuration missing",
+          count: 0,
           data: [],
         },
-        { status: 500 }
+        {
+          status: 500,
+          headers: {
+            "Cache-Control": "no-store",
+          },
+        }
       );
     }
+
+    const baseUrl = PROJECT_URL.replace(/\/$/, "");
 
     const select = encodeURIComponent(
       [
@@ -100,12 +174,18 @@ export async function GET() {
       ].join(",")
     );
 
-    const apiUrl = `${PROJECT_URL.replace(
-      /\/$/,
-      ""
-    )}/rest/v1/RestroMaster?select=${select}&RaileatsStatus=eq.1&order=RestroCode.asc&limit=10`;
+    /*
+     * limit intentionally removed:
+     * all active RailEats restaurants will be returned.
+     */
+    const apiUrl =
+      `${baseUrl}/rest/v1/RestroMaster` +
+      `?select=${select}` +
+      `&RaileatsStatus=eq.1` +
+      `&order=RestroName.asc`;
 
     const response = await fetch(apiUrl, {
+      method: "GET",
       headers: {
         apikey: SERVICE_KEY,
         Authorization: `Bearer ${SERVICE_KEY}`,
@@ -114,7 +194,7 @@ export async function GET() {
       cache: "no-store",
     });
 
-    const text = await response.text();
+    const responseText = await response.text();
 
     if (!response.ok) {
       return NextResponse.json(
@@ -122,37 +202,84 @@ export async function GET() {
           success: false,
           error: "Supabase request failed",
           status: response.status,
-          details: text,
+          details: responseText,
+          count: 0,
           data: [],
         },
-        { status: 502 }
+        {
+          status: 502,
+          headers: {
+            "Cache-Control": "no-store",
+          },
+        }
       );
     }
 
     let rows: any[] = [];
 
     try {
-      rows = JSON.parse(text);
+      const parsedData = JSON.parse(responseText);
+      rows = Array.isArray(parsedData) ? parsedData : [];
     } catch {
       rows = [];
     }
 
-    const activeRestaurants = (Array.isArray(rows) ? rows : [])
-      .filter((restro) => restro?.RestroCode && restro?.RestroName)
-      .map((restro) => ({
-        RestroCode: restro.RestroCode,
-        RestroName: restro.RestroName,
-        StationCode: restro.StationCode ?? "",
-        StationName: restro.StationName ?? "",
-        RestroDisplayPhoto: normalizeImageUrl(
-          restro.RestroDisplayPhoto,
-          restro.RestroCode,
-          PROJECT_URL
-        ),
-        RaileatsStatus: restro.RaileatsStatus,
-        RestroRating: toNumber(restro.RestroRating),
-        MinimumOrderValue: toNumber(restro.MinimumOrderValue),
-      }));
+    const activeRestaurants = rows
+      .filter((restro) => {
+        const restroCode = cleanText(restro?.RestroCode);
+        const restroName = cleanText(restro?.RestroName);
+        const stationCode = cleanText(restro?.StationCode);
+
+        return restroCode && restroName && stationCode;
+      })
+      .map((restro) => {
+        const restroCode = cleanText(restro.RestroCode);
+        const restroName = cleanText(restro.RestroName);
+        const stationCode = cleanText(
+          restro.StationCode
+        ).toUpperCase();
+        const stationName = cleanText(restro.StationName);
+
+        const stationSlug = createStationSlug(
+          stationName,
+          stationCode
+        );
+
+        const restroSlug = createRestaurantSlug(
+          restroName,
+          restroCode
+        );
+
+        const menuUrl =
+          stationSlug && restroSlug
+            ? `/Stations/${encodeURIComponent(
+                stationSlug
+              )}/${encodeURIComponent(restroSlug)}`
+            : "";
+
+        return {
+          RestroCode: restro.RestroCode,
+          RestroName: restroName,
+          StationCode: stationCode,
+          StationName: stationName,
+
+          RestroDisplayPhoto: normalizeImageUrl(
+            restro.RestroDisplayPhoto,
+            restroCode,
+            PROJECT_URL
+          ),
+
+          RaileatsStatus: restro.RaileatsStatus,
+          RestroRating: toNumber(restro.RestroRating),
+          MinimumOrderValue: toNumber(
+            restro.MinimumOrderValue
+          ),
+
+          StationSlug: stationSlug,
+          RestroSlug: restroSlug,
+          MenuUrl: menuUrl,
+        };
+      });
 
     return NextResponse.json(
       {
@@ -160,16 +287,31 @@ export async function GET() {
         count: activeRestaurants.length,
         data: activeRestaurants,
       },
-      { status: 200 }
+      {
+        status: 200,
+        headers: {
+          "Cache-Control":
+            "no-store, no-cache, must-revalidate, proxy-revalidate",
+        },
+      }
     );
   } catch (error) {
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : "Unexpected server error",
+        error:
+          error instanceof Error
+            ? error.message
+            : "Unexpected server error",
+        count: 0,
         data: [],
       },
-      { status: 500 }
+      {
+        status: 500,
+        headers: {
+          "Cache-Control": "no-store",
+        },
+      }
     );
   }
 }
