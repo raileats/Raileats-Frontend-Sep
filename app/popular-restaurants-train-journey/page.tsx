@@ -779,14 +779,18 @@ export default async function PopularRestaurantsPage() {
             }
 
             .restaurant-card-grid {
-              display: grid;
-              grid-template-columns: minmax(0, 1fr) 110px;
-              gap: 12px;
-              align-items: stretch;
+              width: 100%;
+              min-width: 0;
+              display: grid !important;
+              grid-template-columns: minmax(0, 1fr) 124px !important;
+              column-gap: 16px;
+              align-items: center;
+              box-sizing: border-box;
             }
 
             .restaurant-information {
               min-width: 0;
+              width: 100%;
             }
 
             .restaurant-name {
@@ -857,18 +861,23 @@ export default async function PopularRestaurantsPage() {
             }
 
             .restaurant-action {
-              display: flex;
+              width: 124px;
+              min-width: 124px;
+              display: flex !important;
               flex-direction: column;
+              justify-self: end;
+              align-self: center;
               gap: 8px;
             }
 
             .restaurant-image-wrapper {
-              width: 100%;
-              height: 88px;
+              width: 124px;
+              height: 96px;
               overflow: hidden;
               border: 1px solid #e2e8f0;
               border-radius: 14px;
               background: #f1f5f9;
+              box-sizing: border-box;
             }
 
             .restaurant-image,
@@ -889,7 +898,8 @@ export default async function PopularRestaurantsPage() {
             }
 
             .view-menu-button {
-              width: 100%;
+              display: block;
+              width: 124px;
               box-sizing: border-box;
               padding: 10px 8px;
               border-radius: 12px;
@@ -1101,6 +1111,27 @@ export default async function PopularRestaurantsPage() {
               .content-section,
               .final-cta {
                 padding: 16px 14px;
+              }
+            }
+
+            @media (max-width: 420px) {
+              .restaurant-card-grid {
+                grid-template-columns: minmax(0, 1fr) 108px !important;
+                column-gap: 10px;
+              }
+
+              .restaurant-action {
+                width: 108px;
+                min-width: 108px;
+              }
+
+              .restaurant-image-wrapper {
+                width: 108px;
+                height: 86px;
+              }
+
+              .view-menu-button {
+                width: 108px;
               }
             }
           `,
