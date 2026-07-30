@@ -1,3 +1,4 @@
+// app/components/FooterLinks.tsx
 "use client";
 import Link from "next/link";
 
@@ -127,8 +128,8 @@ export default function FooterLinks() {
       <div className="mt-4 text-sm text-gray-600">
         <p>
           Email:{" "}
-          <a href="mailto:railrats@gmail.com" className="text-yellow-700">
-            railrats@gmail.com
+          <a href="mailto:raileats@gmail.com" className="text-yellow-700">
+            raileats@gmail.com
           </a>
         </p>
         <p>
