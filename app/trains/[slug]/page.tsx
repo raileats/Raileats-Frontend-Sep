@@ -330,63 +330,6 @@ export default function TrainPage() {
         {displayTrainName ? ` - ${displayTrainName}` : ""}
       </h1>
 
-      <div
-        style={{
-          marginTop: 9,
-          display: "grid",
-          gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-          gap: 7,
-        }}
-      >
-        <div
-          style={{
-            border: "1px solid #f3e8c5",
-            borderRadius: 11,
-            padding: "7px 9px",
-            background: "#fffdf7",
-          }}
-        >
-          <div style={{ fontSize: 10, color: "#64748b", fontWeight: 700 }}>
-            Boarding
-          </div>
-
-          <div
-            style={{
-              marginTop: 1,
-              fontSize: 13,
-              fontWeight: 800,
-              color: "#1e293b",
-            }}
-          >
-            {boarding || "-"}
-          </div>
-        </div>
-
-        <div
-          style={{
-            border: "1px solid #f3e8c5",
-            borderRadius: 11,
-            padding: "7px 9px",
-            background: "#fffdf7",
-          }}
-        >
-          <div style={{ fontSize: 10, color: "#64748b", fontWeight: 700 }}>
-            Journey Date
-          </div>
-
-          <div
-            style={{
-              marginTop: 1,
-              fontSize: 13,
-              fontWeight: 800,
-              color: "#1e293b",
-              wordBreak: "break-word",
-            }}
-          >
-            {urlDate || "-"}
-          </div>
-        </div>
-      </div>
     </div>
   </div>
       </section>
@@ -767,6 +710,166 @@ export default function TrainPage() {
           </section>
         );
       })}
+
+      {isSeoPreview ? (
+        <section
+          style={{
+            background: "#ffffff",
+            border: "1px solid #e2e8f0",
+            borderRadius: 20,
+            padding: "18px 15px",
+            boxShadow: "0 2px 10px rgba(15,23,42,0.04)",
+            color: "#334155",
+          }}
+        >
+          <h2
+            style={{
+              margin: 0,
+              fontSize: 20,
+              lineHeight: 1.3,
+              fontWeight: 800,
+              color: "#1e293b",
+            }}
+          >
+            Order Food in Train {trainNumber}
+            {displayTrainName ? ` - ${displayTrainName}` : ""}
+          </h2>
+
+          <p style={{ margin: "10px 0 0", fontSize: 14, lineHeight: 1.65 }}>
+            Looking for fresh food delivery in train {trainNumber}
+            {displayTrainName ? ` (${displayTrainName})` : ""}? RailEats helps
+            you view active restaurants available on this train route and order
+            meals for delivery at your selected railway station. Enter your
+            10-digit PNR above to check the correct journey date, route stations
+            and restaurants available for your trip.
+          </p>
+
+          <h2
+            style={{
+              margin: "22px 0 0",
+              fontSize: 18,
+              lineHeight: 1.35,
+              fontWeight: 800,
+              color: "#1e293b",
+            }}
+          >
+            How to Book Food on Train {trainNumber}
+          </h2>
+
+          <ol
+            style={{
+              margin: "10px 0 0",
+              paddingLeft: 21,
+              fontSize: 14,
+              lineHeight: 1.7,
+            }}
+          >
+            <li>Enter your valid 10-digit PNR number.</li>
+            <li>Choose a delivery station and an active restaurant.</li>
+            <li>Select your preferred meals from the restaurant menu.</li>
+            <li>Confirm your coach, seat and contact details.</li>
+            <li>Place the order and receive food at your train seat.</li>
+          </ol>
+
+          <h2
+            style={{
+              margin: "22px 0 0",
+              fontSize: 18,
+              lineHeight: 1.35,
+              fontWeight: 800,
+              color: "#1e293b",
+            }}
+          >
+            Food Delivery Stations for Train {trainNumber}
+          </h2>
+
+          <p style={{ margin: "9px 0 0", fontSize: 14, lineHeight: 1.65 }}>
+            Restaurant availability can vary by station, journey date, arrival
+            time and order cut-off. The station and restaurant cards shown above
+            help you explore current food options on the route. Your PNR is
+            verified before booking so RailEats can show delivery choices
+            relevant to your actual journey.
+          </p>
+
+          <h2
+            style={{
+              margin: "22px 0 0",
+              fontSize: 18,
+              lineHeight: 1.35,
+              fontWeight: 800,
+              color: "#1e293b",
+            }}
+          >
+            Frequently Asked Questions
+          </h2>
+
+          <div style={{ marginTop: 10, display: "grid", gap: 9 }}>
+            {[
+              {
+                q: `Can I order food online in train ${trainNumber}?`,
+                a: `Yes. Enter your PNR to see eligible delivery stations and active restaurants for train ${trainNumber}.`,
+              },
+              {
+                q: "Is a PNR required to place the order?",
+                a: "Yes. PNR verification helps confirm your train, journey date and eligible delivery stations before you order.",
+              },
+              {
+                q: "Where will my food be delivered?",
+                a: "Your order is delivered at the railway station selected during booking, using the coach and seat details provided with the order.",
+              },
+              {
+                q: "Why can restaurant availability change?",
+                a: "Availability depends on the station, restaurant status, train arrival time, journey date and the restaurant's order cut-off.",
+              },
+            ].map((faq) => (
+              <details
+                key={faq.q}
+                style={{
+                  border: "1px solid #e2e8f0",
+                  borderRadius: 13,
+                  padding: "11px 12px",
+                  background: "#f8fafc",
+                }}
+              >
+                <summary
+                  style={{
+                    cursor: "pointer",
+                    fontSize: 14,
+                    lineHeight: 1.45,
+                    fontWeight: 800,
+                    color: "#1e293b",
+                  }}
+                >
+                  {faq.q}
+                </summary>
+                <p
+                  style={{
+                    margin: "8px 0 0",
+                    fontSize: 13,
+                    lineHeight: 1.6,
+                    color: "#475569",
+                  }}
+                >
+                  {faq.a}
+                </p>
+              </details>
+            ))}
+          </div>
+
+          <p
+            style={{
+              margin: "18px 0 0",
+              fontSize: 12,
+              lineHeight: 1.6,
+              color: "#64748b",
+            }}
+          >
+            Train timings, route information and restaurant availability may
+            change. Please verify your journey using PNR before placing an
+            order.
+          </p>
+        </section>
+      ) : null}
     </main>
   );
 }
