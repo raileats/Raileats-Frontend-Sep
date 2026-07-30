@@ -17,6 +17,7 @@ const inter = Inter({
 });
 
 const siteUrl = "https://www.raileats.in";
+
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
 
@@ -34,6 +35,9 @@ export const metadata: Metadata = {
   referrer: "origin-when-cross-origin",
 
   keywords: [
+    "RailEats",
+    "Rail Eats",
+    "RailEats.in",
     "food delivery in train",
     "order food in train",
     "train food order",
@@ -43,7 +47,6 @@ export const metadata: Metadata = {
     "railway station food delivery",
     "railway food delivery",
     "restaurant food in train",
-    "RailEats",
     "IRCTC food delivery",
   ],
 
@@ -53,7 +56,7 @@ export const metadata: Metadata = {
 
   openGraph: {
     type: "website",
-    url: siteUrl,
+    url: `${siteUrl}/`,
     siteName: "RailEats",
     title: "RailEats | Order Food in Train Online",
     description:
@@ -116,11 +119,13 @@ export const viewport: Viewport = {
 };
 
 const organizationSchema = {
-  "@context": "https://schema.org",
   "@type": "Organization",
   "@id": `${siteUrl}/#organization`,
   name: "RailEats",
-  url: siteUrl,
+  alternateName: "Rail Eats",
+  url: `${siteUrl}/`,
+  description:
+    "RailEats is an online food delivery platform for train passengers in India.",
   logo: {
     "@type": "ImageObject",
     "@id": `${siteUrl}/#logo`,
@@ -128,9 +133,27 @@ const organizationSchema = {
     contentUrl: `${siteUrl}/raileats-logo.png`,
     width: 512,
     height: 512,
-    caption: "RailEats train food delivery logo",
+    caption: "RailEats",
   },
-  sameAs: [siteUrl],
+};
+
+const websiteSchema = {
+  "@type": "WebSite",
+  "@id": `${siteUrl}/#website`,
+  url: `${siteUrl}/`,
+  name: "RailEats",
+  alternateName: ["Rail Eats", "RailEats.in"],
+  description:
+    "Order food in train online with RailEats by PNR, train number or railway station.",
+  publisher: {
+    "@id": `${siteUrl}/#organization`,
+  },
+  inLanguage: "en-IN",
+};
+
+const brandSchema = {
+  "@context": "https://schema.org",
+  "@graph": [organizationSchema, websiteSchema],
 };
 
 export default function RootLayout({
@@ -146,7 +169,7 @@ export default function RootLayout({
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
-            __html: JSON.stringify(organizationSchema),
+            __html: JSON.stringify(brandSchema),
           }}
         />
 
