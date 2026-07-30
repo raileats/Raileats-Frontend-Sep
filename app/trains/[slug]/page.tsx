@@ -160,8 +160,18 @@ export default function TrainPage() {
       name: displayTrainName,
     });
 
-    setJourney(urlDate, boarding);
-  }, [trainNumber, displayTrainName, urlDate, boarding, setTrain, setJourney]);
+    if (!isSeoPreview) {
+      setJourney(urlDate, boarding);
+    }
+  }, [
+    trainNumber,
+    displayTrainName,
+    urlDate,
+    boarding,
+    isSeoPreview,
+    setTrain,
+    setJourney,
+  ]);
 
   useEffect(() => {
     async function fetchData() {
@@ -173,7 +183,7 @@ export default function TrainPage() {
             trainNumber
           )}&date=${encodeURIComponent(urlDate)}&boarding=${encodeURIComponent(
             boarding
-          )}&full=1`,
+          )}&preview=${isSeoPreview ? "1" : "0"}`,
           { cache: "no-store" }
         );
 
@@ -197,7 +207,7 @@ export default function TrainPage() {
     }
 
     if (trainNumber) fetchData();
-  }, [trainNumber, urlDate, boarding]);
+  }, [trainNumber, urlDate, boarding, isSeoPreview]);
 
   if (loading) {
     return (
@@ -257,7 +267,7 @@ export default function TrainPage() {
         gap: 12,
       }}
     >
-      <SaveOrderData data={orderData} />
+      {!isSeoPreview ? <SaveOrderData data={orderData} /> : null}
 
       <section
   style={{
@@ -379,8 +389,21 @@ export default function TrainPage() {
       </div>
     </div>
   </div>
-</section>
+      </section>
       {isSeoPreview ? <PnrSearchBox /> : null}
+      {stations.length > 0 ? (
+        <h2
+          style={{
+            margin: "4px 2px 0",
+            fontSize: 18,
+            lineHeight: 1.3,
+            fontWeight: 800,
+            color: "#1e293b",
+          }}
+        >
+          Stations with Active Restaurants
+        </h2>
+      ) : null}
       {stations.map((st: any, index: number) => {
         const stationCode = st.StationCode;
         const stationName = st.StationName;
@@ -392,6 +415,10 @@ export default function TrainPage() {
         const vendors = st.vendors || [];
 
         const validVendors = vendors.filter((r: any) => {
+          if (isSeoPreview) {
+            return true;
+          }
+
           const cutoff =
             parseInt(String(r.CutOffTime ?? r.cutoff_time ?? "0").trim(), 10) ||
             0;
@@ -619,21 +646,27 @@ export default function TrainPage() {
         <span>Rs {r.MinimumOrderValue || 0}</span>
       </div>
 
-      <div
-        style={{
-          marginTop: 7,
-          color: isClosingSoon ? "#dc2626" : "#2563eb",
-          display: "flex",
-          alignItems: "flex-start",
-          gap: 6,
-          lineHeight: 1.25,
-          fontSize: 11,
-          fontWeight: 800,
-        }}
-      >
-        <Clock size={13} strokeWidth={2.2} style={{ flexShrink: 0, marginTop: 1 }} />
-        <span>Order before: {timeText}</span>
-      </div>
+      {!isSeoPreview ? (
+        <div
+          style={{
+            marginTop: 7,
+            color: isClosingSoon ? "#dc2626" : "#2563eb",
+            display: "flex",
+            alignItems: "flex-start",
+            gap: 6,
+            lineHeight: 1.25,
+            fontSize: 11,
+            fontWeight: 800,
+          }}
+        >
+          <Clock
+            size={13}
+            strokeWidth={2.2}
+            style={{ flexShrink: 0, marginTop: 1 }}
+          />
+          <span>Order before: {timeText}</span>
+        </div>
+      ) : null}
     </div>
 
     {/* RIGHT PHOTO + BUTTON */}
@@ -680,19 +713,35 @@ export default function TrainPage() {
       </div>
 
       <a
-        href={`/Stations/${stationSlug}/${restroSlug}?deliveryDate=${encodeURIComponent(
-          deliveryDate
-        )}${
-          cleanArrival
-            ? `&deliveryTime=${encodeURIComponent(cleanArrival)}`
-            : ""
-        }${
-          cleanArrival ? `&arrival=${encodeURIComponent(cleanArrival)}` : ""
-        }&train=${encodeURIComponent(trainNumber)}&trainName=${encodeURIComponent(
-          finalTrainName
-        )}&boarding=${encodeURIComponent(boarding)}&minOrder=${encodeURIComponent(
-          r.MinimumOrderValue || 0
-        )}`}
+        href={
+          isSeoPreview
+            ? `/Stations/${stationSlug}/${restroSlug}?mode=station&stationCode=${encodeURIComponent(
+                stationCode
+              )}&stationName=${encodeURIComponent(
+                stationName
+              )}&train=${encodeURIComponent(
+                trainNumber
+              )}&trainName=${encodeURIComponent(
+                finalTrainName
+              )}&minOrder=${encodeURIComponent(r.MinimumOrderValue || 0)}`
+            : `/Stations/${stationSlug}/${restroSlug}?deliveryDate=${encodeURIComponent(
+                deliveryDate
+              )}${
+                cleanArrival
+                  ? `&deliveryTime=${encodeURIComponent(cleanArrival)}`
+                  : ""
+              }${
+                cleanArrival
+                  ? `&arrival=${encodeURIComponent(cleanArrival)}`
+                  : ""
+              }&train=${encodeURIComponent(
+                trainNumber
+              )}&trainName=${encodeURIComponent(
+                finalTrainName
+              )}&boarding=${encodeURIComponent(
+                boarding
+              )}&minOrder=${encodeURIComponent(r.MinimumOrderValue || 0)}`
+        }
         style={{
           width: "100%",
           textAlign: "center",
@@ -707,7 +756,7 @@ export default function TrainPage() {
           boxShadow: "0 4px 12px rgba(249,115,22,0.16)",
         }}
       >
-        Order Now
+        {isSeoPreview ? "View Menu" : "Order Now"}
       </a>
     </div>
   </div>
