@@ -398,6 +398,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         priority: 0.9,
       },
       {
+        url: `${baseUrl}/stations`,
+        lastModified: now,
+        changeFrequency: "daily",
+        priority: 0.92,
+      },
+      {
         url: `${baseUrl}/offers`,
         lastModified: now,
         changeFrequency: "daily",
