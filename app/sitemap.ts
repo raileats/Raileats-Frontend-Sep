@@ -26,6 +26,11 @@ type TrainRouteRow = {
   StationCode?: string | null;
 };
 
+type StationMasterRow = {
+  StationCode?: string | null;
+  StationName?: string | null;
+};
+
 function slugify(value: unknown) {
   return String(value ?? "")
     .trim()
@@ -258,6 +263,25 @@ async function fetchAllFssaiRows() {
   return rows;
 }
 
+async function fetchAllStations() {
+  const rows: StationMasterRow[] = [];
+
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await serviceClient
+      .from("Stations")
+      .select("StationCode, StationName")
+      .order("StationCode", { ascending: true })
+      .range(from, from + pageSize - 1);
+
+    if (error) throw new Error(`Stations fetch failed: ${error.message}`);
+    const page = (data || []) as StationMasterRow[];
+    rows.push(...page);
+    if (page.length < pageSize) break;
+  }
+
+  return rows;
+}
+
 async function fetchAllTrainRouteRows() {
   const rows: TrainRouteRow[] = [];
 
@@ -451,17 +475,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }
 
   try {
-    const [restros, fssaiRows] =
+    const [restros, stationRows] =
       await Promise.all([
         fetchAllRestros(),
-        fetchAllFssaiRows(),
+        fetchAllStations(),
       ]);
 
-    const indiaTodayKey =
-      getIndiaTodayKey();
-
-    const latestFssaiRows =
-      getLatestFssaiRows(fssaiRows);
+    const stationNames = new Map<string, string>();
+    for (const station of stationRows) {
+      const code = normalizeStationCode(station.StationCode);
+      const name = String(station.StationName ?? "").trim();
+      if (code && name && !stationNames.has(code)) stationNames.set(code, name);
+    }
 
     const eligibleStationCodes =
       new Set<string>();
@@ -471,36 +496,25 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         normalizeRestroCode(
           restro.RestroCode
         );
-      const fssai = restroCode
-        ? latestFssaiRows.get(restroCode)
-        : undefined;
-      const expiryDateKey = fssai
-        ? parseDateKey(fssai.expiry_date)
-        : null;
-      const hasExpiredFssai =
-        expiryDateKey !== null &&
-        expiryDateKey < indiaTodayKey;
-
       if (
         !isActive(restro.RaileatsStatus) ||
-        !restroCode ||
-        hasExpiredFssai
+        !restroCode
       ) {
         continue;
       }
 
+      const normalizedStationCode =
+        normalizeStationCode(restro.StationCode);
+
       const stationName = slugify(
-        restro.StationName
+        restro.StationName ||
+          stationNames.get(normalizedStationCode) ||
+          normalizedStationCode
       );
 
       const stationCode = slugify(
         restro.StationCode
       );
-
-      const normalizedStationCode =
-        normalizeStationCode(
-          restro.StationCode
-        );
 
       const restroName = slugify(
         restro.RestroName
