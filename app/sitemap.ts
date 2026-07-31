@@ -463,40 +463,28 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const latestFssaiRows =
       getLatestFssaiRows(fssaiRows);
 
-    const validFssaiCodes =
-      new Set<string>();
-
     const eligibleStationCodes =
       new Set<string>();
-
-    for (const [
-      restroCode,
-      row,
-    ] of Array.from(
-      latestFssaiRows.entries()
-    )) {
-      const expiryDateKey =
-        parseDateKey(row.expiry_date);
-
-      if (
-        isActiveFssaiStatus(row.status) &&
-        expiryDateKey !== null &&
-        expiryDateKey >= indiaTodayKey
-      ) {
-        validFssaiCodes.add(restroCode);
-      }
-    }
 
     for (const restro of restros) {
       const restroCode =
         normalizeRestroCode(
           restro.RestroCode
         );
+      const fssai = restroCode
+        ? latestFssaiRows.get(restroCode)
+        : undefined;
+      const expiryDateKey = fssai
+        ? parseDateKey(fssai.expiry_date)
+        : null;
+      const hasExpiredFssai =
+        expiryDateKey !== null &&
+        expiryDateKey < indiaTodayKey;
 
       if (
         !isActive(restro.RaileatsStatus) ||
         !restroCode ||
-        !validFssaiCodes.has(restroCode)
+        hasExpiredFssai
       ) {
         continue;
       }
