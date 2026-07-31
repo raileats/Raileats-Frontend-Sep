@@ -56,6 +56,13 @@ type FssaiRow = {
   created_at?: string | null;
 };
 
+type StationMasterRow = {
+  StationCode?: string | null;
+  StationName?: string | null;
+  State?: string | null;
+  District?: string | null;
+};
+
 type Station = {
   code: string;
   name: string;
@@ -163,40 +170,35 @@ async function fetchAll<T>(table: string, select: string): Promise<T[]> {
 
 async function getStations(): Promise<Station[]> {
   try {
-    const [restros, fssaiRows] = await Promise.all([
+    const [restros, stationRows] = await Promise.all([
       fetchAll<RestroRow>(
         "RestroMaster",
         "RestroCode,RestroName,StationCode,StationName,State,District,RaileatsStatus"
       ),
-      fetchAll<FssaiRow>("RestroFSSAI", "RestroCode,expiry_date,status,created_at"),
+      fetchAll<StationMasterRow>(
+        "Stations",
+        "StationCode,StationName,State,District"
+      ),
     ]);
 
-    const latestFssai = new Map<string, FssaiRow>();
-    for (const row of fssaiRows) {
-      const code = normalizeRestroCode(row.RestroCode);
-      if (!code) continue;
-      const current = latestFssai.get(code);
-      const currentTime = new Date(current?.created_at || 0).getTime() || 0;
-      const nextTime = new Date(row.created_at || 0).getTime() || 0;
-      if (!current || nextTime >= currentTime) latestFssai.set(code, row);
+    const stationMaster = new Map<string, StationMasterRow>();
+    for (const row of stationRows) {
+      const stationCode = clean(row.StationCode).toUpperCase();
+      if (stationCode && !stationMaster.has(stationCode)) {
+        stationMaster.set(stationCode, row);
+      }
     }
-
-    const today = indiaTodayKey();
 
     const stations = new Map<string, Omit<Station, "href"> & { restros: Set<string> }>();
     for (const row of restros) {
       const restroCode = normalizeRestroCode(row.RestroCode);
       const stationCode = clean(row.StationCode).toUpperCase();
-      const stationName = clean(row.StationName);
-      const fssai = latestFssai.get(restroCode);
-      const fssaiExpiry = fssai ? parseDateKey(fssai.expiry_date) : null;
-      const hasExpiredFssai = fssaiExpiry !== null && fssaiExpiry < today;
+      const master = stationMaster.get(stationCode);
+      const stationName = clean(row.StationName) || clean(master?.StationName) || stationCode;
       if (
         !isActive(row.RaileatsStatus) ||
         !restroCode ||
-        hasExpiredFssai ||
-        !stationCode ||
-        !stationName
+        !stationCode
       ) {
         continue;
       }
@@ -209,8 +211,8 @@ async function getStations(): Promise<Station[]> {
         stations.set(stationCode, {
           code: stationCode,
           name: stationName,
-          state: clean(row.State),
-          district: clean(row.District),
+          state: clean(row.State) || clean(master?.State),
+          district: clean(row.District) || clean(master?.District),
           restaurantCount: 1,
           restros: new Set([restroCode]),
         });
