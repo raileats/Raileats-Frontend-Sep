@@ -182,21 +182,19 @@ async function getStations(): Promise<Station[]> {
     }
 
     const today = indiaTodayKey();
-    const validCodes = new Set<string>();
-    for (const [code, row] of Array.from(latestFssai.entries())) {
-      const expiry = parseDateKey(row.expiry_date);
-      if (isActive(row.status) && expiry !== null && expiry >= today) validCodes.add(code);
-    }
 
     const stations = new Map<string, Omit<Station, "href"> & { restros: Set<string> }>();
     for (const row of restros) {
       const restroCode = normalizeRestroCode(row.RestroCode);
       const stationCode = clean(row.StationCode).toUpperCase();
       const stationName = clean(row.StationName);
+      const fssai = latestFssai.get(restroCode);
+      const fssaiExpiry = fssai ? parseDateKey(fssai.expiry_date) : null;
+      const hasExpiredFssai = fssaiExpiry !== null && fssaiExpiry < today;
       if (
         !isActive(row.RaileatsStatus) ||
         !restroCode ||
-        !validCodes.has(restroCode) ||
+        hasExpiredFssai ||
         !stationCode ||
         !stationName
       ) {
