@@ -370,12 +370,17 @@ function normalizeItem(it: any) {
   };
 }
 
-function normalizeItems(rawItems: any[], arrivalTime: string) {
+function normalizeItems(rawItems: any[], arrivalTime?: string) {
   return (rawItems || [])
     .map(normalizeItem)
     .filter((it: any) => {
       if (!it.id || !it.item_name) return false;
       if (it.status !== "ON") return false;
+
+      // Direct SEO/station URLs do not contain a train arrival time. In that
+      // case show every valid ON item. Apply the existing time-window filter
+      // only when the visitor arrived through a journey URL with a real time.
+      if (!arrivalTime) return true;
 
       return isTimeInRange(arrivalTime, it.start_time, it.end_time);
     });
@@ -529,7 +534,7 @@ export async function generateMetadata({
     "";
 
   const trainNumber = firstParam(searchParams?.train) || "";
-  const arrivalTime = deliveryTime ? `${deliveryTime.slice(0, 5)}:00` : "12:00:00";
+  const arrivalTime = deliveryTime ? `${deliveryTime.slice(0, 5)}:00` : "";
   const rawItems = await fetchOnMenu(restroCode, arrivalTime);
   const items = normalizeItems(rawItems, arrivalTime);
   const terms = extractMenuTerms(items);
@@ -618,7 +623,7 @@ export default async function Page({ params, searchParams }: any) {
   const trainNumber = firstParam(searchParams?.train) || "";
   const minOrderFromUrl = firstParam(searchParams?.minOrder) || "0";
 
-  const arrivalTime = deliveryTime ? `${deliveryTime.slice(0, 5)}:00` : "12:00:00";
+  const arrivalTime = deliveryTime ? `${deliveryTime.slice(0, 5)}:00` : "";
   const rawItems = await fetchOnMenu(restroCode, arrivalTime);
   const stationRestaurants = await fetchStationRestaurants(stationCode, String(restroCode));
 
