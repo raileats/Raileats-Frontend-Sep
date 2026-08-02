@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
+import { notFound, permanentRedirect } from "next/navigation";
 import { extractRestroCode } from "../../../lib/restroSlug";
 import { serviceClient } from "../../../lib/supabaseServer";
 import RestroMenuClient from "./RestroMenuClient";
@@ -139,6 +140,18 @@ function restaurantHref(stationSlug: string, row: any) {
   return `/stations/${stationSlug}/${row.RestroCode}-${slugify(restaurantName(row))}`;
 }
 
+function restaurantNameFromRouteSlug(restroSlug: string) {
+  return slugify(
+    decodeURIComponent(String(restroSlug || ""))
+      .replace(/^\d+-/, "")
+      .replace(/-\d+$/, "")
+  );
+}
+
+function canonicalRestaurantSlug(row: any) {
+  return `${slugify(restaurantName(row))}-${String(row?.RestroCode || "").trim()}`;
+}
+
 function rowImage(row: any) {
   return (
     row?.RestroImage ||
@@ -266,6 +279,49 @@ async function fetchStationRestaurants(stationCode: string, currentRestroCode: s
       );
     })
   );
+}
+
+async function resolveRestaurantRoute({
+  stationCode,
+  requestedRestroCode,
+  restroSlug,
+}: {
+  stationCode: string;
+  requestedRestroCode: string;
+  restroSlug: string;
+}) {
+  if (!stationCode || !requestedRestroCode) return null;
+
+  const { data: exactRows } = await serviceClient
+    .from("RestroMaster")
+    .select("RestroCode, RestroName, StationCode, RaileatsStatus")
+    .eq("RestroCode", requestedRestroCode)
+    .limit(5);
+
+  const exactRestaurant = (exactRows || []).find(
+    (row: any) =>
+      String(row?.RestroCode ?? "").trim() === requestedRestroCode &&
+      String(row?.StationCode ?? "").trim().toUpperCase() === stationCode.toUpperCase()
+  );
+
+  if (exactRestaurant) return exactRestaurant;
+
+  const routeName = restaurantNameFromRouteSlug(restroSlug);
+  if (!routeName) return null;
+
+  const { data: stationRows } = await serviceClient
+    .from("RestroMaster")
+    .select("RestroCode, RestroName, StationCode, RaileatsStatus")
+    .eq("StationCode", stationCode)
+    .limit(100);
+
+  const nameMatches = (stationRows || []).filter(
+    (row: any) =>
+      isActive(row?.RaileatsStatus) &&
+      slugify(restaurantName(row)) === routeName
+  );
+
+  return nameMatches.length === 1 ? nameMatches[0] : null;
 }
 
 /* ================= TIME CHECK ================= */
@@ -608,6 +664,33 @@ export default async function Page({ params, searchParams }: any) {
   const stationName = parsedStation.name;
   const restroCode = extractRestroCode(params.restroSlug) || "";
   const outletName = humanizeFromSlug(params.restroSlug);
+
+  const resolvedRestaurant = await resolveRestaurantRoute({
+    stationCode,
+    requestedRestroCode: String(restroCode),
+    restroSlug: params.restroSlug,
+  });
+
+  if (!resolvedRestaurant) {
+    notFound();
+  }
+
+  const resolvedRestroCode = String(resolvedRestaurant.RestroCode || "").trim();
+
+  if (resolvedRestroCode !== String(restroCode)) {
+    const targetPath = `/stations/${encodeURIComponent(
+      params.slug || ""
+    )}/${encodeURIComponent(canonicalRestaurantSlug(resolvedRestaurant))}`;
+    const query = new URLSearchParams();
+
+    Object.entries(searchParams || {}).forEach(([key, value]) => {
+      const selected = firstParam(value);
+      if (selected) query.set(key, selected);
+    });
+
+    const queryString = query.toString();
+    permanentRedirect(`${targetPath}${queryString ? `?${queryString}` : ""}`);
+  }
 
   const deliveryDate =
     firstParam(searchParams?.deliveryDate) || firstParam(searchParams?.date) || "";
