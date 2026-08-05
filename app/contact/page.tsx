@@ -43,7 +43,7 @@ const contactSchema = {
     "@type": "Organization",
     name: "RailEats",
     url: siteUrl,
-    email: "railrats@gmail.com",
+    email: "support@raileats.com",
     contactPoint: {
       "@type": "ContactPoint",
       telephone: "+91-800-800-9335",
