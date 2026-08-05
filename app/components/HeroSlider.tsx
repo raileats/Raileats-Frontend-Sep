@@ -1,7 +1,8 @@
-"use client";
+// app/components/HeroSlider.tsx
+  "use client";
 
 import Image from "next/image";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 export type HeroSlide = {
   id: number | string;
@@ -13,6 +14,8 @@ export type HeroSlide = {
 type HeroSliderProps = {
   initialSlides?: HeroSlide[];
 };
+
+const AUTO_PLAY_DELAY = 3500;
 
 const fallbackSlides: HeroSlide[] = [
   {
@@ -41,13 +44,16 @@ export default function HeroSlider({
   initialSlides = EMPTY_SLIDES,
 }: HeroSliderProps) {
   const slides = useMemo(() => {
-    const source = initialSlides.length > 0 ? initialSlides : fallbackSlides;
+    const source =
+      initialSlides.length > 0 ? initialSlides : fallbackSlides;
+
     const validSlides = source
       .filter((slide) => Boolean(slide?.image_url))
       .slice()
       .sort(
         (a, b) =>
-          Number(a.sort_order ?? 999) - Number(b.sort_order ?? 999)
+          Number(a.sort_order ?? 999) -
+          Number(b.sort_order ?? 999)
       );
 
     return validSlides.length > 0 ? validSlides : fallbackSlides;
@@ -55,9 +61,31 @@ export default function HeroSlider({
 
   const [currentIndex, setCurrentIndex] = useState(0);
 
-  const activeSlide = slides[currentIndex] || slides[0];
+  // Slides update hone par current index valid rakhta hai.
+  useEffect(() => {
+    setCurrentIndex((index) =>
+      index >= slides.length ? 0 : index
+    );
+  }, [slides.length]);
+
+  // Har 3.5 seconds mein next slide automatically show karega.
+  useEffect(() => {
+    if (slides.length <= 1) {
+      return;
+    }
+
+    const intervalId = window.setInterval(() => {
+      setCurrentIndex((index) => (index + 1) % slides.length);
+    }, AUTO_PLAY_DELAY);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [slides.length]);
+
+  const activeSlide = slides[currentIndex] ?? slides[0];
   const activeText =
-    activeSlide?.title || "RailEats train food delivery";
+    activeSlide.title || "RailEats train food delivery";
 
   return (
     <section
@@ -104,7 +132,9 @@ export default function HeroSlider({
                 aria-label={`Show offer ${index + 1}: ${
                   slide.title || "RailEats offer"
                 }`}
-                aria-current={index === currentIndex ? "true" : undefined}
+                aria-current={
+                  index === currentIndex ? "true" : undefined
+                }
                 className="group inline-flex h-11 w-11 items-center justify-center rounded-full"
               >
                 <span
