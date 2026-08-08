@@ -538,7 +538,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         `-food-delivery-in-train`;
 
       const restroSlug =
-        `${restroCode}-${restroName}`;
+        `${restroName}-${restroCode}`;
 
       const stationUrl =
         `${baseUrl}/stations/${stationSlug}`;
