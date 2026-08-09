@@ -429,6 +429,13 @@ export default function PnrStatusClient() {
             <li>View train name, journey date, chart status, coach and seat details.</li>
             <li>Order food in train if RailEats service is available on your route.</li>
           </ol>
+
+          <p className="mt-5 text-xs font-semibold leading-6 text-slate-500">
+            RailEats is an independent train food ordering platform and is not
+            affiliated with IRCTC. PNR information is supplied by a third-party
+            railway data provider; verify final ticket and coach details with
+            official railway sources.
+          </p>
         </section>
       </section>
     </main>

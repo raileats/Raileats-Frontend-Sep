@@ -1,5 +1,6 @@
 // app/orders/success/page.tsx
 import type { Metadata } from "next";
+import OrderSuccessNavigation from "../../components/OrderSuccessNavigation";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -12,6 +13,7 @@ export default function Page({ searchParams }: { searchParams: { orderId?: strin
   const orderId = searchParams?.orderId || "";
   return (
     <main className="max-w-3xl mx-auto px-3 sm:px-6 py-12">
+      <OrderSuccessNavigation />
       <div className="bg-white rounded shadow p-6 text-center">
         <h1 className="text-2xl sm:text-3xl font-bold mb-2">Thank you! 🎉</h1>
         <p className="text-gray-700">Your order has been placed successfully.</p>

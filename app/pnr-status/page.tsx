@@ -5,14 +5,14 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 export const metadata: Metadata = {
-  title: "PNR Status Check Online | Indian Railway PNR Status | RailEats",
+  title: "PNR Status Check Online by 10 Digit PNR | RailEats",
   description:
-    "Check Indian Railway PNR status online with train number, train name, journey date, chart status, coach and seat details on RailEats.",
+    "Check PNR status online using your 10 digit PNR. View train, journey date, booking status, chart, coach and seat information on RailEats.",
   alternates: {
     canonical: "https://www.raileats.in/pnr-status",
   },
   openGraph: {
-    title: "PNR Status Check Online | RailEats",
+    title: "PNR Status Check Online by 10 Digit PNR | RailEats",
     description:
       "Check 10 digit railway PNR status online and view train, coach, seat and chart details.",
     url: "https://www.raileats.in/pnr-status",

@@ -94,27 +94,27 @@ type RestaurantsResponse = {
 const popularStations = [
   {
     name: "Food Delivery at Lalitpur Junction",
-    href: "/Stations/LAR-lalitpur-jn",
+    href: "/stations/LAR-lalitpur-jn",
   },
   {
     name: "Food Delivery at Jabalpur Junction",
-    href: "/Stations/JBP-jabalpur",
+    href: "/stations/JBP-jabalpur",
   },
   {
     name: "Food Delivery at Khandwa Junction",
-    href: "/Stations/KNW-khandwa",
+    href: "/stations/KNW-khandwa",
   },
   {
     name: "Food Delivery at Ratlam Junction",
-    href: "/Stations/RTM-ratlam",
+    href: "/stations/RTM-ratlam",
   },
   {
     name: "Food Delivery at Ahmedabad Junction",
-    href: "/Stations/ADI-ahmedabad-jn",
+    href: "/stations/ADI-ahmedabad-jn",
   },
   {
     name: "Food Delivery at Vijayawada Junction",
-    href: "/Stations/BZA-vijayawada-jn",
+    href: "/stations/BZA-vijayawada-jn",
   },
 ];
 
@@ -183,7 +183,7 @@ function createMenuUrl(restaurant: Restaurant) {
     minOrder: String(restaurant.MinimumOrderValue ?? 0),
   });
 
-  return `/Stations/${encodeURIComponent(
+  return `/stations/${encodeURIComponent(
     stationSlug
   )}/${encodeURIComponent(restaurantSlug)}?${query.toString()}`;
 }

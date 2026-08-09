@@ -7,6 +7,8 @@ import { useAuth } from "../lib/useAuth";
 import { useCart } from "../lib/useCart";
 import { useRouter } from "next/navigation";
 
+const LOCAL_DEVELOPMENT_OTP = "123456";
+
 declare global {
   interface Window {
     recaptchaVerifier?: RecaptchaVerifier;
@@ -33,7 +35,20 @@ export default function LoginModal() {
   const [pendingJourney, setPendingJourney] = useState<any>(null);
   const [loading, setLoading] = useState(false);
 
+  const isLocalDevelopment =
+    process.env.NODE_ENV === "development" &&
+    typeof window !== "undefined" &&
+    (window.location.hostname === "localhost" ||
+      window.location.hostname === "127.0.0.1");
+
+  const resetRecaptcha = () => {
+    window.recaptchaVerifier?.clear();
+    window.recaptchaVerifier = undefined;
+    window.confirmationResult = undefined;
+  };
+
   const closeModal = () => {
+    resetRecaptcha();
     setOpen(false);
     setStep("mobile");
     setMobile("");
@@ -66,6 +81,12 @@ export default function LoginModal() {
     try {
       setLoading(true);
 
+      if (isLocalDevelopment) {
+        window.confirmationResult = undefined;
+        setStep("otp");
+        return;
+      }
+
       if (!window.recaptchaVerifier) {
         window.recaptchaVerifier = new RecaptchaVerifier(
           firebaseAuth,
@@ -88,7 +109,12 @@ export default function LoginModal() {
       setStep("otp");
     } catch (err: any) {
       console.error(err);
-      alert(err?.message || "Error sending OTP");
+      resetRecaptcha();
+      alert(
+        err?.code === "auth/invalid-app-credential"
+          ? "OTP verification could not start. Please retry or use the deployed RailEats website."
+          : err?.message || "Error sending OTP"
+      );
     } finally {
       setLoading(false);
     }
@@ -102,13 +128,18 @@ export default function LoginModal() {
     try {
       setLoading(true);
 
-      if (!window.confirmationResult) {
+      if (isLocalDevelopment) {
+        if (otp !== LOCAL_DEVELOPMENT_OTP) {
+          alert(`For localhost, use test OTP ${LOCAL_DEVELOPMENT_OTP}.`);
+          return;
+        }
+      } else if (!window.confirmationResult) {
         alert("OTP session expired. Please send OTP again.");
         setStep("mobile");
         return;
+      } else {
+        await window.confirmationResult.confirm(otp);
       }
-
-      await window.confirmationResult.confirm(otp);
 
       const phone = "+91" + mobile;
 
@@ -234,6 +265,12 @@ export default function LoginModal() {
 
         {step === "otp" && (
           <>
+            {isLocalDevelopment && (
+              <p className="rounded-md border border-amber-300 bg-amber-50 p-2 text-sm text-amber-900">
+                Local test OTP: <strong>{LOCAL_DEVELOPMENT_OTP}</strong>
+              </p>
+            )}
+
             <input
               type="text"
               placeholder="Enter OTP"

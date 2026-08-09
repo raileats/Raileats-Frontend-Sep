@@ -406,7 +406,7 @@ export default function LiveTrainStatusClient() {
           </p>
 
           <h3 className="mt-5 text-lg font-black text-slate-950">
-            How to check NTES train running status on RailEats?
+            How to check train running status on RailEats?
           </h3>
 
           <ol className="mt-3 space-y-2 text-sm font-semibold text-slate-700">
@@ -415,6 +415,13 @@ export default function LiveTrainStatusClient() {
             <li>3. Click Search to view current train running information.</li>
             <li>4. Check current station, ETA, ETD, platform and delay status.</li>
           </ol>
+
+          <p className="mt-5 text-xs font-semibold leading-6 text-slate-500">
+            RailEats is an independent train food ordering platform and is not
+            affiliated with IRCTC or NTES. Running information is supplied by a
+            third-party railway data provider and should be verified with
+            official railway sources for important travel decisions.
+          </p>
         </section>
       </section>
     </main>

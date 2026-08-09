@@ -4,6 +4,7 @@
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { priceStr } from "../../lib/priceUtil"; // ← CORRECTED PATH
+import OrderSuccessNavigation from "../../components/OrderSuccessNavigation";
 
 export default function SummaryPage() {
   const router = useRouter();
@@ -28,6 +29,7 @@ export default function SummaryPage() {
 
   return (
     <main className="site-container page-safe-bottom">
+      <OrderSuccessNavigation />
       <h1 className="text-2xl font-bold mb-2">Order Confirmed</h1>
 
       <div className="card-safe mb-4">
@@ -73,7 +75,7 @@ export default function SummaryPage() {
       </div>
 
       <div className="mt-4 flex gap-3">
-        <button className="rounded border px-4 py-2" onClick={() => router.push("/")}>Continue</button>
+        <button className="rounded border px-4 py-2" onClick={() => router.replace("/")}>Continue</button>
         <button className="rounded px-4 py-2 bg-blue-600 text-white" onClick={() => { /* could open invoice */ }}>Download Invoice</button>
       </div>
     </main>

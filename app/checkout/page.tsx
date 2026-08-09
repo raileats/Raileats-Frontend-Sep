@@ -2,6 +2,10 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import {
+  clearCompletedBookingState,
+  rememberLastPnr,
+} from "../lib/bookingSession";
 import { useCart } from "@/lib/useCart";
 import { useAuth } from "@/lib/useAuth";
 
@@ -826,15 +830,17 @@ export default function CheckoutPage() {
 
       if (!targetOrderId) {
         alert("Order completed, but unique transaction tracker ID is missing.");
-        router.push("/order-success");
+        rememberLastPnr(pnr);
+        clearCart();
+        clearCompletedBookingState(pnr);
+        router.replace("/order-success");
         return;
       }
 
-      router.push(`/order-success?orderId=${targetOrderId}`);
-
-      setTimeout(() => {
-        clearCart();
-      }, 400);
+      rememberLastPnr(pnr);
+      clearCart();
+      clearCompletedBookingState(pnr);
+      router.replace(`/order-success?orderId=${targetOrderId}`);
     } catch (e) {
       console.error(e);
       alert("Network or Server script runtime error.");

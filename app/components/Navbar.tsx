@@ -133,7 +133,11 @@ export default function Navbar() {
           {pageTitle}
         </div>
 
-        <Link href="/" className="inner-home-logo active:scale-95" aria-label="RailEats home">
+        <Link
+          href="/"
+          className="inner-home-logo flex items-center gap-1.5 active:scale-95"
+          aria-label="Go to RailEats home"
+        >
           <Image
             src="/raileats-header.webp"
             alt="RailEats"
@@ -142,6 +146,7 @@ export default function Navbar() {
             unoptimized
             sizes="34px"
           />
+          <span className="text-xs font-black text-slate-800">Home</span>
         </Link>
       </header>
     );

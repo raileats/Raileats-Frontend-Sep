@@ -8,9 +8,9 @@ const pageUrl = "https://www.raileats.in/live-train-status";
 
 export const metadata: Metadata = {
   title:
-    "Live Train Running Status Online | Indian Railway Live Train Status | RailEats",
+    "Live Train Status & Train Running Status Online | RailEats",
   description:
-    "Check live train running status online with train number. View current station, delay, platform, source, destination, journey date, arrival, departure and train running updates on RailEats.",
+    "Check live train status online by train number. View current station, running delay, expected arrival, departure, platform and route updates on RailEats.",
   keywords: [
     "live train running status",
     "live train status",
@@ -21,7 +21,6 @@ export const metadata: Metadata = {
     "indian railway live train status",
     "train delay status",
     "train platform status",
-    "NTES train status",
     "train arrival departure status",
     "RailEats live train status",
   ],
@@ -29,7 +28,7 @@ export const metadata: Metadata = {
     canonical: pageUrl,
   },
   openGraph: {
-    title: "Live Train Running Status Online | RailEats",
+    title: "Live Train Status & Running Status Online | RailEats",
     description:
       "Check Indian Railway live train running status with current station, delay, platform, arrival, departure and route details.",
     url: pageUrl,
@@ -56,11 +55,6 @@ export default function Page() {
       "@type": "Organization",
       name: "RailEats",
       url: "https://www.raileats.in",
-    },
-    potentialAction: {
-      "@type": "SearchAction",
-      target: `${pageUrl}?train={train_number}`,
-      "query-input": "required name=train_number",
     },
   };
 

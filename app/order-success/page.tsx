@@ -1,6 +1,7 @@
 "use client";
 
 import { useSearchParams, useRouter } from "next/navigation";
+import OrderSuccessNavigation from "../components/OrderSuccessNavigation";
 
 /* ================= PAGE ================= */
 
@@ -29,6 +30,7 @@ export default function OrderSuccessPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <OrderSuccessNavigation />
       <div className="bg-white p-6 rounded-lg shadow-md max-w-md w-full text-center space-y-4">
         <div className="text-green-600 text-4xl">✅</div>
 
@@ -54,14 +56,14 @@ export default function OrderSuccessPage() {
 
         <div className="space-y-2">
           <button
-            onClick={() => router.push("/")}
+            onClick={() => router.replace("/")}
             className="w-full bg-green-600 text-white py-2 rounded"
           >
             Order More Food
           </button>
 
           <button
-            onClick={() => router.push("/")}
+            onClick={() => router.replace("/")}
             className="w-full border border-gray-300 py-2 rounded"
           >
             Go to Home

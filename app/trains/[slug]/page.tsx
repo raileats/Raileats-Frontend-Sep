@@ -658,7 +658,7 @@ export default function TrainPage() {
       <a
         href={
           isSeoPreview
-            ? `/Stations/${stationSlug}/${restroSlug}?mode=station&stationCode=${encodeURIComponent(
+            ? `/stations/${stationSlug}/${restroSlug}?mode=station&stationCode=${encodeURIComponent(
                 stationCode
               )}&stationName=${encodeURIComponent(
                 stationName
@@ -667,7 +667,7 @@ export default function TrainPage() {
               )}&trainName=${encodeURIComponent(
                 finalTrainName
               )}&minOrder=${encodeURIComponent(r.MinimumOrderValue || 0)}`
-            : `/Stations/${stationSlug}/${restroSlug}?deliveryDate=${encodeURIComponent(
+            : `/stations/${stationSlug}/${restroSlug}?deliveryDate=${encodeURIComponent(
                 deliveryDate
               )}${
                 cleanArrival

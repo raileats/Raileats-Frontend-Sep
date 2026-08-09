@@ -215,7 +215,7 @@ function buildRestroHref({
     }
   }
 
-  return `/Stations/${stationSlug}/${restroSlug}?${query.toString()}`;
+  return `/stations/${stationSlug}/${restroSlug}?${query.toString()}`;
 }
 
 export default function TrainResultsClient({

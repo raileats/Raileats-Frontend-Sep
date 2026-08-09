@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { getLastPnr } from "../lib/bookingSession";
 import StationSearchBox from "./StationSearchBox";
 import TrainAutocomplete from "./TrainAutocomplete";
 
@@ -96,12 +97,14 @@ export default function SearchBox() {
   const [date, setDate] = useState("");
   const [showStationList, setShowStationList] = useState(false);
   const [loadingStations, setLoadingStations] = useState(false);
+  const [lastPnr, setLastPnr] = useState("");
 
   const searchBtnRef = useRef<HTMLButtonElement | null>(null);
   const boardingBoxRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     setDate(todayIso());
+    setLastPnr(getLastPnr());
   }, []);
 
   const scrollSearchButtonIntoView = () => {
@@ -322,23 +325,42 @@ export default function SearchBox() {
               />
             </div>
           ) : (
-            <input
-  value={inputValue}
-  onChange={(e) => {
-  let value = e.target.value.replace(/\D/g, "");
+            <div className="space-y-2">
+              <input
+                value={inputValue}
+                onChange={(e) => {
+                  const value = e.target.value.replace(/\D/g, "");
 
-  // First digit must be 2,4,6,8
-  if (value.length > 0 && !["2", "4", "6", "8"].includes(value.charAt(0))) {
-    return;
-  }
+                  if (
+                    value.length > 0 &&
+                    !["2", "4", "6", "8"].includes(value.charAt(0))
+                  ) {
+                    return;
+                  }
 
-  setInputValue(value.slice(0, 10));
-}}
-  inputMode="numeric"
-  maxLength={10}
-  placeholder="Enter 10 digit PNR starting with 2, 4, 6, or 8"
-  className="app-input searchbox-input"
-/>
+                  setInputValue(value.slice(0, 10));
+                }}
+                inputMode="numeric"
+                maxLength={10}
+                autoComplete="off"
+                placeholder="Enter 10 digit PNR starting with 2, 4, 6, or 8"
+                className="app-input searchbox-input"
+              />
+
+              {lastPnr && inputValue !== lastPnr ? (
+                <button
+                  type="button"
+                  onClick={() => setInputValue(lastPnr)}
+                  className="flex w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-2 text-left text-xs font-bold text-slate-600 transition hover:border-orange-300 hover:bg-orange-50"
+                  aria-label={`Use last PNR ending ${lastPnr.slice(-4)}`}
+                >
+                  <span>Use last PNR</span>
+                  <span className="font-black text-slate-900">
+                    ••••••{lastPnr.slice(-4)}
+                  </span>
+                </button>
+              ) : null}
+            </div>
           )}
 
           {searchType === "train" && selectedTrain && (
