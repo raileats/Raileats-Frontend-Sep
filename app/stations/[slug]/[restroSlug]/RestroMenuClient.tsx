@@ -1,12 +1,19 @@
 // app/stations/[slug]/[restroSlug]/RestroMenuClient.tsx
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import Image from "next/image";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "../../../lib/useAuth";
 import { useCart } from "../../../lib/useCart";
 import CartPillMobile from "../../../components/CartPillMobile";
 import BookingFlowShell from "../../../components/BookingFlowShell";
 import PnrSearchBox from "../../../components/PnrSearchBox";
+import {
+  CUSTOMER_MENU_TYPES,
+  getCustomerMenuTypeRank,
+  sortCustomerMenuItems,
+  sortCustomerMenuItemsWithPriority,
+} from "../../../lib/customerMenuSort";
 
 const SUPABASE_PUBLIC_STORAGE =
   "https://ygisiztmuzwxpnvhwrmr.supabase.co/storage/v1/object/public";
@@ -121,6 +128,69 @@ const getItemImage = (it: any) => {
   return encodeURI(`${SUPABASE_PUBLIC_STORAGE}/${objectPath}`);
 };
 
+const getRealItemImage = (it: any) => {
+  const image = getItemImage(it);
+  return image === DEFAULT_MENU_IMAGE ? "" : image;
+};
+
+const getMenuTypeFallbackImage = (menuType: string) =>
+  encodeURI(
+    `${SUPABASE_PUBLIC_STORAGE}/menu_item_image/menu_item_image_${menuType}.webp`
+  );
+
+function CategoryImage({ src, label }: { src: string; label: string }) {
+  const [primaryFailed, setPrimaryFailed] = useState(false);
+  const [fallbackFailed, setFallbackFailed] = useState(false);
+  const fallbackSrc = getMenuTypeFallbackImage(label);
+  const resolvedSrc = src && !primaryFailed ? src : !fallbackFailed ? fallbackSrc : "";
+
+  if (!resolvedSrc) {
+    return (
+      <span
+        aria-hidden="true"
+        style={{
+          display: "grid",
+          width: 58,
+          height: 58,
+          placeItems: "center",
+          borderRadius: 999,
+          background: "#fff7ed",
+          color: "#ea580c",
+          fontSize: 24,
+        }}
+      >
+        🍽️
+      </span>
+    );
+  }
+
+  return (
+    <Image
+      src={resolvedSrc}
+      alt={`${label} menu`}
+      width={58}
+      height={58}
+      loading="lazy"
+      quality={55}
+      sizes="58px"
+      onError={() => {
+        if (src && resolvedSrc === src) {
+          setPrimaryFailed(true);
+        } else {
+          setFallbackFailed(true);
+        }
+      }}
+      style={{
+        width: 58,
+        height: 58,
+        borderRadius: 999,
+        objectFit: "cover",
+        background: "#fff",
+      }}
+    />
+  );
+}
+
 export default function RestroMenuClient({
   items = [],
   header = {},
@@ -129,7 +199,10 @@ export default function RestroMenuClient({
   const { user } = useAuth();
   const { add, changeQty, cart, setJourney, clearCart } = useCart();
   const [vegOnly, setVegOnly] = useState(false);
+  const [bulkOnly, setBulkOnly] = useState(false);
+  const [selectedMenuType, setSelectedMenuType] = useState("");
   const [trainMin, setTrainMin] = useState<number | null>(null);
+  const categorySliderRef = useRef<HTMLDivElement | null>(null);
 
   const [urlJourney, setUrlJourney] = useState<UrlJourney>({
     trainNumber: "",
@@ -243,7 +316,7 @@ useEffect(() => {
 
   const isStationOnlyView = nextParams?.mode === "station" || !displayTrainNumber;
 
-  const visible = useMemo(() => {
+  const availableItems = useMemo(() => {
     return (items || []).filter((it: any) => {
       if (!isItemActive(it)) return false;
 
@@ -262,6 +335,60 @@ useEffect(() => {
       return true;
     });
   }, [items, vegOnly, trainMin]);
+
+  const menuCategories = useMemo(() => {
+    const representatives = new Map<string, { image: string }>();
+
+    for (const item of sortCustomerMenuItems(availableItems)) {
+      const rank = getCustomerMenuTypeRank(item);
+      if (!rank || rank > 16) continue;
+
+      const canonicalMenuType = CUSTOMER_MENU_TYPES[rank - 1];
+      const existing = representatives.get(canonicalMenuType);
+      const image = getRealItemImage(item);
+
+      if (!existing || (!existing.image && image)) {
+        representatives.set(canonicalMenuType, { image });
+      }
+    }
+
+    return CUSTOMER_MENU_TYPES.slice(0, 16)
+      .map((menuType) => {
+        const representative = representatives.get(menuType);
+        return representative ? { menuType, image: representative.image } : null;
+      })
+      .filter(Boolean) as Array<{ menuType: string; image: string }>;
+  }, [availableItems]);
+
+  useEffect(() => {
+    const slider = categorySliderRef.current;
+    if (!slider || menuCategories.length < 4) return;
+
+    const timer = window.setInterval(() => {
+      const maxScroll = slider.scrollWidth - slider.clientWidth;
+      const nextLeft = slider.scrollLeft >= maxScroll - 8 ? 0 : slider.scrollLeft + 92;
+      slider.scrollTo({ left: nextLeft, behavior: "smooth" });
+    }, 3200);
+
+    return () => window.clearInterval(timer);
+  }, [menuCategories.length]);
+
+  useEffect(() => {
+    if (
+      selectedMenuType &&
+      !menuCategories.some((category) => category.menuType === selectedMenuType)
+    ) {
+      setSelectedMenuType("");
+    }
+  }, [menuCategories, selectedMenuType]);
+
+  const visible = useMemo(() => {
+    if (bulkOnly) {
+      return sortCustomerMenuItemsWithPriority(availableItems, "Bulk");
+    }
+
+    return sortCustomerMenuItemsWithPriority(availableItems, selectedMenuType);
+  }, [availableItems, bulkOnly, selectedMenuType]);
 
   const saveJourney = () => {
     const journeyPayload = {
@@ -526,7 +653,7 @@ useEffect(() => {
         <section
           style={{
             display: "grid",
-            gridTemplateColumns: "auto auto minmax(0, 1fr)",
+            gridTemplateColumns: "auto auto auto",
             alignItems: "center",
             gap: 8,
             overflow: "hidden",
@@ -534,11 +661,16 @@ useEffect(() => {
         >
           <button
             type="button"
-            onClick={() => setVegOnly(false)}
+            aria-pressed={!vegOnly && !bulkOnly}
+            onClick={() => {
+              setVegOnly(false);
+              setBulkOnly(false);
+              setSelectedMenuType("");
+            }}
             style={{
-              border: !vegOnly ? "1px solid #f97316" : "1px solid #dbe4ef",
-              background: !vegOnly ? "#fff7ed" : "#fff",
-              color: !vegOnly ? "#ea580c" : "#334155",
+              border: !vegOnly && !bulkOnly ? "1px solid #f97316" : "1px solid #dbe4ef",
+              background: !vegOnly && !bulkOnly ? "#fff7ed" : "#fff",
+              color: !vegOnly && !bulkOnly ? "#ea580c" : "#334155",
               borderRadius: 999,
               padding: "8px 13px",
               fontSize: 13,
@@ -552,7 +684,11 @@ useEffect(() => {
 
           <button
             type="button"
-            onClick={() => setVegOnly(true)}
+            aria-pressed={vegOnly}
+            onClick={() => {
+              setVegOnly(true);
+              setBulkOnly(false);
+            }}
             style={{
               border: vegOnly ? "1px solid #16a34a" : "1px solid #dbe4ef",
               background: vegOnly ? "#f0fdf4" : "#fff",
@@ -568,20 +704,98 @@ useEffect(() => {
             Veg Only
           </button>
 
-          <span
+          <button
+            type="button"
+            aria-pressed={bulkOnly}
+            onClick={() => {
+              setVegOnly(false);
+              setBulkOnly(true);
+              setSelectedMenuType("");
+            }}
             style={{
-              minWidth: 0,
-              overflow: "hidden",
-              textOverflow: "ellipsis",
+              border: bulkOnly ? "1px solid #7c3aed" : "1px solid #dbe4ef",
+              background: bulkOnly ? "#f5f3ff" : "#fff",
+              color: bulkOnly ? "#6d28d9" : "#334155",
+              borderRadius: 999,
+              padding: "8px 13px",
               whiteSpace: "nowrap",
               fontSize: 13,
-              fontWeight: 800,
-              color: "#475569",
+              fontWeight: 900,
+              cursor: "pointer",
             }}
           >
-            {visible.length} item{visible.length === 1 ? "" : "s"} available
-          </span>
+            Bulk Only
+          </button>
         </section>
+
+        {menuCategories.length > 0 ? (
+          <section aria-label="Menu categories" style={{ minWidth: 0 }}>
+            <div
+              ref={categorySliderRef}
+              style={{
+                display: "flex",
+                gap: 12,
+                overflowX: "auto",
+                padding: "2px 2px 8px",
+                scrollBehavior: "smooth",
+                scrollbarWidth: "none",
+                WebkitOverflowScrolling: "touch",
+              }}
+            >
+              {menuCategories.map((category) => {
+                const selected = selectedMenuType === category.menuType;
+
+                return (
+                  <button
+                    key={category.menuType}
+                    type="button"
+                    aria-pressed={selected}
+                    onClick={() =>
+                      setSelectedMenuType((current) =>
+                        current === category.menuType ? "" : category.menuType
+                      )
+                    }
+                    style={{
+                      width: 76,
+                      flex: "0 0 76px",
+                      border: 0,
+                      background: "transparent",
+                      color: selected ? "#ea580c" : "#334155",
+                      padding: 0,
+                      cursor: "pointer",
+                      textAlign: "center",
+                    }}
+                  >
+                    <span
+                      style={{
+                        display: "inline-grid",
+                        padding: 3,
+                        borderRadius: 999,
+                        border: selected ? "2px solid #f97316" : "1px solid #dbe4ef",
+                        background: "#fff",
+                        boxShadow: selected ? "0 5px 14px rgba(249,115,22,0.18)" : "none",
+                      }}
+                    >
+                      <CategoryImage src={category.image} label={category.menuType} />
+                    </span>
+                    <span
+                      style={{
+                        display: "block",
+                        marginTop: 5,
+                        fontSize: 11,
+                        lineHeight: 1.15,
+                        fontWeight: 850,
+                        whiteSpace: "normal",
+                      }}
+                    >
+                      {category.menuType}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+        ) : null}
 
         {visible.length === 0 && (
           <section

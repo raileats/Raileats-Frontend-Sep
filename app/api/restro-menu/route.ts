@@ -2,6 +2,10 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { serviceClient } from "../../lib/supabaseServer";
+import {
+  getCustomerMenuTypeRank,
+  sortCustomerMenuItems,
+} from "../../lib/customerMenuSort";
 
 /* ================= MENU TYPE DETECTOR ================= */
 
@@ -99,6 +103,7 @@ export async function GET(req: Request) {
   item_description,
   item_category,
   menu_type,
+  menu_type_rank,
   base_price,
   start_time,
   end_time,
@@ -169,6 +174,8 @@ export async function GET(req: Request) {
           /* ✅ THALI / COMBO / RICE */
           menu_type: menuType,
 
+          menu_type_rank: getCustomerMenuTypeRank({ menu_type: item?.menu_type }),
+
           base_price: Number(
             item.base_price || 0
           ),
@@ -187,10 +194,13 @@ export async function GET(req: Request) {
       }
     );
 
+    const sortedItems =
+      sortCustomerMenuItems(formatted);
+
     return NextResponse.json({
       ok: true,
-      count: formatted.length,
-      items: formatted,
+      count: sortedItems.length,
+      items: sortedItems,
     });
 
   } catch (e) {

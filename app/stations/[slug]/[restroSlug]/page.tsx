@@ -4,6 +4,10 @@ import Image from "next/image";
 import { notFound, permanentRedirect } from "next/navigation";
 import { extractRestroCode } from "../../../lib/restroSlug";
 import { serviceClient } from "../../../lib/supabaseServer";
+import {
+  getCustomerMenuTypeRank,
+  sortCustomerMenuItems,
+} from "../../../lib/customerMenuSort";
 import RestroMenuClient from "./RestroMenuClient";
 
 export const revalidate = 60;
@@ -402,6 +406,10 @@ function normalizeItem(it: any) {
     menu_type:
       it?.menu_type || it?.MenuType || it?.item_type || it?.category || "Meals",
 
+    menu_type_rank: getCustomerMenuTypeRank({
+      menu_type: it?.menu_type || it?.MenuType || it?.item_type || it?.category,
+    }),
+
     item_description:
       it?.item_description || it?.ItemDescription || it?.description || "",
 
@@ -427,7 +435,7 @@ function normalizeItem(it: any) {
 }
 
 function normalizeItems(rawItems: any[], arrivalTime?: string) {
-  return (rawItems || [])
+  const availableItems = (rawItems || [])
     .map(normalizeItem)
     .filter((it: any) => {
       if (!it.id || !it.item_name) return false;
@@ -440,6 +448,8 @@ function normalizeItems(rawItems: any[], arrivalTime?: string) {
 
       return isTimeInRange(arrivalTime, it.start_time, it.end_time);
     });
+
+  return sortCustomerMenuItems(availableItems);
 }
 
 /* ================= SEO CONTENT ================= */
@@ -509,6 +519,9 @@ function buildKeywords({
     `IRCTC food delivery ${station}`,
     `food delivery at ${stationCode}`,
     `order food at ${stationCode}`,
+    `bulk food order in train at ${station}`,
+    `group food order in train at ${station}`,
+    `bulk train food delivery ${stationCode}`,
     trainNumber ? `food in train ${trainNumber}` : "",
     trainNumber ? `${restaurant} train ${trainNumber}` : "",
     `${SITE_NAME}`,
@@ -567,6 +580,10 @@ function buildFaqs({
     {
       question: `Can I order ${outletName} food for someone else?`,
       answer: `Yes. Use the traveller's train, coach, berth and contact details so the restaurant can deliver the order at ${stationName}.`,
+    },
+    {
+      question: `Can I place a bulk food order in train from ${outletName}?`,
+      answer: `Use the Bulk Only filter to check group or bulk meal options currently available from ${outletName}. Availability and preparation time can vary, so place larger train food orders early.`,
     },
   ];
 }
@@ -1126,6 +1143,19 @@ export default async function Page({ params, searchParams }: any) {
           {terms.length > 0 ? ` such as ${terms.slice(0, 6).join(", ")}` : ""},
           and continue with your train, coach and seat details for delivery
           during the halt.
+        </p>
+      </section>
+
+      <section className="mx-auto mt-6 max-w-[560px] rounded-3xl border bg-white p-6 shadow-sm">
+        <h2 className="text-2xl font-bold text-slate-900">
+          Bulk Food Orders in Train from {outletName}
+        </h2>
+        <p className="mt-3 leading-7 text-slate-700">
+          Planning meals for a family, student group or tour party? Use the Bulk
+          Only filter to find group meal options available from {outletName} for
+          delivery at {stationName} Railway Station. Bulk menu availability can
+          vary by restaurant timing, train arrival and preparation window, so
+          larger orders should be placed early with accurate coach and seat details.
         </p>
       </section>
 
