@@ -23,7 +23,6 @@ export default function Page() {
       pageUrl={pageUrl}
       eyebrow="Train Food Delivery"
       title="Order Food in Train Online"
-      primaryKeyword="order food in train"
       description="Order food in train online with RailEats. Search your train, choose an available station and restaurant, and get fresh meals delivered to your seat."
     />
   );

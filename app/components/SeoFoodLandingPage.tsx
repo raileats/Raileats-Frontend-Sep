@@ -5,28 +5,15 @@ type SeoFoodLandingPageProps = {
   eyebrow: string;
   description: string;
   pageUrl: string;
-  primaryKeyword: string;
 };
 
 const baseUrl = "https://www.raileats.in";
 
-const seoLinks = [
-  { label: "Order food in train", href: "/order-food-in-train" },
-  { label: "Book food in train", href: "/book-food-in-train" },
-  { label: "Food delivery in train", href: "/food-delivery-in-train" },
-  { label: "Train food delivery", href: "/train-food-delivery" },
-  { label: "Best food delivery in train", href: "/best-food-delivery-in-train" },
-  {
-    label: "Food delivery in train from restaurants",
-    href: "/food-delivery-in-train-from-restaurants",
-  },
-];
-
-const stationLinks = [
-  { label: "Food delivery at Bhopal Jn", href: "/stations/bhopal-jn-bpl-food-delivery" },
-  { label: "Food delivery at Bina Jn", href: "/stations/bina-jn-bina-food-delivery" },
-  { label: "Food delivery at Gwalior Jn", href: "/stations/gwalior-jn-gwl-food-delivery" },
-  { label: "Food delivery at V Lakshmibai Jhansi", href: "/stations/v-lakshmibai-vglj-food-delivery" },
+const journeyLinks = [
+  { label: "Start a food order", href: "/" },
+  { label: "Browse delivery stations", href: "/stations" },
+  { label: "View popular restaurants", href: "/popular-restaurants-train-journey" },
+  { label: "Read ordering FAQs", href: "/faq" },
 ];
 
 const supportLinks = [
@@ -47,11 +34,10 @@ export default function SeoFoodLandingPage({
   eyebrow,
   description,
   pageUrl,
-  primaryKeyword,
 }: SeoFoodLandingPageProps) {
   const faqItems = [
     {
-      question: `How to ${primaryKeyword}?`,
+      question: "How do I order food for my train journey?",
       answer:
         "Visit RailEats, enter your train number or PNR, select your journey details, choose an available restaurant and place your food order for delivery at your train seat.",
     },
@@ -96,11 +82,6 @@ export default function SeoFoodLandingPage({
       "train food delivery",
       "railway food delivery",
     ],
-    potentialAction: {
-      "@type": "SearchAction",
-      target: `${baseUrl}/?q={search_term_string}`,
-      "query-input": "required name=search_term_string",
-    },
   };
 
   const breadcrumbJsonLd = {
@@ -193,9 +174,9 @@ export default function SeoFoodLandingPage({
             verification.
           </p>
           <p className="mt-3 text-sm font-semibold leading-7 text-slate-600">
-            This page is built for passengers looking for {primaryKeyword},
-            train food delivery, railway food delivery, food delivery in train
-            from restaurants and fresh meals during journey.
+            Available stations, restaurants, menus and payment options are
+            shown during the ordering flow. Check the delivery station and
+            order details carefully before confirming your meal.
           </p>
         </section>
 
@@ -224,11 +205,11 @@ export default function SeoFoodLandingPage({
 
         <section className="app-card p-5 sm:p-6">
           <h2 className="text-2xl font-black text-slate-950">
-            Popular train food delivery pages
+            Plan your train journey
           </h2>
 
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            {seoLinks.map((item) => (
+            {journeyLinks.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
@@ -263,33 +244,15 @@ export default function SeoFoodLandingPage({
 
         <section className="app-card p-5 sm:p-6">
           <h2 className="text-2xl font-black text-slate-950">
-            Popular stations for food delivery in train
-          </h2>
-
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            {stationLinks.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="rounded-xl border border-slate-200 bg-white px-4 py-3 font-black text-slate-800 hover:border-orange-300 hover:bg-orange-50"
-              >
-                {item.label}
-              </Link>
-            ))}
-          </div>
-        </section>
-
-        <section className="app-card p-5 sm:p-6">
-          <h2 className="text-2xl font-black text-slate-950">
             How to order food in train?
           </h2>
 
           <ol className="mt-4 space-y-3 text-sm font-semibold leading-7 text-slate-600">
-            <li>1. Enter your train number, PNR or station on RailEats.</li>
-            <li>2. Select journey date and boarding station.</li>
-            <li>3. Choose an available delivery station and restaurant.</li>
-            <li>4. Add food items to cart and verify your mobile number.</li>
-            <li>5. Enter coach and seat details, then place your order.</li>
+            <li>Enter your train number, PNR or station on RailEats.</li>
+            <li>Select journey date and boarding station.</li>
+            <li>Choose an available delivery station and restaurant.</li>
+            <li>Add food items to cart and verify your mobile number.</li>
+            <li>Enter coach and seat details, then place your order.</li>
           </ol>
         </section>
 

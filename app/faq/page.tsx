@@ -1,189 +1,139 @@
-export const metadata = {
-  title: "FAQ | RailEats – Food Delivery in Train",
+import type { Metadata } from "next";
+import Link from "next/link";
+
+const siteUrl = "https://www.raileats.in";
+
+export const metadata: Metadata = {
+  title: "Train Food Delivery FAQs | Ordering, Payment & Support | RailEats",
   description:
-    "Find answers to common questions about ordering food in train with RailEats, including delivery, payments, cancellation, refunds, and support.",
+    "Get answers about ordering food in train with RailEats, delivery stations, payment options, cancellations, refunds and customer support.",
+  alternates: { canonical: `${siteUrl}/faq` },
+  openGraph: {
+    title: "Train Food Delivery FAQs | RailEats",
+    description:
+      "Answers about train food ordering, delivery, payment, cancellation and support on RailEats.",
+    url: `${siteUrl}/faq`,
+    type: "website",
+  },
+};
+
+const faqItems = [
+  {
+    question: "What is RailEats?",
+    answer:
+      "RailEats is an online train food ordering platform. Passengers can search by PNR, train number or station and order from restaurants shown as available for their journey.",
+  },
+  {
+    question: "How do I order food for my train journey?",
+    answer:
+      "Enter your PNR, train number or station, select the journey and delivery station, choose an available restaurant and menu items, then complete the checkout details.",
+  },
+  {
+    question: "Can I order food without a PNR?",
+    answer:
+      "You can search using a train number or station where that option is available. Entering the correct PNR, coach and seat details can help with delivery coordination.",
+  },
+  {
+    question: "At which stations is delivery available?",
+    answer:
+      "Coverage depends on the train route and restaurants active at each station. Use the order search or browse the stations page to see current availability.",
+  },
+  {
+    question: "Which meals can I order?",
+    answer:
+      "Menus vary by restaurant and station. Available options may include thali, biryani, snacks, breakfast, beverages and vegetarian or non-vegetarian meals.",
+  },
+  {
+    question: "Which payment options are available?",
+    answer:
+      "The checkout page shows the payment options available for that order. Options can vary by restaurant, station and order value.",
+  },
+  {
+    question: "When should I place my order?",
+    answer:
+      "Place the order before the restaurant cut-off shown in the ordering flow. Availability also depends on train timing, station halt and the selected restaurant.",
+  },
+  {
+    question: "Can I cancel or modify an order?",
+    answer:
+      "Cancellation or modification depends on the current order status and restaurant preparation. Review the Cancellation and Refund Policy and contact support as soon as possible.",
+  },
+  {
+    question: "What happens if my train is delayed or skips the station?",
+    answer:
+      "Delivery may be affected by train delays, route changes or an insufficient station halt. Contact support with your order ID if the journey changes after ordering.",
+  },
+  {
+    question: "How can I contact RailEats support?",
+    answer:
+      "Use the RailEats contact page and include your order ID and registered mobile number so the support team can check the order.",
+  },
+];
+
+const faqSchema = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: faqItems.map((item) => ({
+    "@type": "Question",
+    name: item.question,
+    acceptedAnswer: { "@type": "Answer", text: item.answer },
+  })),
+};
+
+const breadcrumbSchema = {
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  itemListElement: [
+    { "@type": "ListItem", position: 1, name: "Home", item: siteUrl },
+    { "@type": "ListItem", position: 2, name: "FAQs", item: `${siteUrl}/faq` },
+  ],
 };
 
 export default function FAQPage() {
   return (
-    <div className="p-6 max-w-4xl mx-auto space-y-6">
-      <h1 className="text-2xl font-bold">
-        Frequently Asked Questions (FAQ) – RailEats
-      </h1>
+    <main className="customer-app-main">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
+      />
 
-      <div className="space-y-4">
-        <div>
-          <h2 className="font-semibold">
-            1. What is RailEats?
-          </h2>
-          <p>
-            RailEats is an online food delivery platform that allows train
-            passengers to order fresh, hygienic, and restaurant-quality food
-            during their train journey. Food is delivered at selected railway
-            stations directly to the passenger’s train seat.
+      <div className="site-container max-w-4xl space-y-5 pb-24">
+        <section className="app-card p-5 sm:p-7">
+          <p className="text-sm font-black uppercase tracking-wide text-orange-600">
+            RailEats Help Centre
           </p>
-        </div>
-
-        <div>
-          <h2 className="font-semibold">
-            2. How can I order food in train using RailEats?
-          </h2>
-          <p>You can place an order by following these steps:</p>
-          <ul className="list-disc pl-6">
-            <li>Enter your train number or PNR</li>
-            <li>Select the station where you want food delivery</li>
-            <li>Choose food from available partner restaurants</li>
-            <li>Place your order using online payment or Cash on Delivery</li>
-            <li>Receive food at your train seat at the selected station</li>
-          </ul>
-        </div>
-
-        <div>
-          <h2 className="font-semibold">
-            3. At which stations does RailEats deliver food?
-          </h2>
-          <p>
-            RailEats delivers food at selected railway stations across India.
-            Availability depends on your train route, station halt time, and
-            partner restaurant coverage.
+          <h1 className="mt-2 text-3xl font-black leading-tight text-slate-950 sm:text-4xl">
+            Train food delivery FAQs
+          </h1>
+          <p className="mt-3 max-w-3xl font-semibold leading-7 text-slate-600">
+            Find practical answers about ordering, station availability,
+            payments, journey changes, cancellations and support.
           </p>
-        </div>
+        </section>
 
-        <div>
-          <h2 className="font-semibold">
-            4. Can I order food without a PNR?
-          </h2>
-          <p>
-            Yes, in most cases you can order using your train number. However,
-            providing a PNR helps ensure accurate delivery and better
-            coordination.
-          </p>
-        </div>
+        <section className="app-card divide-y divide-slate-200 p-5 sm:p-7">
+          {faqItems.map((item) => (
+            <article key={item.question} className="py-5 first:pt-0 last:pb-0">
+              <h2 className="text-lg font-black text-slate-950">
+                {item.question}
+              </h2>
+              <p className="mt-2 font-semibold leading-7 text-slate-600">
+                {item.answer}
+              </p>
+            </article>
+          ))}
+        </section>
 
-        <div>
-          <h2 className="font-semibold">
-            5. Is the food safe and hygienic?
-          </h2>
-          <p>
-            Yes. RailEats partners only with licensed and verified restaurants
-            that follow standard hygiene and food safety practices.
-          </p>
-        </div>
-
-        <div>
-          <h2 className="font-semibold">
-            6. What payment options are available?
-          </h2>
-          <ul className="list-disc pl-6">
-            <li>Online payments (UPI, cards, wallets – as available)</li>
-            <li>Cash on Delivery (COD) at selected stations</li>
-          </ul>
-          <p>
-            Available payment options may vary by location and order value.
-          </p>
-        </div>
-
-        <div>
-          <h2 className="font-semibold">
-            7. When should I place my food order?
-          </h2>
-          <p>
-            We recommend placing your order well in advance before the train
-            reaches the selected station. Orders are accepted based on station
-            halt time and restaurant cut-off rules.
-          </p>
-        </div>
-
-        <div>
-          <h2 className="font-semibold">
-            8. Can I cancel my order after placing it?
-          </h2>
-          <p>
-            Cancellation depends on the order preparation status and cut-off
-            time. Once food preparation has started, cancellation may not be
-            possible.
-          </p>
-        </div>
-
-        <div>
-          <h2 className="font-semibold">
-            9. Will I get a refund if my order is cancelled?
-          </h2>
-          <p>
-            Refunds, if applicable, are processed according to our Cancellation
-            & Refund Policy and credited to the original payment method.
-          </p>
-        </div>
-
-        <div>
-          <h2 className="font-semibold">
-            10. What happens if my train is delayed?
-          </h2>
-          <p>
-            RailEats attempts to coordinate delivery based on updated train
-            timings. However, delivery depends on station halt time and
-            restaurant availability.
-          </p>
-        </div>
-
-        <div>
-          <h2 className="font-semibold">
-            11. What if my train skips the delivery station?
-          </h2>
-          <p>
-            If the train does not stop at the selected delivery station or halt
-            time is insufficient, delivery may not be possible and will be
-            handled as per our policies.
-          </p>
-        </div>
-
-        <div>
-          <h2 className="font-semibold">
-            12. How will I know when my food is delivered?
-          </h2>
-          <p>
-            You will receive order updates via SMS or phone call from the
-            delivery partner or restaurant.
-          </p>
-        </div>
-
-        <div>
-          <h2 className="font-semibold">
-            13. Can I modify my order after placing it?
-          </h2>
-          <p>
-            Order modifications are generally not allowed after confirmation, as
-            restaurants start preparing food immediately.
-          </p>
-        </div>
-
-        <div>
-          <h2 className="font-semibold">
-            14. What if I receive incorrect or damaged food?
-          </h2>
-          <p>
-            Please contact RailEats customer support immediately. We will review
-            the issue and assist you as per our policies.
-          </p>
-        </div>
-
-        <div>
-          <h2 className="font-semibold">
-            15. How can I contact RailEats customer support?
-          </h2>
-          <p>
-            You can contact RailEats customer support through the Help / Support
-            section on our website or app, or via the contact details shared
-            during order confirmation.
-          </p>
-        </div>
+        <nav aria-label="RailEats help links" className="grid gap-3 sm:grid-cols-3">
+          <Link href="/" className="app-btn-primary text-center">Start an order</Link>
+          <Link href="/contact" className="app-card-compact p-4 text-center font-black">Contact support</Link>
+          <Link href="/cancellation-refund" className="app-card-compact p-4 text-center font-black">Cancellation policy</Link>
+        </nav>
       </div>
-
-      <p className="pt-4 text-sm text-gray-600">
-        For more details, please refer to our Terms & Conditions, Privacy Policy,
-        and Cancellation & Refund Policy.
-      </p>
-    </div>
+    </main>
   );
 }
-

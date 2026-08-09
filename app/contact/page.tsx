@@ -43,13 +43,27 @@ const contactSchema = {
     "@type": "Organization",
     name: "RailEats",
     url: siteUrl,
-    email: "support@raileats.com",
+    email: "support@raileats.in",
     contactPoint: {
       "@type": "ContactPoint",
       telephone: "+91-800-800-9335",
       contactType: "customer support",
       areaServed: "IN",
       availableLanguage: ["English", "Hindi"],
+      hoursAvailable: {
+        "@type": "OpeningHoursSpecification",
+        dayOfWeek: [
+          "Monday",
+          "Tuesday",
+          "Wednesday",
+          "Thursday",
+          "Friday",
+          "Saturday",
+          "Sunday",
+        ],
+        opens: "10:00",
+        closes: "19:00",
+      },
     },
   },
 };
@@ -79,7 +93,7 @@ const faqSchema = {
       name: "What are RailEats support hours?",
       acceptedAnswer: {
         "@type": "Answer",
-        text: "RailEats support is available from 9:00 AM to 9:00 PM on all days.",
+        text: "RailEats support is available from 10:00 AM to 7:00 PM on all days.",
       },
     },
   ],
@@ -118,10 +132,10 @@ export default function ContactPage() {
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <p className="text-sm font-semibold text-slate-500">Email Support</p>
             <a
-              href="mailto:railrats@gmail.com"
+              href="mailto:support@raileats.in"
               className="mt-2 block text-xl font-extrabold text-orange-700"
             >
-              railrats@gmail.com
+              support@raileats.in
             </a>
             <p className="mt-2 text-sm leading-6 text-slate-600">
               Email us for train food order help, feedback, refund queries or
@@ -132,7 +146,7 @@ export default function ContactPage() {
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <p className="text-sm font-semibold text-slate-500">Call Center</p>
             <a
-              href="tel:800-800-9335"
+              href="tel:+918008009335"
               className="mt-2 block text-xl font-extrabold text-orange-700"
             >
               800-800-9335
@@ -146,7 +160,7 @@ export default function ContactPage() {
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <p className="text-sm font-semibold text-slate-500">WhatsApp</p>
             <a
-              href="https://wa.me/9800-800-93351"
+              href="https://wa.me/918008009335"
               target="_blank"
               rel="noopener noreferrer"
               className="mt-2 inline-block rounded-xl bg-green-600 px-5 py-3 text-sm font-bold text-white"
@@ -162,7 +176,7 @@ export default function ContactPage() {
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <p className="text-sm font-semibold text-slate-500">Support Hours</p>
             <p className="mt-2 text-xl font-extrabold text-slate-900">
-              9:00 AM – 9:00 PM
+              10:00 AM – 7:00 PM
             </p>
             <p className="mt-2 text-sm leading-6 text-slate-600">
               RailEats customer support is available all days for online food
@@ -209,8 +223,8 @@ export default function ContactPage() {
           </h2>
 
           <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-200">
-            RailEats helps passengers order fresh and hygienic food in train from
-            trusted station restaurants. Search by train, PNR or railway station
+            RailEats helps passengers order food in train from available station
+            restaurants. Search by train, PNR or railway station
             and get your food delivered to your seat.
           </p>
 

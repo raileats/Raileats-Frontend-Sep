@@ -110,7 +110,7 @@ export default function VendorPage() {
 
           <div className="mt-6 flex flex-wrap gap-3">
             <a
-              href="https://wa.me/911111111111"
+              href="https://wa.me/918008009335"
               target="_blank"
               rel="noopener noreferrer"
               className="rounded-xl bg-orange-500 px-6 py-3 text-sm font-bold text-white shadow-sm"
@@ -140,8 +140,8 @@ export default function VendorPage() {
               </h3>
 
               <p className="mt-3 text-sm leading-7 text-slate-600">
-                Receive train food delivery orders from thousands of railway
-                passengers every day.
+                Receive train food delivery orders from passengers searching
+                for available restaurants on their journey.
               </p>
             </div>
 
@@ -151,8 +151,8 @@ export default function VendorPage() {
               </h3>
 
               <p className="mt-3 text-sm leading-7 text-slate-600">
-                Expand your restaurant visibility across railway stations and
-                train routes in India.
+                Improve your restaurant visibility for supported railway
+                stations and train routes.
               </p>
             </div>
 
@@ -227,12 +227,12 @@ export default function VendorPage() {
           <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-300">
             RailEats helps restaurants connect with train passengers across
             India. Join our vendor network and grow your railway food delivery
-            business with trusted train meal orders.
+            business with online train meal orders.
           </p>
 
           <div className="mt-6 flex flex-wrap gap-3">
             <a
-              href="https://wa.me/911111111111"
+              href="https://wa.me/918008009335"
               target="_blank"
               rel="noopener noreferrer"
               className="rounded-xl bg-white px-6 py-3 text-sm font-bold text-slate-900"

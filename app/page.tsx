@@ -289,7 +289,7 @@ export default async function Page() {
       <section
         id="order-food"
         aria-labelledby="homepage-seo-title"
-        className="desktop-seo-rich mx-auto mt-6 max-w-6xl px-4 pb-24 text-slate-800"
+        className="homepage-seo-content mx-auto mt-6 max-w-6xl px-4 pb-24 text-slate-800"
       >
         <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_18px_60px_rgba(15,23,42,0.08)]">
           <div className="grid gap-0 lg:grid-cols-[1.1fr_0.9fr]">

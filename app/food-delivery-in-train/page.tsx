@@ -22,7 +22,6 @@ export default function Page() {
       pageUrl={pageUrl}
       eyebrow="Food Delivery in Train"
       title="Food Delivery in Train"
-      primaryKeyword="food delivery in train"
       description="RailEats makes food delivery in train simple. Find available restaurants on your route and order fresh food for your journey."
     />
   );

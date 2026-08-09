@@ -22,7 +22,6 @@ export default function Page() {
       pageUrl={pageUrl}
       eyebrow="Book Train Food"
       title="Book Food in Train Online"
-      primaryKeyword="book food in train"
       description="Book food in train with RailEats by searching your train or PNR. Select meals from available restaurants and get delivery at your seat."
     />
   );

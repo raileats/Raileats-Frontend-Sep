@@ -128,13 +128,13 @@ export default function FooterLinks() {
       <div className="mt-4 text-sm text-gray-600">
         <p>
           Email:{" "}
-          <a href="mailto:raileats@gmail.com" className="text-yellow-700">
-            raileats@gmail.com
+          <a href="mailto:support@raileats.in" className="text-yellow-700">
+            support@raileats.in
           </a>
         </p>
         <p>
           Call Center:{" "}
-          <a href="tel:800-800-9335" className="text-yellow-700">
+          <a href="tel:+918008009335" className="text-yellow-700">
             800-800-9335
           </a>
         </p>

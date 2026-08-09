@@ -25,36 +25,33 @@ const nextConfig = {
     ],
   },
 
-  async redirects() {
-    return [
-      {
-        source: "/Stations/:path*",
-        destination: "/stations/:path*",
-        permanent: true,
-      },
-    ];
-  },
-
   async headers() {
+    const productionAssetHeaders =
+      process.env.NODE_ENV === "production"
+        ? [
+            {
+              source: "/:all*(js|css)",
+              headers: [
+                {
+                  key: "Cache-Control",
+                  value: "public, max-age=31536000, immutable",
+                },
+              ],
+            },
+            {
+              source: "/:all*(png|jpg|jpeg|webp|avif|svg|ico)",
+              headers: [
+                {
+                  key: "Cache-Control",
+                  value: "public, max-age=31536000, immutable",
+                },
+              ],
+            },
+          ]
+        : [];
+
     return [
-      {
-        source: "/:all*(js|css)",
-        headers: [
-          {
-            key: "Cache-Control",
-            value: "public, max-age=31536000, immutable",
-          },
-        ],
-      },
-      {
-        source: "/:all*(png|jpg|jpeg|webp|avif|svg|ico)",
-        headers: [
-          {
-            key: "Cache-Control",
-            value: "public, max-age=31536000, immutable",
-          },
-        ],
-      },
+      ...productionAssetHeaders,
       {
         source: "/:path*",
         headers: [
