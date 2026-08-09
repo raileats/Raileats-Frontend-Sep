@@ -63,6 +63,13 @@ export default function OrderSuccessPage() {
           </button>
 
           <button
+            onClick={() => router.replace("/profile/orders")}
+            className="w-full bg-blue-600 text-white py-2 rounded"
+          >
+            Go to My Orders
+          </button>
+
+          <button
             onClick={() => router.replace("/")}
             className="w-full border border-gray-300 py-2 rounded"
           >

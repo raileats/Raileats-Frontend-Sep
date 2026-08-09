@@ -29,6 +29,9 @@ export default function Page({ searchParams }: { searchParams: { orderId?: strin
               View Order
             </a>
           ) : null}
+          <a href="/profile/orders" className="rounded bg-blue-600 text-white px-4 py-2">
+            Go to My Orders
+          </a>
           <a href="/" className="rounded border px-4 py-2">Home</a>
         </div>
       </div>

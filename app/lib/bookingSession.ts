@@ -46,3 +46,12 @@ export function clearCompletedBookingState(pnr?: unknown) {
     sessionStorage.removeItem(key);
   }
 }
+
+export function navigateToOrderSuccess(path: string) {
+  if (typeof window === "undefined") return;
+
+  // Replace checkout with Home, then add success as the current entry.
+  // Browser Back from success therefore lands on Home, not menu/checkout.
+  window.history.replaceState(window.history.state, "", "/");
+  window.location.assign(path);
+}

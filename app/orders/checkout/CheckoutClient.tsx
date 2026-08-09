@@ -2,6 +2,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
+import { navigateToOrderSuccess } from "../../lib/bookingSession";
 
 type CartLine = {
   id: number;
@@ -147,7 +148,9 @@ export default function CheckoutClient({ restroCode }: { restroCode: string | nu
       try {
         localStorage.removeItem(storageKey);
       } catch {}
-      window.location.href = `/orders/success?orderId=${encodeURIComponent(orderId)}`;
+      navigateToOrderSuccess(
+        `/orders/success?orderId=${encodeURIComponent(orderId)}`
+      );
     } catch (e: any) {
       setError(e?.message || "Failed to place order. Please try again.");
     } finally {

@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import {
   clearCompletedBookingState,
+  navigateToOrderSuccess,
   rememberLastPnr,
 } from "../lib/bookingSession";
 import { useCart } from "@/lib/useCart";
@@ -90,7 +91,6 @@ function formatDateForInput(value: unknown) {
 }
 
 export default function CheckoutPage() {
-  const router = useRouter();
   const searchParams = useSearchParams();
 
   const { items, clearCart, journey } = useCart();
@@ -833,14 +833,14 @@ export default function CheckoutPage() {
         rememberLastPnr(pnr);
         clearCart();
         clearCompletedBookingState(pnr);
-        router.replace("/order-success");
+        navigateToOrderSuccess("/order-success");
         return;
       }
 
       rememberLastPnr(pnr);
       clearCart();
       clearCompletedBookingState(pnr);
-      router.replace(`/order-success?orderId=${targetOrderId}`);
+      navigateToOrderSuccess(`/order-success?orderId=${targetOrderId}`);
     } catch (e) {
       console.error(e);
       alert("Network or Server script runtime error.");
