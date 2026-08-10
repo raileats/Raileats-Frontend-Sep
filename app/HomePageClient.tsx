@@ -4,7 +4,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAuth } from "./lib/useAuth";
 
 import HeroSlider, { type HeroSlide } from "./components/HeroSlider";
@@ -310,6 +310,8 @@ function getRestaurantHref(restro: any) {
 export default function HomePageClient({
   initialHeroSlides = EMPTY_HERO_SLIDES,
 }: HomePageClientProps) {
+  const categorySliderRef = useRef<HTMLDivElement | null>(null);
+  const restaurantSliderRef = useRef<HTMLDivElement | null>(null);
   const { user } = useAuth();
 
   const [bulkOpen, setBulkOpen] = useState(false);
@@ -320,6 +322,33 @@ export default function HomePageClient({
   const [bulkLoading, setBulkLoading] = useState(false);
   const [popularRestaurants, setPopularRestaurants] = useState<any[]>([]);
   const [showPartner, setShowPartner] = useState(false);
+
+  useEffect(() => {
+    const slider = restaurantSliderRef.current;
+    if (!slider || popularRestaurants.length < 2) return;
+
+    let nextCardIndex = 1;
+
+    const timer = window.setInterval(() => {
+      const cards = Array.from(slider.children) as HTMLElement[];
+      if (cards.length < 2) return;
+
+      const targetCard = cards[nextCardIndex];
+      if (!targetCard) {
+        nextCardIndex = 0;
+        return;
+      }
+
+      slider.scrollTo({
+        left: targetCard.offsetLeft - slider.offsetLeft,
+        behavior: "smooth",
+      });
+
+      nextCardIndex = (nextCardIndex + 1) % cards.length;
+    }, 2500);
+
+    return () => window.clearInterval(timer);
+  }, [popularRestaurants.length]);
 
   const getTrackingUser = () => ({
     email: user?.email || null,
@@ -537,7 +566,10 @@ export default function HomePageClient({
             <span>Swipe</span>
           </div>
 
-          <div className="mobile-category-row">
+          <div
+            ref={categorySliderRef}
+            className="mobile-category-row"
+          >
             <div className="mobile-category-track">
               {MOBILE_CATEGORY_ITEMS.map((category, index) => (
                 <button
@@ -589,7 +621,7 @@ export default function HomePageClient({
             <Link href="/popular-restaurants-train-journey">Live menus</Link>
           </div>
 
-          <div className="mobile-restro-list">
+          <div ref={restaurantSliderRef} className="mobile-restro-list">
             {restaurantsToShow.length === 0 ? (
               <div className="mobile-restro-card">
                 <Image

@@ -203,6 +203,8 @@ export default function RestroMenuClient({
   const [selectedMenuType, setSelectedMenuType] = useState("");
   const [trainMin, setTrainMin] = useState<number | null>(null);
   const categorySliderRef = useRef<HTMLDivElement | null>(null);
+  const categoryAutoScrollPausedRef = useRef(false);
+  const categoryResumeTimerRef = useRef<number | null>(null);
 
   const [urlJourney, setUrlJourney] = useState<UrlJourney>({
     trainNumber: "",
@@ -364,14 +366,71 @@ useEffect(() => {
     const slider = categorySliderRef.current;
     if (!slider || menuCategories.length < 4) return;
 
-    const timer = window.setInterval(() => {
-      const maxScroll = slider.scrollWidth - slider.clientWidth;
-      const nextLeft = slider.scrollLeft >= maxScroll - 8 ? 0 : slider.scrollLeft + 92;
-      slider.scrollTo({ left: nextLeft, behavior: "smooth" });
-    }, 3200);
+    let frameId = 0;
+    let previousTime = performance.now();
+    let virtualScrollLeft = slider.scrollLeft;
+    let wasPaused = false;
 
-    return () => window.clearInterval(timer);
+    const moveCategories = (time: number) => {
+      const elapsed = Math.min(time - previousTime, 64);
+      previousTime = time;
+
+      if (categoryAutoScrollPausedRef.current) {
+        virtualScrollLeft = slider.scrollLeft;
+        wasPaused = true;
+      } else {
+        if (wasPaused) {
+          virtualScrollLeft = slider.scrollLeft;
+          wasPaused = false;
+        }
+
+        const firstDuplicate = slider.children[menuCategories.length] as HTMLElement | undefined;
+        const loopWidth = firstDuplicate?.offsetLeft || slider.scrollWidth / 2;
+
+        if (loopWidth > slider.clientWidth) {
+          virtualScrollLeft += (elapsed * 14) / 1000;
+
+          if (virtualScrollLeft >= loopWidth) {
+            virtualScrollLeft -= loopWidth;
+          }
+
+          slider.scrollLeft = virtualScrollLeft;
+        }
+      }
+
+      frameId = window.requestAnimationFrame(moveCategories);
+    };
+
+    frameId = window.requestAnimationFrame(moveCategories);
+
+    return () => window.cancelAnimationFrame(frameId);
   }, [menuCategories.length]);
+
+  useEffect(() => {
+    return () => {
+      if (categoryResumeTimerRef.current !== null) {
+        window.clearTimeout(categoryResumeTimerRef.current);
+      }
+    };
+  }, []);
+
+  const pauseCategoryAutoScroll = () => {
+    categoryAutoScrollPausedRef.current = true;
+    if (categoryResumeTimerRef.current !== null) {
+      window.clearTimeout(categoryResumeTimerRef.current);
+    }
+  };
+
+  const resumeCategoryAutoScroll = () => {
+    if (categoryResumeTimerRef.current !== null) {
+      window.clearTimeout(categoryResumeTimerRef.current);
+    }
+
+    categoryResumeTimerRef.current = window.setTimeout(() => {
+      categoryAutoScrollPausedRef.current = false;
+      categoryResumeTimerRef.current = null;
+    }, 1200);
+  };
 
   useEffect(() => {
     if (
@@ -732,22 +791,25 @@ useEffect(() => {
           <section aria-label="Menu categories" style={{ minWidth: 0 }}>
             <div
               ref={categorySliderRef}
+              onPointerDown={pauseCategoryAutoScroll}
+              onPointerUp={resumeCategoryAutoScroll}
+              onPointerCancel={resumeCategoryAutoScroll}
+              onPointerLeave={resumeCategoryAutoScroll}
               style={{
                 display: "flex",
                 gap: 12,
                 overflowX: "auto",
                 padding: "2px 2px 8px",
-                scrollBehavior: "smooth",
                 scrollbarWidth: "none",
                 WebkitOverflowScrolling: "touch",
               }}
             >
-              {menuCategories.map((category) => {
+              {[...menuCategories, ...menuCategories].map((category, index) => {
                 const selected = selectedMenuType === category.menuType;
 
                 return (
                   <button
-                    key={category.menuType}
+                    key={`${category.menuType}-${index}`}
                     type="button"
                     aria-pressed={selected}
                     onClick={() =>
@@ -931,9 +993,10 @@ useEffect(() => {
                     style={{
                       width: 96,
                       flexShrink: 0,
-                      display: "grid",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
                       gap: 8,
-                      justifyItems: "end",
                     }}
                   >
                     {!isStationOnlyView ? (

@@ -112,43 +112,43 @@ export default function HeroSlider({
             sizes="(max-width: 767px) calc(100vw - 24px), (max-width: 1279px) calc(100vw - 48px), 1120px"
           />
 
-          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 to-transparent p-4">
+          <div className="absolute inset-x-0 bottom-8 bg-gradient-to-t from-black/75 to-transparent px-4 py-3">
             <span className="inline-flex rounded-full bg-white/95 px-3 py-1 text-xs font-black text-slate-950 shadow">
               {activeText}
             </span>
           </div>
-        </div>
 
-        {slides.length > 1 && (
-          <div
-            className="flex items-center justify-center bg-black/90 px-3"
-            aria-label="Select a RailEats offer"
-          >
-            {slides.map((slide, index) => (
-              <button
-                key={slide.id || `${slide.image_url}-${index}`}
-                type="button"
-                onClick={() => setCurrentIndex(index)}
-                aria-label={`Show offer ${index + 1}: ${
-                  slide.title || "RailEats offer"
-                }`}
-                aria-current={
-                  index === currentIndex ? "true" : undefined
-                }
-                className="group inline-flex h-11 w-11 items-center justify-center rounded-full"
-              >
-                <span
-                  aria-hidden="true"
-                  className={`h-2.5 rounded-full transition-[width,background-color] ${
-                    index === currentIndex
-                      ? "w-7 bg-white"
-                      : "w-2.5 bg-white/50 group-hover:bg-white/80"
+          {slides.length > 1 && (
+            <div
+              className="absolute inset-x-0 bottom-0 flex h-9 items-center justify-center bg-gradient-to-t from-black/70 to-transparent px-3"
+              aria-label="Select a RailEats offer"
+            >
+              {slides.map((slide, index) => (
+                <button
+                  key={slide.id || `${slide.image_url}-${index}`}
+                  type="button"
+                  onClick={() => setCurrentIndex(index)}
+                  aria-label={`Show offer ${index + 1}: ${
+                    slide.title || "RailEats offer"
                   }`}
-                />
-              </button>
-            ))}
-          </div>
-        )}
+                  aria-current={
+                    index === currentIndex ? "true" : undefined
+                  }
+                  className="group inline-flex h-8 w-9 items-center justify-center rounded-full"
+                >
+                  <span
+                    aria-hidden="true"
+                    className={`h-2 rounded-full transition-[width,background-color] ${
+                      index === currentIndex
+                        ? "w-7 bg-white"
+                        : "w-2 bg-white/60 group-hover:bg-white/85"
+                    }`}
+                  />
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </section>
   );
