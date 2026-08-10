@@ -2815,7 +2815,7 @@ textarea {
 @media (max-width: 767px) {
   /* Keep mobile banners wide so they fill the hero without black letterboxing. */
   .home-hero-slider-slot [class*="aspect-"] {
-    aspect-ratio: 16 / 7 !important;
+    aspect-ratio: 16 / 7.7868 !important;
     min-height: 0 !important;
   }
 
@@ -3611,21 +3611,6 @@ body:has(.inner-navbar) .bottom-nav {
     display: none;
   }
 
-  .mobile-category-track {
-    animation: home-category-continuous-scroll 32s linear infinite !important;
-    padding-right: 12px;
-    will-change: transform;
-  }
-}
-
-@keyframes home-category-continuous-scroll {
-  from {
-    transform: translate3d(0, 0, 0);
-  }
-
-  to {
-    transform: translate3d(-50%, 0, 0);
-  }
 }
 
 .brand-text {

@@ -92,9 +92,9 @@ export default function HeroSlider({
       className="container-app !pt-3 pb-0"
       aria-label="RailEats offers and highlights"
     >
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-black shadow-lg">
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg">
         <div
-          className="relative aspect-[16/8] w-full overflow-hidden bg-black sm:aspect-[16/7] lg:aspect-[16/6.8]"
+          className="relative aspect-[16/8.8992] w-full overflow-hidden bg-black sm:aspect-[16/7.7868] lg:aspect-[16/7.56432]"
           aria-live="off"
         >
           <Image
@@ -108,15 +108,9 @@ export default function HeroSlider({
             loading={currentIndex === 0 ? "eager" : "lazy"}
             decoding="async"
             quality={55}
-            className="object-cover"
+            className="object-cover object-left"
             sizes="(max-width: 767px) calc(100vw - 24px), (max-width: 1279px) calc(100vw - 48px), 1120px"
           />
-
-          <div className="absolute inset-x-0 bottom-8 bg-gradient-to-t from-black/75 to-transparent px-4 py-3">
-            <span className="inline-flex rounded-full bg-white/95 px-3 py-1 text-xs font-black text-slate-950 shadow">
-              {activeText}
-            </span>
-          </div>
 
           {slides.length > 1 && (
             <div
@@ -148,6 +142,12 @@ export default function HeroSlider({
               ))}
             </div>
           )}
+        </div>
+
+        <div className="border-t border-slate-100 bg-white px-3 py-1 text-center">
+          <p className="m-0 text-[11px] font-black leading-4 text-slate-800">
+            {activeText}
+          </p>
         </div>
       </div>
     </section>

@@ -98,6 +98,7 @@ export default function SearchBox() {
   const [showStationList, setShowStationList] = useState(false);
   const [loadingStations, setLoadingStations] = useState(false);
   const [lastPnr, setLastPnr] = useState("");
+  const [showPnrSuggestion, setShowPnrSuggestion] = useState(false);
 
   const searchBtnRef = useRef<HTMLButtonElement | null>(null);
   const boardingBoxRef = useRef<HTMLDivElement | null>(null);
@@ -325,9 +326,11 @@ export default function SearchBox() {
               />
             </div>
           ) : (
-            <div className="space-y-2">
+            <div className="relative">
               <input
                 value={inputValue}
+                onFocus={() => setShowPnrSuggestion(true)}
+                onBlur={() => setShowPnrSuggestion(false)}
                 onChange={(e) => {
                   const value = e.target.value.replace(/\D/g, "");
 
@@ -342,19 +345,24 @@ export default function SearchBox() {
                 }}
                 inputMode="numeric"
                 maxLength={10}
-                autoComplete="off"
+                autoComplete="on"
+                name="pnr"
                 placeholder="Enter 10 digit PNR starting with 2, 4, 6, or 8"
                 className="app-input searchbox-input"
               />
 
-              {lastPnr && inputValue !== lastPnr ? (
+              {showPnrSuggestion && lastPnr && inputValue !== lastPnr ? (
                 <button
                   type="button"
-                  onClick={() => setInputValue(lastPnr)}
-                  className="flex w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-2 text-left text-xs font-bold text-slate-600 transition hover:border-orange-300 hover:bg-orange-50"
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => {
+                    setInputValue(lastPnr);
+                    setShowPnrSuggestion(false);
+                  }}
+                  className="absolute inset-x-0 top-[calc(100%+4px)] z-30 flex items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-2 text-left text-xs font-bold text-slate-600 shadow-lg transition hover:border-orange-300 hover:bg-orange-50"
                   aria-label={`Use last PNR ending ${lastPnr.slice(-4)}`}
                 >
-                  <span>Use last PNR</span>
+                  <span>Saved PNR</span>
                   <span className="font-black text-slate-900">
                     ••••••{lastPnr.slice(-4)}
                   </span>
