@@ -4,7 +4,7 @@ import SeoFoodLandingPage from "../components/SeoFoodLandingPage";
 const pageUrl = "https://www.raileats.in/food-delivery-in-train-from-restaurants";
 
 export const metadata: Metadata = {
-  title: "Food Delivery in Train from Restaurants | RailEats",
+  title: "Restaurant Food Delivery in Train | RailEats",
   description:
     "Order food delivery in train from restaurants with RailEats. Search your route and get fresh restaurant food delivered to your seat.",
   alternates: { canonical: pageUrl },
@@ -12,7 +12,7 @@ export const metadata: Metadata = {
     "food delivery in train from restaurants",
     "restaurant food in train",
     "order restaurant food in train",
-    "train restaurant food delivery",
+    "restaurant menus for train journey",
   ],
 };
 

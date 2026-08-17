@@ -4,15 +4,14 @@ import SeoFoodLandingPage from "../components/SeoFoodLandingPage";
 const pageUrl = "https://www.raileats.in/food-delivery-in-train";
 
 export const metadata: Metadata = {
-  title: "Food Delivery in Train | Order Meals Online | RailEats",
+  title: "Food Delivery at Train Coach and Seat | RailEats",
   description:
     "Get food delivery in train with RailEats. Search train route, choose restaurants and order fresh meals for delivery at your coach and seat.",
   alternates: { canonical: pageUrl },
   keywords: [
     "food delivery in train",
-    "train food delivery",
-    "online food delivery in train",
-    "railway food delivery",
+    "food delivery at train seat",
+    "coach food delivery",
   ],
 };
 

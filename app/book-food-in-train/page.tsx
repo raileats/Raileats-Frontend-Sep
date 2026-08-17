@@ -4,7 +4,7 @@ import SeoFoodLandingPage from "../components/SeoFoodLandingPage";
 const pageUrl = "https://www.raileats.in/book-food-in-train";
 
 export const metadata: Metadata = {
-  title: "Book Food in Train Online | RailEats",
+  title: "Book Food in Train Before Your Station | RailEats",
   description:
     "Book food in train online using train number or PNR. Choose restaurants on your route and get meals delivered to your seat.",
   alternates: { canonical: pageUrl },
@@ -12,7 +12,7 @@ export const metadata: Metadata = {
     "book food in train",
     "book train food",
     "online food booking in train",
-    "food booking in train",
+    "advance food booking in train",
   ],
 };
 

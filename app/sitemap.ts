@@ -388,6 +388,7 @@ function hasValidFssai(
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
+  const seoContentLastModified = new Date("2026-08-18T00:00:00+05:30");
 
   const staticRoutes: MetadataRoute.Sitemap =
     [
@@ -399,38 +400,38 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       },
       {
         url: `${baseUrl}/order-food-in-train`,
-        lastModified: now,
-        changeFrequency: "daily",
+        lastModified: seoContentLastModified,
+        changeFrequency: "weekly",
         priority: 0.98,
       },
       {
         url: `${baseUrl}/book-food-in-train`,
-        lastModified: now,
-        changeFrequency: "daily",
+        lastModified: seoContentLastModified,
+        changeFrequency: "weekly",
         priority: 0.98,
       },
       {
         url: `${baseUrl}/food-delivery-in-train`,
-        lastModified: now,
-        changeFrequency: "daily",
+        lastModified: seoContentLastModified,
+        changeFrequency: "weekly",
         priority: 0.98,
       },
       {
         url: `${baseUrl}/train-food-delivery`,
-        lastModified: now,
-        changeFrequency: "daily",
+        lastModified: seoContentLastModified,
+        changeFrequency: "monthly",
         priority: 0.96,
       },
       {
         url: `${baseUrl}/best-food-delivery-in-train`,
-        lastModified: now,
-        changeFrequency: "daily",
+        lastModified: seoContentLastModified,
+        changeFrequency: "monthly",
         priority: 0.96,
       },
       {
         url: `${baseUrl}/food-delivery-in-train-from-restaurants`,
-        lastModified: now,
-        changeFrequency: "daily",
+        lastModified: seoContentLastModified,
+        changeFrequency: "weekly",
         priority: 0.95,
       },
       {

@@ -8,6 +8,7 @@ type SeoFoodLandingPageProps = {
 };
 
 type LandingContent = {
+  schemaAbout: string[];
   overviewTitle: string;
   overview: string[];
   highlights: Array<{ title: string; text: string }>;
@@ -21,6 +22,7 @@ const baseUrl = "https://www.raileats.in";
 
 const landingContent: Record<string, LandingContent> = {
   [`${baseUrl}/order-food-in-train`]: {
+    schemaAbout: ["order food in train", "online train food ordering", "PNR food order"],
     overviewTitle: "Order meals online for your train journey",
     overview: [
       "Use your PNR, train number or delivery station to find restaurants serving your route. RailEats shows the available menu, delivery station, minimum order and timing before checkout.",
@@ -45,6 +47,7 @@ const landingContent: Record<string, LandingContent> = {
     ],
   },
   [`${baseUrl}/book-food-in-train`]: {
+    schemaAbout: ["book food in train", "advance train meal booking", "train food booking"],
     overviewTitle: "Plan train food booking before your delivery station",
     overview: [
       "Advance food booking helps you choose the delivery station and restaurant before the train reaches the stop. Search your confirmed journey and review the restaurant's order timing shown by RailEats.",
@@ -69,6 +72,7 @@ const landingContent: Record<string, LandingContent> = {
     ],
   },
   [`${baseUrl}/food-delivery-in-train`]: {
+    schemaAbout: ["food delivery in train", "coach and seat food delivery", "railway meal delivery"],
     overviewTitle: "Food delivery at your train coach and seat",
     overview: [
       "RailEats connects your journey search with restaurants available at supported stations. Select where you want delivery, choose food from the current menu and confirm your coach and seat.",
@@ -93,6 +97,7 @@ const landingContent: Record<string, LandingContent> = {
     ],
   },
   [`${baseUrl}/train-food-delivery`]: {
+    schemaAbout: ["train food delivery process", "delivery station selection", "train meal handover"],
     overviewTitle: "Understand the train food delivery process",
     overview: [
       "Train food delivery depends on matching your journey with a supported station and an available restaurant. RailEats uses the selected train, date and boarding details to show suitable ordering options.",
@@ -117,6 +122,7 @@ const landingContent: Record<string, LandingContent> = {
     ],
   },
   [`${baseUrl}/best-food-delivery-in-train`]: {
+    schemaAbout: ["choosing food in train", "train meal comparison", "train food preferences"],
     overviewTitle: "How to choose a suitable train meal",
     overview: [
       "The best choice is the one that fits your route, delivery time, dietary preference and order value. Compare the restaurants and menus RailEats currently shows for your selected station.",
@@ -141,6 +147,7 @@ const landingContent: Record<string, LandingContent> = {
     ],
   },
   [`${baseUrl}/food-delivery-in-train-from-restaurants`]: {
+    schemaAbout: ["restaurant food in train", "train restaurant menus", "restaurant meal delivery"],
     overviewTitle: "Choose restaurant food for your train route",
     overview: [
       "Restaurant food availability is tied to the delivery station and selected journey. RailEats displays active options with the menu, price, timing and minimum order information available for that search.",
@@ -193,7 +200,16 @@ export default function SeoFoodLandingPage({
   pageUrl,
 }: SeoFoodLandingPageProps) {
   const content = landingContent[pageUrl];
-  const { overviewTitle, overview, highlights, stepsTitle, steps, faqItems, relatedLinks } = content;
+  const {
+    schemaAbout,
+    overviewTitle,
+    overview,
+    highlights,
+    stepsTitle,
+    steps,
+    faqItems,
+    relatedLinks,
+  } = content;
   const webPageJsonLd = {
     "@context": "https://schema.org",
     "@type": "WebPage",
@@ -211,13 +227,7 @@ export default function SeoFoodLandingPage({
       name: "RailEats",
       url: baseUrl,
     },
-    about: [
-      "food delivery in train",
-      "order food in train",
-      "book food in train",
-      "train food delivery",
-      "railway food delivery",
-    ],
+    about: schemaAbout,
   };
 
   const breadcrumbJsonLd = {
