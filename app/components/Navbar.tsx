@@ -129,10 +129,6 @@ export default function Navbar() {
           <ArrowLeft size={22} strokeWidth={2.8} />
         </button>
 
-        <div className="inner-page-title" aria-label={pageTitle}>
-          {pageTitle}
-        </div>
-
         <Link
           href="/"
           className="inner-home-logo flex items-center gap-1.5 active:scale-95"
@@ -148,6 +144,10 @@ export default function Navbar() {
           />
           <span className="text-xs font-black text-slate-800">Home</span>
         </Link>
+
+        <div className="inner-page-title" aria-label={pageTitle}>
+          {pageTitle}
+        </div>
       </header>
     );
   }

@@ -3509,9 +3509,9 @@ body {
 
 .inner-navbar {
   display: grid !important;
-  grid-template-columns: 44px minmax(0, 1fr) 44px !important;
+  grid-template-columns: 44px 66px minmax(0, 1fr) !important;
   align-items: center !important;
-  gap: 10px !important;
+  gap: 20px !important;
   min-height: var(--nav-h) !important;
   padding-left: max(14px, env(safe-area-inset-left, 0px)) !important;
   padding-right: max(14px, env(safe-area-inset-right, 0px)) !important;
@@ -3519,7 +3519,6 @@ body {
 
 .inner-back-button,
 .inner-home-logo {
-  width: 42px !important;
   height: 42px !important;
   border-radius: 999px !important;
   display: inline-flex !important;
@@ -3534,7 +3533,18 @@ body {
 }
 
 .inner-back-button {
+  width: 42px !important;
   cursor: pointer !important;
+}
+
+.inner-home-logo {
+  width: 64px !important;
+  min-width: 0 !important;
+  max-width: 64px !important;
+  padding: 0 5px 0 3px !important;
+  gap: 2px !important;
+  overflow: hidden !important;
+  box-sizing: border-box !important;
 }
 
 .inner-page-title {
@@ -3550,9 +3560,17 @@ body {
 }
 
 .inner-home-logo img {
-  width: 34px !important;
-  height: 34px !important;
+  width: 26px !important;
+  height: 26px !important;
   object-fit: contain !important;
+}
+
+.inner-home-logo span {
+  display: inline !important;
+  min-width: 0 !important;
+  font-size: 9px !important;
+  line-height: 1 !important;
+  white-space: nowrap !important;
 }
 
 body:has(.inner-navbar) .site-container {
@@ -3589,8 +3607,16 @@ body:has(.inner-navbar) .bottom-nav {
 
   .inner-back-button,
   .inner-home-logo {
-    width: 40px !important;
     height: 40px !important;
+  }
+
+  .inner-back-button {
+    width: 40px !important;
+  }
+
+  .inner-home-logo {
+    width: 64px !important;
+    max-width: 64px !important;
   }
 
   .inner-page-title {
