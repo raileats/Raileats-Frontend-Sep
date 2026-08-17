@@ -704,7 +704,7 @@ export default function HomePageClient({
                   width={112}
                   height={96}
                   sizes="112px"
-                  unoptimized
+                  quality={55}
                 />
                 <div className="mobile-restro-copy">
                   <div className="mobile-restro-title-row">
@@ -745,8 +745,8 @@ export default function HomePageClient({
                       title={`${restro.RestroName} food delivery in train`}
                       width={112}
                       height={96}
-                      sizes="(max-width: 767px) 86px, 92px"
-                      unoptimized
+                      sizes="(max-width: 767px) 86px, 112px"
+                      quality={55}
                       onError={(event) => {
                         event.currentTarget.src = "/raileats-header.webp";
                       }}
