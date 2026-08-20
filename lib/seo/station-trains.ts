@@ -1,4 +1,4 @@
-import { serviceClient } from "../supabaseServer";
+import { serviceClient } from "../../app/lib/supabaseServer";
 
 export type StationTrainLink = {
   trainNumber: string;
@@ -14,14 +14,6 @@ function normalize(value: unknown) {
 function normalizeTrainNumber(value: unknown) {
   const digits = String(value ?? "").replace(/\D/g, "");
   return digits ? digits.padStart(5, "0") : "";
-}
-
-function slugify(value: unknown) {
-  return String(value ?? "")
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
 }
 
 /**
