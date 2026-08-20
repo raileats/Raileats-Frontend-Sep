@@ -357,7 +357,7 @@ function getLatestFssaiRows(
 }
 
 function hasValidFssai(
-  rows: FssaiRow[],
+  latestRows: Map<string, FssaiRow>,
   restroCode: unknown,
   todayKey: number
 ) {
@@ -366,7 +366,6 @@ function hasValidFssai(
 
   if (!normalizedRestroCode) return false;
 
-  const latestRows = getLatestFssaiRows(rows);
   const latestRow = latestRows.get(normalizedRestroCode);
 
   if (!latestRow) return false;
@@ -520,6 +519,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       ]);
 
     const todayKey = getIndiaTodayKey();
+    const latestFssaiRows = getLatestFssaiRows(fssaiRows);
 
     const stationNames = new Map<string, string>();
     for (const station of stationRows) {
@@ -540,7 +540,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         !isActive(restro.RaileatsStatus) ||
         !restroCode ||
         !hasValidFssai(
-          fssaiRows,
+          latestFssaiRows,
           restroCode,
           todayKey
         )
