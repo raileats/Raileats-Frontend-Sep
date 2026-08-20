@@ -105,29 +105,85 @@ function parseExpiryDate(value: any): Date | null {
     : new Date(fallback.getFullYear(), fallback.getMonth(), fallback.getDate(), 23, 59, 59, 999);
 }
 
-function hasValidFssai(rows: Record<string, any>[], restroCode: any) {
+function getCreatedAtTime(value: any) {
+  const raw = String(value ?? "").trim();
+  if (!raw) return 0;
+  const time = new Date(raw).getTime();
+  return Number.isNaN(time) ? 0 : time;
+}
+
+function getLatestFssaiRows(rows: Record<string, any>[]) {
+  const latestRows = new Map<string, Record<string, any>>();
+
+  for (const row of rows) {
+    const code = normalizeRestroCode(
+      getValue(row, ["RestroCode", "restro_code", "restroCode", "RestaurantCode"])
+    );
+
+    if (!code) continue;
+
+    const current = latestRows.get(code);
+    if (!current) {
+      latestRows.set(code, row);
+      continue;
+    }
+
+    if (getCreatedAtTime(getValue(row, ["created_at", "createdAt", "CreatedAt"])) >=
+        getCreatedAtTime(getValue(current, ["created_at", "createdAt", "CreatedAt"]))) {
+      latestRows.set(code, row);
+    }
+  }
+
+  return latestRows;
+}
+
+function hasValidFssai(
+  latestRows: Map<string, Record<string, any>>,
+  restroCode: any
+) {
   const code = normalizeRestroCode(restroCode);
   if (!code) return false;
+
+  const row = latestRows.get(code);
+  if (!row) return false;
 
   const today = new Date();
   const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
 
-  return rows.some((row) => {
-    if (normalizeRestroCode(getValue(row, ["RestroCode", "restro_code", "restroCode", "RestaurantCode"])) !== code) {
+  const status = getValue(row, [
+    "Status",
+    "status",
+    "FSSAIStatus",
+    "FssaiStatus",
+    "IsActive",
+    "is_active",
+    "Active",
+    "active",
+  ]);
+
+  if (status !== undefined && status !== null && status !== "") {
+    const normalized = String(status).trim().toLowerCase();
+    if (!["active", "1", "true", "yes", "on", "valid", "approved"].includes(normalized)) {
       return false;
     }
+  }
 
-    const status = getValue(row, ["Status", "status", "FSSAIStatus", "FssaiStatus", "IsActive", "is_active", "Active", "active"]);
-    if (status !== undefined && status !== null && status !== "") {
-      const normalized = String(status).trim().toLowerCase();
-      if (!["active", "1", "true", "yes", "on", "valid", "approved"].includes(normalized)) return false;
-    }
+  const expiry = parseExpiryDate(
+    getValue(row, [
+      "Expiry",
+      "expiry",
+      "ExpiryDate",
+      "expiry_date",
+      "FSSAIExpiry",
+      "FSSAIExpiryDate",
+      "ValidTill",
+      "valid_till",
+      "ValidUpto",
+      "valid_upto",
+    ])
+  );
 
-    const expiry = parseExpiryDate(
-      getValue(row, ["Expiry", "expiry", "ExpiryDate", "expiry_date", "FSSAIExpiry", "FSSAIExpiryDate", "ValidTill", "valid_till", "ValidUpto", "valid_upto"])
-    );
-    return !!expiry && expiry.getTime() >= todayStart.getTime();
-  });
+  return !!expiry && expiry.getTime() >= todayStart.getTime();
 }
 
 async function getTrainSeoData(trainNumber: string) {
@@ -188,13 +244,15 @@ async function getTrainSeoData(trainNumber: string) {
       fssaiRows = data || [];
     }
 
+    const latestFssaiRows = getLatestFssaiRows(fssaiRows);
+
     const stateMap = new Map(
       (stationResult.data || []).map((row: any) => [normalize(row.StationCode), String(row.State || "").trim()])
     );
 
     const eligibleCodes = new Set(
       activeRestros
-        .filter((row: any) => hasValidFssai(fssaiRows, row?.RestroCode))
+        .filter((row: any) => hasValidFssai(latestFssaiRows, row?.RestroCode))
         .map((row: any) => normalize(row?.StationCode))
         .filter(Boolean)
     );
