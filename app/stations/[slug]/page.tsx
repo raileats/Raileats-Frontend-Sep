@@ -459,6 +459,31 @@ async function getStationNameByCode(code: string, fallback: string) {
   return data?.StationName || fallback;
 }
 
+async function getStationIndexStatus(code: string) {
+  const stationCode = String(code || "").trim().toUpperCase();
+
+  if (!/^[A-Z0-9]{2,8}$/.test(stationCode)) {
+    return { exists: false, name: "" };
+  }
+
+  const { data, error } = await serviceClient
+    .from("RestroMaster")
+    .select("StationName")
+    .eq("StationCode", stationCode)
+    .not("StationName", "is", null)
+    .limit(1)
+    .maybeSingle();
+
+  if (error || !data) {
+    return { exists: false, name: "" };
+  }
+
+  return {
+    exists: true,
+    name: String(data.StationName || "").trim(),
+  };
+}
+
 async function getRelatedStations(currentCode: string) {
   const { data } = await serviceClient
     .from("RestroMaster")
@@ -545,10 +570,14 @@ export async function generateMetadata({
   params: { slug: string };
 }): Promise<Metadata> {
   const stationBase = parseStationFromSlug(params.slug);
-  const stationApi = await fetchStationRestaurants(stationBase.code);
+  const [stationApi, stationIndexStatus] = await Promise.all([
+    fetchStationRestaurants(stationBase.code),
+    getStationIndexStatus(stationBase.code),
+  ]);
 
   const stationName =
     stationApi.station?.StationName ||
+    stationIndexStatus.name ||
     (stationBase.isCodeOnly && stationBase.code
       ? await getStationNameByCode(stationBase.code, stationBase.name)
       : stationBase.name);
@@ -559,7 +588,9 @@ export async function generateMetadata({
     Admin API expired/inactive FSSAI restaurants ko pehle hi remove karti hai.
   */
   const activeRestros = sortRestaurants(stationApi.restaurants || []);
-  const shouldIndex = !stationApi.error && activeRestros.length > 0;
+  // Indexability must stay stable. A temporary Admin API failure, restaurant
+  // holiday or zero-result response must not add `noindex` to a valid station.
+  const shouldIndex = stationIndexStatus.exists;
   const seoTerms = extractSeoTerms(activeRestros);
   const title = buildStationTitle(stationName, stationBase.code);
   const description = buildMetaDescription(
