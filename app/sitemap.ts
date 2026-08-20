@@ -366,24 +366,18 @@ function hasValidFssai(
 
   if (!normalizedRestroCode) return false;
 
-  return rows.some((row) => {
-    if (
-      normalizeRestroCode(row.RestroCode) !==
-      normalizedRestroCode
-    ) {
-      return false;
-    }
+  const latestRows = getLatestFssaiRows(rows);
+  const latestRow = latestRows.get(normalizedRestroCode);
 
-    const expiryKey = parseDateKey(
-      row.expiry_date
-    );
+  if (!latestRow) return false;
 
-    return (
-      isActiveFssaiStatus(row.status) &&
-      expiryKey !== null &&
-      expiryKey >= todayKey
-    );
-  });
+  const expiryKey = parseDateKey(latestRow.expiry_date);
+
+  return (
+    isActiveFssaiStatus(latestRow.status) &&
+    expiryKey !== null &&
+    expiryKey >= todayKey
+  );
 }
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
