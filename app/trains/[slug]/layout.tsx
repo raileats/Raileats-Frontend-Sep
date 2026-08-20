@@ -67,12 +67,24 @@ export async function generateMetadata({
     title: { absolute: title },
     description,
     alternates: { canonical },
+    robots: {
+      index: true,
+      follow: true,
+      googleBot: {
+        index: true,
+        follow: true,
+        "max-image-preview": "large",
+        "max-snippet": -1,
+        "max-video-preview": -1,
+      },
+    },
     openGraph: {
       title,
       description,
       url: canonical,
       siteName: "RailEats",
       type: "website",
+      locale: "en_IN",
     },
     twitter: {
       card: "summary_large_image",
@@ -84,8 +96,103 @@ export async function generateMetadata({
 
 export default function TrainLayout({
   children,
+  params,
 }: {
   children: ReactNode;
+  params: { slug: string };
 }) {
-  return children;
+  const slug = String(params?.slug || "");
+  const trainNumber = slug.match(/^(\d+)/)?.[1] || "";
+
+  if (!trainNumber) return children;
+
+  const canonical = `${SITE_URL}/trains/${trainNumber}-train-food-delivery-in-train`;
+  const faq = [
+    {
+      question: `Can I order food online in train ${trainNumber}?`,
+      answer: `Yes. Enter your valid 10-digit PNR on RailEats to check eligible delivery stations and active restaurants for train ${trainNumber}.`,
+    },
+    {
+      question: "Why is a PNR required for train food delivery?",
+      answer:
+        "PNR verification confirms the train, journey date and eligible delivery stations before an order is placed.",
+    },
+    {
+      question: "Where is the food delivered?",
+      answer:
+        "The order is delivered at the railway station selected during booking using the coach and seat details supplied with the order.",
+    },
+    {
+      question: "Why can restaurant availability change?",
+      answer:
+        "Availability depends on the delivery station, journey date, train arrival time, restaurant status and order cut-off time.",
+    },
+  ];
+
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebPage",
+        "@id": `${canonical}#webpage`,
+        url: canonical,
+        name: `Order Food in Train ${trainNumber}`,
+        description: `View active restaurants for train ${trainNumber} and enter your PNR to check food delivery options for your journey.`,
+        isPartOf: {
+          "@type": "WebSite",
+          "@id": `${SITE_URL}/#website`,
+          url: SITE_URL,
+          name: "RailEats",
+        },
+      },
+      {
+        "@type": "BreadcrumbList",
+        "@id": `${canonical}#breadcrumb`,
+        itemListElement: [
+          {
+            "@type": "ListItem",
+            position: 1,
+            name: "Home",
+            item: SITE_URL,
+          },
+          {
+            "@type": "ListItem",
+            position: 2,
+            name: "Food in Train",
+            item: `${SITE_URL}/order-food-in-train`,
+          },
+          {
+            "@type": "ListItem",
+            position: 3,
+            name: `Train ${trainNumber}`,
+            item: canonical,
+          },
+        ],
+      },
+      {
+        "@type": "FAQPage",
+        "@id": `${canonical}#faq`,
+        mainEntity: faq.map((item) => ({
+          "@type": "Question",
+          name: item.question,
+          acceptedAnswer: {
+            "@type": "Answer",
+            text: item.answer,
+          },
+        })),
+      },
+    ],
+  };
+
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(structuredData).replace(/</g, "\\u003c"),
+        }}
+      />
+      {children}
+    </>
+  );
 }
