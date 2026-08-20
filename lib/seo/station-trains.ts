@@ -58,7 +58,7 @@ export async function getStationRelatedTrains(
     result.push({
       trainNumber,
       trainName,
-      slug: `${trainNumber}-${slugify(trainName)}`,
+      slug: `${trainNumber}-train-food-delivery-in-train`,
       stationCode: code,
     });
 
