@@ -312,6 +312,18 @@ export default async function TrainLayout({
     },
   ];
 
+  const stationItems = stations.slice(0, 30).map((station: any, index: number) => {
+    const stationSlug = `${slugify(station.name)}-${slugify(station.code)}-food-delivery-in-train`;
+    const stationUrl = `${SITE_URL}/stations/${stationSlug}`;
+
+    return {
+      "@type": "ListItem",
+      position: index + 1,
+      name: `${station.name} (${station.code})`,
+      url: stationUrl,
+    };
+  });
+
   const structuredData = {
     "@context": "https://schema.org",
     "@graph": [
@@ -351,6 +363,34 @@ export default async function TrainLayout({
             item: canonical,
           },
         ],
+      },
+      ...(stationItems.length > 0
+        ? [
+            {
+              "@type": "ItemList",
+              "@id": `${canonical}#delivery-stations`,
+              name: `Food Delivery Stations for Train ${fullTrain}`,
+              url: canonical,
+              numberOfItems: stationItems.length,
+              itemListElement: stationItems,
+            },
+          ]
+        : []),
+      {
+        "@type": "Service",
+        "@id": `${canonical}#train-food-service`,
+        name: `Train food delivery for ${fullTrain}`,
+        provider: {
+          "@type": "Organization",
+          "@id": `${SITE_URL}#organization`,
+          name: "RailEats",
+          url: SITE_URL,
+        },
+        areaServed: {
+          "@type": "Place",
+          name: `Railway stations served by train ${fullTrain}`,
+        },
+        url: canonical,
       },
       {
         "@type": "FAQPage",
