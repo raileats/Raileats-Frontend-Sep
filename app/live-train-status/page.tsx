@@ -8,9 +8,9 @@ const pageUrl = "https://www.raileats.in/live-train-status";
 
 export const metadata: Metadata = {
   title:
-    "Live Train Status & Train Running Status Online | RailEats",
+    "Live Train Running Status Today | Check Train Location & Delay | RailEats",
   description:
-    "Check live train status online by train number. View current station, running delay, expected arrival, departure, platform and route updates on RailEats.",
+    "Check live train running status today by train number. See current train location, delay, next station, expected arrival, departure, platform and route updates on RailEats.",
   keywords: [
     "live train running status",
     "live train status",
@@ -22,24 +22,25 @@ export const metadata: Metadata = {
     "train delay status",
     "train platform status",
     "train arrival departure status",
+    "train status today",
     "RailEats live train status",
   ],
   alternates: {
     canonical: pageUrl,
   },
   openGraph: {
-    title: "Live Train Status & Running Status Online | RailEats",
+    title: "Live Train Running Status Today | RailEats",
     description:
-      "Check Indian Railway live train running status with current station, delay, platform, arrival, departure and route details.",
+      "Check live Indian Railway train running status with current location, delay, next station, platform, arrival, departure and route details.",
     url: pageUrl,
     siteName: "RailEats",
     type: "website",
   },
   twitter: {
     card: "summary",
-    title: "Live Train Running Status Online | RailEats",
+    title: "Live Train Running Status Today | RailEats",
     description:
-      "Check live train running status, delay, platform and current train location online.",
+      "Check live train running status, current train location, delay, platform and route updates online.",
   },
 };
 
@@ -47,10 +48,10 @@ export default function Page() {
   const webPageJsonLd = {
     "@context": "https://schema.org",
     "@type": "WebPage",
-    name: "Live Train Running Status Online",
+    name: "Live Train Running Status Today",
     url: pageUrl,
     description:
-      "Check Indian Railway live train running status online with train number, current station, delay, platform, arrival, departure and route information.",
+      "Check Indian Railway live train running status online with train number, current location, delay, next station, platform, arrival, departure and route information.",
     publisher: {
       "@type": "Organization",
       name: "RailEats",
