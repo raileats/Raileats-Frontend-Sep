@@ -1,5 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 
+const NOINDEX_KEYS = new Set([
+  "train",
+  "trainName",
+  "arrival",
+  "arrivalTime",
+  "deliveryTime",
+  "deliveryDate",
+  "date",
+  "mode",
+  "minOrder",
+]);
+
 export function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
@@ -7,19 +19,36 @@ export function middleware(request: NextRequest) {
     /^\/stations\/(.+)-food-delivery(\/.*)?$/
   );
 
-  if (!oldStationUrlMatch) {
+  if (oldStationUrlMatch) {
+    const stationSlug = oldStationUrlMatch[1];
+    const remainingPath = oldStationUrlMatch[2] || "";
+    const redirectUrl = request.nextUrl.clone();
+
+    redirectUrl.pathname =
+      `/stations/${stationSlug}-food-delivery-in-train${remainingPath}`;
+
+    return NextResponse.redirect(redirectUrl, 308);
+  }
+
+  if (!pathname.startsWith("/stations/")) {
     return NextResponse.next();
   }
 
-  const stationSlug = oldStationUrlMatch[1];
-  const remainingPath = oldStationUrlMatch[2] || "";
+  const hasTransactionalQuery = Array.from(
+    request.nextUrl.searchParams.keys()
+  ).some((key) => NOINDEX_KEYS.has(key));
 
-  const redirectUrl = request.nextUrl.clone();
+  if (!hasTransactionalQuery) {
+    return NextResponse.next();
+  }
 
-  redirectUrl.pathname =
-    `/stations/${stationSlug}-food-delivery-in-train${remainingPath}`;
+  const response = NextResponse.next();
+  response.headers.set(
+    "X-Robots-Tag",
+    "noindex, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1"
+  );
 
-  return NextResponse.redirect(redirectUrl, 308);
+  return response;
 }
 
 export const config = {
