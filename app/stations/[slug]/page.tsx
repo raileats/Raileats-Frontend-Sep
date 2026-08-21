@@ -1,6 +1,7 @@
 import React from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { permanentRedirect } from "next/navigation";
 import type { Metadata } from "next";
 import { serviceClient } from "../../lib/supabaseServer";
 
@@ -658,7 +659,10 @@ export default async function Page({ params }: { params: { slug: string } }) {
     - FSSAI active check hota hai
     - FSSAI expiry date check hoti hai
   */
-  const stationApi = await fetchStationRestaurants(stationBase.code);
+  const [stationApi, stationIndexStatus] = await Promise.all([
+    fetchStationRestaurants(stationBase.code),
+    getStationIndexStatus(stationBase.code),
+  ]);
 
   const restros = stationApi.restaurants || [];
   const restroError = stationApi.error
@@ -667,8 +671,19 @@ export default async function Page({ params }: { params: { slug: string } }) {
 
   const stationName =
     stationApi.station?.StationName ||
+    stationIndexStatus.name ||
     stationBase.name ||
     stationBase.code;
+
+  const canonicalStationSlug = stationSlug(stationName, stationBase.code);
+  const requestedStationSlug = String(params.slug || "")
+    .trim()
+    .replace(/^\/+|\/+$/g, "")
+    .toLowerCase();
+
+  if (requestedStationSlug !== canonicalStationSlug) {
+    permanentRedirect(`/stations/${canonicalStationSlug}`);
+  }
 
   const restroCodes = restros
     .map((r: any) => Number(r.RestroCode))
