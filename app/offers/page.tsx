@@ -99,6 +99,20 @@ export default function OffersPage() {
             </Link>
 
             <Link
+              href="/stations"
+              className="rounded-xl border border-orange-300 bg-white px-5 py-3 text-sm font-bold text-orange-700 hover:bg-orange-50"
+            >
+              Browse Food Delivery Stations
+            </Link>
+
+            <Link
+              href="/popular-restaurants-train-journey"
+              className="rounded-xl border border-orange-300 bg-white px-5 py-3 text-sm font-bold text-orange-700 hover:bg-orange-50"
+            >
+              Popular Train Food Restaurants
+            </Link>
+
+            <Link
               href="/contact"
               className="rounded-xl border border-orange-300 bg-white px-5 py-3 text-sm font-bold text-orange-700 hover:bg-orange-50"
             >
