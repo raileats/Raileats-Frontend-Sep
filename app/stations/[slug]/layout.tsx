@@ -126,6 +126,30 @@ export default async function StationLayout({
                 ))}
               </div>
             </nav>
+
+            <div
+              style={{
+                marginTop: 12,
+                paddingTop: 12,
+                borderTop: "1px solid #e2e8f0",
+              }}
+            >
+              <Link
+                href="/popular-restaurants-train-journey"
+                aria-label={`Explore popular restaurants for train food delivery near ${stationName}`}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  fontSize: 12,
+                  fontWeight: 800,
+                  color: "#c2410c",
+                  textDecoration: "none",
+                }}
+              >
+                Explore popular train food restaurants →
+              </Link>
+            </div>
           </div>
         </section>
       ) : null}
