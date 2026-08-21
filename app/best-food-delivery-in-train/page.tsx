@@ -4,9 +4,9 @@ import SeoFoodLandingPage from "../components/SeoFoodLandingPage";
 const pageUrl = "https://www.raileats.in/best-food-delivery-in-train";
 
 export const metadata: Metadata = {
-  title: "How to Choose the Best Food in Train | RailEats",
+  title: "Best Food Delivery in Train Online | Compare Options | RailEats",
   description:
-    "Looking for the best food delivery in train? RailEats helps you order fresh meals from available restaurants on your train route.",
+    "Find the best food delivery in train online with RailEats. Compare available restaurants on your route and choose fresh meals for delivery at your coach and seat.",
   alternates: { canonical: pageUrl },
   keywords: [
     "best food delivery in train",
@@ -22,7 +22,7 @@ export default function Page() {
       pageUrl={pageUrl}
       eyebrow="Best Food in Train"
       title="Best Food Delivery in Train"
-      description="RailEats helps passengers find fresh and convenient food delivery options in train from available restaurants on their route."
+      description="Find the best food delivery options in train with RailEats. Check available restaurants on your route, compare your choices and order fresh meals for delivery at your coach and seat."
     />
   );
 }
