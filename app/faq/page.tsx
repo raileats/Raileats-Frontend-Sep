@@ -128,8 +128,11 @@ export default function FAQPage() {
           ))}
         </section>
 
-        <nav aria-label="RailEats help links" className="grid gap-3 sm:grid-cols-3">
+        <nav aria-label="RailEats help links" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
           <Link href="/" className="app-btn-primary text-center">Start an order</Link>
+          <Link href="/stations" className="app-card-compact p-4 text-center font-black">Browse stations</Link>
+          <Link href="/popular-restaurants-train-journey" className="app-card-compact p-4 text-center font-black">Popular restaurants</Link>
+          <Link href="/offers" className="app-card-compact p-4 text-center font-black">Train food offers</Link>
           <Link href="/contact" className="app-card-compact p-4 text-center font-black">Contact support</Link>
           <Link href="/cancellation-refund" className="app-card-compact p-4 text-center font-black">Cancellation policy</Link>
         </nav>
