@@ -2,11 +2,19 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { getStationRelatedTrains } from "../../../lib/seo/station-trains";
 
-function getStationCode(slugValue: string) {
+function getStationIdentity(slugValue: string) {
   const slug = decodeURIComponent(String(slugValue || "")).trim();
   const withoutSuffix = slug.replace(/-food-delivery-in-train$/i, "");
   const parts = withoutSuffix.split("-").filter(Boolean);
-  return String(parts[parts.length - 1] || "").toUpperCase();
+  const code = String(parts.pop() || "").toUpperCase();
+  const name = parts
+    .join(" ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+
+  return {
+    code,
+    name: name || code || "Railway Station",
+  };
 }
 
 export default async function StationLayout({
@@ -16,8 +24,12 @@ export default async function StationLayout({
   children: ReactNode;
   params: { slug: string };
 }) {
-  const stationCode = getStationCode(params?.slug || "");
-  const trains = stationCode ? await getStationRelatedTrains(stationCode, 24) : [];
+  const { code: stationCode, name: stationName } = getStationIdentity(
+    params?.slug || ""
+  );
+  const trains = stationCode
+    ? await getStationRelatedTrains(stationCode, 24)
+    : [];
 
   return (
     <>
@@ -52,7 +64,7 @@ export default async function StationLayout({
                 color: "#1e293b",
               }}
             >
-              Trains Serving {stationCode} Station
+              Trains Serving {stationName} ({stationCode})
             </h2>
 
             <p
@@ -63,11 +75,11 @@ export default async function StationLayout({
                 color: "#64748b",
               }}
             >
-              Check food delivery options for trains that actually stop at this
-              station.
+              Check real trains stopping at {stationName} and open their food
+              delivery pages.
             </p>
 
-            <nav aria-label={`Trains serving ${stationCode} station`}>
+            <nav aria-label={`Trains serving ${stationName} station`}>
               <div
                 style={{
                   display: "grid",
@@ -79,6 +91,7 @@ export default async function StationLayout({
                   <Link
                     key={train.trainNumber}
                     href={`/trains/${train.slug}`}
+                    aria-label={`Order food in train ${train.trainNumber} ${train.trainName}`}
                     style={{
                       display: "block",
                       padding: "10px 11px",
@@ -97,7 +110,7 @@ export default async function StationLayout({
                         lineHeight: 1.3,
                       }}
                     >
-                      {train.trainNumber} - {train.trainName}
+                      Order Food in Train {train.trainNumber}
                     </span>
                     <span
                       style={{
@@ -107,7 +120,7 @@ export default async function StationLayout({
                         color: "#64748b",
                       }}
                     >
-                      Food delivery in train
+                      {train.trainName} · Food delivery in train
                     </span>
                   </Link>
                 ))}
