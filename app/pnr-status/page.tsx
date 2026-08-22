@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import PnrStatusClient from "./PnrStatusClient";
 
 export const dynamic = "force-dynamic";
@@ -44,6 +45,33 @@ export default function Page() {
       />
 
       <PnrStatusClient />
+
+      <section
+        aria-labelledby="pnr-food-next-steps"
+        className="mx-auto max-w-4xl px-4 pb-10 pt-4"
+      >
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <h2
+            id="pnr-food-next-steps"
+            className="text-xl font-extrabold text-slate-900"
+          >
+            Check Your PNR, Then Plan Food for Your Journey
+          </h2>
+          <p className="mt-2 text-sm leading-6 text-slate-600">
+            Once you know your train and journey details, RailEats can help you
+            find food delivery options at supported railway stations on your
+            route. Use the correct PNR and journey details before placing an
+            order.
+          </p>
+
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 md:grid-cols-4">
+            <Link href="/" className="rounded-xl border border-slate-200 p-4 text-sm font-bold text-slate-900 hover:border-orange-300">Order Food in Train</Link>
+            <Link href="/stations" className="rounded-xl border border-slate-200 p-4 text-sm font-bold text-slate-900 hover:border-orange-300">Browse Delivery Stations</Link>
+            <Link href="/popular-restaurants-train-journey" className="rounded-xl border border-slate-200 p-4 text-sm font-bold text-slate-900 hover:border-orange-300">Popular Train Restaurants</Link>
+            <Link href="/live-train-status" className="rounded-xl border border-slate-200 p-4 text-sm font-bold text-slate-900 hover:border-orange-300">Live Train Status</Link>
+          </div>
+        </div>
+      </section>
     </>
   );
 }
