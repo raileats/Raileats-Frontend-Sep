@@ -150,6 +150,62 @@ export default async function StationLayout({
                 Explore popular train food restaurants →
               </Link>
             </div>
+
+            <div
+              style={{
+                marginTop: 12,
+                paddingTop: 12,
+                borderTop: "1px solid #e2e8f0",
+              }}
+            >
+              <h3
+                style={{
+                  margin: "0 0 8px",
+                  fontSize: 13,
+                  lineHeight: 1.4,
+                  fontWeight: 800,
+                  color: "#1e293b",
+                }}
+              >
+                Popular Food Options for Train Journeys
+              </h3>
+              <div
+                style={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: 7,
+                }}
+              >
+                {[
+                  ["Pure Veg Food in Train", "/food/pure-veg-food-in-train"],
+                  ["Jain Food in Train", "/food/jain-food-in-train"],
+                  ["Biryani in Train", "/food/biryani-in-train"],
+                  ["Pizza in Train", "/food/pizza-in-train"],
+                  ["South Indian Food", "/food/south-indian-food-in-train"],
+                  ["Chinese Food in Train", "/food/chinese-food-in-train"],
+                  ["Thali in Train", "/food/thali-in-train"],
+                  ["Breakfast in Train", "/food/breakfast-in-train"],
+                  ["Non-Veg Food in Train", "/food/non-veg-food-in-train"],
+                ].map(([label, href]) => (
+                  <Link
+                    key={href}
+                    href={href}
+                    style={{
+                      padding: "7px 9px",
+                      border: "1px solid #e2e8f0",
+                      borderRadius: 999,
+                      background: "#fff7ed",
+                      color: "#c2410c",
+                      fontSize: 11,
+                      fontWeight: 800,
+                      textDecoration: "none",
+                    }}
+                  >
+                    {label}
+                  </Link>
+                ))}
+              </div>
+            </div>
           </div>
         </section>
       ) : null}
