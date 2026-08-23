@@ -500,6 +500,9 @@ export default function TrainPage() {
 
                 const isClosingSoon = remaining <= 10 * 60 * 1000;
                 const img = getRestroImage(r.RestroDisplayPhoto);
+                const rating = Number(r.RestroRating);
+                const displayRating =
+                  Number.isFinite(rating) && rating > 0 ? rating.toFixed(1) : "";
 
                 const stationSlug = `${stationCode}-${toSlug(stationName)}`;
                 const restroSlug = `${r.RestroCode}-${toSlug(r.RestroName)}`;
@@ -623,6 +626,7 @@ export default function TrainPage() {
     >
       <div
         style={{
+          position: "relative",
           width: "100%",
           height: 86,
           background: "#f1f5f9",
@@ -653,6 +657,28 @@ export default function TrainPage() {
             <Utensils size={24} strokeWidth={2.1} />
           </div>
         )}
+
+        {displayRating ? (
+          <span
+            style={{
+              position: "absolute",
+              top: 5,
+              left: 6,
+              zIndex: 2,
+              color: "#ffffff",
+              background: "transparent",
+              fontSize: 11,
+              lineHeight: 1,
+              fontWeight: 900,
+              letterSpacing: "-0.1px",
+              textShadow: "0 1px 3px rgba(0,0,0,0.75)",
+              pointerEvents: "none",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {displayRating} ★
+          </span>
+        ) : null}
       </div>
 
       <a
