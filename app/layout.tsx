@@ -1,4 +1,5 @@
 import "./globals.css";
+import "./home-redesign.css";
 import Image from "next/image";
 import { Inter } from "next/font/google";
 import type { Metadata, Viewport } from "next";
@@ -115,7 +116,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 5,
-  themeColor: "#f5b800",
+  themeColor: "#DFFE00",
 };
 
 const organizationSchema = {
