@@ -20,7 +20,10 @@ export default function robots(): MetadataRoute.Robots {
         "/pnr/",
       ],
     },
-    sitemap: `${baseUrl}/sitemap.xml`,
+    sitemap: [
+      `${baseUrl}/sitemap.xml`,
+      `${baseUrl}/food/sitemap.xml`,
+    ],
     host: baseUrl,
   };
 }
