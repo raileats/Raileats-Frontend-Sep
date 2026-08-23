@@ -23,6 +23,7 @@ export default function robots(): MetadataRoute.Robots {
     sitemap: [
       `${baseUrl}/sitemap.xml`,
       `${baseUrl}/food/sitemap.xml`,
+      `${baseUrl}/e-catering/sitemap.xml`,
     ],
     host: baseUrl,
   };
