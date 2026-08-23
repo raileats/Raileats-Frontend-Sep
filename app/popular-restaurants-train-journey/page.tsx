@@ -174,7 +174,7 @@ function createMenuUrl(restaurant: Restaurant) {
   const stationName = cleanText(restaurant.StationName);
 
   const stationSlug = `${stationCode}-${createSlug(stationName)}`;
-  const restaurantSlug = `${restroCode}-${createSlug(restroName)}`;
+  const restaurantSlug = `${createSlug(restroName)}-${restroCode}`;
 
   const query = new URLSearchParams({
     mode: "station",
