@@ -11,19 +11,22 @@ export default function SaveOrderData({ data }: any) {
 
   return (
     <style jsx global>{`
-      /* Stable fallback for the station icon on the train-food page. */
-      .train-page-shell .station-icon-wrap {
-        background-image: url('/station-train-icon.svg');
-        background-repeat: no-repeat;
-        background-position: center;
-        background-size: 54px 54px;
+      /* The train page renders the station icon as an image inside
+         .station-icon-wrap. Keep a guaranteed local SVG fallback so a
+         broken/blocked data URI can never show the browser broken-image box. */
+      .station-icon-wrap {
+        background-image: url('/station-train-icon.svg') !important;
+        background-repeat: no-repeat !important;
+        background-position: center !important;
+        background-size: 54px 54px !important;
       }
 
-      .train-page-shell .station-icon-wrap img {
+      .station-icon-wrap img {
         visibility: hidden !important;
+        opacity: 0 !important;
       }
 
-      /* Prevent the section heading from overflowing narrow mobile screens. */
+      /* Keep the heading fully inside narrow mobile screens. */
       .train-page-shell > h2 {
         max-width: 100% !important;
         white-space: normal !important;
