@@ -8,6 +8,14 @@ export const metadata: Metadata = {
   robots: { index: true, follow: true },
 };
 
+const faqs = [
+  ["What is train eCatering?", "Train eCatering lets passengers order meals from participating restaurants for delivery at eligible railway stations during a train journey."],
+  ["Can I search food delivery using my PNR?", "Yes. RailEats lets you start by searching your journey with a PNR, train number or station and then view available delivery options."],
+  ["Can I choose a delivery station?", "When delivery is available, you can select an eligible station shown for your journey and restaurant availability."],
+  ["Is restaurant availability the same for every train?", "No. Restaurant availability, menus, cut-off times and delivery stations can vary by train, journey date and restaurant operating status."],
+  ["When should I order food for my train?", "Order early enough for the restaurant's applicable cut-off and delivery time. The current ordering flow is the best source for availability for your journey."],
+];
+
 export default function ECateringPage() {
   const steps = [
     "Search your journey with PNR, train number or station.",
@@ -17,8 +25,19 @@ export default function ECateringPage() {
     "Place the order and stay reachable near the selected delivery station.",
   ];
 
+  const faqSchema = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: faqs.map(([question, answer]) => ({
+      "@type": "Question",
+      name: question,
+      acceptedAnswer: { "@type": "Answer", text: answer },
+    })),
+  };
+
   return (
     <main style={{ maxWidth: 980, margin: "0 auto", padding: "24px 16px 48px", color: "#172033" }}>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }} />
       <nav aria-label="Breadcrumb" style={{ fontSize: 13, marginBottom: 18 }}><Link href="/">Home</Link> <span aria-hidden>›</span> <span>eCatering</span></nav>
       <section style={{ background: "#fff7ed", border: "1px solid #fed7aa", borderRadius: 20, padding: "24px 20px" }}>
         <p style={{ margin: 0, fontSize: 12, fontWeight: 800, letterSpacing: ".08em", textTransform: "uppercase", color: "#c2410c" }}>Train Food Guide</p>
@@ -39,6 +58,12 @@ export default function ECateringPage() {
           <Link href="/stations" style={{ border: "1px solid #e2e8f0", borderRadius: 12, padding: 14, textDecoration: "none", fontWeight: 800, color: "#0f172a" }}>Delivery Stations</Link>
           <Link href="/order-food-in-train" style={{ border: "1px solid #e2e8f0", borderRadius: 12, padding: 14, textDecoration: "none", fontWeight: 800, color: "#0f172a" }}>Order Food in Train</Link>
           <Link href="/live-train-status" style={{ border: "1px solid #e2e8f0", borderRadius: 12, padding: 14, textDecoration: "none", fontWeight: 800, color: "#0f172a" }}>Live Train Status</Link>
+        </div>
+      </section>
+      <section style={{ marginTop: 28 }}>
+        <h2 style={{ fontSize: 24 }}>Frequently Asked Questions</h2>
+        <div style={{ display: "grid", gap: 10 }}>
+          {faqs.map(([question, answer]) => <details key={question} style={{ border: "1px solid #e2e8f0", borderRadius: 14, padding: "14px 16px", background: "#fff" }}><summary style={{ cursor: "pointer", fontWeight: 800 }}>{question}</summary><p style={{ lineHeight: 1.7, color: "#475569", marginBottom: 0 }}>{answer}</p></details>)}
         </div>
       </section>
       <section style={{ marginTop: 28, background: "#f8fafc", borderRadius: 18, padding: 20 }}>
