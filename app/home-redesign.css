@@ -1,0 +1,440 @@
+/* RailEats Home visual refresh
+   Brand: Chartreuse #DFFE00 + black + red.
+   IMPORTANT: This file intentionally does not style .navbar or .bottom-nav.
+   SearchBox remains the existing component/flow; these are presentation-only overrides.
+*/
+
+:root {
+  --rail-brand-chartreuse: #DFFE00;
+  --rail-brand-red: #ef1717;
+  --rail-brand-black: #090909;
+  --rail-home-border: #d7dce2;
+  --rail-home-muted: #667085;
+}
+
+.home-app-shell {
+  background: #f7f8fa;
+}
+
+.mobile-native-home {
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 6px 0 14px;
+}
+
+.mobile-home-hero {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.home-hero-slider-slot {
+  width: 100%;
+}
+
+/* Compact reference-style hero. HeroSlider internals remain untouched. */
+.mobile-home-hero .home-hero-slider-slot .container-app {
+  width: 100% !important;
+  max-width: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+.mobile-home-hero .home-hero-slider-slot [class*="rounded"] {
+  border-radius: 12px !important;
+}
+
+/* Search: visual-only. PNR / Train / Station logic stays inside SearchBox. */
+.mobile-search-shell {
+  width: 100%;
+}
+
+.mobile-search-shell .container-app {
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.mobile-search-shell .searchbox-card {
+  border: 1px solid var(--rail-home-border) !important;
+  border-radius: 14px !important;
+  padding: 10px !important;
+  box-shadow: 0 5px 16px rgba(16, 24, 40, 0.07) !important;
+}
+
+.mobile-search-shell .searchbox-heading {
+  margin-bottom: 8px !important;
+}
+
+.mobile-search-shell .searchbox-heading h2 {
+  font-size: 15px !important;
+  line-height: 1.15 !important;
+  letter-spacing: -.01em;
+}
+
+.mobile-search-shell .searchbox-heading p {
+  margin-top: 2px !important;
+  font-size: 8px !important;
+  color: var(--rail-home-muted) !important;
+}
+
+.mobile-search-shell .searchbox-tabs {
+  gap: 2px !important;
+  margin-bottom: 7px !important;
+  padding: 2px !important;
+  border-radius: 9px !important;
+  background: #edf1f5 !important;
+}
+
+.mobile-search-shell .searchbox-tabs button {
+  min-height: 26px !important;
+  border-radius: 7px !important;
+  font-size: 8px !important;
+  line-height: 1 !important;
+}
+
+.mobile-search-shell .searchbox-tab-active {
+  color: var(--rail-brand-red) !important;
+  box-shadow: 0 1px 4px rgba(16, 24, 40, 0.12) !important;
+}
+
+.mobile-search-shell .searchbox-controls {
+  gap: 6px !important;
+}
+
+.mobile-search-shell .searchbox-input,
+.mobile-search-shell .searchbox-field-wrap input,
+.mobile-search-shell .searchbox-field-wrap button {
+  min-height: 30px !important;
+  height: 30px !important;
+  border-radius: 7px !important;
+  border-color: #d4d9df !important;
+  font-size: 8px !important;
+}
+
+.mobile-search-shell .searchbox-input {
+  padding: 0 9px !important;
+}
+
+.mobile-search-shell .searchbox-submit {
+  min-height: 30px !important;
+  height: 30px !important;
+  border-radius: 7px !important;
+  background: #c9470a !important;
+  box-shadow: 0 4px 10px rgba(201, 71, 10, 0.18) !important;
+  font-size: 9px !important;
+  font-weight: 900 !important;
+}
+
+/* Food categories: compact single-row app strip, keeping the existing auto-scroll. */
+.mobile-category-section {
+  margin-top: 8px;
+  padding: 0 2px;
+}
+
+.mobile-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 5px;
+}
+
+.mobile-section-head h2 {
+  margin: 0 !important;
+  font-size: 10px !important;
+  line-height: 1.15 !important;
+  font-weight: 950 !important;
+  color: var(--rail-brand-black) !important;
+}
+
+.mobile-section-head span,
+.mobile-section-head a {
+  font-size: 7px !important;
+  font-weight: 900 !important;
+  color: var(--rail-brand-red) !important;
+}
+
+.mobile-category-row {
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  gap: 7px !important;
+  width: 100% !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  padding: 0 1px 3px !important;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.mobile-category-row::-webkit-scrollbar {
+  display: none;
+}
+
+.mobile-category-pill {
+  flex: 0 0 38px !important;
+  width: 38px !important;
+  min-width: 38px !important;
+  border: 0 !important;
+  background: transparent !important;
+  padding: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  gap: 2px !important;
+}
+
+.mobile-category-pill img {
+  width: 34px !important;
+  height: 34px !important;
+  border-radius: 999px !important;
+  border: 1px solid rgba(9, 9, 9, 0.08) !important;
+  box-shadow: 0 2px 6px rgba(16, 24, 40, 0.10) !important;
+}
+
+.mobile-category-pill strong {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: center;
+  font-size: 6.5px !important;
+  line-height: 1.1 !important;
+  color: #111827 !important;
+  font-weight: 900 !important;
+}
+
+/* Three compact brand benefit cards, matching the reference layout. */
+.mobile-offer-rail {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 7px !important;
+  width: 100% !important;
+  overflow: visible !important;
+  padding: 0 1px !important;
+  margin-top: 5px !important;
+}
+
+.mobile-offer-card {
+  min-width: 0 !important;
+  min-height: 72px !important;
+  height: 72px !important;
+  border-radius: 9px !important;
+  padding: 8px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: center !important;
+  gap: 2px !important;
+  border: 0 !important;
+  box-shadow: 0 4px 10px rgba(16, 24, 40, 0.12) !important;
+  background-image: none !important;
+}
+
+.mobile-offer-card:nth-child(1) {
+  background: var(--rail-brand-red) !important;
+}
+
+.mobile-offer-card:nth-child(2) {
+  background: #16753a !important;
+}
+
+.mobile-offer-card:nth-child(3) {
+  background: #172033 !important;
+}
+
+.mobile-offer-card span {
+  width: fit-content;
+  max-width: 100%;
+  padding: 2px 4px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.18);
+  color: #fff !important;
+  font-size: 5px !important;
+  line-height: 1 !important;
+  font-weight: 900 !important;
+  text-transform: uppercase;
+}
+
+.mobile-offer-card strong {
+  display: block;
+  font-size: 10px !important;
+  line-height: 1.05 !important;
+  font-weight: 950 !important;
+  color: #fff !important;
+}
+
+.mobile-offer-card p {
+  margin: 0 !important;
+  font-size: 6.5px !important;
+  line-height: 1.15 !important;
+  color: rgba(255,255,255,.92) !important;
+  font-weight: 700 !important;
+}
+
+/* Popular restaurants: compact two-column cards like the reference. */
+.mobile-restro-section {
+  margin-top: 8px;
+  padding: 0 1px;
+}
+
+.mobile-restro-list {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 7px !important;
+  width: 100% !important;
+  overflow: visible !important;
+  padding: 0 !important;
+}
+
+.mobile-restro-card {
+  min-width: 0 !important;
+  min-height: 66px !important;
+  height: 66px !important;
+  display: grid !important;
+  grid-template-columns: 42px minmax(0, 1fr) !important;
+  align-items: center !important;
+  gap: 6px !important;
+  padding: 5px !important;
+  border: 1px solid #d8dde3 !important;
+  border-radius: 9px !important;
+  background: #fff !important;
+  box-shadow: 0 3px 9px rgba(16, 24, 40, 0.06) !important;
+}
+
+.mobile-restro-card .restro-image-wrapper {
+  position: relative !important;
+  width: 42px !important;
+  height: 52px !important;
+  min-width: 42px !important;
+}
+
+.mobile-restro-card .restro-image-wrapper img {
+  width: 42px !important;
+  height: 52px !important;
+  border-radius: 7px !important;
+  object-fit: cover !important;
+}
+
+.mobile-restro-card .restro-rating-badge {
+  position: absolute !important;
+  left: 2px !important;
+  top: 2px !important;
+  padding: 1px 3px !important;
+  border-radius: 4px !important;
+  background: #16843f !important;
+  color: #fff !important;
+  font-size: 5px !important;
+  line-height: 1 !important;
+  font-weight: 950 !important;
+}
+
+.mobile-restro-copy {
+  min-width: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  gap: 1px !important;
+}
+
+.mobile-restro-title-row {
+  width: 100%;
+  min-width: 0;
+}
+
+.mobile-restro-title-row h3 {
+  margin: 0 !important;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 8px !important;
+  line-height: 1.1 !important;
+  font-weight: 950 !important;
+  color: #101010 !important;
+}
+
+.mobile-restro-station,
+.mobile-restro-minorder {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin: 0 !important;
+  font-size: 5.5px !important;
+  line-height: 1.1 !important;
+  color: #5f6875 !important;
+  font-weight: 700 !important;
+}
+
+.mobile-restro-viewmenu {
+  margin-top: 2px !important;
+  padding: 3px 8px !important;
+  border-radius: 999px !important;
+  background: #c9470a !important;
+  color: #fff !important;
+  font-size: 5.5px !important;
+  line-height: 1 !important;
+  font-weight: 950 !important;
+  box-shadow: 0 2px 5px rgba(201, 71, 10, .18) !important;
+}
+
+/* Brand surface behind the home content without changing the global app shell. */
+@media (max-width: 640px) {
+  .home-app-shell {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+
+  .mobile-native-home {
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+  }
+
+  .home-hero-slider-slot,
+  .mobile-search-shell,
+  .mobile-category-section,
+  .mobile-offer-rail,
+  .mobile-restro-section {
+    max-width: 100%;
+  }
+}
+
+@media (min-width: 641px) {
+  .mobile-native-home {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  .mobile-offer-card {
+    min-height: 96px !important;
+    height: 96px !important;
+  }
+
+  .mobile-restro-card {
+    min-height: 92px !important;
+    height: 92px !important;
+    grid-template-columns: 62px minmax(0, 1fr) !important;
+  }
+
+  .mobile-restro-card .restro-image-wrapper,
+  .mobile-restro-card .restro-image-wrapper img {
+    width: 62px !important;
+    height: 70px !important;
+  }
+
+  .mobile-restro-title-row h3 {
+    font-size: 13px !important;
+  }
+
+  .mobile-restro-station,
+  .mobile-restro-minorder {
+    font-size: 10px !important;
+  }
+
+  .mobile-restro-viewmenu {
+    font-size: 9px !important;
+  }
+}
