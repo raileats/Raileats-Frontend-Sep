@@ -45,13 +45,44 @@ export default async function FoodCategoryPage({ params }: { params: Promise<{ s
   if (!category) return null;
 
   const related = CATEGORIES.filter((item) => item.slug !== category.slug).slice(0, 6);
+  const canonical = `${SITE_URL}/food/${category.slug}`;
+  const faq = [
+    { q: `Can I order ${category.name.toLowerCase()} in train?`, a: `You can use RailEats to check whether ${category.name.toLowerCase()} options are currently available for your train, journey date and selected delivery station.` },
+    { q: `How do I find ${category.name.toLowerCase()} for my train?`, a: "Enter your PNR, train number or delivery station on RailEats, then review the restaurants and menus available for your journey." },
+    { q: "Is food availability the same for every train?", a: "No. Restaurant status, delivery station, journey date, arrival time and order cut-off can affect what is available." },
+    { q: "Where is my train food delivered?", a: "Food is delivered at the selected eligible railway station using the passenger, coach and seat details provided during the order." },
+  ];
+
   const schema = {
     "@context": "https://schema.org",
-    "@type": "WebPage",
-    name: category.title,
-    description: category.description,
-    url: `${SITE_URL}/food/${category.slug}`,
-    isPartOf: { "@type": "WebSite", name: "RailEats", url: SITE_URL },
+    "@graph": [
+      {
+        "@type": "WebPage",
+        "@id": `${canonical}#webpage`,
+        name: category.title,
+        description: category.description,
+        url: canonical,
+        isPartOf: { "@type": "WebSite", name: "RailEats", url: SITE_URL },
+        breadcrumb: { "@id": `${canonical}#breadcrumb` },
+      },
+      {
+        "@type": "BreadcrumbList",
+        "@id": `${canonical}#breadcrumb`,
+        itemListElement: [
+          { "@type": "ListItem", position: 1, name: "Home", item: SITE_URL },
+          { "@type": "ListItem", position: 2, name: "Train Food", item: `${SITE_URL}/food-delivery-in-train` },
+          { "@type": "ListItem", position: 3, name: category.name, item: canonical },
+        ],
+      },
+      {
+        "@type": "FAQPage",
+        mainEntity: faq.map((item) => ({
+          "@type": "Question",
+          name: item.q,
+          acceptedAnswer: { "@type": "Answer", text: item.a },
+        })),
+      },
+    ],
   };
 
   return (
@@ -88,6 +119,18 @@ export default async function FoodCategoryPage({ params }: { params: Promise<{ s
       <section style={{ marginTop: 28, background: "#f8fafc", borderRadius: 18, padding: 20 }}>
         <h2 style={{ fontSize: 22, marginTop: 0 }}>Availability Depends on Your Journey</h2>
         <p style={{ lineHeight: 1.7, color: "#475569" }}>Restaurant menus and delivery availability can vary by train, station, journey date, arrival time and restaurant operating status. Always search your journey on RailEats to see the current options instead of relying on a static menu.</p>
+      </section>
+
+      <section style={{ marginTop: 30 }}>
+        <h2 style={{ fontSize: 24 }}>Frequently Asked Questions</h2>
+        <div style={{ display: "grid", gap: 10, marginTop: 12 }}>
+          {faq.map((item) => (
+            <details key={item.q} style={{ border: "1px solid #e2e8f0", borderRadius: 12, padding: "12px 14px", background: "#fff" }}>
+              <summary style={{ cursor: "pointer", fontWeight: 800 }}>{item.q}</summary>
+              <p style={{ margin: "10px 0 2px", lineHeight: 1.65, color: "#475569" }}>{item.a}</p>
+            </details>
+          ))}
+        </div>
       </section>
 
       <section style={{ marginTop: 30 }}>
