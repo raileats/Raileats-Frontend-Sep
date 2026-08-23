@@ -119,6 +119,7 @@ export default function Navbar() {
         className={`navbar inner-navbar ${hidden ? "navbar-hidden" : ""} ${
           scrolled ? "navbar-scrolled" : ""
         }`}
+        style={{ position: "sticky", top: 0 }}
       >
         <button
           type="button"
