@@ -141,7 +141,7 @@ function restaurantName(row: any) {
 }
 
 function restaurantHref(stationSlug: string, row: any) {
-  return `/stations/${stationSlug}/${row.RestroCode}-${slugify(restaurantName(row))}`;
+  return `/stations/${stationSlug}/${canonicalRestaurantSlug(row)}`;
 }
 
 function restaurantNameFromRouteSlug(restroSlug: string) {
@@ -694,10 +694,16 @@ export default async function Page({ params, searchParams }: any) {
 
   const resolvedRestroCode = String(resolvedRestaurant.RestroCode || "").trim();
 
-  if (resolvedRestroCode !== String(restroCode)) {
+  const canonicalRestroSlug = canonicalRestaurantSlug(resolvedRestaurant);
+  const currentRestroSlug = String(params.restroSlug || "").trim();
+
+  if (
+    resolvedRestroCode !== String(restroCode) ||
+    currentRestroSlug !== canonicalRestroSlug
+  ) {
     const targetPath = `/stations/${encodeURIComponent(
       params.slug || ""
-    )}/${encodeURIComponent(canonicalRestaurantSlug(resolvedRestaurant))}`;
+    )}/${encodeURIComponent(canonicalRestroSlug)}`;
     const query = new URLSearchParams();
 
     Object.entries(searchParams || {}).forEach(([key, value]) => {
