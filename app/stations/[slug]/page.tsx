@@ -1,49 +1,1118 @@
-// app/trains/[slug]/page.tsx
-"use client";
+import React from "react";
+import Link from "next/link";
+import Image from "next/image";
+import { permanentRedirect } from "next/navigation";
+import type { Metadata } from "next";
+import { serviceClient } from "../../lib/supabaseServer";
 
-import React, { useEffect, useMemo, useState } from "react";
-import { useParams, useSearchParams } from "next/navigation";
-import { Clock, TrainFront, Utensils } from "lucide-react";
-import { useBooking } from "../../../lib/useBooking";
-import SaveOrderData from "@/components/SaveOrderData";
-import PnrSearchBox from "@/components/PnrSearchBox";
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
-const SUPABASE_URL = "https://ygisiztmuzwxpnvhwrmr.supabase.co";
-const STATION_ICON = "/station-train-icon.png";
+const siteUrl = "https://www.raileats.in";
+const siteName = "RailEats";
+const defaultImage = "/raileats-logo.png";
+const SUPABASE_PUBLIC_STORAGE =
+  "https://ygisiztmuzwxpnvhwrmr.supabase.co/storage/v1/object/public";
 
-function toSlug(str: string) { return (str || "").trim().replace(/\s+/g, "-").replace(/[^a-zA-Z0-9-]/g, ""); }
-function cleanTrainName(value?: string | null) { const v = String(value || "").trim(); if (!v || v.toLowerCase() === "train" || v.toLowerCase() === "undefined") return ""; return v; }
-function useNow() { const [now, setNow] = useState(Date.now()); useEffect(() => { const t = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(t); }, []); return now; }
-function parseDateParts(date: string) { if (!date) return null; if (date.includes(" ")) { const [day, mon, year] = date.split(" "); const months: any = { Jan:0,Feb:1,Mar:2,Apr:3,May:4,Jun:5,Jul:6,Aug:7,Sep:8,Oct:9,Nov:10,Dec:11 }; return { y:Number(year), m:months[mon] ?? 0, d:Number(day) }; } const [y,m,d] = date.split("-").map(Number); return { y, m:(m || 1)-1, d }; }
-function parseTimeParts(t: string) { if (!t) return {h:0,m:0,s:0}; const p=t.split(":").map(Number); return {h:p[0] ?? 0,m:p[1] ?? 0,s:p[2] ?? 0}; }
-function getRemaining(arrival: string,date: string,cutoffMin:number) { try { const dp=parseDateParts(date); const tp=parseTimeParts(arrival); if(!dp)return 0; const arrivalDT=new Date(dp.y,dp.m,dp.d,tp.h,tp.m,tp.s); return new Date(arrivalDT.getTime()-cutoffMin*60000).getTime()-Date.now(); } catch { return 0; } }
-function toMin(t:string) { const [h,m]=(t || "").slice(0,5).split(":").map(Number); return (h || 0)*60+(m || 0); }
-function getRestroImage(path?:string | null) { if(!path)return ""; const file=String(path).split("/").pop(); if(!file)return ""; return `${SUPABASE_URL}/storage/v1/object/public/RestroDisplayPhoto/${file}`; }
+function titleCase(str: string) {
+  return String(str || "")
+    .toLowerCase()
+    .split(" ")
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ")
+    .replace(/\bJn\b/g, "JN");
+}
 
-export default function TrainPage() {
-  const params=useParams(); const searchParams=useSearchParams(); const {setTrain,setJourney}=useBooking();
-  const slug=(params as any)?.slug || ""; const trainNumber=slug.match(/^(\d+)/)?.[1] || ""; const urlDate=searchParams.get("date") || ""; const boarding=(searchParams.get("boarding") || "").toUpperCase(); const urlTrainName=cleanTrainName(searchParams.get("trainName"));
-  const [stations,setStations]=useState<any[]>([]); const [resolvedTrainName,setResolvedTrainName]=useState(urlTrainName); const [loading,setLoading]=useState(true); useNow();
-  const displayTrainName=useMemo(()=>cleanTrainName(resolvedTrainName || urlTrainName),[resolvedTrainName,urlTrainName]); const isSeoPreview=!urlDate || !boarding; const orderData={train_number:trainNumber,train_name:displayTrainName,date:urlDate,station_code:boarding};
-  useEffect(()=>{if(!trainNumber)return; setTrain({number:trainNumber,name:displayTrainName}); if(!isSeoPreview)setJourney(urlDate,boarding);},[trainNumber,displayTrainName,urlDate,boarding,isSeoPreview,setTrain,setJourney]);
-  useEffect(()=>{async function fetchData(){try{setLoading(true); const res=await fetch(`/api/train-restros?train=${encodeURIComponent(trainNumber)}&date=${encodeURIComponent(urlDate)}&boarding=${encodeURIComponent(boarding)}&preview=${isSeoPreview ? "1":"0"}`,{cache:"no-store"}); const json=await res.json(); const nextStations=json?.stations || []; setStations(nextStations); const apiTrainName=cleanTrainName(json?.train?.trainName)||cleanTrainName(json?.trainName)||cleanTrainName(nextStations?.[0]?.trainName)||cleanTrainName(nextStations?.[0]?.TrainName); if(apiTrainName)setResolvedTrainName(apiTrainName);}catch(e){console.error("API ERROR:",e);}finally{setLoading(false);}} if(trainNumber)fetchData();},[trainNumber,urlDate,boarding,isSeoPreview]);
-  if(loading)return <main style={{minHeight:"70vh",display:"grid",placeItems:"center",padding:24}}><div style={{textAlign:"center"}}><div style={{width:32,height:32,border:"3px solid #f97316",borderTopColor:"transparent",borderRadius:999,margin:"0 auto 10px",animation:"spin 1s linear infinite"}}/><div style={{fontWeight:700,color:"#475569",fontSize:14}}>Loading restaurants...</div></div><style jsx>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style></main>;
-  return <main className="train-page-shell" style={{width:"100%",maxWidth:960,margin:"0 auto",padding:"12px 16px 92px",boxSizing:"border-box",display:"flex",flexDirection:"column",gap:12}}>
-    {!isSeoPreview ? <SaveOrderData data={orderData}/> : null}
-    <section style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:18,padding:12,boxShadow:"0 2px 10px rgba(15,23,42,.04)"}}><div style={{fontSize:10,fontWeight:800,color:"#64748b",letterSpacing:.5,marginBottom:7,textTransform:"uppercase"}}>Train Food Delivery</div><div style={{display:"grid",gridTemplateColumns:"30px minmax(0,1fr)",gap:9,alignItems:"start"}}><span style={{width:30,height:30,borderRadius:11,background:"#fff7ed",display:"inline-flex",alignItems:"center",justifyContent:"center",border:"1px solid #fed7aa",color:"#f97316"}}><TrainFront size={16} strokeWidth={2.2}/></span><div style={{minWidth:0}}><h1 style={{margin:0,fontSize:"clamp(13px,3.5vw,18px)",lineHeight:1.18,fontWeight:800,color:"#1e293b"}}>Food in Train {trainNumber}{displayTrainName ? ` - ${displayTrainName}` : ""}</h1></div></div></section>
-    {isSeoPreview ? <PnrSearchBox/> : null}
-    {stations.length>0 ? <h2 style={{margin:"4px 2px 0",fontSize:18,lineHeight:1.3,fontWeight:800,color:"#1e293b"}}>Stations with Active Restaurants</h2> : null}
-    {stations.map((st:any,index:number)=>{const stationCode=st.StationCode; const stationName=st.StationName; const arrives=st.Arrives; const halt=st.HaltTime; const deliveryDate=st.date || urlDate; const state=st.State || ""; const vendors=st.vendors || []; const validVendors=vendors.filter((r:any)=>{if(isSeoPreview)return true; const cutoff=parseInt(String(r.CutOffTime ?? r.cutoff_time ?? "0").trim(),10)||0; const remaining=getRemaining(arrives,deliveryDate,cutoff); const arrivalMin=toMin((arrives || "").slice(0,5)); const start=r.OpenTime || r.open_time; const end=r.ClosedTime || r.closed_time; let timeValid=true; if(start&&end){const s=toMin(start),e=toMin(end); timeValid=e>=s ? arrivalMin>=s&&arrivalMin<=e : arrivalMin>=s||arrivalMin<=e;} return remaining>0&&timeValid;}); if(!validVendors.length)return null;
-      return <section key={index} style={{background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:20,padding:12,boxShadow:"0 2px 10px rgba(15,23,42,.04)"}}>
-        <div className="station-header" style={{display:"grid",gridTemplateColumns:"minmax(0,1fr) 64px auto",gap:10,alignItems:"start",marginBottom:12}}>
-          <div style={{minWidth:0}}><h2 className="station-name" style={{margin:0,fontSize:15,lineHeight:1.25,fontWeight:700,color:"#1e293b"}}>📍 {stationName} ({stationCode})</h2>{state ? <div style={{marginTop:3,fontSize:11,color:"#64748b",fontWeight:600}}>{state}</div>:null}<div style={{marginTop:3,fontSize:11,color:"#94a3b8",fontWeight:500}}>Delivery date: {deliveryDate}</div></div>
-          <div aria-hidden="true" className="station-icon-wrap" style={{width:64,height:56,display:"flex",alignItems:"center",justifyContent:"center",overflow:"visible",flexShrink:0}}><img src={STATION_ICON} alt="" style={{width:62,height:54,objectFit:"contain",display:"block"}}/></div>
-          <div style={{flexShrink:0,textAlign:"right",fontSize:11,fontWeight:700}}><div style={{color:"#2563eb"}}>Arrival {arrives}</div><div style={{marginTop:3,color:"#64748b"}}>Halt: {halt || "-"}</div></div>
-        </div>
-        <div className="train-restaurants-grid" style={{display:"grid",gridTemplateColumns:validVendors.length===1?"minmax(0,440px)":"repeat(2,minmax(0,1fr))",justifyContent:validVendors.length===1?"center":"stretch",gap:16}}>{validVendors.map((r:any)=>{const cutoff=parseInt(String(r.CutOffTime ?? r.cutoff_time ?? "0").trim(),10)||0; const remaining=getRemaining(arrives,deliveryDate,cutoff); const totalSec=Math.max(0,Math.floor(remaining/1000)); const days=Math.floor(totalSec/86400); const hrs=Math.floor((totalSec%86400)/3600); const mins=Math.floor((totalSec%3600)/60); const secs=totalSec%60; const timeText=`Day${days} ${String(hrs).padStart(2,"0")}:${String(mins).padStart(2,"0")}:${String(secs).padStart(2,"0")}`; const isClosingSoon=remaining<=10*60*1000; const img=getRestroImage(r.RestroDisplayPhoto); const rating=Number(r.RestroRating); const displayRating=Number.isFinite(rating)&&rating>0?rating.toFixed(1):""; const stationSlug=`${toSlug(stationName)}-${String(stationCode || "").toUpperCase()}-food-delivery-in-train`; const restroSlug=`${toSlug(r.RestroName)}-${r.RestroCode}`; const cleanArrival=arrives&&arrives.includes(":")?arrives.slice(0,5):""; const finalTrainName=displayTrainName||"Train"; const href=isSeoPreview?`/stations/${stationSlug}/${restroSlug}?mode=station&stationCode=${encodeURIComponent(stationCode)}&stationName=${encodeURIComponent(stationName)}&train=${encodeURIComponent(trainNumber)}&trainName=${encodeURIComponent(finalTrainName)}&minOrder=${encodeURIComponent(r.MinimumOrderValue||0)}`:`/stations/${stationSlug}/${restroSlug}?deliveryDate=${encodeURIComponent(deliveryDate)}${cleanArrival?`&deliveryTime=${encodeURIComponent(cleanArrival)}`:""}${cleanArrival?`&arrival=${encodeURIComponent(cleanArrival)}`:""}&train=${encodeURIComponent(trainNumber)}&trainName=${encodeURIComponent(finalTrainName)}&boarding=${encodeURIComponent(boarding)}&minOrder=${encodeURIComponent(r.MinimumOrderValue||0)}`; return <article key={r.RestroCode} style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:18,overflow:"hidden",boxShadow:"0 3px 12px rgba(15,23,42,.07)",minWidth:0}}><div style={{position:"relative",width:"100%",height:150,background:"#f1f5f9",overflow:"hidden"}}>{img?<img src={img} alt={r.RestroName||"Restaurant"} style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}}/>:<div style={{height:"100%",display:"grid",placeItems:"center",color:"#94a3b8"}}><Utensils size={32} strokeWidth={2.1}/></div>}{displayRating?<span style={{position:"absolute",top:8,left:9,zIndex:2,color:"#fff",background:"transparent",fontSize:13,lineHeight:1,fontWeight:900,textShadow:"0 1px 4px rgba(0,0,0,.85)",pointerEvents:"none",whiteSpace:"nowrap"}}>{displayRating} ★</span>:null}</div><div style={{padding:"11px 12px 12px"}}><h3 style={{margin:0,fontSize:16,lineHeight:1.2,fontWeight:850,color:"#1e293b",overflowWrap:"anywhere"}}>{r.RestroName||"Restaurant"}</h3><div style={{marginTop:5,fontSize:12,lineHeight:1.35,color:"#64748b",fontWeight:700}}>{stationCode} - {stationName}</div><div style={{marginTop:7,display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,flexWrap:"wrap"}}><div style={{display:"inline-flex",alignItems:"center",borderRadius:999,background:Number(r.IsPureVeg)===1?"#ecfdf5":"#f8fafc",color:Number(r.IsPureVeg)===1?"#16a34a":"#64748b",border:Number(r.IsPureVeg)===1?"1px solid #bbf7d0":"1px solid #e2e8f0",padding:"4px 8px",fontSize:10,lineHeight:1,fontWeight:800,whiteSpace:"nowrap"}}>{Number(r.IsPureVeg)===1?"Pure Veg":"Veg & Non-Veg"}</div><div style={{fontSize:12,color:"#334155",fontWeight:800}}>Min Order Rs {r.MinimumOrderValue||0}</div></div>{!isSeoPreview?<div style={{marginTop:8,color:isClosingSoon?"#dc2626":"#2563eb",display:"flex",alignItems:"center",gap:5,fontSize:11,fontWeight:800}}><Clock size={13} strokeWidth={2.2}/><span>Order before: {timeText}</span></div>:null}<a href={href} style={{display:"block",width:"100%",marginTop:10,boxSizing:"border-box",textAlign:"center",background:"#f97316",color:"#fff",borderRadius:12,padding:"10px",fontSize:13,fontWeight:800,textDecoration:"none",whiteSpace:"nowrap",boxShadow:"0 4px 12px rgba(249,115,22,.16)"}}>{isSeoPreview?"View Menu":"Order Now"}</a></div></article>})}</div>
-        <style jsx>{`@media (max-width:720px){.train-page-shell{padding:8px 10px 92px!important}.station-header{grid-template-columns:minmax(0,1fr) 58px auto!important;gap:7px!important}.station-name{font-size:15px!important}.station-icon-wrap{width:58px!important;height:52px!important}.station-icon-wrap img{width:56px!important;height:50px!important}.train-restaurants-grid{grid-template-columns:minmax(0,1fr)!important;gap:12px!important}}`}</style>
-      </section>;
-    })}
-    {isSeoPreview ? <section style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:20,padding:"18px 15px",boxShadow:"0 2px 10px rgba(15,23,42,.04)",color:"#334155"}}><h2 style={{margin:0,fontSize:20,lineHeight:1.3,fontWeight:800,color:"#1e293b"}}>Order Food in Train {trainNumber}{displayTrainName?` - ${displayTrainName}`:""}</h2><p style={{margin:"10px 0 0",fontSize:14,lineHeight:1.65}}>Looking for fresh food delivery in train {trainNumber}{displayTrainName?` (${displayTrainName})`:""}? RailEats helps you view active restaurants available on this train route and order meals for delivery at your selected railway station. Enter your 10-digit PNR above to check the correct journey date, route stations and restaurants available for your trip.</p><h2 style={{margin:"22px 0 0",fontSize:18,lineHeight:1.35,fontWeight:800,color:"#1e293b"}}>How to Book Food on Train {trainNumber}</h2><ol style={{margin:"10px 0 0",paddingLeft:21,fontSize:14,lineHeight:1.7}}><li>Enter your valid 10-digit PNR number.</li><li>Choose a delivery station and an active restaurant.</li><li>Select your preferred meals from the restaurant menu.</li><li>Confirm your coach, seat and contact details.</li><li>Place the order and receive food at your train seat.</li></ol><h2 style={{margin:"22px 0 0",fontSize:18,lineHeight:1.35,fontWeight:800,color:"#1e293b"}}>Food Delivery Stations for Train {trainNumber}</h2><p style={{margin:"9px 0 0",fontSize:14,lineHeight:1.65}}>Restaurant availability can vary by station, journey date, arrival time and order cut-off. The station and restaurant cards shown above help you explore current food options on the route. Your PNR is verified before booking so RailEats can show delivery choices relevant to your actual journey.</p><h2 style={{margin:"22px 0 0",fontSize:18,lineHeight:1.35,fontWeight:800,color:"#1e293b"}}>Frequently Asked Questions</h2><div style={{marginTop:10,display:"grid",gap:9}}>{[{q:`Can I order food online in train ${trainNumber}?`,a:`Yes. Enter your PNR to see eligible delivery stations and active restaurants for train ${trainNumber}.`},{q:"Is a PNR required to place the order?",a:"Yes. PNR verification helps confirm your train, journey date and eligible delivery stations before you order."},{q:"Where will my food be delivered?",a:"Your order is delivered at the railway station selected during booking, using the coach and seat details provided with the order."},{q:"Why can restaurant availability change?",a:"Availability depends on the station, restaurant status, train arrival time, journey date and the restaurant's order cut-off."}].map(faq=><details key={faq.q} style={{border:"1px solid #e2e8f0",borderRadius:13,padding:"11px 12px",background:"#f8fafc"}}><summary style={{cursor:"pointer",fontSize:14,lineHeight:1.45,fontWeight:800,color:"#1e293b"}}>{faq.q}</summary><p style={{margin:"8px 0 0",fontSize:13,lineHeight:1.6,color:"#475569"}}>{faq.a}</p></details>)}</div><p style={{margin:"18px 0 0",fontSize:12,lineHeight:1.6,color:"#64748b"}}>Train timings, route information and restaurant availability may change. Please verify your journey using PNR before placing an order.</p></section> : null}
-  </main>;
+function parseStationFromSlug(slugRaw: string) {
+  const slug = decodeURIComponent(String(slugRaw || "")).trim();
+
+  if (/^[A-Za-z0-9]{2,8}$/.test(slug)) {
+    return {
+      code: slug.toUpperCase(),
+      name: slug.toUpperCase(),
+      isCodeOnly: true,
+    };
+  }
+
+  const clean = slug
+    .replace(/-food-delivery-in-train$/i, "")
+    .replace(/-food-delivery$/i, "");
+
+  const parts = clean.split("-").filter(Boolean);
+  const code = String(parts.pop() || "").toUpperCase();
+  const name = titleCase(parts.join(" "));
+
+  return {
+    code,
+    name: name || code || "Railway Station",
+    isCodeOnly: false,
+  };
+}
+
+function isActive(value: any) {
+  const v = String(value ?? "").trim().toLowerCase();
+  return (
+    value === true ||
+    value === 1 ||
+    v === "1" ||
+    v === "on" ||
+    v === "active" ||
+    v === "true" ||
+    v === "yes"
+  );
+}
+
+function isHolidayOn(value: any) {
+  const v = String(value ?? "").trim().toLowerCase();
+  return (
+    value === true ||
+    value === 1 ||
+    v === "1" ||
+    v === "on" ||
+    v === "active" ||
+    v === "true" ||
+    v === "yes"
+  );
+}
+
+function safeRating(value: any) {
+  if (value === null || value === undefined || value === "") return "New";
+  const rating = Number(value);
+  return Number.isFinite(rating) && rating > 0 ? rating.toFixed(1) : "New";
+}
+
+function restroImage(r: any) {
+  const rawImage =
+    r?.RestroDisplayPhoto ||
+    r?.restroDisplayPhoto ||
+    r?.RestroDisplayImage ||
+    r?.restroDisplayImage ||
+    r?.DisplayPhoto ||
+    r?.displayPhoto ||
+    r?.DisplayImage ||
+    r?.displayImage ||
+    r?.RestaurantImage ||
+    r?.restaurantImage ||
+    r?.RestaurantPhoto ||
+    r?.restaurantPhoto ||
+    r?.RestroPhoto ||
+    r?.restroPhoto ||
+    r?.RestroImageUrl ||
+    r?.RestroImageURL ||
+    r?.restroImageUrl ||
+    r?.RestroImage ||
+    r?.restroImage ||
+    r?.image ||
+    r?.Image ||
+    r?.photo ||
+    r?.Photo ||
+    r?.logo ||
+    r?.Logo ||
+    "";
+
+  const image = String(rawImage || "").trim();
+  const restroCode = String(r?.RestroCode || r?.restroCode || "").trim();
+
+  const codeImage = restroCode
+    ? encodeURI(`${SUPABASE_PUBLIC_STORAGE}/RestroDisplayPhoto/${restroCode}.webp`)
+    : defaultImage;
+
+  if (!image) return codeImage;
+
+  if (image.startsWith("http://") || image.startsWith("https://")) {
+    return image;
+  }
+
+  if (
+    image.startsWith("/") &&
+    !image.startsWith("/storage/") &&
+    !image.includes("/storage/v1/object/public/")
+  ) {
+    return image;
+  }
+
+  const cleanImage = image.replace(/^\/+/, "");
+  const fileName = cleanImage.split("/").pop() || cleanImage;
+
+  if (cleanImage.startsWith("storage/v1/object/public/")) {
+    return encodeURI(`https://ygisiztmuzwxpnvhwrmr.supabase.co/${cleanImage}`);
+  }
+
+  if (cleanImage.includes("/storage/v1/object/public/")) {
+    const storagePath = cleanImage.split("/storage/v1/object/public/").pop() || "";
+    return encodeURI(`${SUPABASE_PUBLIC_STORAGE}/${storagePath}`);
+  }
+
+  if (cleanImage.startsWith("RestroDisplayPhoto/")) {
+    return encodeURI(`${SUPABASE_PUBLIC_STORAGE}/${cleanImage}`);
+  }
+
+  if (cleanImage.startsWith("restro/") || cleanImage.startsWith("Restro/")) {
+    return encodeURI(`${SUPABASE_PUBLIC_STORAGE}/RestroDisplayPhoto/${fileName}`);
+  }
+
+  if (/\.(webp|png|jpg|jpeg)$/i.test(fileName)) {
+    return encodeURI(`${SUPABASE_PUBLIC_STORAGE}/RestroDisplayPhoto/${fileName}`);
+  }
+
+  return codeImage;
+}
+
+function minOrderValue(r: any) {
+  const value = Number(
+    r?.MinimumOrderValue ??
+      r?.minimumOrderValue ??
+      r?.MinimumOrderAmount ??
+      r?.minimumOrderAmount ??
+      r?.MinOrder ??
+      r?.minOrder ??
+      r?.MinOrderValue ??
+      r?.minOrderValue ??
+      r?.MinimumOrder ??
+      r?.minimumOrder ??
+      0
+  );
+
+  return Number.isFinite(value) && value > 0 ? value : 0;
+}
+
+function slugify(value: string) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function unique(values: string[]) {
+  const seen = new Set<string>();
+  return values
+    .map((v) => String(v || "").trim())
+    .filter(Boolean)
+    .filter((v) => {
+      const key = v.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+}
+
+function splitTerms(value: any): string[] {
+  if (!value) return [];
+  if (Array.isArray(value)) return value.flatMap(splitTerms);
+  if (typeof value === "object") return Object.values(value).flatMap(splitTerms);
+
+  return String(value)
+    .split(/[,|;/\n\r]+/g)
+    .map((v) => v.replace(/\s+/g, " ").trim())
+    .filter((v) => v.length >= 2 && v.length <= 60);
+}
+
+function stationSlug(name: string, code: string) {
+  const safeName = slugify(name || code);
+  const safeCode = slugify(code);
+  return `${safeName}-${safeCode}-food-delivery-in-train`;
+}
+
+function stationUrl(slug: string) {
+  const cleanSlug = String(slug || "")
+    .trim()
+    .replace(/^\/+|\/+$/g, "")
+    .replace(/^stations\//i, "");
+
+  return `${siteUrl}/stations/${cleanSlug}`;
+}
+
+function absoluteImage(src: string) {
+  if (!src) return `${siteUrl}${defaultImage}`;
+  if (src.startsWith("http://") || src.startsWith("https://")) return src;
+  return `${siteUrl}${src.startsWith("/") ? src : `/${src}`}`;
+}
+
+function normalizeAbsoluteUrl(value: string) {
+  return String(value || "")
+    .replace(/([^:]\/)\/+/g, "$1")
+    .replace(/\/+$/g, "");
+}
+
+function numericValue(value: any) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : 0;
+}
+
+function dateValue(value: any) {
+  const time = new Date(value || 0).getTime();
+  return Number.isFinite(time) ? time : 0;
+}
+
+function restaurantName(row: any) {
+  return String(row?.RestroName || row?.RestaurantName || "Restaurant").trim();
+}
+
+function restaurantHref(slug: string, row: any) {
+  return `/stations/${slug}/${slugify(restaurantName(row))}-${row.RestroCode}`;
+}
+
+function sortRestaurants(restros: any[]) {
+  return [...restros].sort((a, b) => {
+    const ratingDiff = numericValue(b?.RestroRating) - numericValue(a?.RestroRating);
+    if (ratingDiff) return ratingDiff;
+
+    const activeDiff = Number(isActive(b?.RaileatsStatus)) - Number(isActive(a?.RaileatsStatus));
+    if (activeDiff) return activeDiff;
+
+    const newDiff =
+      dateValue(b?.created_at || b?.CreatedAt || b?.UpdatedAt) -
+      dateValue(a?.created_at || a?.CreatedAt || a?.UpdatedAt);
+    if (newDiff) return newDiff;
+
+    return restaurantName(a).localeCompare(restaurantName(b));
+  });
+}
+
+function dedupeSchema(items: any[]) {
+  const seen = new Set<string>();
+
+  return items.filter((item) => {
+    const key =
+      item?.["@id"] ||
+      `${item?.["@type"] || "Thing"}:${item?.name || item?.url || JSON.stringify(item).slice(0, 120)}`;
+
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function clampDescription(value: string) {
+  const clean = value.replace(/\s+/g, " ").trim();
+  if (clean.length <= 160) return clean;
+  return clean.slice(0, 157).replace(/\s+\S*$/, "") + "...";
+}
+
+function buildMetaDescription(stationName: string, code: string, restroCount = 0) {
+  const restaurantText =
+    restroCount > 0
+      ? ` Choose from ${restroCount} trusted restaurant${restroCount === 1 ? "" : "s"}`
+      : " Browse available restaurants";
+
+  return clampDescription(
+    `Order fresh food in train at ${stationName} Railway Station (${code}).${restaurantText} and get hygienic meals delivered to your seat.`
+  );
+}
+
+function buildStationTitle(stationName: string, code: string) {
+  const templates = [
+    `Food Delivery at ${stationName} Railway Station (${code}) | ${siteName}`,
+    `Order Food in Train at ${stationName} (${code}) | ${siteName}`,
+    `Train Food Delivery at ${stationName} Railway Station | ${siteName}`,
+    `Online Food Order at ${stationName} Station (${code}) | ${siteName}`,
+    `Best Food Options at ${stationName} Railway Station | ${siteName}`,
+  ];
+  const seed = String(code || stationName)
+    .split("")
+    .reduce((sum, char) => sum + char.charCodeAt(0), 0);
+
+  return templates[seed % templates.length];
+}
+
+function extractSeoTerms(restros: any[]) {
+  const fields = [
+    "Cuisine",
+    "Cuisines",
+    "CuisineType",
+    "FoodType",
+    "FoodTypes",
+    "Category",
+    "Categories",
+    "Menu",
+    "MenuItems",
+    "Items",
+    "ItemNames",
+    "PopularItems",
+    "Speciality",
+    "Specialities",
+    "Tags",
+    "Keywords",
+  ];
+
+  const terms = restros.flatMap((r) =>
+    fields.flatMap((field) => splitTerms(r?.[field]))
+  );
+
+  const derivedFromNames = restros
+    .map((r) => r?.RestroName)
+    .filter(Boolean)
+    .map((name) => `${String(name).trim()} food`);
+
+  return unique([...terms, ...derivedFromNames]).slice(0, 12);
+}
+
+function buildKeywords(stationName: string, code: string, seoTerms: string[]) {
+  const station = stationName.toLowerCase();
+  const stationCode = code.toLowerCase();
+  const base = [
+    `food on train ${station}`,
+    `food delivery in train ${station}`,
+    `order food in train ${station}`,
+    `food at ${station} railway station`,
+    `food delivery at ${station} junction`,
+    `train food delivery ${station}`,
+    `online food order ${station}`,
+    `railway station food ${station}`,
+    `IRCTC food delivery ${station}`,
+    `food delivery at ${code}`,
+    `food on train ${stationCode}`,
+    `order food at ${stationCode} station`,
+    "food delivery in train",
+    "order food in train",
+    "food on train",
+    "train food delivery",
+    "railway station food",
+    "online food order",
+    "IRCTC food delivery",
+    "train seat food delivery",
+    `${siteName} food delivery`,
+  ];
+
+  return unique([
+    ...base,
+    ...seoTerms.flatMap((term) => [
+      `${term} in train ${station}`,
+      `${term} delivery at ${station}`,
+    ]),
+  ]).slice(0, 30);
+}
+
+type StationApiResponse = {
+  station?: {
+    StationCode?: string | null;
+    StationName?: string | null;
+    State?: string | null;
+    District?: string | null;
+    image_url?: string | null;
+  } | null;
+  restaurants?: any[];
+  error?: string;
+};
+
+async function fetchStationRestaurants(code: string): Promise<StationApiResponse> {
+  const stationCode = String(code || "").trim().toUpperCase();
+
+  if (!stationCode) {
+    return {
+      station: null,
+      restaurants: [],
+      error: "Missing station code",
+    };
+  }
+
+  try {
+    const response = await fetch(
+      `https://admin.raileats.in/api/stations/${encodeURIComponent(stationCode)}`,
+      {
+        method: "GET",
+        cache: "no-store",
+        headers: {
+          Accept: "application/json",
+        },
+      }
+    );
+
+    const json = await response.json().catch(() => null);
+
+    if (!response.ok) {
+      return {
+        station: json?.station ?? null,
+        restaurants: [],
+        error:
+          json?.error ||
+          `Unable to load restaurants. HTTP ${response.status}`,
+      };
+    }
+
+    return {
+      station: json?.station ?? null,
+      restaurants: Array.isArray(json?.restaurants)
+        ? json.restaurants
+        : [],
+    };
+  } catch (error: any) {
+    return {
+      station: null,
+      restaurants: [],
+      error:
+        error?.message ||
+        "Unable to connect to restaurant service",
+    };
+  }
+}
+
+async function getStationNameByCode(code: string, fallback: string) {
+  const { data } = await serviceClient
+    .from("RestroMaster")
+    .select("StationName")
+    .eq("StationCode", code)
+    .not("StationName", "is", null)
+    .limit(1)
+    .maybeSingle();
+
+  return data?.StationName || fallback;
+}
+
+async function getStationIndexStatus(code: string) {
+  const stationCode = String(code || "").trim().toUpperCase();
+
+  if (!/^[A-Z0-9]{2,8}$/.test(stationCode)) {
+    return { exists: false, name: "" };
+  }
+
+  const { data, error } = await serviceClient
+    .from("RestroMaster")
+    .select("StationName")
+    .eq("StationCode", stationCode)
+    .not("StationName", "is", null)
+    .limit(1)
+    .maybeSingle();
+
+  if (error || !data) {
+    return { exists: false, name: "" };
+  }
+
+  return {
+    exists: true,
+    name: String(data.StationName || "").trim(),
+  };
+}
+
+async function getRelatedStations(currentCode: string) {
+  const { data } = await serviceClient
+    .from("RestroMaster")
+    .select("StationName, StationCode, RaileatsStatus, HolidayStatus")
+    .neq("StationCode", currentCode)
+    .not("StationCode", "is", null)
+    .not("StationName", "is", null)
+    .limit(200);
+
+  const map = new Map<string, { name: string; code: string; slug: string }>();
+
+  (data || []).forEach((row: any) => {
+    if (!isActive(row.RaileatsStatus) || isHolidayOn(row.HolidayStatus)) return;
+
+    const code = String(row.StationCode || "").trim().toUpperCase();
+    const name = String(row.StationName || "").trim();
+    if (!code || !name || map.has(code)) return;
+
+    map.set(code, {
+      name,
+      code,
+      slug: stationSlug(name, code),
+    });
+  });
+
+  return Array.from(map.values()).slice(0, 8);
+}
+
+function buildFaqs({
+  stationName,
+  code,
+  restroCount,
+  seoTerms,
+}: {
+  stationName: string;
+  code: string;
+  restroCount: number;
+  seoTerms: string[];
+}) {
+  const foodText =
+    seoTerms.length > 0
+      ? seoTerms.slice(0, 5).join(", ")
+      : "fresh meals from active restaurants";
+
+  return [
+    {
+      question: `Can I order food before reaching ${stationName}?`,
+      answer: `Yes. Search by train, PNR or station on ${siteName}, choose ${stationName} (${code}), pick a restaurant and place the order before your train arrives.`,
+    },
+    {
+      question: `How early should I place my food order at ${stationName}?`,
+      answer: `It is better to order as early as possible after confirming your journey details. Restaurant choice and preparation time can vary by train arrival time.`,
+    },
+    {
+      question: `What food options are available at ${stationName}?`,
+      answer: `You may find options such as ${foodText}. The exact choice depends on restaurant timing, menu availability and service status for your journey.`,
+    },
+    {
+      question: `Which restaurants serve train food at ${stationName}?`,
+      answer: `${restroCount} restaurant${restroCount === 1 ? "" : "s"} are shown for ${stationName} when they are available for orders. Open a restaurant card to view its menu and minimum order value.`,
+    },
+    {
+      question: `Can I order without a PNR?`,
+      answer: `You can start with train or station details. If checkout asks for more journey information, enter accurate coach, berth and contact details for smooth seat delivery.`,
+    },
+    {
+      question: `Will the food be delivered to my seat?`,
+      answer: `Yes, seat delivery is the usual flow where service is available. Keep your coach, berth and phone number correct so the restaurant can coordinate at ${stationName}.`,
+    },
+    {
+      question: `What payment methods are accepted?`,
+      answer: `${siteName} supports online ordering, and available payment options are shown during checkout. Some restaurants may also support cash on delivery where enabled.`,
+    },
+    {
+      question: `Can I order for someone else travelling through ${stationName}?`,
+      answer: `Yes. Enter the traveller's correct train, coach, berth and contact details while placing the order so delivery can be handled properly.`,
+    },
+  ];
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: { slug: string };
+}): Promise<Metadata> {
+  const stationBase = parseStationFromSlug(params.slug);
+  const [stationApi, stationIndexStatus] = await Promise.all([
+    fetchStationRestaurants(stationBase.code),
+    getStationIndexStatus(stationBase.code),
+  ]);
+
+  const stationName =
+    stationApi.station?.StationName ||
+    stationIndexStatus.name ||
+    (stationBase.isCodeOnly && stationBase.code
+      ? await getStationNameByCode(stationBase.code, stationBase.name)
+      : stationBase.name);
+
+  /*
+    IMPORTANT:
+    Restaurant list Admin API se aa rahi hai.
+    Admin API expired/inactive FSSAI restaurants ko pehle hi remove karti hai.
+  */
+  const activeRestros = sortRestaurants(stationApi.restaurants || []);
+  // Keep valid stations indexable during temporary Admin API failures, but do
+  // not advertise an empty station page as indexable when the restaurant API
+  // successfully confirms that no eligible restaurants are available. This
+  // keeps station indexability aligned with the sitemap's eligible inventory.
+  const shouldIndex =
+    stationIndexStatus.exists &&
+    (Boolean(stationApi.error) || activeRestros.length > 0);
+  const seoTerms = extractSeoTerms(activeRestros);
+  const title = buildStationTitle(stationName, stationBase.code);
+  const description = buildMetaDescription(
+    stationName,
+    stationBase.code,
+    activeRestros.length
+  );
+  const absoluteUrl = normalizeAbsoluteUrl(stationUrl(params.slug));
+  const ogRestaurant = activeRestros.find((r: any) => restroImage(r) !== defaultImage);
+  const ogImage = absoluteImage(ogRestaurant ? restroImage(ogRestaurant) : defaultImage);
+
+  return {
+    title,
+    description,
+    alternates: {
+      canonical: absoluteUrl,
+    },
+    keywords: buildKeywords(stationName, stationBase.code, seoTerms),
+    robots: {
+      index: shouldIndex,
+      follow: true,
+      googleBot: {
+        index: shouldIndex,
+        follow: true,
+        "max-snippet": -1,
+        "max-image-preview": "large",
+        "max-video-preview": -1,
+      },
+    },
+    openGraph: {
+      title,
+      description,
+      url: absoluteUrl,
+      siteName,
+      images: [
+        {
+          url: ogImage,
+          width: 1200,
+          height: 630,
+          alt: ogRestaurant
+            ? `${restaurantName(ogRestaurant)} food at ${stationName}`
+            : `${siteName} food ordering at ${stationName}`,
+        },
+      ],
+      locale: "en_IN",
+      type: "website",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [ogImage],
+    },
+  };
+}
+
+export default async function Page({ params }: { params: { slug: string } }) {
+  const stationBase = parseStationFromSlug(params.slug);
+  const nowIso = new Date().toISOString();
+
+  /*
+    Direct RestroMaster query hata di gayi hai.
+    Ab list Admin API se aayegi, jahan:
+    - RaileatsStatus active check hota hai
+    - FSSAI active check hota hai
+    - FSSAI expiry date check hoti hai
+  */
+  const [stationApi, stationIndexStatus] = await Promise.all([
+    fetchStationRestaurants(stationBase.code),
+    getStationIndexStatus(stationBase.code),
+  ]);
+
+  const restros = stationApi.restaurants || [];
+  const restroError = stationApi.error
+    ? { message: stationApi.error }
+    : null;
+
+  const stationName =
+    stationApi.station?.StationName ||
+    stationIndexStatus.name ||
+    stationBase.name ||
+    stationBase.code;
+
+  const canonicalStationSlug = stationSlug(stationName, stationBase.code);
+  const requestedStationSlug = String(params.slug || "")
+    .trim()
+    .replace(/^\/+|\/+$/g, "")
+    .toLowerCase();
+
+  if (requestedStationSlug !== canonicalStationSlug) {
+    permanentRedirect(`/stations/${canonicalStationSlug}`);
+  }
+
+  const restroCodes = restros
+    .map((r: any) => Number(r.RestroCode))
+    .filter(Boolean);
+
+  const { data: holidaysRaw } =
+    restroCodes.length > 0
+      ? await serviceClient
+          .from("RestroHolidays")
+          .select("*")
+          .in("RestroCode", restroCodes)
+          .lte("start_at", nowIso)
+          .gte("end_at", nowIso)
+      : { data: [] as any[] };
+
+  const holidaySet = new Set(
+    (holidaysRaw || []).map((h: any) => Number(h.RestroCode))
+  );
+
+  const activeRestros = sortRestaurants(
+    restros.filter((r: any) => {
+      const holidayFromHolidayTable = holidaySet.has(
+        Number(r.RestroCode)
+      );
+
+      return !holidayFromHolidayTable;
+    })
+  );
+
+  const seoTerms = extractSeoTerms(activeRestros);
+  const relatedStations = await getRelatedStations(stationBase.code);
+  const faqs = buildFaqs({
+    stationName,
+    code: stationBase.code,
+    restroCount: activeRestros.length,
+    seoTerms,
+  });
+  const absoluteUrl = normalizeAbsoluteUrl(stationUrl(params.slug));
+  const topRestaurants = activeRestros
+    .filter((r: any) => numericValue(r.RestroRating) > 0)
+    .slice(0, 6);
+  const recentRestaurants = [...activeRestros]
+    .sort(
+      (a: any, b: any) =>
+        dateValue(b?.created_at || b?.CreatedAt || b?.UpdatedAt) -
+        dateValue(a?.created_at || a?.CreatedAt || a?.UpdatedAt)
+    )
+    .slice(0, 6);
+
+  const restaurantList = activeRestros.map((r: any, index: number) => {
+    const restaurantName = String(r.RestroName || "Restaurant").trim();
+    const restaurantUrl = normalizeAbsoluteUrl(`${siteUrl}${restaurantHref(params.slug, r)}`);
+
+    return {
+      "@type": "ListItem",
+      position: index + 1,
+      item: {
+        "@type": "Restaurant",
+        "@id": `${restaurantUrl}#restaurant`,
+        name: restaurantName,
+        image: absoluteImage(restroImage(r)),
+        url: restaurantUrl,
+        servesCuisine: extractSeoTerms([r]),
+        address: {
+          "@type": "PostalAddress",
+          addressLocality: stationName,
+          addressCountry: "IN",
+        },
+        aggregateRating:
+          numericValue(r.RestroRating) > 0 &&
+          numericValue(
+            r.ReviewCount ||
+              r.review_count ||
+              r.ReviewsCount ||
+              r.reviews_count ||
+              r.RatingCount ||
+              r.rating_count
+          ) > 0
+            ? {
+                "@type": "AggregateRating",
+                ratingValue: String(numericValue(r.RestroRating)),
+                bestRating: "5",
+                worstRating: "1",
+                reviewCount: String(
+                  numericValue(
+                    r.ReviewCount ||
+                      r.review_count ||
+                      r.ReviewsCount ||
+                      r.reviews_count ||
+                      r.RatingCount ||
+                      r.rating_count
+                  )
+                ),
+              }
+            : undefined,
+      },
+    };
+  });
+
+  const breadcrumbItems = [
+    { name: "Home", href: "/" },
+    { name: "Food on Train", href: "/" },
+    { name: "Stations", href: "/stations" },
+    { name: stationName, href: `/stations/${params.slug}` },
+  ];
+
+  const schema = dedupeSchema([
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "@id": `${siteUrl}#organization`,
+      name: siteName,
+      url: siteUrl,
+      logo: absoluteImage(defaultImage),
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "@id": `${siteUrl}#website`,
+      name: siteName,
+      url: siteUrl,
+      publisher: { "@id": `${siteUrl}#organization` },
+      potentialAction: {
+        "@type": "SearchAction",
+        target: `${siteUrl}/?q={search_term_string}`,
+        "query-input": "required name=search_term_string",
+      },
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      itemListElement: breadcrumbItems.map((item, index) => ({
+        "@type": "ListItem",
+        position: index + 1,
+        name: item.name,
+        item: `${siteUrl}${item.href === "/" ? "" : item.href}`,
+      })),
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "WebPage",
+      "@id": `${absoluteUrl}#webpage`,
+      name: `Food Delivery in Train at ${stationName} Junction Railway Station (${stationBase.code})`,
+      url: absoluteUrl,
+      description: buildMetaDescription(
+        stationName,
+        stationBase.code,
+        activeRestros.length
+      ),
+      isPartOf: { "@id": `${siteUrl}#website` },
+      provider: { "@id": `${siteUrl}#organization` },
+      mainEntity: { "@id": `${absoluteUrl}#restaurants` },
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "ItemList",
+      "@id": `${absoluteUrl}#restaurants`,
+      name: `Active restaurants for Food Delivery in Train at ${stationName}`,
+      itemListElement: restaurantList,
+    },
+    ...activeRestros.slice(0, 12).map((r: any) => {
+      const restaurantName = String(r.RestroName || "Restaurant").trim();
+      const restaurantUrl = normalizeAbsoluteUrl(`${siteUrl}${restaurantHref(params.slug, r)}`);
+
+      return {
+        "@context": "https://schema.org",
+        "@type": "Restaurant",
+        "@id": `${restaurantUrl}#restaurant`,
+        name: restaurantName,
+        image: absoluteImage(restroImage(r)),
+        url: restaurantUrl,
+        servesCuisine: extractSeoTerms([r]),
+        address: {
+          "@type": "PostalAddress",
+          addressLocality: stationName,
+          addressCountry: "IN",
+        },
+      };
+    }),
+    {
+      "@context": "https://schema.org",
+      "@type": "CollectionPage",
+      "@id": `${absoluteUrl}#collection`,
+      name: `${stationName} food ordering options`,
+      url: absoluteUrl,
+      mainEntity: { "@id": `${absoluteUrl}#restaurants` },
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "Service",
+      "@id": `${absoluteUrl}#seat-delivery-service`,
+      name: `Train food ordering at ${stationName}`,
+      areaServed: `${stationName} Railway Station (${stationBase.code})`,
+      provider: { "@id": `${siteUrl}#organization` },
+    },
+    ...activeRestros
+      .filter((r: any) => restroImage(r) !== defaultImage)
+      .slice(0, 8)
+      .map((r: any, index: number) => ({
+        "@context": "https://schema.org",
+        "@type": "ImageObject",
+        "@id": `${absoluteUrl}#restaurant-image-${index + 1}`,
+        contentUrl: absoluteImage(restroImage(r)),
+        name: `${restaurantName(r)} food at ${stationName}`,
+        caption: `${restaurantName(r)} at ${stationName} Railway Station`,
+      })),
+    {
+      "@context": "https://schema.org",
+      "@type": "LocalBusiness",
+      "@id": `${absoluteUrl}#station-food-delivery`,
+      name: `${siteName} Food Delivery at ${stationName} Railway Station`,
+      url: absoluteUrl,
+      image: absoluteImage(defaultImage),
+      areaServed: {
+        "@type": "Place",
+        name: `${stationName} Railway Station (${stationBase.code})`,
+      },
+      provider: { "@id": `${siteUrl}#organization` },
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "@id": `${absoluteUrl}#faq`,
+      mainEntity: faqs.map((faq) => ({
+        "@type": "Question",
+        name: faq.question,
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: faq.answer,
+        },
+      })),
+    },
+  ]);
+
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+      />
+
+      <main className="mx-auto w-full max-w-[640px] px-2 pt-2 pb-28">
+        <nav
+          aria-label="Breadcrumb"
+          className="mb-3 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-[12px] font-bold text-slate-500 shadow-sm"
+        >
+          <ol className="flex flex-wrap items-center gap-1">
+            {breadcrumbItems.map((item, index) => (
+              <React.Fragment key={item.name}>
+                <li>
+                  {index === breadcrumbItems.length - 1 ? (
+                    <span aria-current="page" className="text-slate-700">
+                      {item.name}
+                    </span>
+                  ) : (
+                    <Link href={item.href} className="text-orange-600">
+                      {item.name}
+                    </Link>
+                  )}
+                </li>
+                {index < breadcrumbItems.length - 1 ? (
+                  <li aria-hidden="true">/</li>
+                ) : null}
+              </React.Fragment>
+            ))}
+          </ol>
+        </nav>
+
+        <header className="rounded-[18px] border border-slate-200 bg-white p-4 shadow-sm">
+          <p className="mb-2 text-[12px] font-extrabold uppercase tracking-wide text-slate-500">
+            {siteName} Station Food Delivery
+          </p>
+
+          <h1 className="text-[18px] font-black leading-snug tracking-[-0.2px] text-slate-900">
+            Food Delivery in Train at {stationName} Junction Railway Station (
+            {stationBase.code})
+          </h1>
+
+          <p className="mt-3 text-[13px] leading-6 text-slate-600">
+            Order fresh meals for your journey at {stationName} Railway Station
+            ({stationBase.code}) with {siteName}. Choose from{" "}
+            {activeRestros.length} available restaurant
+            {activeRestros.length === 1 ? "" : "s"}
+            {seoTerms.length > 0 ? ` serving ${seoTerms.slice(0, 5).join(", ")}` : ""}
+            , confirm your train details and get food delivered to your seat.
+            It is a simple way to plan breakfast, lunch, dinner or snacks before
+            your train reaches the station.
+          </p>
+
+          <Link
+            href="/"
+            className="mt-3 inline-block rounded-xl bg-orange-500 px-4 py-2 text-xs font-black text-white shadow-sm"
+            aria-label={`Search train and order food at ${stationName}`}
+          >
+            Search Train & Order Food
+          </Link>
+        </header>
+
+        <section className="mt-5" aria-labelledby="active-restaurants">
+          <h2
+            id="active-restaurants"
+            className="text-lg font-bold tracking-[-0.2px] text-slate-900"
+          >
+            Active Restaurants at {stationName}
+          </h2>
+
+          {restroError ? (
+            <div className="mt-3 rounded-2xl border bg-white p-4 text-sm text-red-600 shadow-sm">
+              Error loading restaurants: {restroError.message}
+            </div>
+          ) : activeRestros.length === 0 ? (
+            <div className="mt-3 rounded-2xl border bg-white p-4 text-sm leading-6 text-slate-600 shadow-sm">
+              No active restaurants available right now at {stationName}. You
+              can still search your train or nearby station to order food in
+              train.
+            </div>
+          ) : (
+            <div className="mt-3 grid gap-3">
+              {activeRestros.map((r: any) => {
+                const restaurantName = String(
+                  r.RestroName || "Restaurant"
+                ).trim();
+                const href = `${restaurantHref(params.slug, r)}?mode=station`;
+
+                return (
+                  <article
+                    key={r.RestroCode}
+                    className="rounded-[20px] border border-slate-200 bg-white p-4 shadow-sm"
+                    aria-label={`${restaurantName} food delivery at ${stationName}`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <h3 className="text-[16px] font-black leading-5 tracking-[-0.2px] text-slate-900">
+                          {restaurantName}
+                        </h3>
+
+                        <p className="mt-2 text-[13px] font-bold leading-5 text-slate-600">
+                          Min Order: Rs {minOrderValue(r)}
+                        </p>
+
+                        <p className="mt-1.5 text-[12px] font-semibold leading-5 text-slate-500">
+                          {stationName} ({stationBase.code})
+                        </p>
+
+                        <p className="mt-1.5 text-[12px] font-semibold text-slate-500">
+                          Rating: {safeRating(r.RestroRating)}
+                        </p>
+                      </div>
+
+                      <div className="flex w-[108px] shrink-0 flex-col items-center gap-2">
+                        <div className="h-[86px] w-[86px] overflow-hidden rounded-2xl border border-slate-200 bg-slate-100">
+                          <Image
+                            src={restroImage(r)}
+                            unoptimized={restroImage(r).startsWith("http")}
+                            alt={`${restaurantName} food for train travellers at ${stationName}`}
+                            title={`${restaurantName} at ${stationName} Railway Station`}
+                            className="h-full w-full object-cover"
+                          />
+                        </div>
+
+                        <Link
+                          href={href}
+                          className="w-full rounded-xl bg-orange-500 px-3 py-2 text-center text-xs font-black text-white shadow-sm"
+                          aria-label={`View menu of ${restaurantName} at ${stationName}`}
+                        >
+                          View Menu
+                        </Link>
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          )}
+        </section>
+
+        <section className="mt-5 rounded-[18px] border border-slate-200 bg-white p-4 shadow-sm">
+          <h2 className="text-lg font-bold text-slate-900">
+            Food Delivery at {stationName} ({stationBase.code})
+          </h2>
+          <p className="mt-2 text-sm leading-6 text-slate-600">
+            RailEats helps train travellers order meals from available
+            restaurants serving {stationName} Railway Station. Restaurant
+            availability, menus and delivery timing can change, so confirm the
+            options shown for your journey before ordering.
+          </p>
+        </section>
+
+        <section className="mt-5 rounded-[18px] border border-slate-200 bg-white p-4 shadow-sm">
+          <h2 className="text-lg font-bold text-slate-900">
+            Frequently Asked Questions
+          </h2>
+          <div className="mt-3 space-y-3">
+            {faqs.map((faq) => (
+              <details key={faq.question} className="rounded-xl border border-slate-200 p-3">
+                <summary className="cursor-pointer text-sm font-bold text-slate-900">
+                  {faq.question}
+                </summary>
+                <p className="mt-2 text-sm leading-6 text-slate-600">
+                  {faq.answer}
+                </p>
+              </details>
+            ))}
+          </div>
+        </section>
+
+        {relatedStations.length > 0 ? (
+          <section className="mt-5 rounded-[18px] border border-slate-200 bg-white p-4 shadow-sm">
+            <h2 className="text-lg font-bold text-slate-900">
+              Nearby Food Delivery Stations
+            </h2>
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              {relatedStations.map((station) => (
+                <Link
+                  key={station.code}
+                  href={`/stations/${station.slug}`}
+                  className="rounded-xl border border-slate-200 p-3 text-sm font-bold text-slate-700 hover:border-orange-300"
+                >
+                  {station.name} ({station.code})
+                </Link>
+              ))}
+            </div>
+          </section>
+        ) : null}
+      </main>
+    </>
+  );
 }
