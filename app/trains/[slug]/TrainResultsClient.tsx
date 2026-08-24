@@ -192,8 +192,8 @@ function buildRestroHref({
   boarding: string;
   isSeoPreview: boolean;
 }) {
-  const stationSlug = `${stationCode}-${toSlug(stationName)}`;
-  const restroSlug = `${restro.RestroCode}-${toSlug(restro.RestroName)}`;
+  const stationSlug = `${toSlug(stationName)}-${stationCode}-food-delivery-in-train`;
+  const restroSlug = `${toSlug(restro.RestroName)}-${restro.RestroCode}`;
   const cleanArrival =
     arrival && arrival.includes(":") ? arrival.slice(0, 5) : "";
 
