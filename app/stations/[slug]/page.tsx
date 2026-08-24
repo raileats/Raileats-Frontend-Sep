@@ -589,9 +589,13 @@ export async function generateMetadata({
     Admin API expired/inactive FSSAI restaurants ko pehle hi remove karti hai.
   */
   const activeRestros = sortRestaurants(stationApi.restaurants || []);
-  // Indexability must stay stable. A temporary Admin API failure, restaurant
-  // holiday or zero-result response must not add `noindex` to a valid station.
-  const shouldIndex = stationIndexStatus.exists;
+  // Keep valid stations indexable during temporary Admin API failures, but do
+  // not advertise an empty station page as indexable when the restaurant API
+  // successfully confirms that no eligible restaurants are available. This
+  // keeps station indexability aligned with the sitemap's eligible inventory.
+  const shouldIndex =
+    stationIndexStatus.exists &&
+    (Boolean(stationApi.error) || activeRestros.length > 0);
   const seoTerms = extractSeoTerms(activeRestros);
   const title = buildStationTitle(stationName, stationBase.code);
   const description = buildMetaDescription(
@@ -705,10 +709,6 @@ export default async function Page({ params }: { params: { slug: string } }) {
 
   const activeRestros = sortRestaurants(
     restros.filter((r: any) => {
-      /*
-        Admin API already active + valid FSSAI restaurants hi bhejti hai.
-        Yahan sirf active holiday table ka check bacha hai.
-      */
       const holidayFromHolidayTable = holidaySet.has(
         Number(r.RestroCode)
       );
@@ -757,21 +757,7 @@ export default async function Page({ params }: { params: { slug: string } }) {
           addressCountry: "IN",
         },
         aggregateRating:
-  numericValue(r.RestroRating) > 0 &&
-  numericValue(
-    r.ReviewCount ||
-      r.review_count ||
-      r.ReviewsCount ||
-      r.reviews_count ||
-      r.RatingCount ||
-      r.rating_count
-  ) > 0
-    ? {
-        "@type": "AggregateRating",
-        ratingValue: String(numericValue(r.RestroRating)),
-        bestRating: "5",
-        worstRating: "1",
-        reviewCount: String(
+          numericValue(r.RestroRating) > 0 &&
           numericValue(
             r.ReviewCount ||
               r.review_count ||
@@ -779,10 +765,24 @@ export default async function Page({ params }: { params: { slug: string } }) {
               r.reviews_count ||
               r.RatingCount ||
               r.rating_count
-          )
-        ),
-      }
-    : undefined,
+          ) > 0
+            ? {
+                "@type": "AggregateRating",
+                ratingValue: String(numericValue(r.RestroRating)),
+                bestRating: "5",
+                worstRating: "1",
+                reviewCount: String(
+                  numericValue(
+                    r.ReviewCount ||
+                      r.review_count ||
+                      r.ReviewsCount ||
+                      r.reviews_count ||
+                      r.RatingCount ||
+                      r.rating_count
+                  )
+                ),
+              }
+            : undefined,
       },
     };
   });
@@ -1025,8 +1025,7 @@ export default async function Page({ params }: { params: { slug: string } }) {
                         </h3>
 
                         <p className="mt-2 text-[13px] font-bold leading-5 text-slate-600">
-                          Min Order: Rs{" "}
-                          {minOrderValue(r)}
+                          Min Order: Rs {minOrderValue(r)}
                         </p>
 
                         <p className="mt-1.5 text-[12px] font-semibold leading-5 text-slate-500">
@@ -1046,19 +1045,15 @@ export default async function Page({ params }: { params: { slug: string } }) {
                             alt={`${restaurantName} food for train travellers at ${stationName}`}
                             title={`${restaurantName} at ${stationName} Railway Station`}
                             className="h-full w-full object-cover"
-                            loading="lazy"
-                            decoding="async"
-                            width={86}
-                            height={86}
                           />
                         </div>
 
                         <Link
                           href={href}
-                          className="w-full rounded-xl bg-orange-500 py-2 text-center text-xs font-black text-white shadow-sm"
-                          aria-label={`Order food from ${restaurantName} at ${stationName}`}
+                          className="w-full rounded-xl bg-orange-500 px-3 py-2 text-center text-xs font-black text-white shadow-sm"
+                          aria-label={`View menu of ${restaurantName} at ${stationName}`}
                         >
-                          Order Now
+                          View Menu
                         </Link>
                       </div>
                     </div>
@@ -1069,203 +1064,54 @@ export default async function Page({ params }: { params: { slug: string } }) {
           )}
         </section>
 
-        {topRestaurants.length > 0 ? (
-          <section className="mt-5 rounded-[20px] border border-slate-200 bg-white p-4 shadow-sm">
-            <h2 className="text-lg font-bold tracking-[-0.2px] text-slate-900">
-              Best Rated Restaurants at {stationName}
-            </h2>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {topRestaurants.map((r: any) => (
-                <Link
-                  key={`top-${r.RestroCode}`}
-                  href={`${restaurantHref(params.slug, r)}?mode=station`}
-                  className="rounded-full border border-slate-200 px-3 py-2 text-xs font-bold text-orange-600"
-                >
-                  {restaurantName(r)}
-                  {numericValue(r.RestroRating) > 0 ? ` · ${r.RestroRating}` : ""}
-                </Link>
-              ))}
-            </div>
-          </section>
-        ) : null}
-
-        {recentRestaurants.length > 0 ? (
-          <section className="mt-5 rounded-[20px] border border-slate-200 bg-white p-4 shadow-sm">
-            <h2 className="text-lg font-bold tracking-[-0.2px] text-slate-900">
-              More Restaurants at {stationName}
-            </h2>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {recentRestaurants.map((r: any) => (
-                <Link
-                  key={`recent-${r.RestroCode}`}
-                  href={`${restaurantHref(params.slug, r)}?mode=station`}
-                  className="rounded-full border border-slate-200 px-3 py-2 text-xs font-bold text-orange-600"
-                >
-                  {restaurantName(r)}
-                </Link>
-              ))}
-            </div>
-          </section>
-        ) : null}
-
-        <section className="mt-5 rounded-[20px] border border-slate-200 bg-white p-4 shadow-sm">
-          <h2 className="text-lg font-bold tracking-[-0.2px] text-slate-900">
-            Station Overview
+        <section className="mt-5 rounded-[18px] border border-slate-200 bg-white p-4 shadow-sm">
+          <h2 className="text-lg font-bold text-slate-900">
+            Food Delivery at {stationName} ({stationBase.code})
           </h2>
-          <p className="mt-2 text-[13px] leading-6 text-slate-600">
-            {stationName} Railway Station ({stationBase.code}) is an important
-            stop for travellers who want a reliable meal without stepping out
-            into platform rush. With {siteName}, you can check restaurants
-            serving this station, compare menu choices and place an order that
-            reaches your train seat during the scheduled halt.
-          </p>
-          <p className="mt-2 text-[13px] leading-6 text-slate-600">
-            The restaurant selection here is built around convenience: fresh
-            preparation, trusted food partners, secure ordering and delivery at
-            your berth or seat.{" "}
-            {seoTerms.length > 0
-              ? `Current food choices include ${seoTerms.slice(0, 8).join(", ")}.`
-              : "Food choices depend on restaurant availability and train timing."}
+          <p className="mt-2 text-sm leading-6 text-slate-600">
+            RailEats helps train travellers order meals from available
+            restaurants serving {stationName} Railway Station. Restaurant
+            availability, menus and delivery timing can change, so confirm the
+            options shown for your journey before ordering.
           </p>
         </section>
 
-        <section className="mt-5 rounded-[20px] border border-slate-200 bg-white p-4 shadow-sm">
-          <h2 className="text-lg font-bold tracking-[-0.2px] text-slate-900">
-            Popular Food at {stationName}
+        <section className="mt-5 rounded-[18px] border border-slate-200 bg-white p-4 shadow-sm">
+          <h2 className="text-lg font-bold text-slate-900">
+            Frequently Asked Questions
           </h2>
-          <div className="mt-3 grid grid-cols-2 gap-2">
-            {(seoTerms.length > 0
-              ? seoTerms
-              : activeRestros.map((r: any) => `${r.RestroName} food`)
-            )
-              .slice(0, 10)
-              .map((term) => (
-                <div
-                  key={term}
-                  className="rounded-2xl border border-slate-200 bg-slate-50 p-3 text-sm font-bold text-slate-800"
-                >
-                  {term}
-                </div>
-              ))}
-          </div>
-        </section>
-
-        <section className="mt-5 rounded-[20px] border border-slate-200 bg-white p-4 shadow-sm">
-          <h2 className="text-lg font-bold tracking-[-0.2px] text-slate-900">
-            Why Choose {siteName}
-          </h2>
-          <div className="mt-3 grid gap-3">
-            {[
-              {
-                title: `${activeRestros.length} restaurant${activeRestros.length === 1 ? "" : "s"} at ${stationName}`,
-                copy: "Browse available partners before choosing what suits your journey.",
-              },
-              {
-                title: "Fresh food for the train",
-                copy: "Meals are prepared by restaurant partners and sent for seat delivery.",
-              },
-              {
-                title: "Secure online ordering",
-                copy: "Use train, PNR or station details and complete the order in a guided flow.",
-              },
-              {
-                title: "Choice by cuisine",
-                copy:
-                  seoTerms.length > 0
-                    ? `Popular choices include ${seoTerms.slice(0, 4).join(", ")}.`
-                    : "Cuisine options appear according to restaurant availability.",
-              },
-            ].map((item) => (
-              <div key={item.title} className="rounded-2xl border border-slate-200 p-3">
-                <h3 className="text-sm font-bold text-slate-900">{item.title}</h3>
-                <p className="mt-1.5 text-xs leading-5 text-slate-600">
-                  {item.copy}
+          <div className="mt-3 space-y-3">
+            {faqs.map((faq) => (
+              <details key={faq.question} className="rounded-xl border border-slate-200 p-3">
+                <summary className="cursor-pointer text-sm font-bold text-slate-900">
+                  {faq.question}
+                </summary>
+                <p className="mt-2 text-sm leading-6 text-slate-600">
+                  {faq.answer}
                 </p>
-              </div>
+              </details>
             ))}
           </div>
-        </section>
-
-        <section className="mt-5 rounded-[20px] border border-slate-200 bg-white p-4 shadow-sm">
-          <h2 className="text-lg font-bold tracking-[-0.2px] text-slate-900">
-            How to Order Food at {stationName}
-          </h2>
-          <ol className="mt-3 space-y-3">
-            {[
-              "Search your train or PNR",
-              `Choose ${stationName} (${stationBase.code})`,
-              `Select from ${activeRestros.length} active restaurant${activeRestros.length === 1 ? "" : "s"}`,
-              "Place your food order online",
-              "Receive food at your train seat",
-            ].map((step, index) => (
-              <li key={step} className="rounded-2xl border border-slate-200 p-3">
-                <h3 className="text-sm font-black text-slate-900">
-                  {index + 1}. {step}
-                </h3>
-              </li>
-            ))}
-          </ol>
         </section>
 
         {relatedStations.length > 0 ? (
-          <section className="mt-5 rounded-[20px] border border-slate-200 bg-white p-4 shadow-sm">
-            <h2 className="text-lg font-bold tracking-[-0.2px] text-slate-900">
-              Nearby Stations
+          <section className="mt-5 rounded-[18px] border border-slate-200 bg-white p-4 shadow-sm">
+            <h2 className="text-lg font-bold text-slate-900">
+              Nearby Food Delivery Stations
             </h2>
-            <div className="mt-3 flex flex-wrap gap-2">
+            <div className="mt-3 grid grid-cols-2 gap-2">
               {relatedStations.map((station) => (
                 <Link
                   key={station.code}
                   href={`/stations/${station.slug}`}
-                  className="rounded-full border border-slate-200 px-3 py-2 text-xs font-bold text-orange-600"
+                  className="rounded-xl border border-slate-200 p-3 text-sm font-bold text-slate-700 hover:border-orange-300"
                 >
-                  Order Food at {station.name}
+                  {station.name} ({station.code})
                 </Link>
               ))}
             </div>
           </section>
         ) : null}
-
-        <section className="mt-5 rounded-[20px] border border-slate-200 bg-white p-4 shadow-sm">
-          <h2 className="text-lg font-bold tracking-[-0.2px] text-slate-900">
-            More Ways to Order at {stationName}
-          </h2>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {[
-              `Restaurants at ${stationName}`,
-              `Order Food at ${stationName}`,
-              ...seoTerms.slice(0, 6).map((term) => `${term} at ${stationName}`),
-            ].map((text) => (
-              <Link
-                key={text}
-                href={`/stations/${params.slug}`}
-                className="rounded-full border border-slate-200 px-3 py-2 text-xs font-bold text-orange-600"
-              >
-                {text}
-              </Link>
-            ))}
-          </div>
-        </section>
-
-        <section className="mt-5 rounded-[20px] border border-slate-200 bg-white p-4 shadow-sm">
-          <h2 className="text-lg font-bold tracking-[-0.2px] text-slate-900">
-            Frequently Asked Questions
-          </h2>
-
-          <div className="mt-4 space-y-4">
-            {faqs.map((faq) => (
-              <div key={faq.question}>
-                <h3 className="text-sm font-semibold leading-5 text-slate-900">
-                  {faq.question}
-                </h3>
-                <p className="mt-1.5 text-xs leading-5 text-slate-600">
-                  {faq.answer}
-                </p>
-              </div>
-            ))}
-          </div>
-        </section>
-
       </main>
     </>
   );
