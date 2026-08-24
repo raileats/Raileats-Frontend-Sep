@@ -3,7 +3,7 @@ export function makeStationSlug(code: string, name: string) {
     .replace(/[^a-zA-Z0-9 ]/g, "")
     .trim()
     .replace(/\s+/g, "-");
-  return `${code.toUpperCase()}-${cleanName.toLowerCase()}-food-delivery-in-train`;
+  return `${cleanName.toLowerCase()}-${code.toUpperCase()}-food-delivery-in-train`;
 }
 
 export function extractStationCode(stationSlug: string) {
