@@ -11,7 +11,13 @@ import PnrSearchBox from "@/components/PnrSearchBox";
 const SUPABASE_URL = "https://ygisiztmuzwxpnvhwrmr.supabase.co";
 const STATION_ICON = "/station-train-icon.png";
 
-function toSlug(str: string) { return (str || "").trim().replace(/\s+/g, "-").replace(/[^a-zA-Z0-9-]/g, ""); }
+function toSlug(str: string) {
+  return String(str || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
 function cleanTrainName(value?: string | null) { const v = String(value || "").trim(); if (!v || v.toLowerCase() === "train" || v.toLowerCase() === "undefined") return ""; return v; }
 function useNow() { const [now, setNow] = useState(Date.now()); useEffect(() => { const t = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(t); }, []); return now; }
 function parseDateParts(date: string) { if (!date) return null; if (date.includes(" ")) { const [day, mon, year] = date.split(" "); const months: any = { Jan:0,Feb:1,Mar:2,Apr:3,May:4,Jun:5,Jul:6,Aug:7,Sep:8,Oct:9,Nov:10,Dec:11 }; return { y:Number(year), m:months[mon] ?? 0, d:Number(day) }; } const [y,m,d] = date.split("-").map(Number); return { y, m:(m || 1)-1, d }; }
