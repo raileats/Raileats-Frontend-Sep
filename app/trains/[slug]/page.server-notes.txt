@@ -1,0 +1,1 @@
+SEO Day 3 review note: train page currently uses client-side data fetching. This file is a temporary implementation marker and should be removed after SSR migration.
