@@ -1,0 +1,36 @@
+/* Mobile homepage density tuning — keeps the existing layout/functionality intact. */
+@media (max-width: 640px) {
+  .mobile-category-section { margin-top: 14px !important; }
+  .mobile-category-section .mobile-section-head { margin-bottom: 8px !important; }
+  .mobile-category-section .mobile-section-head h2 { font-size: 18px !important; line-height: 1.15 !important; }
+  .mobile-category-section .mobile-section-head span { font-size: 12px !important; }
+  .mobile-category-row { gap: 10px !important; padding-left: 4px !important; padding-right: 4px !important; }
+  .mobile-category-pill { min-width: 60px !important; gap: 5px !important; }
+  .mobile-category-pill img { width: 50px !important; height: 50px !important; }
+  .mobile-category-pill strong { font-size: 11px !important; line-height: 1.1 !important; }
+
+  .mobile-offer-rail { gap: 10px !important; padding: 3px 2px 7px !important; }
+  .mobile-offer-card { min-height: 90px !important; border-radius: 15px !important; padding: 11px 13px !important; gap: 7px !important; }
+  .mobile-offer-card span { font-size: 8px !important; line-height: 1.1 !important; }
+  .mobile-offer-card strong { font-size: 17px !important; line-height: 1.08 !important; }
+  .mobile-offer-card p { font-size: 10px !important; line-height: 1.2 !important; }
+
+  .mobile-restro-section { margin-top: 10px !important; }
+  .mobile-restro-section .mobile-section-head { margin-bottom: 7px !important; }
+  .mobile-restro-section .mobile-section-head h2 { font-size: 17px !important; }
+  .mobile-restro-list { gap: 8px !important; }
+  .mobile-restro-card { min-height: 100px !important; height: 100px !important; border-radius: 14px !important; padding: 8px !important; }
+  .mobile-restro-card .restro-image-wrapper { width: 84px !important; height: 84px !important; flex: 0 0 84px !important; }
+  .mobile-restro-card .restro-image-wrapper img { width: 84px !important; height: 84px !important; object-fit: cover !important; }
+  .mobile-restro-copy { gap: 2px !important; }
+  .mobile-restro-copy h3 { font-size: 13px !important; line-height: 1.15 !important; }
+  .mobile-restro-station, .mobile-restro-minorder { font-size: 9px !important; line-height: 1.15 !important; }
+  .mobile-restro-viewmenu { font-size: 9px !important; padding: 4px 9px !important; }
+
+  .mobile-search-shell input { min-height: 44px !important; }
+  .mobile-search-shell button { min-height: 46px !important; }
+
+  .bottom-nav, .bottom-nav-grid, .bottom-nav-hit { height: 62px !important; }
+  .bottom-nav-icon { width: 26px !important; height: 26px !important; }
+  .bottom-nav-item { font-size: 12px !important; gap: 2px !important; }
+}
