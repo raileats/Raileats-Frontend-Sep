@@ -1,6 +1,7 @@
 // app/components/SearchBox.tsx
 "use client";
 
+import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { getLastPnr } from "../lib/bookingSession";
 import StationSearchBox from "./StationSearchBox";
@@ -203,15 +204,15 @@ export default function SearchBox() {
     });
 
     if (searchType === "pnr") {
-  const cleanPnr = cleanInput.replace(/\D/g, "");
+      const cleanPnr = cleanInput.replace(/\D/g, "");
 
-  if (!/^[2468][0-9]{9}$/.test(cleanPnr)) {
-    return alert("Please enter a valid 10-digit PNR starting with 2, 4, 6, or 8.");
-  }
+      if (!/^[2468][0-9]{9}$/.test(cleanPnr)) {
+        return alert("Please enter a valid 10-digit PNR starting with 2, 4, 6, or 8.");
+      }
 
-  window.location.href = `/pnr/${encodeURIComponent(cleanPnr)}`;
-  return;
-}
+      window.location.href = `/pnr/${encodeURIComponent(cleanPnr)}`;
+      return;
+    }
 
     if (searchType === "station") {
       if (!selectedStationData?.StationName || !selectedStationData?.StationCode) {
@@ -228,21 +229,21 @@ export default function SearchBox() {
     }
 
     if (searchType === "train") {
-  if (!selectedTrain) return alert("Select train first");
-  if (!boarding) return alert("Select boarding station");
+      if (!selectedTrain) return alert("Select train first");
+      if (!boarding) return alert("Select boarding station");
 
-  const trainNo = String(
-    selectedTrain.train_no || selectedTrain.trainNumber || ""
-  ).replace(/\D/g, "");
+      const trainNo = String(
+        selectedTrain.train_no || selectedTrain.trainNumber || ""
+      ).replace(/\D/g, "");
 
-  if (!/^\d{5}$/.test(trainNo)) {
-    return alert("Please select a valid 5-digit train number.");
-  }
+      if (!/^\d{5}$/.test(trainNo)) {
+        return alert("Please select a valid 5-digit train number.");
+      }
 
-  const slug = makeTrainSlug(trainNo);
+      const slug = makeTrainSlug(trainNo);
 
-  window.location.href = `/trains/${slug}?date=${date}&boarding=${boarding}`;
-}
+      window.location.href = `/trains/${slug}?date=${date}&boarding=${boarding}`;
+    }
   };
 
   const selectedStation =
@@ -465,6 +466,20 @@ export default function SearchBox() {
             Search Food
           </button>
         </div>
+      </div>
+
+      <div className="mt-3 overflow-hidden rounded-2xl border border-amber-200 bg-white shadow-sm" aria-label="First order offer">
+        <Image
+          src="/raileats-first-order-100-off.png"
+          alt="Get Rs 100 discount on first delivery with code RE1ST on orders above Rs 300"
+          title="Rs 100 OFF on first delivery - code RE1ST"
+          width={1846}
+          height={852}
+          sizes="(max-width: 760px) 100vw, 760px"
+          quality={80}
+          className="h-auto w-full object-cover"
+          priority={false}
+        />
       </div>
     </section>
   );
