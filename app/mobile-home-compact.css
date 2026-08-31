@@ -19,6 +19,8 @@
   .mobile-search-shell .searchbox-controls { display: flex !important; flex-direction: column !important; gap: 6px !important; margin-top: 0 !important; padding: 0 !important; }
   .mobile-search-shell .searchbox-controls .app-input, .mobile-search-shell .searchbox-input { min-height: 40px !important; height: 40px !important; padding: 0 11px !important; border-radius: 12px !important; font-size: 13px !important; }
   .mobile-search-shell .searchbox-controls .searchbox-submit, .mobile-search-shell .searchbox-submit { width: 100% !important; min-height: 42px !important; height: 42px !important; margin: 0 !important; padding: 0 12px !important; border-radius: 12px !important; font-size: 14px !important; }
+
+  /* The old FREE DELIVERY pseudo-banner has been removed. */
   .mobile-category-section { width: 100% !important; margin-top: 2px !important; }
   .mobile-section-head { padding: 0 2px 5px !important; margin: 0 !important; }
   .mobile-section-head h2 { font-size: 17px !important; line-height: 1.1 !important; }
@@ -44,17 +46,22 @@
   .bottom-nav-item { gap: 2px !important; padding-bottom: 8px !important; font-size: 11px !important; }
   .bottom-nav-icon { width: 23px !important; height: 23px !important; }
 
-  /* Keep the new first-order offer compact enough for the first viewport. */
-  .mobile-search-shell .searchbox-first-order-banner {
+  /* Compact the new Rs 100 first-order banner without adding a second promo. */
+  .mobile-search-shell .searchbox-card + div {
     margin-top: 6px !important;
-    height: 118px !important;
     border-radius: 14px !important;
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    max-height: 190px !important;
+    overflow: hidden !important;
   }
 
-  .mobile-search-shell .searchbox-first-order-banner img {
+  .mobile-search-shell .searchbox-card + div img {
+    display: block !important;
     width: 100% !important;
-    height: 100% !important;
-    object-fit: cover !important;
-    object-position: center !important;
+    height: auto !important;
+    max-height: 190px !important;
+    object-fit: contain !important;
   }
 }
