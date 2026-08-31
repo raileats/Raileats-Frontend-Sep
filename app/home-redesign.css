@@ -22,3 +22,51 @@
 .mobile-native-home::after{content:"";display:block;height:1px}
 @media(max-width:420px){.mobile-native-home{padding-left:10px!important;padding-right:10px!important}.mobile-offer-card{padding:8px!important;min-height:88px!important;height:88px!important}.mobile-offer-card strong{font-size:11px!important}.mobile-offer-card p{font-size:7.5px!important}.mobile-restro-card{height:96px!important;min-height:96px!important;grid-template-columns:60px minmax(0,1fr)!important}.mobile-restro-card .restro-image-wrapper{width:60px!important;height:78px!important}.mobile-restro-card .restro-image-wrapper img{width:60px!important;height:78px!important}.mobile-restro-card .restro-rating-badge{left:4px!important;top:4px!important;max-width:calc(100% - 8px)!important;font-size:8px!important}.mobile-restro-title-row h3{font-size:12px!important}.mobile-restro-station,.mobile-restro-minorder{font-size:8.5px!important}.mobile-restro-viewmenu{font-size:7.5px!important;padding:5px 10px!important}}
 @media(min-width:641px){.mobile-native-home{padding-left:14px;padding-right:14px}.mobile-category-pill{flex-basis:72px!important;width:72px!important;min-width:72px!important}.mobile-category-pill img{width:62px!important;height:62px!important}.mobile-category-pill strong{font-size:10px!important}.mobile-offer-card{min-height:110px!important;height:110px!important}}
+
+/* ================= BALANCED MOBILE SIZE (10–15%) =================
+   Homepage only. Keeps the existing compact RailEats/Zomato-style density,
+   but improves readability and touch targets without enlarging the whole page. */
+@media(max-width:767px){
+  .home-app-shell .mobile-home-hero{gap:13px}
+  .home-app-shell .mobile-search-shell .searchbox-card{padding:13px!important;border-radius:18px!important}
+  .home-app-shell .mobile-search-shell .searchbox-heading h2{font-size:19px!important}
+  .home-app-shell .mobile-search-shell .searchbox-heading p{font-size:11px!important}
+  .home-app-shell .mobile-search-shell .searchbox-tabs button{min-height:42px!important;height:42px!important;font-size:12px!important}
+  .home-app-shell .mobile-search-shell .searchbox-input,.home-app-shell .mobile-search-shell .searchbox-field-wrap input,.home-app-shell .mobile-search-shell .searchbox-field-wrap button{min-height:48px!important;height:48px!important;font-size:13px!important}
+  .home-app-shell .mobile-search-shell .searchbox-submit{min-height:50px!important;height:50px!important;font-size:14px!important}
+
+  .home-app-shell .mobile-category-section{margin-top:13px}
+  .home-app-shell .mobile-section-head{margin-bottom:9px}
+  .home-app-shell .mobile-section-head h2{font-size:16.5px!important}
+  .home-app-shell .mobile-section-head span,.home-app-shell .mobile-section-head a{font-size:11px!important}
+  .home-app-shell .mobile-category-row{gap:13px!important;padding-bottom:7px!important}
+  .home-app-shell .mobile-category-pill{flex:0 0 64px!important;width:64px!important;min-width:64px!important;gap:6px!important}
+  .home-app-shell .mobile-category-pill img{width:56px!important;height:56px!important}
+  .home-app-shell .mobile-category-pill strong{font-size:10px!important}
+
+  .home-app-shell .mobile-offer-rail{gap:9px!important;margin-top:11px!important}
+  .home-app-shell .mobile-offer-card{min-height:104px!important;height:104px!important;padding:11px!important;border-radius:14px!important;gap:5px!important}
+  .home-app-shell .mobile-offer-card span{font-size:7.5px!important;padding:4px 7px!important}
+  .home-app-shell .mobile-offer-card strong{font-size:13px!important}
+  .home-app-shell .mobile-offer-card p{font-size:9px!important}
+
+  .home-app-shell .mobile-restro-section{margin-top:15px}
+  .home-app-shell .mobile-restro-list{gap:10px!important;padding-bottom:5px!important}
+  .home-app-shell .mobile-restro-card{height:116px!important;min-height:116px!important;grid-template-columns:80px minmax(0,1fr)!important;gap:10px!important;padding:9px!important;border-radius:14px!important}
+  .home-app-shell .mobile-restro-card .restro-image-wrapper{width:80px!important;height:96px!important;min-width:80px!important;border-radius:10px!important}
+  .home-app-shell .mobile-restro-card .restro-image-wrapper img{width:80px!important;height:96px!important;border-radius:10px!important}
+  .home-app-shell .mobile-restro-card .restro-rating-badge{left:5px!important;top:5px!important;font-size:9px!important}
+  .home-app-shell .mobile-restro-copy{gap:5px!important}
+  .home-app-shell .mobile-restro-title-row h3{font-size:14px!important}
+  .home-app-shell .mobile-restro-station,.home-app-shell .mobile-restro-minorder{font-size:10px!important}
+  .home-app-shell .mobile-restro-viewmenu{margin-top:4px!important;padding:7px 12px!important;font-size:9px!important}
+}
+
+@media(max-width:420px){
+  .home-app-shell .mobile-category-pill{flex-basis:62px!important;width:62px!important;min-width:62px!important}
+  .home-app-shell .mobile-category-pill img{width:54px!important;height:54px!important}
+  .home-app-shell .mobile-offer-card{min-height:100px!important;height:100px!important}
+  .home-app-shell .mobile-restro-card{height:108px!important;min-height:108px!important;grid-template-columns:74px minmax(0,1fr)!important}
+  .home-app-shell .mobile-restro-card .restro-image-wrapper{width:74px!important;height:90px!important;min-width:74px!important}
+  .home-app-shell .mobile-restro-card .restro-image-wrapper img{width:74px!important;height:90px!important}
+}
