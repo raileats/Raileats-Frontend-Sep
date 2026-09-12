@@ -1,3 +1,4 @@
+```tsx
 import React from "react";
 import Link from "next/link";
 import Image from "next/image";
@@ -249,8 +250,13 @@ function restaurantName(row: any) {
   return String(row?.RestroName || row?.RestaurantName || "Restaurant").trim();
 }
 
-function restaurantHref(slug: string, row: any) {
-  return `/stations/${slug}/${slugify(restaurantName(row))}-${row.RestroCode}`;
+function restaurantHref(slug: string, row: any, stationCode?: string, stationName?: string) {
+  const restroSlug = `${slugify(restaurantName(row))}-${row.RestroCode}`;
+  if (stationCode) {
+    const sName = stationName || stationCode;
+    return `/stations/${slug}/${restroSlug}?stationCode=${encodeURIComponent(stationCode)}&stationName=${encodeURIComponent(sName)}`;
+  }
+  return `/stations/${slug}/${restroSlug}`;
 }
 
 function sortRestaurants(restros: any[]) {
@@ -583,16 +589,7 @@ export async function generateMetadata({
       ? await getStationNameByCode(stationBase.code, stationBase.name)
       : stationBase.name);
 
-  /*
-    IMPORTANT:
-    Restaurant list Admin API se aa rahi hai.
-    Admin API expired/inactive FSSAI restaurants ko pehle hi remove karti hai.
-  */
   const activeRestros = sortRestaurants(stationApi.restaurants || []);
-  // Keep valid stations indexable during temporary Admin API failures, but do
-  // not advertise an empty station page as indexable when the restaurant API
-  // successfully confirms that no eligible restaurants are available. This
-  // keeps station indexability aligned with the sitemap's eligible inventory.
   const shouldIndex =
     stationIndexStatus.exists &&
     (Boolean(stationApi.error) || activeRestros.length > 0);
@@ -656,13 +653,6 @@ export default async function Page({ params }: { params: { slug: string } }) {
   const stationBase = parseStationFromSlug(params.slug);
   const nowIso = new Date().toISOString();
 
-  /*
-    Direct RestroMaster query hata di gayi hai.
-    Ab list Admin API se aayegi, jahan:
-    - RaileatsStatus active check hota hai
-    - FSSAI active check hota hai
-    - FSSAI expiry date check hoti hai
-  */
   const [stationApi, stationIndexStatus] = await Promise.all([
     fetchStationRestaurants(stationBase.code),
     getStationIndexStatus(stationBase.code),
@@ -738,8 +728,8 @@ export default async function Page({ params }: { params: { slug: string } }) {
     .slice(0, 6);
 
   const restaurantList = activeRestros.map((r: any, index: number) => {
-    const restaurantName = String(r.RestroName || "Restaurant").trim();
-    const restaurantUrl = normalizeAbsoluteUrl(`${siteUrl}${restaurantHref(params.slug, r)}`);
+    const rName = String(r.RestroName || "Restaurant").trim();
+    const restaurantUrl = normalizeAbsoluteUrl(`${siteUrl}${restaurantHref(params.slug, r, stationBase.code, stationName)}`);
 
     return {
       "@type": "ListItem",
@@ -747,7 +737,7 @@ export default async function Page({ params }: { params: { slug: string } }) {
       item: {
         "@type": "Restaurant",
         "@id": `${restaurantUrl}#restaurant`,
-        name: restaurantName,
+        name: rName,
         image: absoluteImage(restroImage(r)),
         url: restaurantUrl,
         servesCuisine: extractSeoTerms([r]),
@@ -849,14 +839,14 @@ export default async function Page({ params }: { params: { slug: string } }) {
       itemListElement: restaurantList,
     },
     ...activeRestros.slice(0, 12).map((r: any) => {
-      const restaurantName = String(r.RestroName || "Restaurant").trim();
-      const restaurantUrl = normalizeAbsoluteUrl(`${siteUrl}${restaurantHref(params.slug, r)}`);
+      const rName = String(r.RestroName || "Restaurant").trim();
+      const restaurantUrl = normalizeAbsoluteUrl(`${siteUrl}${restaurantHref(params.slug, r, stationBase.code, stationName)}`);
 
       return {
         "@context": "https://schema.org",
         "@type": "Restaurant",
         "@id": `${restaurantUrl}#restaurant`,
-        name: restaurantName,
+        name: rName,
         image: absoluteImage(restroImage(r)),
         url: restaurantUrl,
         servesCuisine: extractSeoTerms([r]),
@@ -1007,21 +997,21 @@ export default async function Page({ params }: { params: { slug: string } }) {
           ) : (
             <div className="mt-3 grid gap-3">
               {activeRestros.map((r: any) => {
-                const restaurantName = String(
+                const rName = String(
                   r.RestroName || "Restaurant"
                 ).trim();
-                const href = `${restaurantHref(params.slug, r)}?mode=station`;
+                const restaurantUrlLink = restaurantHref(params.slug, r, stationBase.code, stationName);
 
                 return (
                   <article
                     key={r.RestroCode}
                     className="rounded-[20px] border border-slate-200 bg-white p-4 shadow-sm"
-                    aria-label={`${restaurantName} food delivery at ${stationName}`}
+                    aria-label={`${rName} food delivery at ${stationName}`}
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0 flex-1">
                         <h3 className="text-[16px] font-black leading-5 tracking-[-0.2px] text-slate-900">
-                          {restaurantName}
+                          {rName}
                         </h3>
 
                         <p className="mt-2 text-[13px] font-bold leading-5 text-slate-600">
@@ -1032,29 +1022,14 @@ export default async function Page({ params }: { params: { slug: string } }) {
                           {stationName} ({stationBase.code})
                         </p>
 
-                        <p className="mt-1.5 text-[12px] font-semibold text-slate-500">
-                          Rating: {safeRating(r.RestroRating)}
-                        </p>
-                      </div>
-
-                      <div className="flex w-[108px] shrink-0 flex-col items-center gap-2">
-                        <div className="h-[86px] w-[86px] overflow-hidden rounded-2xl border border-slate-200 bg-slate-100">
-                          <Image
-                            src={restroImage(r)}
-                            unoptimized={restroImage(r).startsWith("http")}
-                            alt={`${restaurantName} food for train travellers at ${stationName}`}
-                            title={`${restaurantName} at ${stationName} Railway Station`}
-                            className="h-full w-full object-cover"
-                          />
+                        <div className="mt-4 flex items-center gap-3">
+                          <Link
+                            href={restaurantUrlLink}
+                            className="inline-flex items-center justify-center rounded-xl bg-orange-500 px-4 py-2 text-xs font-black text-white shadow-sm transition hover:bg-orange-600"
+                          >
+                            Order Now
+                          </Link>
                         </div>
-
-                        <Link
-                          href={href}
-                          className="w-full rounded-xl bg-orange-500 px-3 py-2 text-center text-xs font-black text-white shadow-sm"
-                          aria-label={`View menu of ${restaurantName} at ${stationName}`}
-                        >
-                          View Menu
-                        </Link>
                       </div>
                     </div>
                   </article>
@@ -1063,56 +1038,9 @@ export default async function Page({ params }: { params: { slug: string } }) {
             </div>
           )}
         </section>
-
-        <section className="mt-5 rounded-[18px] border border-slate-200 bg-white p-4 shadow-sm">
-          <h2 className="text-lg font-bold text-slate-900">
-            Food Delivery at {stationName} ({stationBase.code})
-          </h2>
-          <p className="mt-2 text-sm leading-6 text-slate-600">
-            RailEats helps train travellers order meals from available
-            restaurants serving {stationName} Railway Station. Restaurant
-            availability, menus and delivery timing can change, so confirm the
-            options shown for your journey before ordering.
-          </p>
-        </section>
-
-        <section className="mt-5 rounded-[18px] border border-slate-200 bg-white p-4 shadow-sm">
-          <h2 className="text-lg font-bold text-slate-900">
-            Frequently Asked Questions
-          </h2>
-          <div className="mt-3 space-y-3">
-            {faqs.map((faq) => (
-              <details key={faq.question} className="rounded-xl border border-slate-200 p-3">
-                <summary className="cursor-pointer text-sm font-bold text-slate-900">
-                  {faq.question}
-                </summary>
-                <p className="mt-2 text-sm leading-6 text-slate-600">
-                  {faq.answer}
-                </p>
-              </details>
-            ))}
-          </div>
-        </section>
-
-        {relatedStations.length > 0 ? (
-          <section className="mt-5 rounded-[18px] border border-slate-200 bg-white p-4 shadow-sm">
-            <h2 className="text-lg font-bold text-slate-900">
-              Nearby Food Delivery Stations
-            </h2>
-            <div className="mt-3 grid grid-cols-2 gap-2">
-              {relatedStations.map((station) => (
-                <Link
-                  key={station.code}
-                  href={`/stations/${station.slug}`}
-                  className="rounded-xl border border-slate-200 p-3 text-sm font-bold text-slate-700 hover:border-orange-300"
-                >
-                  {station.name} ({station.code})
-                </Link>
-              ))}
-            </div>
-          </section>
-        ) : null}
       </main>
     </>
   );
 }
+
+```
