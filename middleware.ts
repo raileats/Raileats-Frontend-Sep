@@ -40,7 +40,7 @@ export function middleware(request: NextRequest) {
         `/stations/${stationSlug}-food-delivery-in-train${remainingPath}`;
     }
 
-    return NextResponse.redirect(redirectUrl, 308);
+    return NextResponse.redirect(redirectUrl, 301);
   }
 
   // Preserve the existing station URL migration for any non-old-domain
@@ -57,7 +57,7 @@ export function middleware(request: NextRequest) {
     redirectUrl.pathname =
       `/stations/${stationSlug}-food-delivery-in-train${remainingPath}`;
 
-    return NextResponse.redirect(redirectUrl, 308);
+    return NextResponse.redirect(redirectUrl, 301);
   }
 
   if (!pathname.startsWith("/stations/")) {
